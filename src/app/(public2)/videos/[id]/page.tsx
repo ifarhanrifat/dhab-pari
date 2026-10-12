@@ -30,7 +30,7 @@ export default async function VideoDetailPage({
     <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10">
       <Link
         href="/videos"
-        className="inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline mb-8"
+        className="inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[15px] font-semibold tracking-[0.05em] hover:underline mb-8"
       >
         <ArrowLeft size={16} />
         <T k="x.backToVideos" />
@@ -47,26 +47,26 @@ export default async function VideoDetailPage({
             what actually flips; the rest is direction/label-level only. */}
         <LocaleDir className="mt-6">
           {video.category && (
-            <span className="inline-flex items-center gap-1 bg-dp2-primary-dark text-emerald-100 px-3 py-1 rounded-full text-[12px] font-bold font-sans uppercase mb-3">
+            <span className="inline-flex items-center gap-1 bg-dp2-primary-dark text-emerald-100 px-3 py-1 rounded-full text-[13px] font-bold font-sans uppercase mb-3">
               <Tag size={12} />
               {video.category}
             </span>
           )}
 
-          <h1 className="font-heading text-[28px] md:text-[32px] font-bold leading-[36px] md:leading-[40px] text-dp2-primary mb-2">
+          <h1 className="font-heading text-[21px] md:text-[23px] font-bold leading-[26px] md:leading-[28px] text-dp2-primary mb-2">
             {video.title}
           </h1>
 
           {video.title_ur && (
             <p
-              className="text-slate-500 text-[20px] mb-4"
+              className="text-slate-500 text-[21px] mb-4"
               style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
             >
               {video.title_ur}
             </p>
           )}
 
-          <div className="flex items-center gap-4 text-slate-500 text-[14px] font-sans font-semibold tracking-[0.05em] mb-6 pb-6 border-b border-dp2-card-border">
+          <div className="flex items-center gap-4 text-slate-500 text-[15px] font-sans font-semibold tracking-[0.05em] mb-6 pb-6 border-b border-dp2-card-border">
             <span className="flex items-center gap-1">
               <Eye size={14} />
               <span className="ltr-num">{video.views.toLocaleString()}</span> <T k="x.views" />
@@ -78,7 +78,7 @@ export default async function VideoDetailPage({
           </div>
 
           {video.description && (
-            <p className="font-sans text-[18px] leading-[28px] text-slate-500">
+            <p className="font-sans text-[19px] leading-[20px] text-slate-500">
               {video.description}
             </p>
           )}

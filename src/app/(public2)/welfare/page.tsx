@@ -78,21 +78,21 @@ export default function WelfarePage() {
     // ZakatCalculator (checked), so safe to flip as a whole.
     <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[44px] text-dp2-primary">{t('wf.title')}</h1>
-        <p className="font-sans text-[15.5px] text-slate-500 mt-2.5 leading-relaxed max-w-2xl">{t('wf.blurb')}</p>
+        <h1 className="font-heading text-[23px] font-bold leading-[28px] text-dp2-primary">{t('wf.title')}</h1>
+        <p className="font-sans text-[16.5px] text-slate-500 mt-2.5 leading-relaxed max-w-2xl">{t('wf.blurb')}</p>
       </div>
 
       {/* ── The promise that makes the rest possible ────────────────────── */}
-      <div className="bg-dp2-primary-dark/10 border border-dp2-card-border rounded-lg p-5 mb-10">
+      <div className="bg-dp2-primary-dark/10 border border-dp2-card-border rounded-xl p-5 mb-10">
         <div className="flex items-start gap-3">
           <ShieldCheck size={22} className="text-dp2-primary-dark shrink-0 mt-0.5" />
           <div>
-            <h2 className="font-heading text-[19px] font-bold text-dp2-primary mb-1.5">{t('wf.privacy.title')}</h2>
-            <p className="font-sans text-[14px] text-slate-800 leading-relaxed"
+            <h2 className="font-heading text-[20px] font-bold text-dp2-primary mb-1.5">{t('wf.privacy.title')}</h2>
+            <p className="font-sans text-[15px] text-slate-800 leading-relaxed"
               style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }}>
               {t('wf.privacy.urdu')}
             </p>
-            <p className="font-sans text-[13.5px] text-slate-500 leading-relaxed mt-2">{t('wf.privacy.english')}</p>
+            <p className="font-sans text-[14.5px] text-slate-500 leading-relaxed mt-2">{t('wf.privacy.english')}</p>
           </div>
         </div>
       </div>
@@ -102,7 +102,7 @@ export default function WelfarePage() {
         {modules.map((m) => (
           // Anchored — committee notes and other pages link straight to a
           // specific module (e.g. /welfare#kafalat) via src/lib/siteFeatureLinks.ts.
-          <div key={m.key} id={m.key} className="bg-white border border-dp2-card-border rounded-lg overflow-hidden scroll-mt-24">
+          <div key={m.key} id={m.key} className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden scroll-mt-24">
             <div className="px-6 py-5 border-b border-dp2-card-border">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
@@ -110,11 +110,11 @@ export default function WelfarePage() {
                     <m.icon size={21} />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="font-heading text-[23px] font-bold text-dp2-primary leading-tight">{m.title}</h2>
-                    <p className="font-sans text-[14px] text-slate-500 mt-1 leading-relaxed">{m.lead}</p>
+                    <h2 className="font-heading text-[24px] font-bold text-dp2-primary leading-tight">{m.title}</h2>
+                    <p className="font-sans text-[15px] text-slate-500 mt-1 leading-relaxed">{m.lead}</p>
                   </div>
                 </div>
-                <span className="shrink-0 px-3 py-1.5 rounded-full bg-dp2-surface font-sans text-[12.5px] font-semibold text-slate-800">
+                <span className="shrink-0 px-3 py-1.5 rounded-full bg-dp2-surface font-sans text-[13.5px] font-semibold text-slate-800">
                   {m.stat}
                 </span>
               </div>
@@ -122,30 +122,30 @@ export default function WelfarePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-dp2-card-border">
               <div className="px-6 py-5">
-                <h3 className="font-sans text-[12px] font-bold uppercase tracking-[0.08em] text-dp2-card-border mb-2">{t('wf.ifYouNeed')}</h3>
-                <p className="font-sans text-[13.5px] text-slate-800 leading-relaxed">{m.forNeedy}</p>
+                <h3 className="font-sans text-[13px] font-bold uppercase tracking-[0.08em] text-dp2-card-border mb-2">{t('wf.ifYouNeed')}</h3>
+                <p className="font-sans text-[14.5px] text-slate-800 leading-relaxed">{m.forNeedy}</p>
               </div>
               <div className="px-6 py-5">
-                <h3 className="font-sans text-[12px] font-bold uppercase tracking-[0.08em] text-dp2-card-border mb-2">{t('wf.ifYouGive')}</h3>
-                <p className="font-sans text-[13.5px] text-slate-800 leading-relaxed">{m.forGiver}</p>
+                <h3 className="font-sans text-[13px] font-bold uppercase tracking-[0.08em] text-dp2-card-border mb-2">{t('wf.ifYouGive')}</h3>
+                <p className="font-sans text-[14.5px] text-slate-800 leading-relaxed">{m.forGiver}</p>
               </div>
             </div>
 
             <div className="px-6 py-5 border-t border-dp2-card-border bg-dp2-surface/50">
-              <h3 className="font-sans text-[12px] font-bold uppercase tracking-[0.08em] text-dp2-card-border mb-3">{t('wf.howItWorks')}</h3>
+              <h3 className="font-sans text-[13px] font-bold uppercase tracking-[0.08em] text-dp2-card-border mb-3">{t('wf.howItWorks')}</h3>
               <ol className="space-y-2">
                 {m.steps.map((s, i) => (
                   <li key={i} className="flex items-start gap-2.5">
-                    <span className="shrink-0 w-5 h-5 rounded-full bg-dp2-primary-dark text-white flex items-center justify-center font-sans text-[11px] font-bold mt-0.5">
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-dp2-primary-dark text-white flex items-center justify-center font-sans text-[12px] font-bold mt-0.5">
                       {i + 1}
                     </span>
-                    <span className="font-sans text-[13.5px] text-slate-800 leading-relaxed">{s}</span>
+                    <span className="font-sans text-[14.5px] text-slate-800 leading-relaxed">{s}</span>
                   </li>
                 ))}
               </ol>
 
               <Link href={m.href}
-                className="inline-flex items-center gap-1.5 mt-4 px-4 py-2.5 bg-dp2-primary-dark text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp2-primary transition-all">
+                className="inline-flex items-center gap-1.5 mt-4 px-4 py-2.5 bg-dp2-primary-dark text-white rounded-xl font-sans text-[14.5px] font-semibold hover:bg-dp2-primary transition-all">
                 {t('wf.open')} <ArrowRight size={15} />
               </Link>
             </div>
@@ -155,26 +155,26 @@ export default function WelfarePage() {
 
       {/* ── Calculator ──────────────────────────────────────────────────── */}
       <div className="mb-10">
-        <h2 className="font-heading text-[26px] font-bold text-dp2-primary mb-2">{t('wf.calculator.title')}</h2>
-        <p className="font-sans text-[14px] text-slate-500 mb-5 max-w-2xl leading-relaxed">{t('wf.calculator.blurb')}</p>
+        <h2 className="font-heading text-[27px] font-bold text-dp2-primary mb-2">{t('wf.calculator.title')}</h2>
+        <p className="font-sans text-[15px] text-slate-500 mb-5 max-w-2xl leading-relaxed">{t('wf.calculator.blurb')}</p>
         <ZakatCalculator />
       </div>
 
       {/* ── How to apply ────────────────────────────────────────────────── */}
-      <div className="bg-white border border-dp2-card-border rounded-lg p-6">
-        <h2 className="font-heading text-[22px] font-bold text-dp2-primary mb-3">{t('wf.apply.title')}</h2>
-        <p className="font-sans text-[14px] text-slate-800 leading-relaxed mb-3"
+      <div className="bg-white border border-dp2-card-border rounded-2xl p-6">
+        <h2 className="font-heading text-[23px] font-bold text-dp2-primary mb-3">{t('wf.apply.title')}</h2>
+        <p className="font-sans text-[15px] text-slate-800 leading-relaxed mb-3"
           style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }}>
           {t('wf.apply.urdu')}
         </p>
-        <p className="font-sans text-[13.5px] text-slate-500 leading-relaxed mb-4">{t('wf.apply.english')}</p>
+        <p className="font-sans text-[14.5px] text-slate-500 leading-relaxed mb-4">{t('wf.apply.english')}</p>
         <div className="flex flex-wrap gap-2">
           <Link href="/portal/login"
-            className="px-4 py-2.5 bg-dp2-primary-dark text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp2-primary transition-all">
+            className="px-4 py-2.5 bg-dp2-primary-dark text-white rounded-xl font-sans text-[14.5px] font-semibold hover:bg-dp2-primary transition-all">
             {t('wf.apply.signIn')}
           </Link>
           <Link href="/contact"
-            className="px-4 py-2.5 border border-dp2-card-border text-slate-800 rounded-lg font-sans text-[13.5px] font-semibold hover:border-dp2-primary-dark transition-all">
+            className="px-4 py-2.5 border border-dp2-card-border text-slate-800 rounded-xl font-sans text-[14.5px] font-semibold hover:border-dp2-primary-dark transition-all">
             {t('wf.apply.contact')}
           </Link>
         </div>

@@ -39,62 +39,62 @@ export default function AgricultureSchemesPage() {
 
   return (
     <div className="max-w-[900px] mx-auto px-6 md:px-12 py-10" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-      <Link href="/agriculture" className="inline-flex items-center gap-1.5 font-sans text-[13px] text-dp2-primary-dark hover:underline mb-4"><ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('ag.pageTitle')}</Link>
+      <Link href="/agriculture" className="inline-flex items-center gap-1.5 font-sans text-[14px] text-dp2-primary-dark hover:underline mb-4"><ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('ag.pageTitle')}</Link>
       <div className="flex items-center gap-2.5 mb-1.5">
         <Landmark size={26} className="text-dp2-primary" />
-        <h1 className="font-heading text-[28px] font-bold text-dp2-primary">{t('agh.schemesTitle')}</h1>
+        <h1 className="font-heading text-[21px] font-bold text-dp2-primary">{t('agh.schemesTitle')}</h1>
       </div>
-      <p className="font-sans text-[14px] text-slate-500 mb-6">{t('agh.schemesIntro')}</p>
+      <p className="font-sans text-[15px] text-slate-500 mb-6">{t('agh.schemesIntro')}</p>
 
       <div className="flex flex-wrap gap-2 mb-6">
-        <button onClick={() => setStatusFilter(null)} className={`px-4 py-1.5 rounded-full font-sans text-[13px] font-semibold cursor-pointer transition-all ${!statusFilter ? 'bg-dp2-primary text-white' : 'bg-white border border-dp2-card-border text-slate-500 hover:border-dp2-primary'}`}>{t('agh.allCrops')}</button>
+        <button onClick={() => setStatusFilter(null)} className={`px-4 py-1.5 rounded-full font-sans text-[14px] font-semibold cursor-pointer transition-all ${!statusFilter ? 'bg-dp2-primary text-white' : 'bg-white border border-dp2-card-border text-slate-500 hover:border-dp2-primary'}`}>{t('agh.allCrops')}</button>
         {['open', 'upcoming', 'closed'].map((s) => (
-          <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-1.5 rounded-full font-sans text-[13px] font-semibold cursor-pointer transition-all ${statusFilter === s ? 'bg-dp2-primary text-white' : 'bg-white border border-dp2-card-border text-slate-500 hover:border-dp2-primary'}`}>{t(`agh.status.${s}`)}</button>
+          <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-1.5 rounded-full font-sans text-[14px] font-semibold cursor-pointer transition-all ${statusFilter === s ? 'bg-dp2-primary text-white' : 'bg-white border border-dp2-card-border text-slate-500 hover:border-dp2-primary'}`}>{t(`agh.status.${s}`)}</button>
         ))}
       </div>
 
       {loading ? (
         <div className="text-center py-12 text-slate-500"><LoadingDots /></div>
       ) : filtered.length === 0 ? (
-        <p className="text-center py-16 text-slate-500 font-sans text-[14px] bg-white border border-dp2-card-border rounded-lg">{t('agh.noneFound')}</p>
+        <p className="text-center py-16 text-slate-500 font-sans text-[15px] bg-white border border-dp2-card-border rounded-2xl">{t('agh.noneFound')}</p>
       ) : (
         <div className="space-y-4">
           {filtered.map((s) => (
-            <div key={s.id} className="bg-white border border-dp2-card-border rounded-lg p-5">
+            <div key={s.id} className="bg-white border border-dp2-card-border rounded-2xl p-5">
               <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full uppercase ${STATUS_STYLE[s.status]}`}>{t(`agh.status.${s.status}`)}</span>
-                {s.deadline && <span className="font-sans text-[12px] text-slate-500">{t('agh.deadline')}: <span className="ltr-num">{s.deadline}</span></span>}
+                <span className={`text-[11.5px] font-bold px-2 py-0.5 rounded-full uppercase ${STATUS_STYLE[s.status]}`}>{t(`agh.status.${s.status}`)}</span>
+                {s.deadline && <span className="font-sans text-[13px] text-slate-500">{t('agh.deadline')}: <span className="ltr-num">{s.deadline}</span></span>}
               </div>
-              <h3 className="font-heading text-[18px] font-bold text-slate-800 mb-1.5">{isUrdu ? s.title_ur : s.title}</h3>
-              {(isUrdu ? s.description_ur : s.description) && <p className="font-sans text-[14px] text-slate-500 leading-relaxed mb-3">{isUrdu ? s.description_ur : s.description}</p>}
+              <h3 className="font-heading text-[19px] font-bold text-slate-800 mb-1.5">{isUrdu ? s.title_ur : s.title}</h3>
+              {(isUrdu ? s.description_ur : s.description) && <p className="font-sans text-[15px] text-slate-500 leading-relaxed mb-3">{isUrdu ? s.description_ur : s.description}</p>}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mb-3">
                 {s.amount && (
                   <div>
-                    <p className="font-sans text-[11.5px] font-bold text-slate-500 uppercase tracking-wide">{t('agh.amount')}</p>
-                    <p className="font-sans text-[13.5px] text-slate-800">{s.amount}</p>
+                    <p className="font-sans text-[12.5px] font-bold text-slate-500 uppercase tracking-wide">{t('agh.amount')}</p>
+                    <p className="font-sans text-[14.5px] text-slate-800">{s.amount}</p>
                   </div>
                 )}
                 {s.districts && (
                   <div>
-                    <p className="font-sans text-[11.5px] font-bold text-slate-500 uppercase tracking-wide">{t('agh.districts')}</p>
-                    <p className="font-sans text-[13.5px] text-slate-800">{s.districts}</p>
+                    <p className="font-sans text-[12.5px] font-bold text-slate-500 uppercase tracking-wide">{t('agh.districts')}</p>
+                    <p className="font-sans text-[14.5px] text-slate-800">{s.districts}</p>
                   </div>
                 )}
                 {(isUrdu ? s.eligibility_ur : s.eligibility) && (
                   <div className="sm:col-span-2">
-                    <p className="font-sans text-[11.5px] font-bold text-slate-500 uppercase tracking-wide">{isUrdu ? t('agh.eligibilityUr') : t('agh.eligibilityEn')}</p>
-                    <p className="font-sans text-[13.5px] text-slate-800">{isUrdu ? s.eligibility_ur : s.eligibility}</p>
+                    <p className="font-sans text-[12.5px] font-bold text-slate-500 uppercase tracking-wide">{isUrdu ? t('agh.eligibilityUr') : t('agh.eligibilityEn')}</p>
+                    <p className="font-sans text-[14.5px] text-slate-800">{isUrdu ? s.eligibility_ur : s.eligibility}</p>
                   </div>
                 )}
               </div>
 
               <div className="flex items-center justify-between gap-3 flex-wrap pt-3 border-t border-dp2-card-border">
-                <span className="flex items-center gap-1.5 font-sans text-[11.5px] text-slate-500">
+                <span className="flex items-center gap-1.5 font-sans text-[12.5px] text-slate-500">
                   <ShieldCheck size={13} className="text-emerald-600" /> {t('agh.lastVerified')}: <span className="ltr-num">{s.last_verified_at}</span>
                 </span>
                 {s.official_url && (
-                  <a href={s.official_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-dp2-primary-dark hover:underline">
+                  <a href={s.official_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 font-sans text-[13.5px] font-semibold text-dp2-primary-dark hover:underline">
                     {t('agh.officialSource')} <ExternalLink size={12} />
                   </a>
                 )}

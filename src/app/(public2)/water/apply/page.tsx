@@ -111,7 +111,7 @@ export default function WaterApplyPage() {
         {/* Back */}
         <Link
           href="/water"
-          className={`inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline mb-8 ${isUrdu ? 'flex-row-reverse' : ''}`}
+          className={`inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[15px] font-semibold tracking-[0.05em] hover:underline mb-8 ${isUrdu ? 'flex-row-reverse' : ''}`}
         >
           <ArrowLeft size={16} className={isUrdu ? 'rotate-180' : ''} />
           {dt('back')}
@@ -122,27 +122,27 @@ export default function WaterApplyPage() {
           <div className="inline-flex items-center justify-center p-3 bg-dp2-primary-dark rounded-full text-emerald-100 mb-4">
             <Droplets size={32} />
           </div>
-          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp2-primary mb-2">
+          <h1 className="font-heading text-[23px] font-bold leading-[28px] text-dp2-primary mb-2">
             {dt('title')}
           </h1>
-          <p className="text-slate-500 font-sans text-[16px]" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
+          <p className="text-slate-500 font-sans text-[17px]" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
             {dt('subtitle')}
           </p>
         </div>
 
         {/* Success */}
         {submitted && (
-          <div className="bg-white border border-dp2-card-border rounded-lg p-12 text-center">
+          <div className="bg-white border border-dp2-card-border rounded-2xl p-12 text-center">
             <CheckCircle size={48} className="text-dp2-primary-dark mx-auto mb-4" />
-            <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp2-primary mb-2">
+            <h2 className="font-heading text-[19px] font-bold leading-[24px] text-dp2-primary mb-2">
               {dt('submittedTitle')}
             </h2>
-            <p className="text-slate-500 font-sans text-[16px] mb-6" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
+            <p className="text-slate-500 font-sans text-[17px] mb-6" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
               {dt('submittedBody')}
             </p>
             <Link
               href="/water"
-              className="inline-block bg-dp2-primary-dark text-white px-8 py-3 rounded-lg font-sans font-semibold hover:bg-dp2-primary transition-all"
+              className="inline-block bg-dp2-primary-dark text-white px-8 py-3 rounded-xl font-sans font-semibold hover:bg-dp2-primary transition-all"
             >
               {dt('back')}
             </Link>
@@ -151,11 +151,11 @@ export default function WaterApplyPage() {
 
         {/* Form */}
         {!submitted && (
-          <div className="bg-white border border-dp2-card-border rounded-lg p-6 md:p-8">
+          <div className="bg-white border border-dp2-card-border rounded-2xl p-6 md:p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
                     {dt('name')} *
                   </label>
                   <input
@@ -164,11 +164,11 @@ export default function WaterApplyPage() {
                     value={form.name}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]"
                   />
                 </div>
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
                     {dt('fatherName')}
                   </label>
                   <input
@@ -176,14 +176,14 @@ export default function WaterApplyPage() {
                     name="fatherName"
                     value={form.fatherName}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
                     {dt('mobile')} *
                   </label>
                   <input
@@ -193,12 +193,12 @@ export default function WaterApplyPage() {
                     onChange={handleChange}
                     required
                     placeholder="0300-1234567"
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]"
                     style={{ direction: 'ltr', textAlign: isUrdu ? 'right' : 'left' }}
                   />
                 </div>
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
                     {dt('cnic')}
                   </label>
                   <input
@@ -207,14 +207,14 @@ export default function WaterApplyPage() {
                     value={form.cnic}
                     onChange={handleChange}
                     placeholder="xxxxx-xxxxxxx-x"
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]"
                     style={{ direction: 'ltr', textAlign: isUrdu ? 'right' : 'left' }}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
+                <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
                   {dt('address')} *
                 </label>
                 <textarea
@@ -224,20 +224,20 @@ export default function WaterApplyPage() {
                   required
                   rows={3}
                   placeholder={dt('addressPlaceholder')}
-                  className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px] resize-none"
+                  className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px] resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
                     {dt('sector')}
                   </label>
                   <select
                     name="sector"
                     value={form.sector}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]"
                   >
                     <option value="">{dt('selectSector')}</option>
                     <option value="Sector A">Sector A</option>
@@ -246,14 +246,14 @@ export default function WaterApplyPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
                     {dt('connectionType')}
                   </label>
                   <select
                     name="connectionType"
                     value={form.connectionType}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]"
                   >
                     <option value="residential">{dt('residential')}</option>
                     <option value="commercial">{dt('commercial')}</option>
@@ -262,7 +262,7 @@ export default function WaterApplyPage() {
               </div>
 
               {error && (
-                <div className="bg-red-100 text-red-800 px-4 py-3 rounded-lg font-sans text-[14px]">
+                <div className="bg-red-100 text-red-800 px-4 py-3 rounded-xl font-sans text-[15px]">
                   {error}
                 </div>
               )}
@@ -270,7 +270,7 @@ export default function WaterApplyPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-dp2-primary-dark text-white py-4 rounded-lg font-sans text-[18px] font-semibold hover:bg-dp2-primary transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer"
+                className="w-full bg-dp2-primary-dark text-white py-4 rounded-xl font-sans text-[19px] font-semibold hover:bg-dp2-primary transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer"
               >
                 {loading ? dt('submitting') : dt('submit')}
               </button>

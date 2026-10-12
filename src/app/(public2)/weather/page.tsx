@@ -112,27 +112,27 @@ export default function WeatherPage() {
     <div className="max-w-[900px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="flex items-center gap-2.5 mb-1.5">
         <Sun size={26} className="text-amber-500" />
-        <h1 className="font-heading text-[28px] font-bold text-dp2-primary">{t('wx.pageTitle')}</h1>
+        <h1 className="font-heading text-[21px] font-bold text-dp2-primary">{t('wx.pageTitle')}</h1>
       </div>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-8">
-        <p className="font-sans text-[13px] text-slate-500 flex items-center gap-1.5">
+        <p className="font-sans text-[14px] text-slate-500 flex items-center gap-1.5">
           <MapPin size={13} /> {coords.isVillage ? t('wx.villageDefault') : t('wx.yourLocation')}
         </p>
         <button onClick={useMyLocation} disabled={locating}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-dp2-primary-dark text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-60">
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-dp2-primary-dark text-white rounded-xl font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-60">
           <LocateFixed size={14} /> {locating ? t('wx.locating') : t('wx.useMyLocation')}
         </button>
       </div>
 
-      {failed && <p className="text-center py-16 text-slate-500 font-sans text-[15px]">{t('wx.loadFailed')}</p>}
+      {failed && <p className="text-center py-16 text-slate-500 font-sans text-[16px]">{t('wx.loadFailed')}</p>}
       {!failed && !weather && <div className="text-center py-16"><LoadingDots /></div>}
 
       {weather && (
         <>
           {alerts.length > 0 && (
-            <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-8 flex gap-3">
+            <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-8 flex gap-3">
               <AlertTriangle size={20} className="text-amber-700 shrink-0 mt-0.5" />
-              <div className="font-sans text-[13px] text-amber-900 leading-relaxed">
+              <div className="font-sans text-[14px] text-amber-900 leading-relaxed">
                 {alerts.map((d, i) => (
                   <p key={i}>
                     {new Date(d.date).toLocaleDateString(isUrdu ? 'ur-PK-u-nu-latn' : 'en-PK', { weekday: 'long' })}:{' '}
@@ -146,44 +146,44 @@ export default function WeatherPage() {
           )}
 
           {/* Current conditions */}
-          <div className="bg-white border border-dp2-card-border rounded-lg p-6 mb-8 flex items-center gap-5">
+          <div className="bg-white border border-dp2-card-border rounded-2xl p-6 mb-8 flex items-center gap-5">
             {iconFor(weather.code, 56)}
             <div>
               <p className="font-heading text-[40px] font-bold text-slate-800 leading-none ltr-num">{weather.temp}°C</p>
-              <p className="font-sans text-[14px] text-slate-500 mt-1">{t(LABEL_KEY(weather.code))} · <span className="ltr-num">{t('wx.feelsLike')} {weather.feelsLike}°C</span></p>
+              <p className="font-sans text-[15px] text-slate-500 mt-1">{t(LABEL_KEY(weather.code))} · <span className="ltr-num">{t('wx.feelsLike')} {weather.feelsLike}°C</span></p>
             </div>
             <div className="ms-auto flex flex-col gap-1.5 text-end">
-              <span className="font-sans text-[12.5px] text-slate-500 flex items-center gap-1.5 justify-end"><Droplets size={13} /> <span className="ltr-num">{weather.humidity}%</span> {t('wx.humidity')}</span>
-              <span className="font-sans text-[12.5px] text-slate-500 flex items-center gap-1.5 justify-end"><Wind size={13} /> <span className="ltr-num">{weather.windKph} km/h</span></span>
+              <span className="font-sans text-[13.5px] text-slate-500 flex items-center gap-1.5 justify-end"><Droplets size={13} /> <span className="ltr-num">{weather.humidity}%</span> {t('wx.humidity')}</span>
+              <span className="font-sans text-[13.5px] text-slate-500 flex items-center gap-1.5 justify-end"><Wind size={13} /> <span className="ltr-num">{weather.windKph} km/h</span></span>
             </div>
           </div>
 
           {/* Hourly */}
-          <h2 className="font-heading text-[18px] font-bold text-dp2-primary mb-3">{t('wx.hourly')}</h2>
+          <h2 className="font-heading text-[19px] font-bold text-dp2-primary mb-3">{t('wx.hourly')}</h2>
           <div className="flex gap-3 overflow-x-auto pb-2 mb-8 hide-scrollbar">
             {weather.hourly.map((h, i) => (
-              <div key={i} className="bg-white border border-dp2-card-border rounded-lg p-3 flex flex-col items-center gap-1.5 shrink-0 w-[68px]">
-                <span className="font-sans text-[11px] text-slate-500 ltr-num">
+              <div key={i} className="bg-white border border-dp2-card-border rounded-2xl p-3 flex flex-col items-center gap-1.5 shrink-0 w-[68px]">
+                <span className="font-sans text-[12px] text-slate-500 ltr-num">
                   {new Date(h.time).toLocaleTimeString(isUrdu ? 'ur-PK-u-nu-latn' : 'en-PK', { hour: 'numeric' })}
                 </span>
                 {iconFor(h.code, 20)}
-                <span className="font-sans text-[13px] font-bold text-slate-800 ltr-num">{h.temp}°</span>
-                {h.rainChance >= 30 && <span className="font-sans text-[10px] text-sky-600 ltr-num">{h.rainChance}%</span>}
+                <span className="font-sans text-[14px] font-bold text-slate-800 ltr-num">{h.temp}°</span>
+                {h.rainChance >= 30 && <span className="font-sans text-[11px] text-sky-600 ltr-num">{h.rainChance}%</span>}
               </div>
             ))}
           </div>
 
           {/* 7-day */}
-          <h2 className="font-heading text-[18px] font-bold text-dp2-primary mb-3">{t('wx.sevenDay')}</h2>
-          <div className="bg-white border border-dp2-card-border rounded-lg overflow-hidden mb-8">
+          <h2 className="font-heading text-[19px] font-bold text-dp2-primary mb-3">{t('wx.sevenDay')}</h2>
+          <div className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden mb-8">
             {weather.daily.map((d, i) => (
               <div key={i} className={`flex items-center gap-3 px-4 py-3 ${i !== 0 ? 'border-t border-dp2-card-border' : ''}`}>
-                <span className="font-sans text-[13px] font-semibold text-slate-800 w-20 shrink-0">
+                <span className="font-sans text-[14px] font-semibold text-slate-800 w-20 shrink-0">
                   {i === 0 ? t('wx.today') : new Date(d.date).toLocaleDateString(isUrdu ? 'ur-PK-u-nu-latn' : 'en-PK', { weekday: 'short' })}
                 </span>
                 {iconFor(d.code, 20)}
-                {d.rainChance >= 30 && <span className="font-sans text-[11px] text-sky-600 ltr-num w-9 shrink-0">{d.rainChance}%</span>}
-                <span className="font-sans text-[13px] text-slate-500 ms-auto ltr-num">{d.min}° – {d.max}°</span>
+                {d.rainChance >= 30 && <span className="font-sans text-[12px] text-sky-600 ltr-num w-9 shrink-0">{d.rainChance}%</span>}
+                <span className="font-sans text-[14px] text-slate-500 ms-auto ltr-num">{d.min}° – {d.max}°</span>
               </div>
             ))}
           </div>
@@ -191,20 +191,20 @@ export default function WeatherPage() {
           {/* Sun + UV, from today's entry */}
           {weather.daily[0] && (
             <div className="grid grid-cols-3 gap-3 mb-8">
-              <div className="bg-white border border-dp2-card-border rounded-lg p-3 text-center">
+              <div className="bg-white border border-dp2-card-border rounded-2xl p-3 text-center">
                 <Sunrise size={18} className="text-amber-500 mx-auto mb-1" />
-                <p className="font-sans text-[12px] text-slate-500">{t('wx.sunrise')}</p>
-                <p className="font-sans text-[13px] font-bold text-slate-800 ltr-num">{new Date(weather.daily[0].sunrise).toLocaleTimeString(isUrdu ? 'ur-PK-u-nu-latn' : 'en-PK', { hour: 'numeric', minute: '2-digit' })}</p>
+                <p className="font-sans text-[13px] text-slate-500">{t('wx.sunrise')}</p>
+                <p className="font-sans text-[14px] font-bold text-slate-800 ltr-num">{new Date(weather.daily[0].sunrise).toLocaleTimeString(isUrdu ? 'ur-PK-u-nu-latn' : 'en-PK', { hour: 'numeric', minute: '2-digit' })}</p>
               </div>
-              <div className="bg-white border border-dp2-card-border rounded-lg p-3 text-center">
+              <div className="bg-white border border-dp2-card-border rounded-2xl p-3 text-center">
                 <Sunset size={18} className="text-orange-500 mx-auto mb-1" />
-                <p className="font-sans text-[12px] text-slate-500">{t('wx.sunset')}</p>
-                <p className="font-sans text-[13px] font-bold text-slate-800 ltr-num">{new Date(weather.daily[0].sunset).toLocaleTimeString(isUrdu ? 'ur-PK-u-nu-latn' : 'en-PK', { hour: 'numeric', minute: '2-digit' })}</p>
+                <p className="font-sans text-[13px] text-slate-500">{t('wx.sunset')}</p>
+                <p className="font-sans text-[14px] font-bold text-slate-800 ltr-num">{new Date(weather.daily[0].sunset).toLocaleTimeString(isUrdu ? 'ur-PK-u-nu-latn' : 'en-PK', { hour: 'numeric', minute: '2-digit' })}</p>
               </div>
-              <div className="bg-white border border-dp2-card-border rounded-lg p-3 text-center">
+              <div className="bg-white border border-dp2-card-border rounded-2xl p-3 text-center">
                 <Sun size={18} className="text-amber-500 mx-auto mb-1" />
-                <p className="font-sans text-[12px] text-slate-500">{t('wx.uvIndex')}</p>
-                <p className="font-sans text-[13px] font-bold text-slate-800 ltr-num">{weather.daily[0].uv}</p>
+                <p className="font-sans text-[13px] text-slate-500">{t('wx.uvIndex')}</p>
+                <p className="font-sans text-[14px] font-bold text-slate-800 ltr-num">{weather.daily[0].uv}</p>
               </div>
             </div>
           )}
@@ -218,8 +218,8 @@ export default function WeatherPage() {
               explicitly passing detail=false (the original URL left this
               param blank, which did not suppress it); confirmed via
               other real embed.windy.com URLs that set it explicitly. */}
-          <h2 className="font-heading text-[18px] font-bold text-dp2-primary mb-3">{t('wx.map')}</h2>
-          <div className="rounded-lg overflow-hidden border border-dp2-card-border" style={{ height: 450 }}>
+          <h2 className="font-heading text-[19px] font-bold text-dp2-primary mb-3">{t('wx.map')}</h2>
+          <div className="rounded-xl overflow-hidden border border-dp2-card-border" style={{ height: 450 }}>
             <iframe
               title="weather-map"
               className="w-full h-full"

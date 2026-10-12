@@ -118,45 +118,45 @@ export default function MarketplaceLandingPage() {
         <h1 className="font-heading text-[30px] md:text-[34px] font-bold text-dp2-primary section-title flex items-center gap-2.5">
           <Store size={26} className="text-dp2-primary-dark" /> {dt('heading')}
         </h1>
-        <p className="text-slate-500 font-sans text-[15px] mt-1.5">{dt('subheading')}</p>
+        <p className="text-slate-500 font-sans text-[16px] mt-1.5">{dt('subheading')}</p>
       </div>
 
       <div className="relative mb-6">
         <Search size={17} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
         <input
           value={query} onChange={(e) => runSearch(e.target.value)} placeholder={dt('searchPlaceholder')}
-          className="w-full ps-11 pe-4 py-3 rounded-lg border border-dp2-card-border font-sans text-[15px] focus:outline-none focus:border-dp2-primary-dark"
+          className="w-full ps-11 pe-4 py-3 rounded-xl border border-dp2-card-border font-sans text-[16px] focus:outline-none focus:border-dp2-primary-dark"
         />
       </div>
 
       {!portalUser && (
-        <div className="bg-emerald-100/40 border border-dp2-primary-dark/20 rounded-lg p-4 flex items-center gap-3 mb-8">
+        <div className="bg-emerald-100/40 border border-dp2-primary-dark/20 rounded-xl p-4 flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-full bg-dp2-primary-dark text-white flex items-center justify-center shrink-0"><LogIn size={18} /></div>
           <div className="min-w-0 flex-1">
-            <p className="font-sans text-[14px] font-bold text-slate-800">{dt('signInToOrder')}</p>
-            <p className="font-sans text-[12.5px] text-slate-500 mt-0.5">{dt('signInHint')}</p>
+            <p className="font-sans text-[15px] font-bold text-slate-800">{dt('signInToOrder')}</p>
+            <p className="font-sans text-[13.5px] text-slate-500 mt-0.5">{dt('signInHint')}</p>
           </div>
-          <Link href="/portal/login" className="shrink-0 px-4 py-2 bg-dp2-primary-dark text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp2-primary transition-all">{dt('signInCta')}</Link>
+          <Link href="/portal/login" className="shrink-0 px-4 py-2 bg-dp2-primary-dark text-white rounded-xl font-sans text-[14.5px] font-semibold hover:bg-dp2-primary transition-all">{dt('signInCta')}</Link>
         </div>
       )}
 
       {results !== null && (
         <div className="mb-8">
-          <p className="font-sans text-[12.5px] font-bold text-slate-500 uppercase tracking-[0.05em] mb-2.5">{dt('searchResultsHeading')}</p>
-          {searching && <p className="font-sans text-[14px] text-slate-500">…</p>}
-          {!searching && results.length === 0 && <p className="font-sans text-[14px] text-slate-500">{dt('noResults')}</p>}
+          <p className="font-sans text-[13.5px] font-bold text-slate-500 uppercase tracking-[0.05em] mb-2.5">{dt('searchResultsHeading')}</p>
+          {searching && <p className="font-sans text-[15px] text-slate-500">…</p>}
+          {!searching && results.length === 0 && <p className="font-sans text-[15px] text-slate-500">{dt('noResults')}</p>}
           <div className="space-y-2">
             {results.map((r) => (
               <button key={`${r.shop_id}-${r.product_id}`} onClick={() => goTo(`/portal/marketplace/shop/${r.shop_id}`)}
-                className="w-full text-start flex items-center justify-between gap-3 bg-white border border-dp2-card-border rounded-lg p-3.5 cursor-pointer hover:border-dp2-primary-dark transition-all">
+                className="w-full text-start flex items-center justify-between gap-3 bg-white border border-dp2-card-border rounded-2xl p-3.5 cursor-pointer hover:border-dp2-primary-dark transition-all">
                 <div className="min-w-0">
-                  <p className="font-sans text-[14px] font-semibold text-slate-800 truncate">
+                  <p className="font-sans text-[15px] font-semibold text-slate-800 truncate">
                     {isUrdu && r.product_name_ur ? r.product_name_ur : r.product_name}
                     {(isUrdu ? (r.flavor_ur || r.flavor) : r.flavor) && <span className="font-normal text-slate-500"> ({isUrdu ? (r.flavor_ur || r.flavor) : r.flavor})</span>}
                   </p>
-                  <p className="font-sans text-[12.5px] text-slate-500 mt-0.5 truncate">{isUrdu && r.shop_name_ur ? r.shop_name_ur : r.shop_name}{!r.delivery_enabled && ` · ${dt('visitStoreNote')}`}</p>
+                  <p className="font-sans text-[13.5px] text-slate-500 mt-0.5 truncate">{isUrdu && r.shop_name_ur ? r.shop_name_ur : r.shop_name}{!r.delivery_enabled && ` · ${dt('visitStoreNote')}`}</p>
                 </div>
-                <p className="font-sans text-[15px] font-bold text-dp2-primary-dark shrink-0">{fmt(r.unit_price_pkr)}</p>
+                <p className="font-sans text-[16px] font-bold text-dp2-primary-dark shrink-0">{fmt(r.unit_price_pkr)}</p>
               </button>
             ))}
           </div>
@@ -164,15 +164,15 @@ export default function MarketplaceLandingPage() {
       )}
 
       <div className="mb-8">
-        <p className="font-sans text-[12.5px] font-bold text-slate-500 uppercase tracking-[0.05em] mb-2.5">{dt('shopsHeading')}</p>
-        {shops.length === 0 && <p className="font-sans text-[14px] text-slate-500">{dt('noShopsListed')}</p>}
+        <p className="font-sans text-[13.5px] font-bold text-slate-500 uppercase tracking-[0.05em] mb-2.5">{dt('shopsHeading')}</p>
+        {shops.length === 0 && <p className="font-sans text-[15px] text-slate-500">{dt('noShopsListed')}</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {shops.map((s) => (
             <button key={s.id} onClick={() => goTo(`/portal/marketplace/shop/${s.id}`)}
-              className="text-start bg-white border border-dp2-card-border rounded-lg p-4 cursor-pointer hover:border-dp2-primary-dark transition-all">
-              <p className="font-sans text-[15px] font-semibold text-slate-800 truncate">{isUrdu && s.name_ur ? s.name_ur : s.name}</p>
-              {s.location && <p className="font-sans text-[13px] text-slate-500 mt-0.5 flex items-center gap-1"><MapPin size={12} /> {isUrdu ? (s.location_ur || s.location) : s.location}</p>}
-              <span className={`inline-block mt-2 text-[11px] font-bold px-2 py-0.5 rounded-full ${s.delivery_enabled ? 'bg-sky-100 text-sky-700' : 'bg-dp2-surface text-slate-500'}`}>
+              className="text-start bg-white border border-dp2-card-border rounded-2xl p-4 cursor-pointer hover:border-dp2-primary-dark transition-all">
+              <p className="font-sans text-[16px] font-semibold text-slate-800 truncate">{isUrdu && s.name_ur ? s.name_ur : s.name}</p>
+              {s.location && <p className="font-sans text-[14px] text-slate-500 mt-0.5 flex items-center gap-1"><MapPin size={12} /> {isUrdu ? (s.location_ur || s.location) : s.location}</p>}
+              <span className={`inline-block mt-2 text-[12px] font-bold px-2 py-0.5 rounded-full ${s.delivery_enabled ? 'bg-sky-100 text-sky-700' : 'bg-dp2-surface text-slate-500'}`}>
                 {s.delivery_enabled ? dt('deliveryEnabled') : dt('pickupOnly')}
               </span>
             </button>
@@ -181,15 +181,15 @@ export default function MarketplaceLandingPage() {
       </div>
 
       <div>
-        <p className="font-sans text-[12.5px] font-bold text-slate-500 uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Bus size={14} /> {dt('routesHeading')}</p>
-        {routes.length === 0 && <p className="font-sans text-[14px] text-slate-500">{dt('noRoutesListed')}</p>}
+        <p className="font-sans text-[13.5px] font-bold text-slate-500 uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Bus size={14} /> {dt('routesHeading')}</p>
+        {routes.length === 0 && <p className="font-sans text-[15px] text-slate-500">{dt('noRoutesListed')}</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {routes.map((r) => (
             <button key={r.id} onClick={() => goTo(`/portal/marketplace/route/${r.id}`)}
-              className="text-start bg-white border border-dp2-card-border rounded-lg p-4 cursor-pointer hover:border-dp2-primary-dark transition-all">
-              <p className="font-sans text-[15px] font-semibold text-slate-800 flex items-center gap-1.5"><MapPin size={14} className="text-dp2-primary-dark shrink-0" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
-              <p className="font-sans text-[13px] text-slate-500 mt-0.5">{routeVehicleNames[r.vehicle_id] ?? ''}</p>
-              <p className="font-sans text-[15px] font-bold text-dp2-primary-dark mt-1.5">{fmt(r.fare_per_seat_pkr)} <span className="font-normal text-slate-500 text-[12.5px]">{dt('perSeat')}</span></p>
+              className="text-start bg-white border border-dp2-card-border rounded-2xl p-4 cursor-pointer hover:border-dp2-primary-dark transition-all">
+              <p className="font-sans text-[16px] font-semibold text-slate-800 flex items-center gap-1.5"><MapPin size={14} className="text-dp2-primary-dark shrink-0" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
+              <p className="font-sans text-[14px] text-slate-500 mt-0.5">{routeVehicleNames[r.vehicle_id] ?? ''}</p>
+              <p className="font-sans text-[16px] font-bold text-dp2-primary-dark mt-1.5">{fmt(r.fare_per_seat_pkr)} <span className="font-normal text-slate-500 text-[13.5px]">{dt('perSeat')}</span></p>
             </button>
           ))}
         </div>

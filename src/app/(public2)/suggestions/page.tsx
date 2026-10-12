@@ -68,14 +68,14 @@ export default function SuggestionsPage() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
-          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp2-primary mb-2">
+          <h1 className="font-heading text-[23px] font-bold leading-[28px] text-dp2-primary mb-2">
             {t('x.communityInput')}
           </h1>
-          <p className="text-slate-500 font-sans text-[18px] leading-[28px]">
+          <p className="text-slate-500 font-sans text-[19px] leading-[20px]">
             Share your suggestions, complaints, or volunteer for village initiatives.
           </p>
           <p
-            className="text-slate-500 text-[18px] mt-2"
+            className="text-slate-500 text-[19px] mt-2"
             style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
           >
             اپنی تجاویز، شکایات یا رضاکارانہ خدمات کے لیے رابطہ کریں
@@ -88,7 +88,7 @@ export default function SuggestionsPage() {
             <button
               key={tab.key}
               onClick={() => { setActiveTab(tab.key); setSubmitted(false); setError('') }}
-              className={`px-5 py-2 rounded-full font-sans text-[14px] font-semibold tracking-[0.05em] transition-all cursor-pointer ${
+              className={`px-5 py-2 rounded-full font-sans text-[15px] font-semibold tracking-[0.05em] transition-all cursor-pointer ${
                 activeTab === tab.key
                   ? 'bg-dp2-primary text-white'
                   : 'bg-white border border-dp2-card-border text-slate-500 hover:border-dp2-primary hover:text-dp2-primary'
@@ -101,23 +101,23 @@ export default function SuggestionsPage() {
 
         {/* Success State */}
         {submitted && (
-          <div className="bg-white border border-dp2-card-border rounded-lg p-12 text-center">
+          <div className="bg-white border border-dp2-card-border rounded-2xl p-12 text-center">
             <CheckCircle size={48} className="text-dp2-primary-dark mx-auto mb-4" />
-            <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp2-primary mb-2">
+            <h2 className="font-heading text-[19px] font-bold leading-[24px] text-dp2-primary mb-2">
               {t('p.thankYou')}
             </h2>
-            <p className="text-slate-500 font-sans text-[16px] mb-2">
+            <p className="text-slate-500 font-sans text-[17px] mb-2">
               Your {activeTab} has been submitted successfully.
             </p>
             <p
-              className="text-slate-500 text-[16px] mb-6"
+              className="text-slate-500 text-[17px] mb-6"
               style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
             >
               آپ کی {tabs.find((t) => t.key === activeTab)?.labelUr} کامیابی سے جمع ہو گئی ہے۔
             </p>
             <button
               onClick={reset}
-              className="bg-dp2-primary-dark text-white px-8 py-3 rounded-lg font-sans font-semibold hover:bg-dp2-primary transition-all cursor-pointer"
+              className="bg-dp2-primary-dark text-white px-8 py-3 rounded-xl font-sans font-semibold hover:bg-dp2-primary transition-all cursor-pointer"
             >
               {t('x.submitAnother')}
             </button>
@@ -126,10 +126,10 @@ export default function SuggestionsPage() {
 
         {/* Form */}
         {!submitted && (
-          <div className="bg-white border border-dp2-card-border rounded-lg p-6 md:p-8">
+          <div className="bg-white border border-dp2-card-border rounded-2xl p-6 md:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
+                <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
                   NAME (Optional) / نام
                 </label>
                 <input
@@ -137,12 +137,12 @@ export default function SuggestionsPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px] text-slate-800"
+                  className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px] text-slate-800"
                 />
               </div>
 
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
+                <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
                   MOBILE * / موبائل نمبر
                 </label>
                 <input
@@ -151,13 +151,13 @@ export default function SuggestionsPage() {
                   onChange={(e) => setMobile(e.target.value)}
                   required
                   placeholder="0300-1234567"
-                  className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px] text-slate-800"
+                  className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px] text-slate-800"
                 />
-                <p className="font-sans text-[12px] text-slate-500 mt-1.5">{t('x.soCommitteeReply')}</p>
+                <p className="font-sans text-[13px] text-slate-500 mt-1.5">{t('x.soCommitteeReply')}</p>
               </div>
 
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
+                <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
                   MESSAGE * / پیغام
                 </label>
                 <textarea
@@ -172,12 +172,12 @@ export default function SuggestionsPage() {
                         ? 'Describe your concern in detail...'
                         : 'Share your thoughts with the committee...'
                   }
-                  className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px] text-slate-800 resize-none"
+                  className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px] text-slate-800 resize-none"
                 />
               </div>
 
               {error && (
-                <div className="bg-red-100 text-red-800 px-4 py-3 rounded-lg font-sans text-[14px]">
+                <div className="bg-red-100 text-red-800 px-4 py-3 rounded-xl font-sans text-[15px]">
                   {error}
                 </div>
               )}
@@ -185,7 +185,7 @@ export default function SuggestionsPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-dp2-primary-dark text-white py-4 rounded-lg font-sans text-[18px] font-semibold hover:bg-dp2-primary transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer"
+                className="w-full bg-dp2-primary-dark text-white py-4 rounded-xl font-sans text-[19px] font-semibold hover:bg-dp2-primary transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer"
               >
                 <Send size={18} />
                 {loading ? 'Submitting...' : 'Submit / جمع کرائیں'}

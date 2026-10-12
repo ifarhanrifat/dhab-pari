@@ -39,15 +39,15 @@ export default function ContactsPage() {
     <div className="max-w-[800px] mx-auto px-6 md:px-12 py-10" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="flex items-center gap-2.5 mb-1.5">
         <PhoneCall size={24} className="text-dp2-primary-dark" />
-        <h1 className="font-heading text-[28px] font-bold text-dp2-primary">{t('ic.pageTitle')}</h1>
+        <h1 className="font-heading text-[21px] font-bold text-dp2-primary">{t('ic.pageTitle')}</h1>
       </div>
-      <p className="font-sans text-[14px] text-slate-500 mb-8">{t('ic.pageSubtitle')}</p>
+      <p className="font-sans text-[15px] text-slate-500 mb-8">{t('ic.pageSubtitle')}</p>
 
       {loading && <div className="text-center py-12 text-slate-500"><LoadingDots /></div>}
 
       {!loading && CATEGORY_ORDER.filter((cat) => contacts.some((c) => c.category === cat)).map((cat) => (
         <div key={cat} className="mb-8">
-          <h2 className="font-sans text-[13px] font-bold text-slate-500 uppercase tracking-wide mb-3">{t(`ic.cat.${cat}`)}</h2>
+          <h2 className="font-sans text-[14px] font-bold text-slate-500 uppercase tracking-wide mb-3">{t(`ic.cat.${cat}`)}</h2>
           {/* Real report, 2026-10-09: on a phone (every viewport below
               `sm`), this was one grid column -- i.e. a plain vertical list
               -- and each row's p-4 padding + 44px icon + two 44px action
@@ -58,21 +58,21 @@ export default function ContactsPage() {
               touching the sm:grid-cols-2 desktop layout at all. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
             {contacts.filter((c) => c.category === cat).map((c) => (
-              <div key={c.id} className="bg-white border border-dp2-card-border rounded-lg p-3 flex items-center gap-2.5">
+              <div key={c.id} className="bg-white border border-dp2-card-border rounded-2xl p-3 flex items-center gap-2.5">
                 <span className={`w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 ${categoryColors[c.category] ?? 'bg-dp2-primary'}`}>
                   <Phone size={15} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-sans text-[14px] font-bold text-slate-800 truncate">{isUrdu && c.label_ur ? c.label_ur : c.label}</p>
-                  <p className="font-sans text-[12.5px] text-slate-500 ltr-num">{c.phone}</p>
+                  <p className="font-sans text-[15px] font-bold text-slate-800 truncate">{isUrdu && c.label_ur ? c.label_ur : c.label}</p>
+                  <p className="font-sans text-[13.5px] text-slate-500 ltr-num">{c.phone}</p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <a href={`tel:${c.phone.replace(/\s+/g, '')}`} className="p-2 bg-dp2-primary-dark text-white rounded-lg hover:bg-dp2-primary transition-all" aria-label={t('ic.call')}>
+                  <a href={`tel:${c.phone.replace(/\s+/g, '')}`} className="p-2 bg-dp2-primary-dark text-white rounded-xl hover:bg-dp2-primary transition-all" aria-label={t('ic.call')}>
                     <Phone size={14} />
                   </a>
                   {c.whatsapp_number && (
                     <a href={`https://wa.me/${c.whatsapp_number.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
-                      className="p-2 bg-[#25D366] text-white rounded-lg hover:bg-[#1ebe5a] transition-all" aria-label={t('ic.whatsappBtn')}>
+                      className="p-2 bg-[#25D366] text-white rounded-xl hover:bg-[#1ebe5a] transition-all" aria-label={t('ic.whatsappBtn')}>
                       <MessageCircle size={14} />
                     </a>
                   )}
@@ -84,7 +84,7 @@ export default function ContactsPage() {
       ))}
 
       {!loading && contacts.length === 0 && (
-        <p className="text-center py-12 text-slate-500 font-sans text-[14px]">{t('ic.empty')}</p>
+        <p className="text-center py-12 text-slate-500 font-sans text-[15px]">{t('ic.empty')}</p>
       )}
     </div>
   )

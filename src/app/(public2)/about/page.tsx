@@ -117,12 +117,12 @@ export default async function AboutPage() {
     <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen">
       {/* Header */}
       <div className="mb-12 text-center max-w-3xl mx-auto">
-        <h1 className="font-heading text-[32px] md:text-[40px] font-bold leading-[40px] md:leading-[48px] text-dp2-primary mb-4">
+        <h1 className="font-heading text-[23px] md:text-[40px] font-bold leading-[28px] md:leading-[28px] text-dp2-primary mb-4">
           {aboutHeading}
         </h1>
         {site.committeeUrdu && (
           <p
-            className="text-slate-500 text-[20px] mb-2"
+            className="text-slate-500 text-[21px] mb-2"
             style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
           >
             {site.committeeUrdu}
@@ -132,18 +132,18 @@ export default async function AboutPage() {
 
       {/* Village History */}
       <section className="mb-16">
-        <div className="bg-white border border-dp2-card-border rounded-lg p-8 md:p-12" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-          <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp2-primary mb-6">
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-8 md:p-12" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
+          <h2 className="font-heading text-[19px] font-bold leading-[24px] text-dp2-primary mb-6">
             <T k="x.villageHistory" />
           </h2>
           <div className="prose max-w-none">
-            <p className="font-sans text-[18px] leading-[28px] text-slate-500 mb-4">
+            <p className="font-sans text-[19px] leading-[20px] text-slate-500 mb-4">
               {villageHistoryP1}
             </p>
-            <p className="font-sans text-[18px] leading-[28px] text-slate-500 mb-4">
+            <p className="font-sans text-[19px] leading-[20px] text-slate-500 mb-4">
               {villageHistoryP2}
             </p>
-            <p className="font-sans text-[18px] leading-[28px] text-slate-500" dir={aboutTextIsEnglishFallback ? 'ltr' : undefined}>
+            <p className="font-sans text-[19px] leading-[20px] text-slate-500" dir={aboutTextIsEnglishFallback ? 'ltr' : undefined}>
               {aboutText}
             </p>
           </div>
@@ -157,30 +157,30 @@ export default async function AboutPage() {
           only when it's actually showing the English fallback, so a filled-
           in Urdu translation still reads correctly RTL. */}
       <section className="mb-16 grid grid-cols-1 md:grid-cols-2 gap-6" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-        <div className="bg-dp2-primary text-white rounded-lg p-8 relative overflow-hidden">
+        <div className="bg-dp2-primary text-white rounded-xl p-8 relative overflow-hidden">
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
               <Eye size={24} className="text-emerald-200" />
-              <h2 className="font-heading text-[24px] font-bold leading-[32px]">
+              <h2 className="font-heading text-[19px] font-bold leading-[24px]">
                 <T k="x.ourVision" />
               </h2>
             </div>
-            <p className="font-sans text-[18px] leading-[28px] opacity-90" dir={visionIsEnglishFallback ? 'ltr' : undefined}>
+            <p className="font-sans text-[19px] leading-[20px] opacity-90" dir={visionIsEnglishFallback ? 'ltr' : undefined}>
               {vision}
             </p>
           </div>
           <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
         </div>
 
-        <div className="bg-white border border-dp2-card-border rounded-lg p-8 relative overflow-hidden">
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-8 relative overflow-hidden">
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
               <Target size={24} className="text-dp2-primary-dark" />
-              <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp2-primary section-title">
+              <h2 className="font-heading text-[19px] font-bold leading-[24px] text-dp2-primary section-title">
                 <T k="x.ourMission" />
               </h2>
             </div>
-            <p className="font-sans text-[18px] leading-[28px] text-slate-500" dir={missionIsEnglishFallback ? 'ltr' : undefined}>
+            <p className="font-sans text-[19px] leading-[20px] text-slate-500" dir={missionIsEnglishFallback ? 'ltr' : undefined}>
               {mission}
             </p>
           </div>
@@ -190,10 +190,10 @@ export default async function AboutPage() {
       {/* Committee Members */}
       <section>
         <div className="text-center mb-10">
-          <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp2-primary mb-2">
+          <h2 className="font-heading text-[23px] font-bold leading-[28px] text-dp2-primary mb-2">
             <T k="x.committeeMembers" />
           </h2>
-          <p className="text-slate-500 font-sans text-[16px]">
+          <p className="text-slate-500 font-sans text-[17px]">
             <T k="x.peopleDrivingChange" />
           </p>
         </div>
@@ -210,28 +210,28 @@ export default async function AboutPage() {
             return (
               <div
                 key={member.id}
-                className="bg-white border border-dp2-card-border rounded-lg p-6 text-center hover:border-dp2-primary-dark transition-all"
+                className="bg-white border border-dp2-card-border rounded-2xl p-6 text-center hover:border-dp2-primary-dark transition-all"
               >
                 {member.photo_url ? (
                   <Image src={member.photo_url} alt={member.name} width={64} height={64} className="w-16 h-16 rounded-full object-cover mx-auto mb-4" />
                 ) : (
-                  <div className={`w-16 h-16 rounded-full ${color} flex items-center justify-center font-bold font-sans text-[20px] mx-auto mb-4`}>
+                  <div className={`w-16 h-16 rounded-full ${color} flex items-center justify-center font-bold font-sans text-[21px] mx-auto mb-4`}>
                     {initials}
                   </div>
                 )}
-                <h3 className="font-sans text-[18px] font-bold text-slate-800 leading-[28px]">
+                <h3 className="font-sans text-[19px] font-bold text-slate-800 leading-[20px]">
                   {member.name}
                 </h3>
                 {member.name_ur && (
                   <p
-                    className="text-slate-500 text-[16px] mt-1"
+                    className="text-slate-500 text-[17px] mt-1"
                     style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2' }}
                   >
                     {member.name_ur}
                   </p>
                 )}
                 <p
-                  className="text-dp2-primary-dark font-sans text-[14px] font-semibold tracking-[0.05em] mt-2"
+                  className="text-dp2-primary-dark font-sans text-[15px] font-semibold tracking-[0.05em] mt-2"
                   style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
                 >
                   {isUrdu ? (member.position_ur || member.position) : member.position}
@@ -239,7 +239,7 @@ export default async function AboutPage() {
                 {member.phone && (
                   <a
                     href={`tel:${member.phone.replace(/-/g, '')}`}
-                    className="inline-flex items-center gap-1 mt-3 text-slate-500 text-[14px] font-sans hover:text-dp2-primary transition-colors"
+                    className="inline-flex items-center gap-1 mt-3 text-slate-500 text-[15px] font-sans hover:text-dp2-primary transition-colors"
                   >
                     <Phone size={14} />
                     {member.phone}
@@ -247,7 +247,7 @@ export default async function AboutPage() {
                 )}
                 {(isUrdu ? (member.bio_ur || member.bio) : member.bio) && (
                   <p
-                    className="text-slate-500 text-[14px] font-sans mt-3 line-clamp-2"
+                    className="text-slate-500 text-[15px] font-sans mt-3 line-clamp-2"
                     dir={isUrdu ? 'rtl' : undefined}
                     style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
                   >

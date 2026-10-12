@@ -46,8 +46,8 @@ export default function LostFoundPage() {
   return (
     <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-slate-800 flex items-center gap-3"><Search size={28} className="text-dp2-primary-dark" /> {t('lf.pageTitle')}</h1>
-        <p className="text-slate-500 font-sans text-[16px] leading-[26px] max-w-2xl mt-2">
+        <h1 className="font-heading text-[23px] font-bold leading-[28px] text-slate-800 flex items-center gap-3"><Search size={28} className="text-dp2-primary-dark" /> {t('lf.pageTitle')}</h1>
+        <p className="text-slate-500 font-sans text-[17px] leading-[26px] max-w-2xl mt-2">
           {t('lf.pageIntro')}{' '}
           <Link href="/portal/lost-found" className="text-dp2-primary-dark font-semibold hover:underline">{t('lf.postYourOwn')}</Link>.
         </p>
@@ -57,7 +57,7 @@ export default function LostFoundPage() {
         <div className="flex gap-2">
           {(['all', 'lost', 'found'] as const).map((tb) => (
             <button key={tb} onClick={() => setTab(tb)}
-              className={`px-5 py-2 rounded-full font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${tab === tb ? 'bg-dp2-primary text-white' : 'bg-white border border-dp2-card-border text-slate-500 hover:border-dp2-primary'}`}>
+              className={`px-5 py-2 rounded-full font-sans text-[14.5px] font-semibold cursor-pointer transition-all ${tab === tb ? 'bg-dp2-primary text-white' : 'bg-white border border-dp2-card-border text-slate-500 hover:border-dp2-primary'}`}>
               {tb === 'all' ? t('lf.all') : tb === 'lost' ? t('lf.lost') : t('lf.found')}
             </button>
           ))}
@@ -66,33 +66,33 @@ export default function LostFoundPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-[14px] text-slate-500 text-center py-16"><LoadingDots /></p>
+        <p className="font-sans text-[15px] text-slate-500 text-center py-16"><LoadingDots /></p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-slate-500 font-sans text-[16px]">{t('lf.noneFound')}</div>
+        <div className="text-center py-16 text-slate-500 font-sans text-[17px]">{t('lf.noneFound')}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((p) => (
-            <div key={p.id} className="bg-white border border-dp2-card-border rounded-lg overflow-hidden">
+            <div key={p.id} className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden">
               {p.photo_url && (
                 <div className="relative w-full aspect-video bg-dp2-surface">
                   <Image src={p.photo_url} alt="" fill sizes="500px" className="object-cover" />
                 </div>
               )}
               <div className="p-5">
-                <span className={`text-[10.5px] font-bold px-2.5 py-1 rounded-full uppercase ${p.type === 'lost' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                <span className={`text-[11.5px] font-bold px-2.5 py-1 rounded-full uppercase ${p.type === 'lost' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
                   {p.type === 'lost' ? t('lf.lost') : t('lf.found')}
                 </span>
-                <h3 className="font-sans text-[17px] font-semibold text-slate-800 mt-2">{p.item_name}</h3>
-                {p.description && <p className="font-sans text-[13.5px] text-slate-500 mt-1.5 leading-[20px]">{p.description}</p>}
+                <h3 className="font-sans text-[18px] font-semibold text-slate-800 mt-2">{p.item_name}</h3>
+                {p.description && <p className="font-sans text-[14.5px] text-slate-500 mt-1.5 leading-[20px]">{p.description}</p>}
                 {p.location_text && (
-                  <p className="font-sans text-[13px] text-slate-500 mt-2 flex items-center gap-1"><MapPin size={12} /> {p.location_text}</p>
+                  <p className="font-sans text-[14px] text-slate-500 mt-2 flex items-center gap-1"><MapPin size={12} /> {p.location_text}</p>
                 )}
                 <div className="flex gap-2 mt-4">
-                  <a href={`tel:${p.contact_mobile}`} className="flex-1 flex items-center justify-center gap-2 border-2 border-dp2-primary text-dp2-primary px-4 py-2 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp2-primary hover:text-white transition-all">
+                  <a href={`tel:${p.contact_mobile}`} className="flex-1 flex items-center justify-center gap-2 border-2 border-dp2-primary text-dp2-primary px-4 py-2 rounded-xl font-sans text-[14.5px] font-semibold hover:bg-dp2-primary hover:text-white transition-all">
                     <Phone size={14} /> {t('x.call')}
                   </a>
                   {p.contact_whatsapp && (
-                    <a href={`https://wa.me/${normalizePakPhone(p.contact_whatsapp)}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-dp2-primary-dark text-white px-4 py-2 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp2-primary transition-all">
+                    <a href={`https://wa.me/${normalizePakPhone(p.contact_whatsapp)}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-dp2-primary-dark text-white px-4 py-2 rounded-xl font-sans text-[14.5px] font-semibold hover:bg-dp2-primary transition-all">
                       <MessageCircle size={14} /> {t('w.whatsapp')}
                     </a>
                   )}

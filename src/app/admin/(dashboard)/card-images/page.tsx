@@ -22,6 +22,16 @@ const SLOTS: { key: string; label: string; shape: 'circle' | 'rect' }[] = [
   { key: 'mentor_2', label: 'Mentor card 2 — Institutes', shape: 'rect' },
   { key: 'mentor_3', label: 'Mentor card 3 — Training Programs', shape: 'rect' },
   { key: 'mentor_4', label: 'Mentor card 4 — Talent Showcase', shape: 'rect' },
+  { key: 'fund_available', label: 'Fund Status — Available Funds', shape: 'rect' },
+  { key: 'fund_drives', label: 'Fund Status — Active Community Drives', shape: 'rect' },
+  { key: 'fund_month', label: 'Fund Status — This Month', shape: 'rect' },
+  { key: 'fund_households', label: 'Fund Status — Registered Households', shape: 'rect' },
+  { key: 'mp_shops', label: 'Marketplace — Shops & Market', shape: 'rect' },
+  { key: 'mp_adda', label: 'Marketplace — Adda Board', shape: 'rect' },
+  { key: 'mp_order_city', label: 'Marketplace — Order From a City Shop', shape: 'rect' },
+  { key: 'mp_city_purchase', label: 'Marketplace — City Purchase', shape: 'rect' },
+  { key: 'mp_commute', label: 'Marketplace — Weekend Commute', shape: 'rect' },
+  { key: 'mp_shadi', label: 'Marketplace — Shadi Vehicles', shape: 'rect' },
 ]
 
 export default function CardImagesPage() {

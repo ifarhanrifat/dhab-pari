@@ -104,10 +104,10 @@ export default function VideosPage() {
     <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp2-primary section-title">
+        <h1 className="font-heading text-[23px] font-bold leading-[28px] text-dp2-primary section-title">
           {t('x.videoLibrary')}
         </h1>
-        <p className="text-slate-500 font-sans text-[18px] leading-[28px] mt-2">
+        <p className="text-slate-500 font-sans text-[19px] leading-[20px] mt-2">
           {t('x.videoLibrarySubtitle')}
         </p>
       </div>
@@ -118,7 +118,7 @@ export default function VideosPage() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-5 py-2 rounded-full font-sans text-[14px] font-semibold tracking-[0.05em] transition-all cursor-pointer ${
+            className={`px-5 py-2 rounded-full font-sans text-[15px] font-semibold tracking-[0.05em] transition-all cursor-pointer ${
               activeTab === tab
                 ? 'bg-dp2-primary text-white'
                 : 'bg-white border border-dp2-card-border text-slate-500 hover:border-dp2-primary hover:text-dp2-primary'
@@ -135,14 +135,14 @@ export default function VideosPage() {
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="aspect-video bg-dp2-surface rounded-lg animate-pulse"
+              className="aspect-video bg-dp2-surface rounded-xl animate-pulse"
             />
           ))}
         </div>
       )}
 
       {!loading && filtered.length === 0 && (
-        <div className="text-center py-16 text-slate-500 font-sans text-[16px]">
+        <div className="text-center py-16 text-slate-500 font-sans text-[17px]">
           {t('x.noVideosCategory')}
         </div>
       )}
@@ -153,7 +153,7 @@ export default function VideosPage() {
           {/* Featured Videos (only show on "All" tab) */}
           {activeTab === 'All' && featured.length > 0 && (
             <section>
-              <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp2-primary mb-6">
+              <h2 className="font-heading text-[19px] font-bold leading-[24px] text-dp2-primary mb-6">
                 {t('x.featured')}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -167,7 +167,7 @@ export default function VideosPage() {
           {/* Interviews Section — horizontal cards */}
           {interviews.length > 0 && (
             <section>
-              <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp2-primary mb-6">
+              <h2 className="font-heading text-[19px] font-bold leading-[24px] text-dp2-primary mb-6">
                 {t('x.interviews')}
               </h2>
               <div className="space-y-4">
@@ -175,7 +175,7 @@ export default function VideosPage() {
                   <Link
                     key={video.id}
                     href={`/videos/${video.id}`}
-                    className="bg-white border border-dp2-card-border rounded-lg overflow-hidden flex hover:border-dp2-primary-dark transition-all group cursor-pointer"
+                    className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden flex hover:border-dp2-primary-dark transition-all group cursor-pointer"
                   >
                     {/* Thumbnail left */}
                     <div className="w-48 md:w-64 shrink-0 relative bg-black">
@@ -185,29 +185,29 @@ export default function VideosPage() {
                           <Play size={18} className="text-white ms-0.5" fill="white" />
                         </div>
                       </div>
-                      <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded font-sans">
+                      <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[11px] px-2 py-0.5 rounded font-sans">
                         {formatDuration(video.duration_seconds)}
                       </div>
                     </div>
                     {/* Info right */}
                     <div className="p-5 flex flex-col justify-center min-w-0">
-                      <span className={`text-[10px] font-bold uppercase tracking-widest font-sans text-white px-2 py-0.5 rounded w-fit mb-2 ${categoryBadgeColors[video.category ?? ''] ?? 'bg-dp2-primary'}`}>
+                      <span className={`text-[11px] font-bold uppercase tracking-widest font-sans text-white px-2 py-0.5 rounded w-fit mb-2 ${categoryBadgeColors[video.category ?? ''] ?? 'bg-dp2-primary'}`}>
                         {video.category && t(categoryBadgeKeys[video.category.toLowerCase()] ?? '', video.category)}
                       </span>
-                      <h3 className="font-bold text-dp2-primary text-[16px] font-sans leading-[24px] group-hover:text-dp2-primary-dark transition-colors truncate">
+                      <h3 className="font-bold text-dp2-primary text-[17px] font-sans leading-[24px] group-hover:text-dp2-primary-dark transition-colors truncate">
                         {video.title}
                       </h3>
                       {video.title_ur && (
-                        <p className="text-slate-500 text-[13px] mt-0.5 truncate" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
+                        <p className="text-slate-500 text-[14px] mt-0.5 truncate" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                           {video.title_ur}
                         </p>
                       )}
                       {video.description && (
-                        <p className="text-slate-500 text-[14px] font-sans mt-1 line-clamp-1">
+                        <p className="text-slate-500 text-[15px] font-sans mt-1 line-clamp-1">
                           {video.description}
                         </p>
                       )}
-                      <div className="flex items-center gap-2 mt-2 text-slate-500 text-[12px] font-sans">
+                      <div className="flex items-center gap-2 mt-2 text-slate-500 text-[13px] font-sans">
                         <Eye size={12} />
                         <span>{video.views.toLocaleString()} {t('x.views')}</span>
                       </div>
@@ -222,7 +222,7 @@ export default function VideosPage() {
           {otherVideos.length > 0 && (
             <section>
               {interviews.length > 0 && (
-                <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp2-primary mb-6">
+                <h2 className="font-heading text-[19px] font-bold leading-[24px] text-dp2-primary mb-6">
                   {activeTab === 'All' ? t('x.allVideos') : t(categoryTabKeys[activeTab])}
                 </h2>
               )}
@@ -244,7 +244,7 @@ function VideoCard({ video, large }: { video: Video; large?: boolean }) {
   return (
     <Link
       href={`/videos/${video.id}`}
-      className="group relative rounded-lg overflow-hidden aspect-video bg-black cursor-pointer block"
+      className="group relative rounded-xl overflow-hidden aspect-video bg-black cursor-pointer block"
     >
       {/* Thumbnail bg */}
       <div className="w-full h-full bg-gradient-to-br from-dp2-primary to-amber-100 opacity-60 group-hover:opacity-40 transition-opacity" />
@@ -257,28 +257,28 @@ function VideoCard({ video, large }: { video: Video; large?: boolean }) {
       </div>
 
       {/* Duration */}
-      <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded font-sans">
+      <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[11px] px-2 py-1 rounded font-sans">
         {formatDuration(video.duration_seconds)}
       </div>
 
       {/* Category badge */}
       <div className="absolute top-3 left-3">
-        <span className={`text-[10px] font-bold uppercase tracking-widest font-sans text-white px-2 py-1 rounded ${categoryBadgeColors[video.category ?? ''] ?? 'bg-dp2-primary'}`}>
+        <span className={`text-[11px] font-bold uppercase tracking-widest font-sans text-white px-2 py-1 rounded ${categoryBadgeColors[video.category ?? ''] ?? 'bg-dp2-primary'}`}>
           {video.category && t(categoryBadgeKeys[video.category.toLowerCase()] ?? '', video.category)}
         </span>
       </div>
 
       {/* Bottom info */}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-        <p className="text-white font-bold text-[14px] font-sans tracking-[0.05em] truncate">
+        <p className="text-white font-bold text-[15px] font-sans tracking-[0.05em] truncate">
           {video.title}
         </p>
         {video.title_ur && (
-          <p className="text-white/80 text-[12.5px] truncate" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
+          <p className="text-white/80 text-[13.5px] truncate" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
             {video.title_ur}
           </p>
         )}
-        <div className="flex items-center gap-2 mt-1 text-white/70 text-[12px] font-sans">
+        <div className="flex items-center gap-2 mt-1 text-white/70 text-[13px] font-sans">
           <Eye size={12} />
           <span>{video.views.toLocaleString()} {t('x.views')}</span>
         </div>

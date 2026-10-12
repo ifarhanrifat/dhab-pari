@@ -75,7 +75,7 @@ export default async function NewsDetailPage({
       {/* Back link */}
       <Link
         href="/news"
-        className="inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline mb-8"
+        className="inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[15px] font-semibold tracking-[0.05em] hover:underline mb-8"
       >
         <ArrowLeft size={16} />
         <T k="x.backToNews" />
@@ -84,7 +84,7 @@ export default async function NewsDetailPage({
       <article className="max-w-3xl mx-auto">
         {/* Cover area */}
         <div
-          className={`w-full h-48 md:h-64 rounded-lg flex items-center justify-center mb-8 ${colors.bg}`}
+          className={`w-full h-48 md:h-64 rounded-xl flex items-center justify-center mb-8 ${colors.bg}`}
         >
           <span className="text-[80px]">
             {categoryEmojis[post.category ?? ''] ?? '📰'}
@@ -93,20 +93,20 @@ export default async function NewsDetailPage({
 
         {/* Category badge */}
         <span
-          className={`inline-block text-[12px] font-bold uppercase tracking-widest font-sans px-3 py-1 rounded-full mb-4 ${colors.bg} ${colors.text}`}
+          className={`inline-block text-[13px] font-bold uppercase tracking-widest font-sans px-3 py-1 rounded-full mb-4 ${colors.bg} ${colors.text}`}
         >
           {post.category}
         </span>
 
         {/* Title */}
-        <h1 className="font-heading text-[32px] md:text-[40px] font-bold leading-[40px] md:leading-[48px] text-dp2-primary mb-4">
+        <h1 className="font-heading text-[23px] md:text-[40px] font-bold leading-[28px] md:leading-[28px] text-dp2-primary mb-4">
           {post.title}
         </h1>
 
         {/* Urdu title */}
         {post.title_ur && (
           <p
-            className="text-slate-500 text-[22px] mb-6"
+            className="text-slate-500 text-[23px] mb-6"
             style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6', direction: 'rtl' }}
           >
             {post.title_ur}
@@ -114,7 +114,7 @@ export default async function NewsDetailPage({
         )}
 
         {/* Meta */}
-        <div className="flex flex-wrap items-center gap-4 text-slate-500 text-[14px] font-sans font-semibold tracking-[0.05em] mb-8 pb-8 border-b border-dp2-card-border">
+        <div className="flex flex-wrap items-center gap-4 text-slate-500 text-[15px] font-sans font-semibold tracking-[0.05em] mb-8 pb-8 border-b border-dp2-card-border">
           <span className="flex items-center gap-1">
             <Calendar size={16} />
             {formatDate(post.published_at)}
@@ -135,7 +135,7 @@ export default async function NewsDetailPage({
           {post.content.split('\n').map((paragraph: string, i: number) => (
             <p
               key={i}
-              className="text-slate-800 font-sans text-[18px] leading-[28px] mb-4"
+              className="text-slate-800 font-sans text-[19px] leading-[20px] mb-4"
             >
               {paragraph}
             </p>
@@ -145,13 +145,13 @@ export default async function NewsDetailPage({
         {/* Urdu content */}
         {post.content_ur && (
           <div className="mt-8 pt-8 border-t border-dp2-card-border">
-            <h3 className="font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 uppercase mb-4">
+            <h3 className="font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 uppercase mb-4">
               اردو میں پڑھیں
             </h3>
             {post.content_ur.split('\n').map((paragraph: string, i: number) => (
               <p
                 key={i}
-                className="text-slate-800 text-[18px] mb-4"
+                className="text-slate-800 text-[19px] mb-4"
                 style={{
                   fontFamily: 'var(--font-urdu-ui)',
                   lineHeight: '1.6',

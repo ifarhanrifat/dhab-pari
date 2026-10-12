@@ -147,29 +147,29 @@ export default function WaterBillPage() {
             structure at all (just an inline "·" and a space) to wrap
             cleanly at a narrow width — a flex row with its own gap does. */}
         <div className="space-y-2">
-          <h1 className="font-heading text-[24px] md:text-[32px] font-bold text-dp2-primary section-title flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <h1 className="font-heading text-[19px] md:text-[23px] font-bold text-dp2-primary section-title flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span>Water Bill Lookup</span>
             <span aria-hidden>·</span>
             <span
-              className="text-[22px] md:text-[28px]"
+              className="text-[23px] md:text-[21px]"
               dir="rtl"
               style={{ fontFamily: 'var(--font-urdu-ui)' }}
             >
               پانی کا بل چیک کریں
             </span>
           </h1>
-          <p className={`text-slate-500 font-sans text-[16px] ${isUrdu ? 'leading-[26px]' : 'leading-[24px]'}`}>
+          <p className={`text-slate-500 font-sans text-[17px] ${isUrdu ? 'leading-[26px]' : 'leading-[24px]'}`}>
             {t('x.enterConsumerId')}
           </p>
         </div>
 
         {/* Search Card */}
-        <div className="bg-white border border-dp2-card-border rounded-lg p-6 md:p-8 shadow-sm">
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-6 md:p-8 shadow-sm">
           <form onSubmit={handleSearch} className="space-y-6">
             <div>
               <label
                 htmlFor="consumer_id"
-                className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2"
+                className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2"
               >
                 CONSUMER NO. / کنزیومر نمبر
               </label>
@@ -184,7 +184,7 @@ export default function WaterBillPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="e.g. DP-1001"
-                  className="w-full ps-12 pe-4 py-4 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[18px] leading-[28px] text-slate-800"
+                  className="w-full ps-12 pe-4 py-4 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[19px] leading-[20px] text-slate-800"
                 />
               </div>
             </div>
@@ -192,9 +192,9 @@ export default function WaterBillPage() {
             {/* Second factor. Consumer numbers run in sequence, so without this
                 anyone could walk the range and read every household's details. */}
             <div>
-              <label htmlFor="verify" className="block font-sans text-[16px] font-semibold text-slate-800 mb-2">
+              <label htmlFor="verify" className="block font-sans text-[17px] font-semibold text-slate-800 mb-2">
                 {t('x.lastFourDigits')}
-                <span className="block font-normal text-[14px] text-slate-500" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
+                <span className="block font-normal text-[15px] text-slate-500" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                   اپنے موبائل نمبر کے آخری 4 ہندسے، یا اپنا مکان نمبر
                 </span>
               </label>
@@ -205,16 +205,16 @@ export default function WaterBillPage() {
                 value={verify}
                 onChange={(e) => setVerify(e.target.value)}
                 placeholder="e.g. 4567"
-                className="w-full px-4 py-4 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[18px] leading-[28px] text-slate-800"
+                className="w-full px-4 py-4 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[19px] leading-[20px] text-slate-800"
               />
-              <p className="font-sans text-[13px] text-slate-500 mt-2">
+              <p className="font-sans text-[14px] text-slate-500 mt-2">
                 This keeps your bill private — only someone who knows your number can see it.
               </p>
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-dp2-primary-dark text-white py-4 rounded-lg font-sans text-[20px] font-semibold leading-[28px] hover:bg-dp2-primary transition-all active:scale-[0.98] flex justify-center items-center gap-3 disabled:opacity-50"
+              className="w-full bg-dp2-primary-dark text-white py-4 rounded-xl font-sans text-[21px] font-semibold leading-[20px] hover:bg-dp2-primary transition-all active:scale-[0.98] flex justify-center items-center gap-3 disabled:opacity-50"
             >
               {loading ? 'Searching...' : 'Check Bill Status / بل چیک کریں'}
             </button>
@@ -223,7 +223,7 @@ export default function WaterBillPage() {
 
         {/* Error State */}
         {searched && error && (
-          <div className="bg-red-100 text-red-800 px-6 py-4 rounded-lg font-sans text-[16px]">
+          <div className="bg-red-100 text-red-800 px-6 py-4 rounded-xl font-sans text-[17px]">
             {error}
           </div>
         )}
@@ -233,17 +233,17 @@ export default function WaterBillPage() {
           <div className="space-y-8">
 
             {/* Consumer Info + Status Badge */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-dp2-surface border border-dp2-card-border rounded-lg p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-dp2-surface border border-dp2-card-border rounded-xl p-6">
               <div className="space-y-1">
-                <h2 className="font-sans text-[20px] font-semibold leading-[28px] text-slate-800">
+                <h2 className="font-sans text-[21px] font-semibold leading-[20px] text-slate-800">
                   Consumer: {consumer.name}
                 </h2>
-                <p className="text-slate-500 font-sans text-[16px]">
+                <p className="text-slate-500 font-sans text-[17px]">
                   {consumer.address && `${consumer.address}`}
                   {consumer.area && `, ${consumer.area}`}
                 </p>
                 {latestBill && (
-                  <p className="text-slate-500 font-sans text-[16px]">
+                  <p className="text-slate-500 font-sans text-[17px]">
                     Billing Month:{' '}
                     <span className="font-bold">
                       {monthNames[latestBill.month]} {latestBill.year}
@@ -254,7 +254,7 @@ export default function WaterBillPage() {
               {latestBill && (
                 <div className="mt-4 md:mt-0">
                   {latestBill.status === 'paid' && (
-                    <div className="flex items-center gap-2 bg-dp2-primary text-white px-6 py-3 rounded-full font-bold font-sans text-[14px]">
+                    <div className="flex items-center gap-2 bg-dp2-primary text-white px-6 py-3 rounded-full font-bold font-sans text-[15px]">
                       PAID ✓{' '}
                       <span style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                         ادا شدہ
@@ -262,7 +262,7 @@ export default function WaterBillPage() {
                     </div>
                   )}
                   {(latestBill.status === 'unpaid' || latestBill.status === 'late') && (
-                    <div className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-full font-bold font-sans text-[14px]">
+                    <div className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-full font-bold font-sans text-[15px]">
                       UNPAID{' '}
                       <span style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                         غیر ادا شدہ
@@ -270,7 +270,7 @@ export default function WaterBillPage() {
                     </div>
                   )}
                   {latestBill.status === 'pending' && (
-                    <div className="flex items-center gap-2 bg-amber-100 text-amber-800 px-6 py-3 rounded-full font-bold font-sans text-[14px]">
+                    <div className="flex items-center gap-2 bg-amber-100 text-amber-800 px-6 py-3 rounded-full font-bold font-sans text-[15px]">
                       PENDING{' '}
                       <span style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                         زیر التواء
@@ -289,12 +289,12 @@ export default function WaterBillPage() {
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <h3 className="font-sans text-[20px] font-semibold leading-[28px] text-amber-900">
+                    <h3 className="font-sans text-[21px] font-semibold leading-[20px] text-amber-900">
                       {t('x.immediatePayment')}
                     </h3>
-                    <p className="text-amber-800 font-sans text-[16px]">
+                    <p className="text-amber-800 font-sans text-[17px]">
                       Total Outstanding:{' '}
-                      <span className="font-bold text-[18px]">
+                      <span className="font-bold text-[19px]">
                         {totalOutstanding.toLocaleString()}
                       </span>
                       . Please clear your bill through the following methods to
@@ -303,13 +303,13 @@ export default function WaterBillPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-white p-4 rounded border border-amber-200 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center font-bold text-[10px] text-center font-sans leading-tight">
+                      <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center font-bold text-[11px] text-center font-sans leading-tight">
                         Jazz
                         <br />
                         {t('w.cash')}
                       </div>
                       <div>
-                        <p className="font-sans text-[14px] font-semibold tracking-[0.05em]">
+                        <p className="font-sans text-[15px] font-semibold tracking-[0.05em]">
                           {t('w.jazzcash')}
                         </p>
                         <p className="font-bold text-dp2-primary font-sans">
@@ -318,13 +318,13 @@ export default function WaterBillPage() {
                       </div>
                     </div>
                     <div className="bg-white p-4 rounded border border-amber-200 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center font-bold text-[10px] text-center font-sans leading-tight">
+                      <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center font-bold text-[11px] text-center font-sans leading-tight">
                         Easy
                         <br />
                         Paisa
                       </div>
                       <div>
-                        <p className="font-sans text-[14px] font-semibold tracking-[0.05em]">
+                        <p className="font-sans text-[15px] font-semibold tracking-[0.05em]">
                           {t('w.easypaisa')}
                         </p>
                         <p className="font-bold text-dp2-primary font-sans">
@@ -339,16 +339,16 @@ export default function WaterBillPage() {
 
             {/* Billing History Table */}
             <div className="space-y-4">
-              <h3 className="font-sans text-[20px] font-semibold leading-[28px] text-dp2-primary">
+              <h3 className="font-sans text-[21px] font-semibold leading-[20px] text-dp2-primary">
                 Billing History /{' '}
                 <span style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                   بل کی تاریخ
                 </span>
               </h3>
-              <div className="bg-white border border-dp2-card-border rounded-lg overflow-hidden shadow-sm">
+              <div className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden shadow-sm">
                 <table className="w-full text-start border-collapse">
                   <thead>
-                    <tr className="bg-dp2-surface text-slate-800 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">
+                    <tr className="bg-dp2-surface text-slate-800 font-sans text-[15px] font-semibold tracking-[0.05em] uppercase">
                       <th className="px-6 py-4 border-b border-dp2-card-border">
                         {t('x.monthYear')}
                       </th>
@@ -371,17 +371,17 @@ export default function WaterBillPage() {
                           i % 2 === 1 ? 'bg-dp2-surface' : ''
                         }`}
                       >
-                        <td className="px-6 py-4 font-sans text-[16px]">
+                        <td className="px-6 py-4 font-sans text-[17px]">
                           {monthNames[bill.month]} {bill.year}
                         </td>
-                        <td className="px-6 py-4 font-sans text-[16px]">
+                        <td className="px-6 py-4 font-sans text-[17px]">
                           {bill.amount_pkr.toLocaleString()}
                         </td>
                         <td className="px-6 py-4">
                           <StatusBadge status={bill.status} />
                         </td>
                         <td className="px-6 py-4 text-end">
-                          <button className="text-dp2-primary-dark font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline inline-flex items-center gap-1 cursor-pointer">
+                          <button className="text-dp2-primary-dark font-sans text-[15px] font-semibold tracking-[0.05em] hover:underline inline-flex items-center gap-1 cursor-pointer">
                             <Download size={14} />
                             {t('x.downloadPdf')}
                           </button>
@@ -410,12 +410,12 @@ export default function WaterBillPage() {
       <aside className="w-full md:w-80 space-y-6 shrink-0">
 
         {/* How to Pay */}
-        <div className="bg-white border border-dp2-card-border rounded-lg p-6 shadow-sm">
-          <h4 className="font-sans text-[20px] font-semibold leading-[28px] text-dp2-primary mb-4 flex items-center gap-2">
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-6 shadow-sm">
+          <h4 className="font-sans text-[21px] font-semibold leading-[20px] text-dp2-primary mb-4 flex items-center gap-2">
             <Building2 size={20} className="text-dp2-primary-dark" />
             {t('x.howToPay')}
           </h4>
-          <div className="space-y-4 font-sans text-slate-500 text-[16px]">
+          <div className="space-y-4 font-sans text-slate-500 text-[17px]">
             {/* Real report, 2026-09-29: this always showed Bank Transfer no
                 matter which methods the committee actually enabled in
                 Settings > Payment Accounts (e.g. Easypaisa-only), so a
@@ -458,7 +458,7 @@ export default function WaterBillPage() {
         </div>
 
         {/* New Connection */}
-        <div className="bg-dp2-primary-dark text-emerald-100 rounded-lg p-6 shadow-sm overflow-hidden relative">
+        <div className="bg-dp2-primary-dark text-emerald-100 rounded-xl p-6 shadow-sm overflow-hidden relative">
           <div
             className="absolute inset-0 opacity-10 pointer-events-none"
             style={{
@@ -466,23 +466,23 @@ export default function WaterBillPage() {
               backgroundSize: '20px 20px',
             }}
           />
-          <h4 className="font-sans text-[20px] font-semibold leading-[28px] mb-2 relative z-10">
+          <h4 className="font-sans text-[21px] font-semibold leading-[20px] mb-2 relative z-10">
             {t('x.newConnection')}
           </h4>
-          <p className="font-sans text-[16px] mb-6 opacity-90 relative z-10">
+          <p className="font-sans text-[17px] mb-6 opacity-90 relative z-10">
             {t('x.applyOnline')}
           </p>
           <Link
             href="/water/apply"
-            className="block w-full text-center bg-emerald-100 text-emerald-700 py-3 rounded-lg font-bold font-sans hover:bg-emerald-200 transition-colors active:scale-95 relative z-10"
+            className="block w-full text-center bg-emerald-100 text-emerald-700 py-3 rounded-xl font-bold font-sans hover:bg-emerald-200 transition-colors active:scale-95 relative z-10"
           >
             {t('x.submitApplication')}
           </Link>
         </div>
 
         {/* Help Contact */}
-        <div className="bg-dp2-surface rounded-lg p-6">
-          <h4 className="font-sans text-[14px] font-semibold tracking-[0.05em] uppercase text-slate-800 mb-3">
+        <div className="bg-dp2-surface rounded-xl p-6">
+          <h4 className="font-sans text-[15px] font-semibold tracking-[0.05em] uppercase text-slate-800 mb-3">
             {t('x.needHelp')}
           </h4>
           <div className="space-y-3">
@@ -512,31 +512,31 @@ function StatusBadge({ status }: { status: string }) {
   switch (status) {
     case 'paid':
       return (
-        <span className="bg-dp2-primary text-white text-[12px] px-3 py-1 rounded-full font-bold font-sans uppercase">
+        <span className="bg-dp2-primary text-white text-[13px] px-3 py-1 rounded-full font-bold font-sans uppercase">
           {t('v.paid')}
         </span>
       )
     case 'unpaid':
       return (
-        <span className="bg-red-100 text-red-600 text-[12px] px-3 py-1 rounded-full font-bold font-sans uppercase">
+        <span className="bg-red-100 text-red-600 text-[13px] px-3 py-1 rounded-full font-bold font-sans uppercase">
           {t('v.unpaid')}
         </span>
       )
     case 'late':
       return (
-        <span className="bg-red-600 text-white text-[12px] px-3 py-1 rounded-full font-bold font-sans uppercase">
+        <span className="bg-red-600 text-white text-[13px] px-3 py-1 rounded-full font-bold font-sans uppercase">
           {t('v.late')}
         </span>
       )
     case 'pending':
       return (
-        <span className="bg-amber-100 text-amber-800 text-[12px] px-3 py-1 rounded-full font-bold font-sans uppercase">
+        <span className="bg-amber-100 text-amber-800 text-[13px] px-3 py-1 rounded-full font-bold font-sans uppercase">
           {t('v.pending')}
         </span>
       )
     default:
       return (
-        <span className="bg-dp2-surface text-slate-500 text-[12px] px-3 py-1 rounded-full font-bold font-sans uppercase">
+        <span className="bg-dp2-surface text-slate-500 text-[13px] px-3 py-1 rounded-full font-bold font-sans uppercase">
           {status}
         </span>
       )

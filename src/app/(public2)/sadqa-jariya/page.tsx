@@ -59,21 +59,21 @@ export default function SadqaJariyaPage() {
   return (
     <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen">
       <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[44px] text-dp2-primary flex items-center gap-3">
+        <h1 className="font-heading text-[23px] font-bold leading-[28px] text-dp2-primary flex items-center gap-3">
           <Gift size={30} className="text-dp2-primary-dark" /> {t('sj.title')}
         </h1>
-        <p className="font-sans text-[15px] text-slate-500 mt-2 leading-relaxed max-w-2xl">{t('sj.blurb')}</p>
+        <p className="font-sans text-[16px] text-slate-500 mt-2 leading-relaxed max-w-2xl">{t('sj.blurb')}</p>
       </div>
 
       {!loading && items.length > 0 && (
         <div className="flex flex-wrap gap-3 mb-8">
-          <div className="bg-white border border-dp2-card-border rounded-lg px-5 py-3">
-            <p className="font-sans text-[12px] font-semibold text-slate-500">{t('sj.installed')}</p>
-            <p className="font-heading text-[26px] font-bold text-dp2-primary">{items.length}</p>
+          <div className="bg-white border border-dp2-card-border rounded-2xl px-5 py-3">
+            <p className="font-sans text-[13px] font-semibold text-slate-500">{t('sj.installed')}</p>
+            <p className="font-heading text-[27px] font-bold text-dp2-primary">{items.length}</p>
           </div>
-          <div className="bg-white border border-dp2-card-border rounded-lg px-5 py-3">
-            <p className="font-sans text-[12px] font-semibold text-slate-500">{t('sj.working')}</p>
-            <p className="font-heading text-[26px] font-bold text-emerald-700">{working}</p>
+          <div className="bg-white border border-dp2-card-border rounded-2xl px-5 py-3">
+            <p className="font-sans text-[13px] font-semibold text-slate-500">{t('sj.working')}</p>
+            <p className="font-heading text-[27px] font-bold text-emerald-700">{working}</p>
           </div>
         </div>
       )}
@@ -81,47 +81,47 @@ export default function SadqaJariyaPage() {
       {loading && <p className="font-sans text-slate-500"><LoadingDots /></p>}
 
       {!loading && items.length === 0 && (
-        <div className="bg-white border border-dp2-card-border rounded-lg p-10 text-center mb-10">
-          <p className="font-sans text-[15px] text-slate-500">{t('sj.empty')}</p>
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-10 text-center mb-10">
+          <p className="font-sans text-[16px] text-slate-500">{t('sj.empty')}</p>
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
         {items.map((i) => (
-          <div key={i.object_no} className="bg-white border border-dp2-card-border rounded-lg overflow-hidden">
+          <div key={i.object_no} className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden">
             {i.photo_url && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={i.photo_url} alt="" className="w-full h-44 object-cover" />
             )}
             <div className="p-5">
               <div className="flex items-start justify-between gap-2 mb-2">
-                <h2 className="font-heading text-[19px] font-bold text-dp2-primary">
+                <h2 className="font-heading text-[20px] font-bold text-dp2-primary">
                   {isUrdu && i.item_name_ur ? i.item_name_ur : i.item_name}
                 </h2>
                 {['installed', 'in_service'].includes(i.status) ? (
-                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[12px] font-bold">
                     <CheckCircle2 size={11} /> {t('sj.inService')}
                   </span>
                 ) : i.status === 'needs_repair' ? (
-                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">
+                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[12px] font-bold">
                     <Wrench size={11} /> {t('sj.needsRepair')}
                   </span>
                 ) : (
-                  <span className="shrink-0 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold">{t('sj.retired')}</span>
+                  <span className="shrink-0 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[12px] font-bold">{t('sj.retired')}</span>
                 )}
               </div>
 
               {/* The plaque, rendered as a plaque. */}
               {(i.plaque_text || i.plaque_text_ur) && (
                 <div className="inline-block px-4 py-2.5 rounded border-[3px] border-dp2-card-border bg-dp2-surface mb-3">
-                  <p className="font-sans text-[12.5px] font-bold tracking-[0.06em] text-center"
+                  <p className="font-sans text-[13.5px] font-bold tracking-[0.06em] text-center"
                     style={isUrdu && i.plaque_text_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
                     {isUrdu && i.plaque_text_ur ? i.plaque_text_ur : i.plaque_text}
                   </p>
                 </div>
               )}
 
-              <p className="font-sans text-[14px] text-slate-800">
+              <p className="font-sans text-[15px] text-slate-800">
                 {t('es.inMemoryOf')}{' '}
                 <strong style={isUrdu && i.dedicated_to_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
                   {isUrdu && i.dedicated_to_ur ? i.dedicated_to_ur : i.dedicated_to}
@@ -129,12 +129,12 @@ export default function SadqaJariyaPage() {
               </p>
 
               {i.donor_name && (
-                <p className="font-sans text-[12.5px] text-slate-500 mt-1">
+                <p className="font-sans text-[13.5px] text-slate-500 mt-1">
                   {t('es.donatedBy')} {isUrdu && i.donor_name_ur ? i.donor_name_ur : i.donor_name}
                 </p>
               )}
 
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 font-sans text-[12px] text-slate-500">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 font-sans text-[13px] text-slate-500">
                 {i.location && <span className="inline-flex items-center gap-1"><MapPin size={12} /> {i.location}</span>}
                 {i.installed_on && (
                   <span>{new Date(i.installed_on).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
@@ -148,18 +148,18 @@ export default function SadqaJariyaPage() {
       {/* ── What it costs to give one ───────────────────────────────────── */}
       {catalogue.length > 0 && (
         <div>
-          <h2 className="font-heading text-[24px] font-bold text-dp2-primary mb-2">{t('sj.giveOne')}</h2>
-          <p className="font-sans text-[13.5px] text-slate-500 mb-5 max-w-2xl">{t('sj.giveOneHelp')}</p>
+          <h2 className="font-heading text-[19px] font-bold text-dp2-primary mb-2">{t('sj.giveOne')}</h2>
+          <p className="font-sans text-[14.5px] text-slate-500 mb-5 max-w-2xl">{t('sj.giveOneHelp')}</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {catalogue.map((c) => (
-              <div key={c.id} className="bg-white border border-dp2-card-border rounded-lg px-4 py-3.5">
-                <p className="font-sans text-[14.5px] font-bold text-slate-800">
+              <div key={c.id} className="bg-white border border-dp2-card-border rounded-2xl px-4 py-3.5">
+                <p className="font-sans text-[15.5px] font-bold text-slate-800">
                   {isUrdu && c.name_ur ? c.name_ur : c.name}
                 </p>
-                <p className="font-heading text-[20px] font-bold text-dp2-primary mt-1">{fmt(c.capital_cost_pkr)}</p>
+                <p className="font-heading text-[21px] font-bold text-dp2-primary mt-1">{fmt(c.capital_cost_pkr)}</p>
                 {c.annual_running_cost_pkr > 0 && (
-                  <p className="font-sans text-[12px] text-slate-500 mt-0.5">
+                  <p className="font-sans text-[13px] text-slate-500 mt-0.5">
                     {t('pes.runningCost')} {fmt(c.annual_running_cost_pkr)}/{t('es.year')}
                   </p>
                 )}
@@ -167,7 +167,7 @@ export default function SadqaJariyaPage() {
             ))}
           </div>
 
-          <p className="font-sans text-[13px] text-slate-500 mt-5 bg-dp2-surface rounded-lg px-4 py-3.5 max-w-2xl leading-relaxed">
+          <p className="font-sans text-[14px] text-slate-500 mt-5 bg-dp2-surface rounded-xl px-4 py-3.5 max-w-2xl leading-relaxed">
             {t('sj.howToOffer')}
           </p>
         </div>

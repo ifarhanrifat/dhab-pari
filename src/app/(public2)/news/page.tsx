@@ -104,10 +104,10 @@ export default function NewsPage() {
     <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp2-primary section-title">
+        <h1 className="font-heading text-[23px] font-bold leading-[28px] text-dp2-primary section-title">
           {t('x.villageNewsUpdates')}
         </h1>
-        <p className="text-slate-500 font-sans text-[18px] leading-[28px] mt-2">
+        <p className="text-slate-500 font-sans text-[19px] leading-[20px] mt-2">
           {t('x.newsPageIntro')}
         </p>
       </div>
@@ -123,7 +123,7 @@ export default function NewsPage() {
           <button
             key={cat.key}
             onClick={() => setActiveFilter(cat.key)}
-            className={`px-5 py-2 rounded-full font-sans text-[14px] font-semibold tracking-[0.05em] transition-all cursor-pointer ${
+            className={`px-5 py-2 rounded-full font-sans text-[15px] font-semibold tracking-[0.05em] transition-all cursor-pointer ${
               activeFilter === cat.key
                 ? 'bg-dp2-primary text-white'
                 : 'bg-white border border-dp2-card-border text-slate-500 hover:border-dp2-primary hover:text-dp2-primary'
@@ -137,17 +137,17 @@ export default function NewsPage() {
       {/* Loading */}
       {loading && (
         <div className="space-y-6">
-          <div className="h-[280px] bg-white border border-dp2-card-border rounded-lg animate-pulse" />
+          <div className="h-[280px] bg-white border border-dp2-card-border rounded-2xl animate-pulse" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-[260px] bg-white border border-dp2-card-border rounded-lg animate-pulse" />
+              <div key={i} className="h-[260px] bg-white border border-dp2-card-border rounded-2xl animate-pulse" />
             ))}
           </div>
         </div>
       )}
 
       {!loading && filtered.length === 0 && (
-        <div className="text-center py-16 text-slate-500 font-sans text-[16px]">
+        <div className="text-center py-16 text-slate-500 font-sans text-[17px]">
           {t('x.noNewsCategory')}
         </div>
       )}
@@ -155,7 +155,7 @@ export default function NewsPage() {
       {!loading && featured && (
         <>
           {/* Featured Post */}
-          <Link href={`/news/${featured.id}`} className="mb-10 bg-white border border-dp2-card-border rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp2-primary-dark transition-all group cursor-pointer block">
+          <Link href={`/news/${featured.id}`} className="mb-10 bg-white border border-dp2-card-border rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp2-primary-dark transition-all group cursor-pointer block">
             {/* Left: colored area */}
             <div className={`min-h-[240px] flex items-center justify-center ${categoryColors[featured.category ?? '']?.bg ?? 'bg-dp2-surface'}`}>
               <span className="text-[80px]">
@@ -165,17 +165,17 @@ export default function NewsPage() {
             {/* Right: content */}
             <div className="p-8 flex flex-col justify-between">
               <div>
-                <span className={`text-[10px] font-bold uppercase tracking-widest font-sans ${categoryColors[featured.category ?? '']?.text ?? 'text-dp2-primary-dark'}`}>
+                <span className={`text-[11px] font-bold uppercase tracking-widest font-sans ${categoryColors[featured.category ?? '']?.text ?? 'text-dp2-primary-dark'}`}>
                   {featured.category}
                 </span>
-                <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp2-primary mt-2 group-hover:text-dp2-primary-dark transition-colors">
+                <h2 className="font-heading text-[19px] font-bold leading-[24px] text-dp2-primary mt-2 group-hover:text-dp2-primary-dark transition-colors">
                   {featured.title}
                 </h2>
-                <p className={`text-slate-500 font-sans text-[16px] mt-3 line-clamp-3 ${isUrdu ? 'leading-[26px]' : 'leading-[24px]'}`}>
+                <p className={`text-slate-500 font-sans text-[17px] mt-3 line-clamp-3 ${isUrdu ? 'leading-[26px]' : 'leading-[24px]'}`}>
                   {featured.content}
                 </p>
               </div>
-              <div className="flex items-center gap-4 mt-6 text-slate-500 text-[14px] font-sans font-semibold tracking-[0.05em]">
+              <div className="flex items-center gap-4 mt-6 text-slate-500 text-[15px] font-sans font-semibold tracking-[0.05em]">
                 <span className="flex items-center gap-1">
                   <Calendar size={14} />
                   {formatDate(featured.published_at)}
@@ -205,7 +205,7 @@ export default function NewsPage() {
                 <Link
                   key={post.id}
                   href={`/news/${post.id}`}
-                  className="bg-white border border-dp2-card-border rounded-lg overflow-hidden hover:border-dp2-primary-dark transition-all group cursor-pointer block"
+                  className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden hover:border-dp2-primary-dark transition-all group cursor-pointer block"
                 >
                   {/* Colored cover */}
                   <div className={`h-32 flex items-center justify-center ${colors.bg}`}>
@@ -215,16 +215,16 @@ export default function NewsPage() {
                   </div>
                   {/* Content */}
                   <div className="p-5">
-                    <span className={`text-[10px] font-bold uppercase tracking-widest font-sans ${colors.text}`}>
+                    <span className={`text-[11px] font-bold uppercase tracking-widest font-sans ${colors.text}`}>
                       {post.category}
                     </span>
-                    <h3 className="font-bold text-dp2-primary text-[16px] font-sans leading-[24px] mt-1 group-hover:text-dp2-primary-dark transition-colors line-clamp-2">
+                    <h3 className="font-bold text-dp2-primary text-[17px] font-sans leading-[24px] mt-1 group-hover:text-dp2-primary-dark transition-colors line-clamp-2">
                       {post.title}
                     </h3>
-                    <p className="text-slate-500 text-[14px] font-sans tracking-[0.05em] mt-2 line-clamp-2">
+                    <p className="text-slate-500 text-[15px] font-sans tracking-[0.05em] mt-2 line-clamp-2">
                       {post.content?.slice(0, 100)}...
                     </p>
-                    <div className="flex items-center gap-3 mt-4 text-slate-500 text-[12px] font-sans">
+                    <div className="flex items-center gap-3 mt-4 text-slate-500 text-[13px] font-sans">
                       <span className="flex items-center gap-1">
                         <Calendar size={12} />
                         {formatDate(post.published_at)}

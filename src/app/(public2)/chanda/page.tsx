@@ -72,18 +72,18 @@ export default function ChandaPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap mb-1.5">
         <div className="flex items-center gap-2.5">
           <Landmark size={26} className="text-dp2-primary" />
-          <h1 className="font-heading text-[28px] font-bold text-dp2-primary">{t('ch.pageTitle')}</h1>
+          <h1 className="font-heading text-[21px] font-bold text-dp2-primary">{t('ch.pageTitle')}</h1>
         </div>
-        <button onClick={copyLink} className="flex items-center gap-2 px-3 py-2 border border-dp2-card-border rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp2-surface transition-all cursor-pointer">
+        <button onClick={copyLink} className="flex items-center gap-2 px-3 py-2 border border-dp2-card-border rounded-xl font-sans text-[13.5px] font-semibold hover:bg-dp2-surface transition-all cursor-pointer">
           <Copy size={14} /> {t('ch.shareLink')}
         </button>
       </div>
-      <p className="font-sans text-[14px] text-slate-500 mb-8">{t('ch.pageIntro')}</p>
+      <p className="font-sans text-[15px] text-slate-500 mb-8">{t('ch.pageIntro')}</p>
 
       {loading ? (
         <div className="text-center py-12 text-slate-500"><LoadingDots /></div>
       ) : campaigns.length === 0 ? (
-        <p className="text-center py-12 text-slate-500 font-sans text-[14px] bg-white border border-dp2-card-border rounded-lg">{t('ch.noneFound')}</p>
+        <p className="text-center py-12 text-slate-500 font-sans text-[15px] bg-white border border-dp2-card-border rounded-2xl">{t('ch.noneFound')}</p>
       ) : (
         <div className="space-y-5">
           {campaigns.map((c) => {
@@ -93,7 +93,7 @@ export default function ChandaPage() {
             const confirmedTotal = confirmed.reduce((s, p) => s + Number(p.amount), 0)
             const progressPct = c.target_amount ? Math.min(100, Math.round((confirmedTotal / c.target_amount) * 100)) : 0
             return (
-              <div key={c.id} className="bg-white border border-dp2-card-border rounded-lg overflow-hidden">
+              <div key={c.id} className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden">
                 {c.cover_image_url && (
                   <div className="relative w-full h-44">
                     <Image src={c.cover_image_url} alt={isUrdu && c.title_ur ? c.title_ur : c.title} fill sizes="(min-width: 900px) 900px, 100vw" className="object-cover" />
@@ -102,35 +102,35 @@ export default function ChandaPage() {
                 <div className="p-5">
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                   <div>
-                    <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 uppercase">{t(`ch.type.${c.type}`)}</span>
-                    <p className="font-heading text-[18px] font-bold text-slate-800 mt-1">{isUrdu && c.title_ur ? c.title_ur : c.title}</p>
+                    <span className="text-[11.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 uppercase">{t(`ch.type.${c.type}`)}</span>
+                    <p className="font-heading text-[19px] font-bold text-slate-800 mt-1">{isUrdu && c.title_ur ? c.title_ur : c.title}</p>
                   </div>
-                  <button onClick={() => setShowForm(c.id)} className="px-4 py-2 bg-dp2-primary-dark text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp2-primary transition-all cursor-pointer">{t('ch.donateBtn')}</button>
+                  <button onClick={() => setShowForm(c.id)} className="px-4 py-2 bg-dp2-primary-dark text-white rounded-xl font-sans text-[14px] font-semibold hover:bg-dp2-primary transition-all cursor-pointer">{t('ch.donateBtn')}</button>
                 </div>
                 {/* The work this money is actually for, and its real cost — the two
                     things a donor needs before giving, shown up front rather than
                     buried after the payment details. */}
                 {c.target_amount != null && (
-                  <p className="font-sans text-[13px] font-bold text-slate-800 mb-1.5">
+                  <p className="font-sans text-[14px] font-bold text-slate-800 mb-1.5">
                     {t('ch.costLabel')}: <span className="ltr-num">Rs {c.target_amount.toLocaleString()}</span>
                   </p>
                 )}
-                {(isUrdu ? c.description_ur : c.description) && <p className="font-sans text-[13.5px] text-slate-500 mb-2">{isUrdu ? c.description_ur : c.description}</p>}
-                <p className="font-sans text-[12.5px] text-slate-500 mb-3">{methodLabel[c.payment_method]}: <span className="ltr-num font-semibold">{c.account_number}</span>{c.account_title ? ` (${c.account_title})` : ''}</p>
+                {(isUrdu ? c.description_ur : c.description) && <p className="font-sans text-[14.5px] text-slate-500 mb-2">{isUrdu ? c.description_ur : c.description}</p>}
+                <p className="font-sans text-[13.5px] text-slate-500 mb-3">{methodLabel[c.payment_method]}: <span className="ltr-num font-semibold">{c.account_number}</span>{c.account_title ? ` (${c.account_title})` : ''}</p>
 
                 {c.target_amount != null ? (
                   <div className="mb-3">
-                    <div className="flex justify-between font-sans text-[13px] mb-1.5">
+                    <div className="flex justify-between font-sans text-[14px] mb-1.5">
                       <span className="text-emerald-700 font-bold">{t('sl.confirmed')}: <span className="ltr-num">Rs {confirmedTotal.toLocaleString()}</span></span>
                       <span className="text-slate-500"><span className="ltr-num">Rs {c.target_amount.toLocaleString()}</span> {t('ch.target')}</span>
                     </div>
                     <div className="h-2.5 w-full bg-dp2-surface rounded-full overflow-hidden">
                       <div className="h-full bg-dp2-primary-dark transition-all duration-1000" style={{ width: `${progressPct}%` }} />
                     </div>
-                    <p className="font-sans text-[11.5px] text-slate-500 mt-1 ltr-num">{progressPct}% {t('ch.raised')}</p>
+                    <p className="font-sans text-[12.5px] text-slate-500 mt-1 ltr-num">{progressPct}% {t('ch.raised')}</p>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-4 mb-3 font-sans text-[13px]">
+                  <div className="flex items-center gap-4 mb-3 font-sans text-[14px]">
                     <span className="text-emerald-700 font-bold">{t('sl.confirmed')}: <span className="ltr-num">Rs {confirmedTotal.toLocaleString()}</span></span>
                   </div>
                 )}
@@ -138,7 +138,7 @@ export default function ChandaPage() {
                 {campaignPledges.length > 0 && (
                   <div className="max-h-48 overflow-y-auto space-y-1.5 border-t border-dp2-card-border pt-3">
                     {[...confirmed, ...pending].map((p) => (
-                      <div key={p.id} className="flex items-center justify-between font-sans text-[12.5px]">
+                      <div key={p.id} className="flex items-center justify-between font-sans text-[13.5px]">
                         <span className="text-slate-800">{p.giver_name}</span>
                         <span className={`ltr-num font-semibold ${p.status === 'received' ? 'text-emerald-700' : 'text-amber-700'}`}>Rs {Number(p.amount).toLocaleString()}{p.status === 'pending' ? ` (${t('sl.pending')})` : ''}</span>
                       </div>
@@ -154,17 +154,17 @@ export default function ChandaPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-heading text-[18px] font-bold text-dp2-primary mb-4">{t('ch.donateBtn')}</h3>
-            <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{t('sl.amount')}</label>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-heading text-[19px] font-bold text-dp2-primary mb-4">{t('ch.donateBtn')}</h3>
+            <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{t('sl.amount')}</label>
             <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="input-field mb-3" />
-            <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{t('sl.message')}</label>
+            <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{t('sl.message')}</label>
             <input value={message} onChange={(e) => setMessage(e.target.value)} className="input-field mb-3" />
-            <label className="flex items-center gap-2 cursor-pointer mb-4"><input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} className="accent-dp2-primary-dark" /><span className="font-sans text-[13px]">{t('sl.anonymous')}</span></label>
+            <label className="flex items-center gap-2 cursor-pointer mb-4"><input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} className="accent-dp2-primary-dark" /><span className="font-sans text-[14px]">{t('sl.anonymous')}</span></label>
             <div className="mb-4">
               <ImageUpload bucket="salami_receipts" currentUrl={receiptUrl} onUpload={setReceiptUrl} label={t('sl.receiptOptional')} />
             </div>
-            <button onClick={announce} disabled={saving} className="w-full bg-dp2-primary-dark text-white py-2.5 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-50">{saving ? t('p.saving') : t('sl.submit')}</button>
+            <button onClick={announce} disabled={saving} className="w-full bg-dp2-primary-dark text-white py-2.5 rounded-xl font-sans font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-50">{saving ? t('p.saving') : t('sl.submit')}</button>
           </div>
         </div>
       )}

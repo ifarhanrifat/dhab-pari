@@ -384,20 +384,20 @@ export default function ProjectDetailPage() {
     // (ps-/pe-/ms-/me-/border-s-, no ml-/pl-/left-/text-left anywhere), so
     // it's safe to flip as a whole rather than one more scattered dir prop.
     <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'}>
-      <Link href="/projects" className="inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[14px] font-semibold hover:underline mb-6"><ArrowLeft size={16} /> {tr('x.allProjects')}</Link>
+      <Link href="/projects" className="inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[15px] font-semibold hover:underline mb-6"><ArrowLeft size={16} /> {tr('x.allProjects')}</Link>
 
       <div className="mb-8">
         <div className="flex items-start justify-between gap-3">
-          <span className="bg-dp2-primary-dark text-emerald-100 px-3 py-1 rounded font-sans text-[12px] font-semibold uppercase tracking-[0.05em]">{isUrdu ? (CATEGORY_LABEL_UR[project.category ?? 'other'] ?? project.category) : project.category}</span>
+          <span className="bg-dp2-primary-dark text-emerald-100 px-3 py-1 rounded font-sans text-[13px] font-semibold uppercase tracking-[0.05em]">{isUrdu ? (CATEGORY_LABEL_UR[project.category ?? 'other'] ?? project.category) : project.category}</span>
           <ProjectShareCard
             projectId={project.id} title={project.display_name || project.title}
             imageUrl={project.category === 'health' ? '/images/health-project-cover.jpg' : (project.after_image_url ?? project.proposal_image_url ?? project.before_image_url)}
             isVotingOpen={project.status === 'upcoming'} isUrdu={isUrdu} variant="button"
           />
         </div>
-        <h1 className="font-heading text-[28px] md:text-[32px] font-bold text-dp2-primary mt-3">{project.display_name || project.title}</h1>
-        {project.location && <p className="flex items-center gap-1 text-slate-500 font-sans text-[15px] mt-1"><MapPin size={15} /> {isUrdu ? (project.location_ur || project.location) : project.location}</p>}
-        <p className="font-sans text-[16px] text-slate-500 mt-4 leading-[26px]">{project.description}</p>
+        <h1 className="font-heading text-[21px] md:text-[23px] font-bold text-dp2-primary mt-3">{project.display_name || project.title}</h1>
+        {project.location && <p className="flex items-center gap-1 text-slate-500 font-sans text-[16px] mt-1"><MapPin size={15} /> {isUrdu ? (project.location_ur || project.location) : project.location}</p>}
+        <p className="font-sans text-[17px] text-slate-500 mt-4 leading-[26px]">{project.description}</p>
       </div>
 
       {/* Photos — a health/medical project always uses the fixed generic
@@ -409,7 +409,7 @@ export default function ProjectDetailPage() {
           photo silently never appeared anywhere except the small listing
           thumbnail. */}
       {project.category === 'health' ? (
-        <div className="mb-8 relative w-full h-64 rounded-lg overflow-hidden">
+        <div className="mb-8 relative w-full h-64 rounded-xl overflow-hidden">
           <Image src="/images/health-project-cover.jpg" alt="" fill sizes="1000px" className="object-cover" />
         </div>
       ) : (
@@ -418,18 +418,18 @@ export default function ProjectDetailPage() {
             <div className={`grid gap-3 mb-3 ${project.before_image_url && project.after_image_url ? 'grid-cols-2' : 'grid-cols-1'}`} dir={isUrdu ? 'rtl' : 'ltr'}>
               {project.before_image_url && (
                 <div>
-                  <button type="button" onClick={() => setLightboxIndex(beforeIndex)} className="relative w-full h-56 rounded-lg overflow-hidden bg-dp2-surface cursor-pointer block">
+                  <button type="button" onClick={() => setLightboxIndex(beforeIndex)} className="relative w-full h-56 rounded-xl overflow-hidden bg-dp2-surface cursor-pointer block">
                     <Image src={project.before_image_url} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
                   </button>
-                  {project.after_image_url && <p className="font-sans text-[11.5px] font-bold text-slate-500 uppercase tracking-wide mt-1.5">{tr('pj.beforePhoto')}</p>}
+                  {project.after_image_url && <p className="font-sans text-[12.5px] font-bold text-slate-500 uppercase tracking-wide mt-1.5">{tr('pj.beforePhoto')}</p>}
                 </div>
               )}
               {project.after_image_url && (
                 <div>
-                  <button type="button" onClick={() => setLightboxIndex(afterIndex)} className="relative w-full h-56 rounded-lg overflow-hidden bg-dp2-surface cursor-pointer block">
+                  <button type="button" onClick={() => setLightboxIndex(afterIndex)} className="relative w-full h-56 rounded-xl overflow-hidden bg-dp2-surface cursor-pointer block">
                     <Image src={project.after_image_url} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
                   </button>
-                  {project.before_image_url && <p className="font-sans text-[11.5px] font-bold text-slate-500 uppercase tracking-wide mt-1.5">{tr('pj.afterPhoto')}</p>}
+                  {project.before_image_url && <p className="font-sans text-[12.5px] font-bold text-slate-500 uppercase tracking-wide mt-1.5">{tr('pj.afterPhoto')}</p>}
                 </div>
               )}
             </div>
@@ -438,7 +438,7 @@ export default function ProjectDetailPage() {
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 mb-8">
               {galleryPhotos.map((g, i) => (
                 <button key={g.id} type="button" onClick={() => setLightboxIndex(galleryStartIndex + i)}
-                  className="relative aspect-square rounded-lg overflow-hidden bg-dp2-surface cursor-pointer block hover:opacity-90 transition-opacity">
+                  className="relative aspect-square rounded-xl overflow-hidden bg-dp2-surface cursor-pointer block hover:opacity-90 transition-opacity">
                   <Image src={g.url} alt={g.caption ?? ''} fill sizes="200px" className="object-cover" />
                 </button>
               ))}
@@ -451,7 +451,7 @@ export default function ProjectDetailPage() {
               so the audit page never shows LESS than the card that linked
               to it. */}
           {showProposalFallback && (
-            <button type="button" onClick={() => setLightboxIndex(proposalIndex)} className="relative w-full h-64 rounded-lg overflow-hidden bg-dp2-surface cursor-pointer block mb-8">
+            <button type="button" onClick={() => setLightboxIndex(proposalIndex)} className="relative w-full h-64 rounded-xl overflow-hidden bg-dp2-surface cursor-pointer block mb-8">
               <Image src={project.proposal_image_url!} alt="" fill sizes="1000px" className="object-cover" />
             </button>
           )}
@@ -469,36 +469,36 @@ export default function ProjectDetailPage() {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white border border-dp2-card-border rounded-lg p-4">
-          <p className="font-sans text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{tr('home.budget')}</p>
-          <p className="font-heading text-[20px] font-bold text-dp2-primary">{fmt(project.budget_pkr ?? 0)}</p>
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-4">
+          <p className="font-sans text-[12px] font-semibold text-slate-500 uppercase tracking-wide">{tr('home.budget')}</p>
+          <p className="font-heading text-[21px] font-bold text-dp2-primary">{fmt(project.budget_pkr ?? 0)}</p>
         </div>
-        <div className="bg-white border border-dp2-card-border rounded-lg p-4">
-          <p className="font-sans text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{tr('x.verifiedRaised')}</p>
-          <p className="font-heading text-[20px] font-bold text-dp2-primary-dark">{fmt(totalVerified)}</p>
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-4">
+          <p className="font-sans text-[12px] font-semibold text-slate-500 uppercase tracking-wide">{tr('x.verifiedRaised')}</p>
+          <p className="font-heading text-[21px] font-bold text-dp2-primary-dark">{fmt(totalVerified)}</p>
         </div>
-        <div className="bg-white border border-dp2-card-border rounded-lg p-4">
-          <p className="font-sans text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{tr('x.announced')}</p>
-          <p className="font-heading text-[20px] font-bold text-amber-600">{fmt(totalAnnounced)}</p>
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-4">
+          <p className="font-sans text-[12px] font-semibold text-slate-500 uppercase tracking-wide">{tr('x.announced')}</p>
+          <p className="font-heading text-[21px] font-bold text-amber-600">{fmt(totalAnnounced)}</p>
         </div>
-        <div className="bg-white border border-dp2-card-border rounded-lg p-4">
-          <p className="font-sans text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{tr('home.spent')}</p>
-          <p className="font-heading text-[20px] font-bold text-red-600">{fmt(totalExpenses)}</p>
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-4">
+          <p className="font-sans text-[12px] font-semibold text-slate-500 uppercase tracking-wide">{tr('home.spent')}</p>
+          <p className="font-heading text-[21px] font-bold text-red-600">{fmt(totalExpenses)}</p>
         </div>
         {stillNeeded !== null && (
-          <div className="bg-white border border-dp2-card-border rounded-lg p-4">
-            <p className="font-sans text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{tr('x.stillNeeded')}</p>
-            <p className="font-heading text-[20px] font-bold text-dp2-amber">{fmt(stillNeeded)}</p>
+          <div className="bg-white border border-dp2-card-border rounded-2xl p-4">
+            <p className="font-sans text-[12px] font-semibold text-slate-500 uppercase tracking-wide">{tr('x.stillNeeded')}</p>
+            <p className="font-heading text-[21px] font-bold text-dp2-amber">{fmt(stillNeeded)}</p>
           </div>
         )}
       </div>
 
       {channels.length > 0 && (
         <div className="mb-8" dir={isUrdu ? 'rtl' : 'ltr'}>
-          <p className="font-sans text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('receivedVia')}</p>
+          <p className="font-sans text-[12px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('receivedVia')}</p>
           <div className="flex flex-wrap gap-x-5 gap-y-1">
             {channels.map((c) => (
-              <p key={c.payment_method} className="font-sans text-[13.5px] text-slate-500">
+              <p key={c.payment_method} className="font-sans text-[14.5px] text-slate-500">
                 <span className="capitalize font-semibold text-slate-800">{c.payment_method}</span>: {fmt(c.total_pkr)}
               </p>
             ))}
@@ -507,22 +507,22 @@ export default function ProjectDetailPage() {
       )}
 
       {project.status === 'announced' ? (
-        <div className="bg-slate-100 border border-slate-300 rounded-lg p-6 mb-8 flex items-center gap-3">
+        <div className="bg-slate-100 border border-slate-300 rounded-xl p-6 mb-8 flex items-center gap-3">
           <Clock size={22} className="text-slate-500 shrink-0" />
           <div>
-            <p className="font-heading text-[17px] font-bold text-slate-700">{tr('x.awaitingPledgeConfirm')}</p>
-            <p className="font-sans text-[13px] text-slate-600 mt-0.5">
+            <p className="font-heading text-[18px] font-bold text-slate-700">{tr('x.awaitingPledgeConfirm')}</p>
+            <p className="font-sans text-[14px] text-slate-600 mt-0.5">
               The proposer's self-commitment hasn't been confirmed yet — voting, donations, and pledges open automatically once staff confirm the payment.
             </p>
           </div>
         </div>
       ) : project.status === 'upcoming' ? (
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-6 mb-8">
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 mb-8">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div>
-              <p className="font-heading text-[24px] font-bold text-blue-900">{votes.length} / {project.vote_target ?? '—'} Votes</p>
+              <p className="font-heading text-[19px] font-bold text-blue-900">{votes.length} / {project.vote_target ?? '—'} Votes</p>
               {project.minimum_monthly_commitment_pkr && (
-                <p className="font-sans text-[13px] text-blue-700 mt-1">Proposer committed {fmt(project.minimum_monthly_commitment_pkr)}/month once launched.</p>
+                <p className="font-sans text-[14px] text-blue-700 mt-1">Proposer committed {fmt(project.minimum_monthly_commitment_pkr)}/month once launched.</p>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -531,9 +531,9 @@ export default function ProjectDetailPage() {
                 imageUrl={project.after_image_url ?? project.proposal_image_url ?? project.before_image_url}
                 isVotingOpen isUrdu={isUrdu}
                 variant="button" label={tr('x.shareForVotes')}
-                className="flex items-center gap-2 border-2 border-blue-600 text-blue-700 px-4 py-3 rounded-lg font-sans font-semibold hover:bg-blue-600 hover:text-white transition-all cursor-pointer"
+                className="flex items-center gap-2 border-2 border-blue-600 text-blue-700 px-4 py-3 rounded-xl font-sans font-semibold hover:bg-blue-600 hover:text-white transition-all cursor-pointer"
               />
-              <button onClick={castVote} disabled={voting || !!myVoteId} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-sans font-semibold transition-all disabled:opacity-100 ${myVoteId ? 'bg-blue-100 text-blue-700 border-2 border-blue-600 cursor-default' : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer disabled:opacity-50'}`}>
+              <button onClick={castVote} disabled={voting || !!myVoteId} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-sans font-semibold transition-all disabled:opacity-100 ${myVoteId ? 'bg-blue-100 text-blue-700 border-2 border-blue-600 cursor-default' : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer disabled:opacity-50'}`}>
                 <Vote size={16} /> {myVoteId ? '✓ Voted' : 'Vote for Project'}
               </button>
             </div>
@@ -542,8 +542,8 @@ export default function ProjectDetailPage() {
             <div className="flex flex-wrap gap-2">
               {votes.map((v) => (
                 <div key={v.id} title={v.username ?? undefined} className="flex items-center gap-1.5 bg-white border border-blue-100 rounded-full ps-1 pe-3 py-1">
-                  {v.avatar_url ? <Image src={v.avatar_url} alt="" width={24} height={24} className="w-6 h-6 rounded-full object-cover" /> : <div className="w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center text-[10px] font-bold text-blue-800">{(v.username ?? '?').charAt(0).toUpperCase()}</div>}
-                  <span className="font-sans text-[12px] font-semibold text-blue-900">{v.username}</span>
+                  {v.avatar_url ? <Image src={v.avatar_url} alt="" width={24} height={24} className="w-6 h-6 rounded-full object-cover" /> : <div className="w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center text-[11px] font-bold text-blue-800">{(v.username ?? '?').charAt(0).toUpperCase()}</div>}
+                  <span className="font-sans text-[13px] font-semibold text-blue-900">{v.username}</span>
                 </div>
               ))}
             </div>
@@ -554,28 +554,28 @@ export default function ProjectDetailPage() {
         // one-time build doesn't need more money once it's done. The one
         // exception is recurring_support: a monthly salary/operating cost
         // keeps needing donors regardless of the build's own status.
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 mb-8 flex items-center gap-3">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 mb-8 flex items-center gap-3">
           <CheckCircle size={22} className="text-emerald-600 shrink-0" />
           <div>
-            <p className="font-heading text-[17px] font-bold text-emerald-800">{dt('completedNoMoreDonations')}</p>
-            <p className="font-sans text-[13px] text-emerald-700 mt-0.5">{dt('completedNoMoreDonationsSub')}</p>
+            <p className="font-heading text-[18px] font-bold text-emerald-800">{dt('completedNoMoreDonations')}</p>
+            <p className="font-sans text-[14px] text-emerald-700 mt-0.5">{dt('completedNoMoreDonationsSub')}</p>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap gap-3 mb-8">
-          <Link href={portalUser ? `/portal/donate?project=${id}` : `/donate/submit?project=${id}`} className="flex items-center gap-2 bg-dp2-primary-dark text-white px-6 py-3 rounded-lg font-sans font-semibold hover:bg-dp2-primary transition-all">
+          <Link href={portalUser ? `/portal/donate?project=${id}` : `/donate/submit?project=${id}`} className="flex items-center gap-2 bg-dp2-primary-dark text-white px-6 py-3 rounded-xl font-sans font-semibold hover:bg-dp2-primary transition-all">
             <HeartHandshake size={16} /> {tr('x.donateNowBtn')}
           </Link>
-          <button onClick={() => (portalUser ? setShowAnnounce(true) : router.push(`/portal/login?next=/projects/${id}`))} className="flex items-center gap-2 border-2 border-dp2-primary text-dp2-primary px-6 py-3 rounded-lg font-sans font-semibold hover:bg-dp2-primary hover:text-white transition-all cursor-pointer">
+          <button onClick={() => (portalUser ? setShowAnnounce(true) : router.push(`/portal/login?next=/projects/${id}`))} className="flex items-center gap-2 border-2 border-dp2-primary text-dp2-primary px-6 py-3 rounded-xl font-sans font-semibold hover:bg-dp2-primary hover:text-white transition-all cursor-pointer">
             <Megaphone size={16} /> {tr('x.announcePledge')}
           </button>
-          <button onClick={() => (portalUser ? setShowVolunteer(true) : router.push(`/portal/login?next=/projects/${id}`))} className="flex items-center gap-2 border-2 border-dp2-primary-dark text-dp2-primary-dark px-6 py-3 rounded-lg font-sans font-semibold hover:bg-dp2-primary-dark hover:text-white transition-all cursor-pointer">
+          <button onClick={() => (portalUser ? setShowVolunteer(true) : router.push(`/portal/login?next=/projects/${id}`))} className="flex items-center gap-2 border-2 border-dp2-primary-dark text-dp2-primary-dark px-6 py-3 rounded-xl font-sans font-semibold hover:bg-dp2-primary-dark hover:text-white transition-all cursor-pointer">
             <HandHeart size={16} /> {tr('x.volunteerForProject')}
           </button>
           {joinableBatchCount > 0 && (
             <button
               onClick={() => router.push(portalUser ? `/portal/training-programs/join/${id}` : `/portal/login?next=/portal/training-programs/join/${id}`)}
-              className="flex items-center gap-2 border-2 border-amber-600 text-amber-700 px-6 py-3 rounded-lg font-sans font-semibold hover:bg-amber-600 hover:text-white transition-all cursor-pointer"
+              className="flex items-center gap-2 border-2 border-amber-600 text-amber-700 px-6 py-3 rounded-xl font-sans font-semibold hover:bg-amber-600 hover:text-white transition-all cursor-pointer"
             >
               <Users size={16} /> {tr('x.joinAcademyBtn')}
             </button>
@@ -590,7 +590,7 @@ export default function ProjectDetailPage() {
           worth showing once there's something to react to. */}
       {testimonialVideo && (
         <div className="mb-8" dir={isUrdu ? 'rtl' : 'ltr'}>
-          <h2 className="font-heading text-[20px] font-bold text-dp2-primary mb-4">{tr('x.whatPeopleSay')}</h2>
+          <h2 className="font-heading text-[21px] font-bold text-dp2-primary mb-4">{tr('x.whatPeopleSay')}</h2>
           <VideoPlayer url={testimonialVideo.video_url} title={isUrdu && testimonialVideo.title_ur ? testimonialVideo.title_ur : testimonialVideo.title} />
         </div>
       )}
@@ -599,8 +599,8 @@ export default function ProjectDetailPage() {
           portal's Academies catalog shows, now visible to anyone deciding
           whether to join without first creating an account. */}
       {academyBatches.length > 0 && (
-        <div className="bg-white border border-dp2-card-border rounded-lg p-5 mb-8" dir={isUrdu ? 'rtl' : 'ltr'}>
-          <p className="font-sans text-[13.5px] font-bold text-dp2-primary mb-3">{tr('x.batchesFeesTitle')}</p>
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-5 mb-8" dir={isUrdu ? 'rtl' : 'ltr'}>
+          <p className="font-sans text-[14.5px] font-bold text-dp2-primary mb-3">{tr('x.batchesFeesTitle')}</p>
           <div className="space-y-3">
             {academyBatches.map((b) => {
               const ageRange = b.age_min != null || b.age_max != null
@@ -608,25 +608,25 @@ export default function ProjectDetailPage() {
                 : null
               const full = b.spots_left === 0
               return (
-                <div key={b.id} className="border border-dp2-card-border/60 rounded-lg p-3.5">
+                <div key={b.id} className="border border-dp2-card-border/60 rounded-xl p-3.5">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="font-sans text-[14px] font-semibold text-slate-800">{isUrdu && b.label_ur ? b.label_ur : b.label}</p>
+                    <p className="font-sans text-[15px] font-semibold text-slate-800">{isUrdu && b.label_ur ? b.label_ur : b.label}</p>
                     {b.capacity != null && (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${full ? 'bg-red-600/10 text-red-600' : 'bg-emerald-100 text-emerald-700'}`}>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full uppercase ${full ? 'bg-red-600/10 text-red-600' : 'bg-emerald-100 text-emerald-700'}`}>
                         {full ? tr('x.batchFullLabel') : `${b.spots_left} ${tr('x.spotsLeftLabel')}`}
                       </span>
                     )}
                   </div>
                   {(b.schedule_note || ageRange) && (
-                    <div className="flex items-center gap-3 mt-1 text-[12.5px] text-slate-500">
+                    <div className="flex items-center gap-3 mt-1 text-[13.5px] text-slate-500">
                       {b.schedule_note && <span className="flex items-center gap-1"><MapPin size={11} className="shrink-0" /> {isUrdu ? (b.schedule_note_ur || b.schedule_note) : b.schedule_note}</span>}
                       {ageRange && <span className="flex items-center gap-1"><Cake size={11} className="shrink-0" /> {tr('x.agesLabelFull')} {ageRange}</span>}
                     </div>
                   )}
                   {project.hide_fees ? (
-                    <p className="mt-2 text-[13px] font-semibold text-slate-500">{tr('x.feeHiddenLabelFull')}</p>
+                    <p className="mt-2 text-[14px] font-semibold text-slate-500">{tr('x.feeHiddenLabelFull')}</p>
                   ) : (
-                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px] font-sans">
+                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[14px] font-sans">
                       {(b.fee_villager_monthly_pkr || b.fee_villager_full_pkr) && (
                         <span className="text-slate-800">{tr('x.villagerLabelFull')}: {fmt(b.fee_villager_monthly_pkr || b.fee_villager_full_pkr || 0)}{b.fee_villager_monthly_pkr ? `/${tr('x.perMonthFull')}` : ` ${tr('x.fullCourseFull')}`}</span>
                       )}
@@ -639,7 +639,7 @@ export default function ProjectDetailPage() {
                     </div>
                   )}
                   {!project.hide_fees && b.sibling_discount_pct ? (
-                    <p className="mt-1.5 text-[12px] font-semibold text-dp2-primary-dark">{tr('x.siblingDiscountFull').replace('{pct}', String(b.sibling_discount_pct))}</p>
+                    <p className="mt-1.5 text-[13px] font-semibold text-dp2-primary-dark">{tr('x.siblingDiscountFull').replace('{pct}', String(b.sibling_discount_pct))}</p>
                   ) : null}
                 </div>
               )
@@ -649,41 +649,41 @@ export default function ProjectDetailPage() {
       )}
 
       {trainer && (
-        <div className="bg-white border border-dp2-card-border rounded-lg p-5 mb-8 flex items-center gap-4" dir={isUrdu ? 'rtl' : 'ltr'}>
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-5 mb-8 flex items-center gap-4" dir={isUrdu ? 'rtl' : 'ltr'}>
           {trainer.trainer_photo_url ? (
             <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 bg-dp2-surface">
               <Image src={trainer.trainer_photo_url} alt="" fill sizes="64px" className="object-cover" />
             </div>
           ) : (
-            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-heading text-[22px] font-bold">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-heading text-[23px] font-bold">
               {trainer.trainer_name.charAt(0)}
             </div>
           )}
           <div className="min-w-0">
-            <p className="font-sans text-[11px] font-bold text-slate-500 uppercase tracking-wide">{tr('x.meetYourTrainerFull')}</p>
-            <p className="font-sans text-[15px] font-semibold text-slate-800">{trainer.trainer_name}</p>
+            <p className="font-sans text-[12px] font-bold text-slate-500 uppercase tracking-wide">{tr('x.meetYourTrainerFull')}</p>
+            <p className="font-sans text-[16px] font-semibold text-slate-800">{trainer.trainer_name}</p>
             {(isUrdu ? trainer.trainer_bio_ur || trainer.trainer_bio : trainer.trainer_bio) && (
-              <p className="font-sans text-[13px] text-slate-500 mt-0.5">{isUrdu ? trainer.trainer_bio_ur || trainer.trainer_bio : trainer.trainer_bio}</p>
+              <p className="font-sans text-[14px] text-slate-500 mt-0.5">{isUrdu ? trainer.trainer_bio_ur || trainer.trainer_bio : trainer.trainer_bio}</p>
             )}
           </div>
         </div>
       )}
 
       {project.funding_model === 'recurring_support' && project.status !== 'announced' && (
-        <div className="bg-white border border-dp2-card-border rounded-lg p-5 mb-8" dir={isUrdu ? 'rtl' : 'ltr'}>
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-5 mb-8" dir={isUrdu ? 'rtl' : 'ltr'}>
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <p className="font-sans text-[13.5px] font-bold text-dp2-primary flex items-center gap-2"><Users size={16} className="text-dp2-primary-dark" /> {tr('x.monthlySponsorship')}</p>
-            <span className={`text-[10.5px] font-bold px-2.5 py-1 rounded-full uppercase ${project.monthly_operating_cost_pkr && monthlySponsored >= project.monthly_operating_cost_pkr ? 'bg-dp2-primary-dark text-white' : 'bg-amber-100 text-amber-700'}`}>
+            <p className="font-sans text-[14.5px] font-bold text-dp2-primary flex items-center gap-2"><Users size={16} className="text-dp2-primary-dark" /> {tr('x.monthlySponsorship')}</p>
+            <span className={`text-[11.5px] font-bold px-2.5 py-1 rounded-full uppercase ${project.monthly_operating_cost_pkr && monthlySponsored >= project.monthly_operating_cost_pkr ? 'bg-dp2-primary-dark text-white' : 'bg-amber-100 text-amber-700'}`}>
               {project.monthly_operating_cost_pkr && monthlySponsored >= project.monthly_operating_cost_pkr ? tr('x.fullySponsored') : tr('x.needsMoreSponsors')}
             </span>
           </div>
-          <p className="font-sans text-[14px] text-slate-500 ltr-num">
+          <p className="font-sans text-[15px] text-slate-500 ltr-num">
             {fmt(monthlySponsored)} / {fmt(project.monthly_operating_cost_pkr ?? 0)} {tr('x.committedPerMonth')}
           </p>
           <div className="h-2 w-full bg-dp2-surface rounded-full overflow-hidden mt-2">
             <div className="h-full bg-dp2-primary-dark" style={{ width: `${project.monthly_operating_cost_pkr ? Math.min(100, (monthlySponsored / project.monthly_operating_cost_pkr) * 100) : 0}%` }} />
           </div>
-          <p className="font-sans text-[11.5px] text-slate-500 mt-2">
+          <p className="font-sans text-[12.5px] text-slate-500 mt-2">
             {tr('x.monthlySponsorshipHint')}
           </p>
         </div>
@@ -700,28 +700,28 @@ export default function ProjectDetailPage() {
           that keeps growing with every new donor. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
-          <p className="font-sans text-[11.5px] text-slate-500 mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('announcedSub')}</p>
-          <div className="bg-white rounded-lg border border-dp2-card-border divide-y divide-dp2-card-border max-h-80 overflow-y-auto">
-            {announced.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-slate-500" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noAnnounced')}</p>}
+          <p className="font-sans text-[12.5px] text-slate-500 mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('announcedSub')}</p>
+          <div className="bg-white rounded-2xl border border-dp2-card-border divide-y divide-dp2-card-border max-h-80 overflow-y-auto">
+            {announced.length === 0 && <p className="p-6 text-center font-sans text-[14.5px] text-slate-500" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noAnnounced')}</p>}
             {announced.map((d) => (
               <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
                 <div>
-                  <span className="font-sans text-[14px] font-semibold">{d.name}</span>
-                  <span className="ms-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">{d.payment_status === 'pledged' ? 'Pledged' : 'Awaiting Verification'}</span>
+                  <span className="font-sans text-[15px] font-semibold">{d.name}</span>
+                  <span className="ms-2 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">{d.payment_status === 'pledged' ? 'Pledged' : 'Awaiting Verification'}</span>
                 </div>
-                <span className="font-sans text-[14px] font-bold text-amber-600">{fmt(d.amount_pkr)}</span>
+                <span className="font-sans text-[15px] font-bold text-amber-600">{fmt(d.amount_pkr)}</span>
               </div>
             ))}
           </div>
         </div>
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
-          <p className="font-sans text-[11.5px] text-slate-500 mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('confirmedSub')}</p>
-          <div className="bg-white rounded-lg border border-dp2-card-border divide-y divide-dp2-card-border max-h-80 overflow-y-auto">
-            {verified.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-slate-500" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noConfirmed')}</p>}
+          <p className="font-sans text-[12.5px] text-slate-500 mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('confirmedSub')}</p>
+          <div className="bg-white rounded-2xl border border-dp2-card-border divide-y divide-dp2-card-border max-h-80 overflow-y-auto">
+            {verified.length === 0 && <p className="p-6 text-center font-sans text-[14.5px] text-slate-500" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noConfirmed')}</p>}
             {verified.map((d) => (
               <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
-                <span className="font-sans text-[14px] font-semibold flex items-center gap-2"><CheckCircle size={14} className="text-dp2-primary-dark" /> {d.name}</span>
-                <span className="font-sans text-[14px] font-bold text-dp2-primary-dark">{fmt(d.amount_pkr)}</span>
+                <span className="font-sans text-[15px] font-semibold flex items-center gap-2"><CheckCircle size={14} className="text-dp2-primary-dark" /> {d.name}</span>
+                <span className="font-sans text-[15px] font-bold text-dp2-primary-dark">{fmt(d.amount_pkr)}</span>
               </div>
             ))}
           </div>
@@ -729,15 +729,15 @@ export default function ProjectDetailPage() {
       </div>
 
       <div className="mb-8">
-        <p className="font-sans text-[14px] font-bold text-slate-800 mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('expensesHeading')}</p>
-        <div className="bg-white rounded-lg border border-dp2-card-border divide-y divide-dp2-card-border max-h-80 overflow-y-auto">
-          {expenses.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-slate-500" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noExpenses')}</p>}
+        <p className="font-sans text-[15px] font-bold text-slate-800 mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('expensesHeading')}</p>
+        <div className="bg-white rounded-2xl border border-dp2-card-border divide-y divide-dp2-card-border max-h-80 overflow-y-auto">
+          {expenses.length === 0 && <p className="p-6 text-center font-sans text-[14.5px] text-slate-500" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noExpenses')}</p>}
           {expenses.map((e) => (
             <div key={e.id} className="flex items-center justify-between px-5 py-3.5">
-              <span className="font-sans text-[14px] flex items-center gap-2"><Receipt size={14} className="text-red-600" /> {e.particular}</span>
+              <span className="font-sans text-[15px] flex items-center gap-2"><Receipt size={14} className="text-red-600" /> {e.particular}</span>
               <div className="text-end">
-                <p className="font-sans text-[14px] font-bold text-red-600">{fmt(e.debit)}</p>
-                <p className="font-sans text-[11px] text-slate-500">{new Date(e.entry_date).toLocaleDateString('en-GB')}</p>
+                <p className="font-sans text-[15px] font-bold text-red-600">{fmt(e.debit)}</p>
+                <p className="font-sans text-[12px] text-slate-500">{new Date(e.entry_date).toLocaleDateString('en-GB')}</p>
               </div>
             </div>
           ))}
@@ -746,13 +746,13 @@ export default function ProjectDetailPage() {
 
       {/* Discussion — always visible, per your ask (no tab to switch to). */}
       <div>
-        <p className="font-sans text-[14px] font-bold text-slate-800 mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('discussionHeading')}</p>
-        <div className="bg-white border border-dp2-card-border rounded-lg p-4 mb-4">
+        <p className="font-sans text-[15px] font-bold text-slate-800 mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('discussionHeading')}</p>
+        <div className="bg-white border border-dp2-card-border rounded-2xl p-4 mb-4">
           <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={2}
             placeholder={staffUser ? `Commenting as ${staffUser.full_name} (${STAFF_ROLE_LABEL[staffUser.role] ?? staffUser.role})` : portalUser ? 'Share your thoughts...' : 'Log in to join the discussion'}
             disabled={!portalUser && !staffUser} className="input-field resize-none mb-2" />
           {portalUser || staffUser ? (
-            <button onClick={() => postComment()} disabled={postingComment} className="px-5 py-2 bg-dp2-primary-dark text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-50">
+            <button onClick={() => postComment()} disabled={postingComment} className="px-5 py-2 bg-dp2-primary-dark text-white rounded-xl font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-50">
               {postingComment ? 'Posting...' : 'Post Comment'}
             </button>
           ) : (
@@ -763,20 +763,20 @@ export default function ProjectDetailPage() {
             // gate at all, just relying on the RPC's own auth check to
             // silently redirect on submit. A real button here says so
             // upfront instead of a disabled field with no explanation.
-            <button onClick={() => router.push(`/portal/login?next=/projects/${id}`)} className="flex items-center gap-1.5 px-5 py-2 border-2 border-dp2-primary-dark text-dp2-primary-dark rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp2-primary-dark hover:text-white transition-all">
+            <button onClick={() => router.push(`/portal/login?next=/projects/${id}`)} className="flex items-center gap-1.5 px-5 py-2 border-2 border-dp2-primary-dark text-dp2-primary-dark rounded-xl font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp2-primary-dark hover:text-white transition-all">
               <LogIn size={14} /> {tr('x.logInToComment')}
             </button>
           )}
         </div>
         <div className="space-y-3">
-          {comments.length === 0 && <p className="text-center font-sans text-[14px] text-slate-500 py-6">{tr('x.noComments')}</p>}
+          {comments.length === 0 && <p className="text-center font-sans text-[15px] text-slate-500 py-6">{tr('x.noComments')}</p>}
           {comments.filter((c) => !c.parent_comment_id).map((c) => (
-            <div key={c.id} className="bg-white border border-dp2-card-border rounded-lg p-4">
+            <div key={c.id} className="bg-white border border-dp2-card-border rounded-2xl p-4">
               <CommentBody c={c} myLikes={myLikes} toggleLike={toggleLike} flagComment={flagComment} onReply={(portalUser || staffUser) ? () => setReplyingTo(replyingTo === c.id ? null : c.id) : undefined} />
               {replyingTo === c.id && (
                 <div className="mt-3 ps-11 flex gap-2">
                   <input value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Write a reply..." className="input-field flex-1" />
-                  <button onClick={() => postComment(c.id)} disabled={postingComment} className="px-4 py-2 bg-dp2-primary-dark text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-50">{tr('x.reply')}</button>
+                  <button onClick={() => postComment(c.id)} disabled={postingComment} className="px-4 py-2 bg-dp2-primary-dark text-white rounded-xl font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-50">{tr('x.reply')}</button>
                 </div>
               )}
               {comments.filter((r) => r.parent_comment_id === c.id).map((r) => (
@@ -793,11 +793,11 @@ export default function ProjectDetailPage() {
 
       {showAnnounce && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowAnnounce(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[20px] font-bold text-dp2-primary mb-4">{tr('x.announcePledge')}</h2>
-            <p className="font-sans text-[13px] text-slate-500 mb-4">No payment needed now — your name shows in Announced until you pay. Pay anytime from your portal.</p>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-heading text-[21px] font-bold text-dp2-primary mb-4">{tr('x.announcePledge')}</h2>
+            <p className="font-sans text-[14px] text-slate-500 mb-4">No payment needed now — your name shows in Announced until you pay. Pay anytime from your portal.</p>
             <input type="number" min={1} value={announceAmount || ''} onChange={(e) => setAnnounceAmount(+e.target.value)} placeholder="Amount (PKR)" className="input-field mb-4" />
-            <button onClick={submitAnnounce} disabled={announcing} className="w-full bg-dp2-primary-dark text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-50">
+            <button onClick={submitAnnounce} disabled={announcing} className="w-full bg-dp2-primary-dark text-white py-3 rounded-xl font-sans font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-50">
               {announcing ? 'Announcing...' : 'Announce Pledge'}
             </button>
           </div>
@@ -806,14 +806,14 @@ export default function ProjectDetailPage() {
 
       {showVolunteer && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowVolunteer(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading text-[20px] font-bold text-dp2-primary">{tr('x.volunteerForProject')}</h2>
+              <h2 className="font-heading text-[21px] font-bold text-dp2-primary">{tr('x.volunteerForProject')}</h2>
               <button onClick={() => setShowVolunteer(false)} className="cursor-pointer text-slate-500"><X size={20} /></button>
             </div>
-            <p className="font-sans text-[13px] text-slate-500 mb-4">Your name shows publicly as a volunteer for this project. The committee will reach out with details.</p>
+            <p className="font-sans text-[14px] text-slate-500 mb-4">Your name shows publicly as a volunteer for this project. The committee will reach out with details.</p>
             <textarea value={volunteerMessage} onChange={(e) => setVolunteerMessage(e.target.value)} rows={3} placeholder="Your skills, availability, etc. (optional)" className="input-field resize-none mb-4" />
-            <button onClick={submitVolunteer} disabled={volunteering} className="w-full bg-dp2-primary-dark text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-50">
+            <button onClick={submitVolunteer} disabled={volunteering} className="w-full bg-dp2-primary-dark text-white py-3 rounded-xl font-sans font-semibold cursor-pointer hover:bg-dp2-primary transition-all disabled:opacity-50">
               {volunteering ? 'Submitting...' : 'Volunteer'}
             </button>
           </div>
@@ -829,9 +829,9 @@ function CommentBody({ c, myLikes, toggleLike, flagComment, onReply }: {
   const { t: tr, isUrdu } = useLocale()
   if (c.comment_type === 'system') {
     return (
-      <p className="font-sans text-[13px] text-slate-500 italic flex items-center gap-2">
+      <p className="font-sans text-[14px] text-slate-500 italic flex items-center gap-2">
         <HeartHandshake size={13} className="text-dp2-primary-dark shrink-0" /> {c.content}
-        <span className="text-[11px]">· {new Date(c.created_at).toLocaleDateString('en-GB')}</span>
+        <span className="text-[12px]">· {new Date(c.created_at).toLocaleDateString('en-GB')}</span>
       </p>
     )
   }
@@ -845,32 +845,32 @@ function CommentBody({ c, myLikes, toggleLike, flagComment, onReply }: {
   const bodyColorClass = isCommitteeTier ? 'text-amber-800 font-bold' : isStaff ? 'text-dp2-primary font-bold' : 'text-slate-800'
   return (
     <div className="flex items-start gap-3">
-      {c.avatar_url ? <Image src={c.avatar_url} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover shrink-0" /> : <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-[12px] font-bold text-emerald-700 shrink-0">{(c.username ?? '?').charAt(0).toUpperCase()}</div>}
+      {c.avatar_url ? <Image src={c.avatar_url} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover shrink-0" /> : <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-[13px] font-bold text-emerald-700 shrink-0">{(c.username ?? '?').charAt(0).toUpperCase()}</div>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-sans text-[13.5px] font-bold text-slate-800">{c.username}</span>
+          <span className="font-sans text-[14.5px] font-bold text-slate-800">{c.username}</span>
           {isCommitteeTier ? (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold font-sans px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold font-sans px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 whitespace-nowrap">
               <Award size={10} /> {c.staff_role ? (STAFF_ROLE_LABEL[c.staff_role] ?? c.staff_role) : 'Committee'}
             </span>
           ) : isStaff ? (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold font-sans px-1.5 py-0.5 rounded-full bg-dp2-primary/10 text-dp2-primary whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold font-sans px-1.5 py-0.5 rounded-full bg-dp2-primary/10 text-dp2-primary whitespace-nowrap">
               <ShieldCheck size={10} /> {c.staff_role ? (STAFF_ROLE_LABEL[c.staff_role] ?? c.staff_role) : 'Staff'}
             </span>
           ) : (
             <DonorBadge tier={c.badge_tier} isUrdu={isUrdu} size="xs" iconOnly />
           )}
-          <span className="font-sans text-[11px] text-slate-500">{new Date(c.created_at).toLocaleDateString('en-GB')}</span>
+          <span className="font-sans text-[12px] text-slate-500">{new Date(c.created_at).toLocaleDateString('en-GB')}</span>
         </div>
-        <p className={`font-sans text-[14px] mt-1 ${bodyColorClass}`}>{c.content}</p>
+        <p className={`font-sans text-[15px] mt-1 ${bodyColorClass}`}>{c.content}</p>
         <div className="flex items-center gap-4 mt-2">
-          <button onClick={() => toggleLike(c.id)} className={`flex items-center gap-1 text-[12px] font-sans font-semibold cursor-pointer ${myLikes.has(c.id) ? 'text-dp2-primary-dark' : 'text-slate-500 hover:text-dp2-primary-dark'}`}>
+          <button onClick={() => toggleLike(c.id)} className={`flex items-center gap-1 text-[13px] font-sans font-semibold cursor-pointer ${myLikes.has(c.id) ? 'text-dp2-primary-dark' : 'text-slate-500 hover:text-dp2-primary-dark'}`}>
             <ThumbsUp size={13} /> {c.like_count > 0 ? c.like_count : ''} Like
           </button>
           {onReply && (
-            <button onClick={onReply} className="text-[12px] font-sans font-semibold text-slate-500 hover:text-dp2-primary-dark cursor-pointer">{tr('x.reply')}</button>
+            <button onClick={onReply} className="text-[13px] font-sans font-semibold text-slate-500 hover:text-dp2-primary-dark cursor-pointer">{tr('x.reply')}</button>
           )}
-          <button onClick={() => flagComment(c.id)} className="flex items-center gap-1 text-[12px] font-sans font-semibold text-slate-500 hover:text-red-600 cursor-pointer">
+          <button onClick={() => flagComment(c.id)} className="flex items-center gap-1 text-[13px] font-sans font-semibold text-slate-500 hover:text-red-600 cursor-pointer">
             <Flag size={12} /> {tr('x.flag')}
           </button>
         </div>

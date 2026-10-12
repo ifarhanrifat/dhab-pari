@@ -23,24 +23,24 @@ export function Footer2() {
 
   return (
     <footer dir={isUrdu ? 'rtl' : 'ltr'} className="flex flex-col gap-2 px-1 pt-1.5 pb-2.5">
-      <div className="font-bold text-[13px] text-dp2-primary">{isUrdu ? site.nameUrdu : site.name}</div>
-      <p className="text-[10px] leading-[1.5] text-slate-500">
+      <div className="font-bold text-[14px] text-dp2-primary">{isUrdu ? site.nameUrdu : site.name}</div>
+      <p className="text-[11px] leading-[1.5] text-slate-500">
         {isUrdu ? site.taglineUrdu : `Dedicated to the prosperity and welfare of ${site.name} village through transparent management, modern water systems, and communal support.`}
       </p>
       <div className="flex flex-wrap gap-1.5">
         {links.map((l) => (
-          <span key={l.tKey} className="px-2.5 py-px rounded-full bg-white border border-dp2-card-border text-[9.5px] font-medium text-slate-600">
+          <span key={l.tKey} className="px-2.5 py-px rounded-full bg-white border border-dp2-card-border text-[10.5px] font-medium text-slate-600">
             {t(l.tKey, l.label)}
           </span>
         ))}
       </div>
       {(site.location || site.officeHours) && (
-        <div className="text-[9.5px] leading-[1.5] text-slate-500">
+        <div className="text-[10.5px] leading-[1.5] text-slate-500">
           {site.location && <>📍 {site.location}<br /></>}
           {site.officeHours && <>🕘 <span dir="ltr">{site.officeHours}</span></>}
         </div>
       )}
-      <div className="pt-2 border-t border-dp2-card-border text-[10px] text-slate-400">
+      <div className="pt-2 border-t border-dp2-card-border text-[11px] text-slate-400">
         © {new Date().getFullYear()} {isUrdu ? site.fullNameUrdu : site.fullName}. {t('y.allRightsReserved')}
       </div>
     </footer>

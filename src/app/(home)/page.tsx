@@ -38,7 +38,7 @@ export default async function HomePage() {
   const site = await getPublicSiteContext(supabase, await getCookieTenantId())
 
   const [projectsRes, newsRes, videosRes, donorsRes, statsRes, jobsRes, volunteersRes, achievementsRes, bloodRes,
-         needsRes, kafalatRes, wazifaRes, sadqaRes, committeeNotesRes, welfareContentRes, careerCountsRes, paymentAccount] = await Promise.all([
+         needsRes, kafalatRes, wazifaRes, sadqaRes, committeeNotesRes, welfareContentRes, careerCountsRes, paymentAccount, classifiedsRes] = await Promise.all([
     supabase
       .from('projects')
       .select('id, title, title_ur, display_name, status, progress_percent, budget_pkr, spent_pkr, category, location, before_image_url, after_image_url, funding_model')
@@ -70,9 +70,16 @@ export default async function HomePage() {
       .select('id, title, video_url, thumbnail_url, duration_seconds, category')
       .eq('is_published', true)
       .limit(4),
+    // donors_public, not the raw donors table -- donors has no
+    // anonymous-read RLS policy at all (donors_read/donors_portal_read_own
+    // both require an authenticated admin/portal session), so this always
+    // returned zero rows for every real site visitor. donors_public
+    // already masks is_anonymous donors as "Anonymous" server-side
+    // (migration 133), which is why it has no is_anonymous column to
+    // select here.
     supabase
-      .from('donors')
-      .select('id, name, amount_pkr, date, is_anonymous')
+      .from('donors_public')
+      .select('id, name, amount_pkr, date')
       .eq('is_verified', true)
       .order('date', { ascending: false })
       .limit(4),
@@ -103,6 +110,13 @@ export default async function HomePage() {
     supabase.from('site_settings').select('key, value').in('key', welfareCardContentKeys()),
     supabase.rpc('career_program_counts'),
     getPaymentAccount(supabase, 'donors_projects'),
+    // Real Buy & Sell cards for the homepage, per direct correction --
+    // the design template's own "market" section used fake tractor/straw
+    // placeholder listings; this is the real classified_listings table
+    // (migration 532), same one /classifieds and the portal posting flow
+    // already use.
+    supabase.from('classified_listings').select('id, title, price_pkr, photo_url, category')
+      .eq('status', 'active').eq('is_active', true).order('created_at', { ascending: false }).limit(6),
   ])
 
   const projects = projectsRes.data ?? []
@@ -213,6 +227,8 @@ export default async function HomePage() {
   const cardImages = await getCardImages(supabase, await getCookieTenantId(), [
     'welfare_1', 'welfare_2', 'welfare_3', 'welfare_4',
     'mentor_1', 'mentor_2', 'mentor_3', 'mentor_4',
+    'fund_available', 'fund_drives', 'fund_month', 'fund_households',
+    'mp_shops', 'mp_adda', 'mp_order_city', 'mp_city_purchase', 'mp_commute', 'mp_shadi',
   ])
 
   return (
@@ -225,7 +241,7 @@ export default async function HomePage() {
       }))}
       news={news.map((n) => ({ id: n.id, title: n.title, category: n.category, content: n.content, is_featured: n.is_featured }))}
       videos={videos.map((v) => ({ id: v.id, title: v.title, thumbnail_url: v.thumbnail_url, duration_seconds: v.duration_seconds }))}
-      donors={donors.map((d) => ({ id: d.id, name: d.is_anonymous ? 'Anonymous Donor' : d.name, amount_pkr: d.amount_pkr, date: timeAgo(d.date), is_anonymous: d.is_anonymous }))}
+      donors={donors.map((d) => ({ id: d.id, name: d.name, amount_pkr: d.amount_pkr, date: timeAgo(d.date) }))}
       stats={stats}
       jobs={jobs}
       volunteers={volunteers.map((v) => ({ id: v.id, full_name: v.full_name, projectTitle: volunteerProjectTitle(v.project_id) }))}
@@ -239,6 +255,7 @@ export default async function HomePage() {
       sadqaTotal={sadqaObjects.length}
       careerCounts={careerCounts}
       welfareContent={welfareContent}
+      classifieds={(classifiedsRes.data ?? []).map((c) => ({ id: c.id, title: c.title, price_pkr: c.price_pkr, photo_url: c.photo_url, category: c.category }))}
       cardImages={cardImages}
       latestCommitteeNote={latestCommitteeNote}
       committeeNotesArchive={committeeNotesArchive}

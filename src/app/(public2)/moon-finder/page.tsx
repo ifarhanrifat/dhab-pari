@@ -315,49 +315,49 @@ export default function MoonFinderPage() {
     <div className="max-w-[600px] mx-auto px-6 md:px-12 py-10" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="flex items-center gap-2.5 mb-1.5">
         <Moon size={24} className="text-dp2-primary-dark" />
-        <h1 className="font-heading text-[26px] font-bold text-dp2-primary">{t('mf.title')}</h1>
+        <h1 className="font-heading text-[27px] font-bold text-dp2-primary">{t('mf.title')}</h1>
       </div>
-      <p className="font-sans text-[14px] text-slate-500 mb-6">{t('mf.subtitle')}</p>
+      <p className="font-sans text-[15px] text-slate-500 mb-6">{t('mf.subtitle')}</p>
 
       {phase === 'idle' && (
-        <button onClick={start} className="w-full flex items-center justify-center gap-2 bg-dp2-primary-dark text-white py-4 rounded-lg font-sans text-[15px] font-semibold hover:bg-dp2-primary transition-all cursor-pointer">
+        <button onClick={start} className="w-full flex items-center justify-center gap-2 bg-dp2-primary-dark text-white py-4 rounded-xl font-sans text-[16px] font-semibold hover:bg-dp2-primary transition-all cursor-pointer">
           <LocateFixed size={18} /> {t('mf.start')}
         </button>
       )}
 
       {phase === 'starting' && (
-        <div className="text-center py-12 text-slate-500 font-sans text-[14px]">{t('mf.starting')}</div>
+        <div className="text-center py-12 text-slate-500 font-sans text-[15px]">{t('mf.starting')}</div>
       )}
 
       {phase === 'error' && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-5 text-center">
-          <p className="font-sans text-[14px] text-red-700 mb-4">{errorMsg}</p>
-          <button onClick={start} className="px-5 py-2.5 bg-dp2-primary-dark text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp2-primary transition-all">{t('mf.start')}</button>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-center">
+          <p className="font-sans text-[15px] text-red-700 mb-4">{errorMsg}</p>
+          <button onClick={start} className="px-5 py-2.5 bg-dp2-primary-dark text-white rounded-xl font-sans text-[14.5px] font-semibold cursor-pointer hover:bg-dp2-primary transition-all">{t('mf.start')}</button>
         </div>
       )}
 
       {phase === 'belowHorizon' && (
-        <div className="bg-slate-900 rounded-lg p-8 text-center text-white">
+        <div className="bg-slate-900 rounded-xl p-8 text-center text-white">
           <Moon size={40} className="mx-auto mb-3 opacity-40" />
-          <p className="font-heading text-[18px] font-bold mb-1.5">{t('mf.belowHorizonTitle')}</p>
-          <p className="font-sans text-[13.5px] text-white/70 mb-5">{t('mf.belowHorizonBody')}</p>
-          <button onClick={() => setPhase('idle')} className="px-5 py-2.5 border border-white/40 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-white/10">{t('mf.stop')}</button>
+          <p className="font-heading text-[19px] font-bold mb-1.5">{t('mf.belowHorizonTitle')}</p>
+          <p className="font-sans text-[14.5px] text-white/70 mb-5">{t('mf.belowHorizonBody')}</p>
+          <button onClick={() => setPhase('idle')} className="px-5 py-2.5 border border-white/40 rounded-2xl font-sans text-[14.5px] font-semibold cursor-pointer hover:bg-white/10">{t('mf.stop')}</button>
         </div>
       )}
 
       {phase === 'active' && (
-        <div className="relative rounded-lg overflow-hidden bg-black" style={{ aspectRatio: '3/4' }}>
+        <div className="relative rounded-xl overflow-hidden bg-black" style={{ aspectRatio: '3/4' }}>
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
 
           {!cameraReady && (
-            <div className="absolute inset-0 flex items-center justify-center text-white/70 font-sans text-[13px]">
+            <div className="absolute inset-0 flex items-center justify-center text-white/70 font-sans text-[14px]">
               {t('mf.starting')}
             </div>
           )}
 
           {cameraReady && !hasHeading && (
-            <div className="absolute inset-x-4 top-4 bg-black/60 text-white text-center rounded-lg px-3 py-2 font-sans text-[12.5px]">
+            <div className="absolute inset-x-4 top-4 bg-black/60 text-white text-center rounded-xl px-3 py-2 font-sans text-[13.5px]">
               {t('mf.holdUpright')}
             </div>
           )}
@@ -390,20 +390,20 @@ export default function MoonFinderPage() {
                   when the underlying angle is genuinely close. This makes
                   "yes, you're on it" obvious without depending on that
                   pixel-perfect overlay. */}
-              <div className="absolute inset-0 border-[6px] border-white/90 rounded-lg pointer-events-none animate-pulse" />
+              <div className="absolute inset-0 border-[6px] border-white/90 rounded-xl pointer-events-none animate-pulse" />
               <div className="absolute inset-x-0 bottom-16 text-center">
-                <span className="inline-block bg-emerald-500 text-white px-4 py-1.5 rounded-full font-sans text-[14px] font-bold">{t('mf.found')}</span>
+                <span className="inline-block bg-emerald-500 text-white px-4 py-1.5 rounded-full font-sans text-[15px] font-bold">{t('mf.found')}</span>
               </div>
             </>
           )}
 
           {target && (
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-4 pt-6 pb-3 text-white font-sans text-[12px]">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-4 pt-6 pb-3 text-white font-sans text-[13px]">
               {Math.round(target.illumination * 100)}% {t('mf.illuminated')} · {t(`mf.phase.${target.phaseLabel}`)}
               {/* Temporary while this is being calibrated against real
                   devices -- remove once the tolerance/FOV are trusted. */}
               {hasHeading && (
-                <p className="ltr-num text-white/60 text-[10px] mt-1 font-mono">
+                <p className="ltr-num text-white/60 text-[11px] mt-1 font-mono">
                   moon: az{Math.round(target.azimuth)}° alt{Math.round(target.altitude)}° · you: {debugSource === 'webkit' ? 'ios' : debugSource === 'uncalibrated' ? 'calc*' : 'calc'} hd{Math.round(debugHeading)}° el{Math.round(debugElevation)}° · Δaz{Math.round(deltaAz)}° Δalt{Math.round(deltaAlt)}°
                   {debugSource === 'uncalibrated' && ' · *no true-north signal, heading may drift'}
                 </p>

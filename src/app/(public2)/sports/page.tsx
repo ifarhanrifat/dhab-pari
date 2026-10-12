@@ -34,11 +34,11 @@ export default function SportsPage() {
   }, [])
 
   const card = (e: Ev, faded = false) => (
-    <div key={e.id} className={`bg-white border border-dp2-card-border rounded-lg p-5 ${faded ? 'opacity-60' : ''}`}>
-      <p className="font-heading text-[18px] font-bold text-slate-800">{isUrdu && e.title_ur ? e.title_ur : e.title}</p>
-      {e.tournament_name && <p className="font-sans text-[13.5px] text-slate-800 mt-1">{e.tournament_name}{e.entry_fee ? ` · ${t('ve.entryFee')}: ${e.entry_fee}` : ''}</p>}
-      {(isUrdu ? e.description_ur : e.description) && <p className="font-sans text-[13.5px] text-slate-500 mt-1.5">{isUrdu ? e.description_ur : e.description}</p>}
-      <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 font-sans text-[12.5px] text-slate-500">
+    <div key={e.id} className={`bg-white border border-dp2-card-border rounded-2xl p-5 ${faded ? 'opacity-60' : ''}`}>
+      <p className="font-heading text-[19px] font-bold text-slate-800">{isUrdu && e.title_ur ? e.title_ur : e.title}</p>
+      {e.tournament_name && <p className="font-sans text-[14.5px] text-slate-800 mt-1">{e.tournament_name}{e.entry_fee ? ` · ${t('ve.entryFee')}: ${e.entry_fee}` : ''}</p>}
+      {(isUrdu ? e.description_ur : e.description) && <p className="font-sans text-[14.5px] text-slate-500 mt-1.5">{isUrdu ? e.description_ur : e.description}</p>}
+      <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 font-sans text-[13.5px] text-slate-500">
         <span className="flex items-center gap-1"><Clock size={12} /> <span className="ltr-num">{new Date(e.start_datetime).toLocaleString()}</span></span>
         {e.location_text && <span className="flex items-center gap-1"><MapPin size={12} /> {e.location_text}</span>}
         {e.registration_contact && <span className="flex items-center gap-1"><User size={12} /> {t('ve.registrationContact')}: {e.registration_contact}</span>}
@@ -51,26 +51,26 @@ export default function SportsPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap mb-1.5">
         <div className="flex items-center gap-2.5">
           <Trophy size={26} className="text-amber-600" />
-          <h1 className="font-heading text-[28px] font-bold text-dp2-primary">{t('sp.pageTitle')}</h1>
+          <h1 className="font-heading text-[21px] font-bold text-dp2-primary">{t('sp.pageTitle')}</h1>
         </div>
-        <Link href="/portal/suggestions" className="flex items-center gap-2 px-4 py-2 border-2 border-dp2-primary-dark text-dp2-primary-dark rounded-lg font-sans text-[13px] font-semibold hover:bg-dp2-primary-dark hover:text-white transition-all">
+        <Link href="/portal/suggestions" className="flex items-center gap-2 px-4 py-2 border-2 border-dp2-primary-dark text-dp2-primary-dark rounded-xl font-sans text-[14px] font-semibold hover:bg-dp2-primary-dark hover:text-white transition-all">
           <PlusCircle size={15} /> {t('sp.proposeEvent')}
         </Link>
       </div>
-      <p className="font-sans text-[14px] text-slate-500 mb-8">{t('sp.pageIntro')}</p>
+      <p className="font-sans text-[15px] text-slate-500 mb-8">{t('sp.pageIntro')}</p>
 
       {loading ? (
         <div className="text-center py-12 text-slate-500"><LoadingDots /></div>
       ) : (
         <>
           {upcoming.length === 0 ? (
-            <p className="text-center py-12 text-slate-500 font-sans text-[14px] bg-white border border-dp2-card-border rounded-lg mb-10">{t('sp.noneFound')}</p>
+            <p className="text-center py-12 text-slate-500 font-sans text-[15px] bg-white border border-dp2-card-border rounded-2xl mb-10">{t('sp.noneFound')}</p>
           ) : (
             <div className="space-y-4 mb-10">{upcoming.map((e) => card(e))}</div>
           )}
           {past.length > 0 && (
             <>
-              <h2 className="font-heading text-[18px] font-bold text-slate-500 mb-4">{t('x.past')}</h2>
+              <h2 className="font-heading text-[19px] font-bold text-slate-500 mb-4">{t('x.past')}</h2>
               <div className="space-y-4">{past.map((e) => card(e, true))}</div>
             </>
           )}

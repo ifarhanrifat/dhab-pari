@@ -40,9 +40,9 @@ export default function EmergencyPage() {
     <div className="max-w-[900px] mx-auto px-6 md:px-12 py-10" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="flex items-center gap-2.5 mb-1.5">
         <Siren size={26} className="text-red-600" />
-        <h1 className="font-heading text-[28px] font-bold text-red-700">{t('em.pageTitle')}</h1>
+        <h1 className="font-heading text-[21px] font-bold text-red-700">{t('em.pageTitle')}</h1>
       </div>
-      <p className="font-sans text-[14px] text-slate-500 mb-8">{t('em.pageIntro')}</p>
+      <p className="font-sans text-[15px] text-slate-500 mb-8">{t('em.pageIntro')}</p>
 
       {loading ? (
         <div className="text-center py-12 text-slate-500"><LoadingDots /></div>
@@ -58,49 +58,49 @@ export default function EmergencyPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-10">
             {EMERGENCY_CATEGORIES.flatMap((cat) => contacts.filter((c) => c.category === cat)).map((c) => (
               <a key={c.id} href={`tel:${c.phone.replace(/\s+/g, '')}`}
-                className="bg-red-600 text-white rounded-lg p-4 flex flex-col items-center text-center gap-1 hover:bg-red-700 transition-all active:scale-95">
+                className="bg-red-600 text-white rounded-xl p-4 flex flex-col items-center text-center gap-1 hover:bg-red-700 transition-all active:scale-95">
                 <Phone size={20} />
-                <span className="font-sans text-[13px] font-bold">{isUrdu && c.label_ur ? c.label_ur : c.label}</span>
-                <span className="font-sans text-[15px] font-bold ltr-num">{c.phone}</span>
+                <span className="font-sans text-[14px] font-bold">{isUrdu && c.label_ur ? c.label_ur : c.label}</span>
+                <span className="font-sans text-[16px] font-bold ltr-num">{c.phone}</span>
               </a>
             ))}
           </div>
 
           {/* Blood — its own real system, not duplicated here */}
-          <Link href="/blood" className="flex items-center justify-between gap-3 bg-white border-2 border-red-200 rounded-lg p-4 mb-4 hover:border-red-400 transition-all">
+          <Link href="/blood" className="flex items-center justify-between gap-3 bg-white border-2 border-red-200 rounded-2xl p-4 mb-4 hover:border-red-400 transition-all">
             <div className="flex items-center gap-3">
               <Droplet size={22} className="text-red-600" />
-              <span className="font-sans text-[15px] font-semibold text-slate-800">{t('em.bloodNeeded')}</span>
+              <span className="font-sans text-[16px] font-semibold text-slate-800">{t('em.bloodNeeded')}</span>
             </div>
-            <span className="text-red-600 font-sans text-[13px] font-bold">{t('em.goToBlood')} →</span>
+            <span className="text-red-600 font-sans text-[14px] font-bold">{t('em.goToBlood')} →</span>
           </Link>
 
-          <Link href="/death-announcements" className="flex items-center justify-between gap-3 bg-white border-2 border-dp2-card-border rounded-lg p-4 mb-10 hover:border-dp2-primary-dark transition-all">
+          <Link href="/death-announcements" className="flex items-center justify-between gap-3 bg-white border-2 border-dp2-card-border rounded-2xl p-4 mb-10 hover:border-dp2-primary-dark transition-all">
             <div className="flex items-center gap-3">
               <HeartCrack size={22} className="text-dp2-primary-dark" />
-              <span className="font-sans text-[15px] font-semibold text-slate-800">{t('da.pageTitle')}</span>
+              <span className="font-sans text-[16px] font-semibold text-slate-800">{t('da.pageTitle')}</span>
             </div>
-            <span className="text-dp2-primary-dark font-sans text-[13px] font-bold">→</span>
+            <span className="text-dp2-primary-dark font-sans text-[14px] font-bold">→</span>
           </Link>
 
           {/* Need Help board */}
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-            <h2 className="font-heading text-[20px] font-bold text-dp2-primary flex items-center gap-2"><HandHeart size={20} className="text-dp2-primary-dark" /> {t('em.needHelpTitle')}</h2>
-            <Link href="/portal/ask-for-help" className="bg-dp2-primary-dark text-white px-4 py-2 rounded-lg font-sans text-[13px] font-semibold hover:bg-dp2-primary transition-all">{t('em.askForHelp')}</Link>
+            <h2 className="font-heading text-[21px] font-bold text-dp2-primary flex items-center gap-2"><HandHeart size={20} className="text-dp2-primary-dark" /> {t('em.needHelpTitle')}</h2>
+            <Link href="/portal/ask-for-help" className="bg-dp2-primary-dark text-white px-4 py-2 rounded-xl font-sans text-[14px] font-semibold hover:bg-dp2-primary transition-all">{t('em.askForHelp')}</Link>
           </div>
-          <p className="font-sans text-[13.5px] text-slate-500 mb-4">{t('em.needHelpIntro')}</p>
+          <p className="font-sans text-[14.5px] text-slate-500 mb-4">{t('em.needHelpIntro')}</p>
 
           {requests.length === 0 ? (
-            <p className="text-center py-10 text-slate-500 font-sans text-[14px] bg-white border border-dp2-card-border rounded-lg">{t('em.noOpenRequests')}</p>
+            <p className="text-center py-10 text-slate-500 font-sans text-[15px] bg-white border border-dp2-card-border rounded-2xl">{t('em.noOpenRequests')}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {requests.map((r) => (
-                <div key={r.id} className="bg-white border border-dp2-card-border rounded-lg p-4">
-                  <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 uppercase">{t(`hr.cat.${r.category}`)}</span>
-                  <p className="font-sans text-[14px] text-slate-800 mt-2">{r.description}</p>
-                  {r.location_text && <p className="font-sans text-[12.5px] text-slate-500 mt-1.5 flex items-center gap-1"><MapPin size={12} /> {r.location_text}</p>}
+                <div key={r.id} className="bg-white border border-dp2-card-border rounded-2xl p-4">
+                  <span className="text-[11.5px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 uppercase">{t(`hr.cat.${r.category}`)}</span>
+                  <p className="font-sans text-[15px] text-slate-800 mt-2">{r.description}</p>
+                  {r.location_text && <p className="font-sans text-[13.5px] text-slate-500 mt-1.5 flex items-center gap-1"><MapPin size={12} /> {r.location_text}</p>}
                   <div className="flex gap-2 mt-3">
-                    <a href={`tel:${r.contact_mobile}`} className="flex-1 flex items-center justify-center gap-2 border-2 border-dp2-primary text-dp2-primary px-3 py-2 rounded-lg font-sans text-[13px] font-semibold hover:bg-dp2-primary hover:text-white transition-all">
+                    <a href={`tel:${r.contact_mobile}`} className="flex-1 flex items-center justify-center gap-2 border-2 border-dp2-primary text-dp2-primary px-3 py-2 rounded-xl font-sans text-[14px] font-semibold hover:bg-dp2-primary hover:text-white transition-all">
                       <Phone size={13} /> {t('x.call')}
                     </a>
                   </div>

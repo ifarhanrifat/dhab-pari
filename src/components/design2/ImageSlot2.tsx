@@ -26,7 +26,7 @@ export function ImageSlot2({
   }
   return (
     <div
-      className={`absolute inset-0 w-full h-full flex items-center justify-center bg-dp2-card-border/40 text-[9px] font-medium text-dp-on-surface-variant text-center px-2 ${shape === 'circle' ? 'rounded-full' : ''} ${className}`}
+      className={`absolute inset-0 w-full h-full flex items-center justify-center bg-dp2-card-border/40 text-[10px] font-medium text-dp-on-surface-variant text-center px-2 ${shape === 'circle' ? 'rounded-full' : ''} ${className}`}
     >
       {placeholder}
     </div>

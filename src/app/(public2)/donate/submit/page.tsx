@@ -162,7 +162,7 @@ function DonateSubmitPageInner() {
       <div className="max-w-2xl mx-auto">
         <Link
           href="/donate"
-          className={`inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline mb-8 ${isUrdu ? 'flex-row-reverse' : ''}`}
+          className={`inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[15px] font-semibold tracking-[0.05em] hover:underline mb-8 ${isUrdu ? 'flex-row-reverse' : ''}`}
         >
           <ArrowLeft size={16} className={isUrdu ? 'rotate-180' : ''} />
           {dt('back')}
@@ -172,70 +172,70 @@ function DonateSubmitPageInner() {
           <div className="inline-flex items-center justify-center p-3 bg-emerald-100 rounded-full text-emerald-700 mb-4">
             <HeartHandshake size={32} />
           </div>
-          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp2-primary mb-2">{dt('title')}</h1>
-          <p className="text-slate-500 font-sans text-[16px]" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
+          <h1 className="font-heading text-[23px] font-bold leading-[28px] text-dp2-primary mb-2">{dt('title')}</h1>
+          <p className="text-slate-500 font-sans text-[17px]" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
             {dt('subtitle')}
           </p>
         </div>
 
         {submitted && (
-          <div className="bg-white border border-dp2-card-border rounded-lg p-12 text-center">
+          <div className="bg-white border border-dp2-card-border rounded-2xl p-12 text-center">
             <CheckCircle size={48} className="text-dp2-primary-dark mx-auto mb-4" />
-            <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp2-primary mb-2">{dt('submittedTitle')}</h2>
-            <p className="text-slate-500 font-sans text-[16px] mb-6" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
+            <h2 className="font-heading text-[19px] font-bold leading-[24px] text-dp2-primary mb-2">{dt('submittedTitle')}</h2>
+            <p className="text-slate-500 font-sans text-[17px] mb-6" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
               {dt('submittedBody')}
             </p>
-            <Link href="/donate" className="inline-block bg-dp2-primary-dark text-white px-8 py-3 rounded-lg font-sans font-semibold hover:bg-dp2-primary transition-all">
+            <Link href="/donate" className="inline-block bg-dp2-primary-dark text-white px-8 py-3 rounded-xl font-sans font-semibold hover:bg-dp2-primary transition-all">
               {dt('back')}
             </Link>
           </div>
         )}
 
         {!submitted && (
-          <div className="bg-white border border-dp2-card-border rounded-lg p-6 md:p-8">
+          <div className="bg-white border border-dp2-card-border rounded-2xl p-6 md:p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('name')} *</label>
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('name')} *</label>
                   <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]" />
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('fatherName')}</label>
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('fatherName')}</label>
                   <input type="text" value={form.father_husband_name} onChange={(e) => setForm({ ...form, father_husband_name: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]" />
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('whatsapp')} *</label>
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('whatsapp')} *</label>
                   <input type="tel" value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} required
                     placeholder="0300-1234567" style={{ direction: 'ltr', textAlign: isUrdu ? 'right' : 'left' }}
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]" />
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('phone')}</label>
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('phone')}</label>
                   <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
                     placeholder="0300-1234567" style={{ direction: 'ltr', textAlign: isUrdu ? 'right' : 'left' }}
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]" />
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('amount')} *</label>
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('amount')} *</label>
                   <input type="number" min={1} value={form.amount_pkr || ''} onChange={(e) => setForm({ ...form, amount_pkr: +e.target.value })} required
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]" />
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('date')}</label>
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('date')}</label>
                   <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px]" />
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px]" />
                 </div>
               </div>
 
-              <label className="flex items-start gap-2.5 cursor-pointer font-sans text-[13.5px] text-slate-800">
+              <label className="flex items-start gap-2.5 cursor-pointer font-sans text-[14.5px] text-slate-800">
                 <input type="checkbox" checked={international}
                   onChange={(e) => { setInternational(e.target.checked); if (e.target.checked) setForm({ ...form, payment_method: 'bank' }) }}
                   className="accent-dp2-primary-dark mt-0.5" />
@@ -244,16 +244,16 @@ function DonateSubmitPageInner() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('paymentMethod')}</label>
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('paymentMethod')}</label>
                   <select value={form.payment_method} disabled={international} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-lg focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[16px] disabled:opacity-60">
+                    className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-2xl focus:border-dp2-primary-dark focus:ring-0 transition-all font-sans text-[17px] disabled:opacity-60">
                     {(!paymentAccount || paymentAccount.enabled.bank || international) && <option value="bank">{tr('w.bankTransfer')}</option>}
                     {!international && (!paymentAccount || paymentAccount.enabled.cash) && <option value="cash">{tr('w.cash')}</option>}
                   </select>
                   <PaymentAccountDetails system="donors_projects" method={form.payment_method} international={international} />
                 </div>
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('selectDonationTarget')}</label>
+                  <label className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">{dt('selectDonationTarget')}</label>
                   <SearchableField
                     value={targetId}
                     onChange={setTargetId}
@@ -269,15 +269,15 @@ function DonateSubmitPageInner() {
 
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.is_anonymous} onChange={(e) => setForm({ ...form, is_anonymous: e.target.checked })} className="accent-dp2-primary-dark" />
-                <span className="font-sans text-[14px]">{dt('anonymous')}</span>
+                <span className="font-sans text-[15px]">{dt('anonymous')}</span>
               </label>
 
               {error && (
-                <div className="bg-red-100 text-red-800 px-4 py-3 rounded-lg font-sans text-[14px]">{error}</div>
+                <div className="bg-red-100 text-red-800 px-4 py-3 rounded-xl font-sans text-[15px]">{error}</div>
               )}
 
               <button type="submit" disabled={loading}
-                className="w-full bg-dp2-primary-dark text-white py-4 rounded-lg font-sans text-[18px] font-semibold hover:bg-dp2-primary transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer">
+                className="w-full bg-dp2-primary-dark text-white py-4 rounded-xl font-sans text-[19px] font-semibold hover:bg-dp2-primary transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer">
                 {loading ? dt('submitting') : dt('submit')}
               </button>
             </form>

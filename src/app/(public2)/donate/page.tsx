@@ -81,11 +81,11 @@ export default async function DonatePage() {
           <div className="mb-4 inline-flex items-center justify-center p-3 bg-emerald-100 rounded-full text-emerald-700">
             <Heart size={32} />
           </div>
-          <h1 className="font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] mb-6 text-dp2-primary section-title">
+          <h1 className="font-heading text-[19px] md:text-[23px] font-bold leading-[24px] md:leading-[28px] mb-6 text-dp2-primary section-title">
             <T k="x.supportVillageGrowth" />
           </h1>
           <div className="relative px-8 py-4 border-s-4 border-dp2-primary-dark">
-            <p className="font-sans text-[18px] leading-[28px] italic text-slate-500">
+            <p className="font-sans text-[19px] leading-[20px] italic text-slate-500">
               &ldquo;The best of people are those who are most beneficial to
               others. Your contribution today is the seed for a prosperous Dhab
               Pari tomorrow.&rdquo;
@@ -96,40 +96,40 @@ export default async function DonatePage() {
 
       {/* Payment Channels */}
       <section className="mb-10">
-        <h2 className="font-heading text-[20px] font-bold leading-[28px] mb-8 text-dp2-primary border-b border-dp2-card-border pb-4">
+        <h2 className="font-heading text-[21px] font-bold leading-[20px] mb-8 text-dp2-primary border-b border-dp2-card-border pb-4">
           <T k="x.securePayment" />
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* JazzCash — not accepted; number deliberately zeroed out rather
               than showing a real-looking dummy number that could confuse a
               donor into sending money nobody will see. */}
-          <div className="bg-white border border-dp2-card-border p-8 flex flex-col items-center text-center opacity-70 rounded-lg">
-            <div className="w-16 h-16 mb-6 flex items-center justify-center bg-red-500/10 rounded-lg">
+          <div className="bg-white border border-dp2-card-border p-8 flex flex-col items-center text-center opacity-70 rounded-2xl">
+            <div className="w-16 h-16 mb-6 flex items-center justify-center bg-red-500/10 rounded-xl">
               <Smartphone size={32} className="text-red-500" />
             </div>
-            <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-2"><T k="w.jazzcash" /></h3>
-            <div className="w-full bg-dp2-surface p-4 rounded-lg mb-4">
-              <span className="font-bold text-slate-500 font-sans text-[18px] tracking-wider">
+            <h3 className="font-sans text-[21px] font-semibold leading-[20px] mb-2"><T k="w.jazzcash" /></h3>
+            <div className="w-full bg-dp2-surface p-4 rounded-xl mb-4">
+              <span className="font-bold text-slate-500 font-sans text-[19px] tracking-wider">
                 000000000
               </span>
             </div>
-            <p className="text-slate-500 text-[13px] font-sans font-semibold">
+            <p className="text-slate-500 text-[14px] font-sans font-semibold">
               <T k="p.notCurrentlyAccepted" />
             </p>
           </div>
 
           {/* Easypaisa — same as JazzCash above. */}
-          <div className="bg-white border border-dp2-card-border p-8 flex flex-col items-center text-center opacity-70 rounded-lg">
-            <div className="w-16 h-16 mb-6 flex items-center justify-center bg-emerald-500/10 rounded-lg">
+          <div className="bg-white border border-dp2-card-border p-8 flex flex-col items-center text-center opacity-70 rounded-2xl">
+            <div className="w-16 h-16 mb-6 flex items-center justify-center bg-emerald-500/10 rounded-xl">
               <Wallet size={32} className="text-emerald-500" />
             </div>
-            <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-2"><T k="w.easypaisa" /></h3>
-            <div className="w-full bg-dp2-surface p-4 rounded-lg mb-4">
-              <span className="font-bold text-slate-500 font-sans text-[18px] tracking-wider">
+            <h3 className="font-sans text-[21px] font-semibold leading-[20px] mb-2"><T k="w.easypaisa" /></h3>
+            <div className="w-full bg-dp2-surface p-4 rounded-xl mb-4">
+              <span className="font-bold text-slate-500 font-sans text-[19px] tracking-wider">
                 000000000
               </span>
             </div>
-            <p className="text-slate-500 text-[13px] font-sans font-semibold">
+            <p className="text-slate-500 text-[14px] font-sans font-semibold">
               <T k="p.notCurrentlyAccepted" />
             </p>
           </div>
@@ -140,9 +140,9 @@ export default async function DonatePage() {
       </section>
 
       {/* How to Contribute */}
-      <section className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center bg-dp2-surface p-8 md:p-12 rounded-lg">
+      <section className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center bg-dp2-surface p-8 md:p-12 rounded-xl">
         <div>
-          <h2 className="font-heading text-[20px] font-bold leading-[28px] mb-6 text-dp2-primary">
+          <h2 className="font-heading text-[21px] font-bold leading-[20px] mb-6 text-dp2-primary">
             <T k="x.howToContribute" />
           </h2>
           <div className="space-y-8">
@@ -156,20 +156,20 @@ export default async function DonatePage() {
                   {step.n}
                 </div>
                 <div>
-                  <h4 className="font-sans text-[18px] font-semibold leading-[28px] mb-1">{step.title}</h4>
-                  <p className="text-slate-500 font-sans text-[16px]">{step.desc}</p>
+                  <h4 className="font-sans text-[19px] font-semibold leading-[20px] mb-1">{step.title}</h4>
+                  <p className="text-slate-500 font-sans text-[17px]">{step.desc}</p>
                 </div>
               </div>
             ))}
           </div>
           <div className="mt-10 flex flex-wrap gap-4">
-            <DonateCTAButton className="inline-flex items-center gap-2 bg-dp2-primary text-white px-8 py-3 rounded-lg font-bold font-sans hover:bg-dp2-primary-dark transition-all" />
+            <DonateCTAButton className="inline-flex items-center gap-2 bg-dp2-primary text-white px-8 py-3 rounded-xl font-bold font-sans hover:bg-dp2-primary-dark transition-all" />
             {site.whatsappLink && (
               <a
                 href={site.whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 border border-dp2-card-border text-dp2-primary px-8 py-3 rounded-lg font-bold font-sans hover:bg-dp2-surface transition-all"
+                className="inline-flex items-center gap-2 border border-dp2-card-border text-dp2-primary px-8 py-3 rounded-xl font-bold font-sans hover:bg-dp2-surface transition-all"
               >
                 <MessageCircle size={18} />
                 <T k="x.contactWhatsapp" />
@@ -177,7 +177,7 @@ export default async function DonatePage() {
             )}
           </div>
         </div>
-        <div className="relative aspect-square overflow-hidden rounded-lg bg-gradient-to-br from-dp2-primary-dark to-amber-100 flex items-center justify-center">
+        <div className="relative aspect-square overflow-hidden rounded-xl bg-gradient-to-br from-dp2-primary-dark to-amber-100 flex items-center justify-center">
           <Heart size={80} className="text-white/20" />
         </div>
       </section>
@@ -186,25 +186,25 @@ export default async function DonatePage() {
       <section className="mb-10">
         <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
           <div>
-            <h2 className="font-heading text-[20px] font-bold leading-[28px] text-dp2-primary">
+            <h2 className="font-heading text-[21px] font-bold leading-[20px] text-dp2-primary">
               <T k="x.donorsHonorWall" />
             </h2>
-            <p className="text-slate-500 font-sans text-[16px]">
+            <p className="text-slate-500 font-sans text-[17px]">
               <T k="x.transparentRecord" />
             </p>
           </div>
           <TotalRaisedBadge amount={totalRaised} />
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-dp2-card-border bg-white">
+        <div className="overflow-x-auto rounded-2xl border border-dp2-card-border bg-white">
           <table className="w-full text-start border-collapse">
             <thead className="bg-dp2-primary text-white">
               <tr>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="x.rank" /></th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="x.name" /></th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="w.amountPkr" /></th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="x.donationsCount" /></th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="x.lastDonation" /></th>
+                <th className="px-6 py-4 font-sans text-[15px] font-semibold tracking-[0.05em] uppercase"><T k="x.rank" /></th>
+                <th className="px-6 py-4 font-sans text-[15px] font-semibold tracking-[0.05em] uppercase"><T k="x.name" /></th>
+                <th className="px-6 py-4 font-sans text-[15px] font-semibold tracking-[0.05em] uppercase"><T k="w.amountPkr" /></th>
+                <th className="px-6 py-4 font-sans text-[15px] font-semibold tracking-[0.05em] uppercase"><T k="x.donationsCount" /></th>
+                <th className="px-6 py-4 font-sans text-[15px] font-semibold tracking-[0.05em] uppercase"><T k="x.lastDonation" /></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dp2-card-border">
@@ -212,11 +212,11 @@ export default async function DonatePage() {
                 <tr key={`${donor.name}-${i}`} className="hover:bg-dp2-surface transition-colors">
                   <td className="px-6 py-4">
                     {i < 3 ? (
-                      <span className={`w-8 h-8 flex items-center justify-center ${rankBadges[i]} text-white rounded-full font-bold font-sans text-[14px]`}>
+                      <span className={`w-8 h-8 flex items-center justify-center ${rankBadges[i]} text-white rounded-full font-bold font-sans text-[15px]`}>
                         {i + 1}
                       </span>
                     ) : (
-                      <span className="w-8 h-8 flex items-center justify-center text-slate-500 font-bold font-sans text-[14px]">
+                      <span className="w-8 h-8 flex items-center justify-center text-slate-500 font-bold font-sans text-[15px]">
                         {i + 1}
                       </span>
                     )}
@@ -247,21 +247,21 @@ export default async function DonatePage() {
       {announcedDonors.length > 0 && (
         <section className="mb-10">
           <div className="mb-6">
-            <h2 className="font-heading text-[20px] font-bold leading-[28px] text-dp2-primary">
+            <h2 className="font-heading text-[21px] font-bold leading-[20px] text-dp2-primary">
               <T k="x.announcedFunds" />
             </h2>
-            <p className="text-slate-500 font-sans text-[16px]">
+            <p className="text-slate-500 font-sans text-[17px]">
               <T k="x.pendingVerification" />
             </p>
           </div>
-          <div className="overflow-x-auto rounded-lg border border-dp2-card-border bg-white">
+          <div className="overflow-x-auto rounded-2xl border border-dp2-card-border bg-white">
             <table className="w-full text-start border-collapse">
               <thead className="bg-dp2-surface">
                 <tr>
-                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-slate-500"><T k="x.name" /></th>
-                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-slate-500"><T k="w.amountPkr" /></th>
-                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-slate-500"><T k="w.project" /></th>
-                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-slate-500"><T k="w.status" /></th>
+                  <th className="px-6 py-3 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase text-slate-500"><T k="x.name" /></th>
+                  <th className="px-6 py-3 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase text-slate-500"><T k="w.amountPkr" /></th>
+                  <th className="px-6 py-3 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase text-slate-500"><T k="w.project" /></th>
+                  <th className="px-6 py-3 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase text-slate-500"><T k="w.status" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dp2-card-border">
@@ -271,7 +271,7 @@ export default async function DonatePage() {
                     <td className="px-6 py-4 font-bold font-sans">{Number(donor.amount_pkr).toLocaleString()}</td>
                     <td className="px-6 py-4 font-sans text-slate-500">{donor.project_id ? (projectTitleById.get(donor.project_id) ?? 'Project') : 'General Fund'}</td>
                     <td className="px-6 py-4">
-                      <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[12px] font-sans font-bold tracking-[0.05em]"><T k="x.announced" /></span>
+                      <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[13px] font-sans font-bold tracking-[0.05em]"><T k="x.announced" /></span>
                     </td>
                   </tr>
                 ))}

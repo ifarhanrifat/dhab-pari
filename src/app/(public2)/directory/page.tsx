@@ -84,13 +84,13 @@ export default function DirectoryPage() {
   return (
     <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-slate-800 flex items-center gap-3"><BookOpen size={28} className="text-dp2-primary-dark" /> {t('dir.pageTitle')}</h1>
-        <p className="text-slate-500 font-sans text-[16px] leading-[26px] max-w-2xl mt-2">{t('dir.pageIntro')}</p>
+        <h1 className="font-heading text-[23px] font-bold leading-[28px] text-slate-800 flex items-center gap-3"><BookOpen size={28} className="text-dp2-primary-dark" /> {t('dir.pageTitle')}</h1>
+        <p className="text-slate-500 font-sans text-[17px] leading-[26px] max-w-2xl mt-2">{t('dir.pageIntro')}</p>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
         {CATEGORIES.map((c) => (
-          <button key={c} onClick={() => changeTab(c)} className={`px-5 py-2 rounded-full font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${tab === c ? 'bg-dp2-primary text-white' : 'bg-white border border-dp2-card-border text-slate-500 hover:border-dp2-primary'}`}>
+          <button key={c} onClick={() => changeTab(c)} className={`px-5 py-2 rounded-full font-sans text-[14.5px] font-semibold cursor-pointer transition-all ${tab === c ? 'bg-dp2-primary text-white' : 'bg-white border border-dp2-card-border text-slate-500 hover:border-dp2-primary'}`}>
             {t(`dir.cat.${c}`)}
           </button>
         ))}
@@ -98,11 +98,11 @@ export default function DirectoryPage() {
 
       {subcategoriesPresent.length > 1 && (
         <div className="flex flex-wrap gap-2 mb-6 -mt-3">
-          <button onClick={() => setSubFilter(null)} className={`px-3.5 py-1.5 rounded-full font-sans text-[12.5px] font-semibold cursor-pointer transition-all ${!subFilter ? 'bg-dp2-primary-dark text-white' : 'bg-dp2-surface text-slate-500 hover:bg-dp2-surface'}`}>
+          <button onClick={() => setSubFilter(null)} className={`px-3.5 py-1.5 rounded-full font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${!subFilter ? 'bg-dp2-primary-dark text-white' : 'bg-dp2-surface text-slate-500 hover:bg-dp2-surface'}`}>
             {t('dir.allSubcategories')}
           </button>
           {subcategoriesPresent.map((s) => (
-            <button key={s} onClick={() => setSubFilter(s)} className={`px-3.5 py-1.5 rounded-full font-sans text-[12.5px] font-semibold cursor-pointer transition-all ${subFilter === s ? 'bg-dp2-primary-dark text-white' : 'bg-dp2-surface text-slate-500 hover:bg-dp2-surface'}`}>
+            <button key={s} onClick={() => setSubFilter(s)} className={`px-3.5 py-1.5 rounded-full font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${subFilter === s ? 'bg-dp2-primary-dark text-white' : 'bg-dp2-surface text-slate-500 hover:bg-dp2-surface'}`}>
               {t(`dir.sub.${s}`)}
             </button>
           ))}
@@ -110,16 +110,16 @@ export default function DirectoryPage() {
       )}
 
       {tab === 'health' && (
-        <div className="flex items-start gap-2.5 bg-dp2-surface border border-dp2-card-border rounded-lg px-4 py-3 mb-6 max-w-2xl">
+        <div className="flex items-start gap-2.5 bg-dp2-surface border border-dp2-card-border rounded-xl px-4 py-3 mb-6 max-w-2xl">
           <Info size={15} className="text-slate-500 shrink-0 mt-0.5" />
-          <p className="font-sans text-[12.5px] text-slate-500 leading-relaxed">{t('dir.healthDisclaimer')}</p>
+          <p className="font-sans text-[13.5px] text-slate-500 leading-relaxed">{t('dir.healthDisclaimer')}</p>
         </div>
       )}
 
       <div className="relative mb-6 max-w-md">
         <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('dir.searchPlaceholder')}
-          className="w-full ps-10 pe-4 py-2.5 rounded-lg border border-dp2-card-border font-sans text-[14px] focus:outline-none focus:border-dp2-primary-dark" />
+          className="w-full ps-10 pe-4 py-2.5 rounded-xl border border-dp2-card-border font-sans text-[15px] focus:outline-none focus:border-dp2-primary-dark" />
       </div>
 
       {/* Real correction, 2026-10-01: general/kiryana stores already have
@@ -127,50 +127,50 @@ export default function DirectoryPage() {
           search, online ordering) -- pointing there instead of trying to
           list the same shops here a second time with less detail. */}
       {tab === 'business' && (
-        <Link href="/marketplace" className="flex items-center justify-between gap-3 bg-white border-2 border-dp2-primary-dark/30 rounded-lg p-4 mb-6 hover:border-dp2-primary-dark transition-all max-w-2xl">
+        <Link href="/marketplace" className="flex items-center justify-between gap-3 bg-white border-2 border-dp2-primary-dark/30 rounded-2xl p-4 mb-6 hover:border-dp2-primary-dark transition-all max-w-2xl">
           <div className="flex items-center gap-3">
             <Store size={20} className="text-dp2-primary-dark" />
-            <span className="font-sans text-[14px] font-semibold text-slate-800">{t('dir.generalStorePointer')}</span>
+            <span className="font-sans text-[15px] font-semibold text-slate-800">{t('dir.generalStorePointer')}</span>
           </div>
           <ArrowRight size={16} className="text-dp2-primary-dark shrink-0" />
         </Link>
       )}
 
       {loading ? (
-        <p className="font-sans text-[14px] text-slate-500 text-center py-16"><LoadingDots /></p>
+        <p className="font-sans text-[15px] text-slate-500 text-center py-16"><LoadingDots /></p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-slate-500 font-sans text-[16px]">{t('dir.noneFound')}</div>
+        <div className="text-center py-16 text-slate-500 font-sans text-[17px]">{t('dir.noneFound')}</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {filtered.map((e) => (
-            <div key={e.id} className="bg-white border border-dp2-card-border rounded-lg p-4 flex gap-3">
+            <div key={e.id} className="bg-white border border-dp2-card-border rounded-2xl p-4 flex gap-3">
               {e.photo_url ? (
-                <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-dp2-surface">
+                <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-dp2-surface">
                   <Image src={e.photo_url} alt="" fill sizes="64px" className="object-cover" />
                 </div>
               ) : (
-                <div className="w-16 h-16 rounded-lg shrink-0 bg-dp2-surface flex items-center justify-center text-dp2-card-border"><BookOpen size={22} /></div>
+                <div className="w-16 h-16 rounded-xl shrink-0 bg-dp2-surface flex items-center justify-center text-dp2-card-border"><BookOpen size={22} /></div>
               )}
               <div className="min-w-0 flex-1">
-                {e.subcategory && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 uppercase">{t(`dir.sub.${e.subcategory}`)}</span>}
-                <h3 className="font-sans text-[15px] font-bold text-slate-800 mt-1 truncate">{isUrdu && e.name_ur ? e.name_ur : e.name}</h3>
-                {(isUrdu ? e.description_ur : e.description) && <p className="font-sans text-[12.5px] text-slate-500 mt-0.5 line-clamp-2">{isUrdu ? e.description_ur : e.description}</p>}
-                {e.location_text && <p className="font-sans text-[12px] text-slate-500 mt-1 flex items-center gap-1"><MapPin size={11} /> {e.location_text}</p>}
-                {e.hours_text && <p className="font-sans text-[12px] text-slate-500 mt-0.5 flex items-center gap-1"><Clock size={11} /> {e.hours_text}</p>}
+                {e.subcategory && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 uppercase">{t(`dir.sub.${e.subcategory}`)}</span>}
+                <h3 className="font-sans text-[16px] font-bold text-slate-800 mt-1 truncate">{isUrdu && e.name_ur ? e.name_ur : e.name}</h3>
+                {(isUrdu ? e.description_ur : e.description) && <p className="font-sans text-[13.5px] text-slate-500 mt-0.5 line-clamp-2">{isUrdu ? e.description_ur : e.description}</p>}
+                {e.location_text && <p className="font-sans text-[13px] text-slate-500 mt-1 flex items-center gap-1"><MapPin size={11} /> {e.location_text}</p>}
+                {e.hours_text && <p className="font-sans text-[13px] text-slate-500 mt-0.5 flex items-center gap-1"><Clock size={11} /> {e.hours_text}</p>}
                 {e.category === 'school' && (
                   <div className="mt-1.5 space-y-0.5">
                     {e.admission_status && (
-                      <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${e.admission_status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                      <span className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded-full uppercase ${e.admission_status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                         {t(e.admission_status === 'open' ? 'dir.admissionOpen' : 'dir.admissionClosed')}
                       </span>
                     )}
-                    {e.fee_per_month != null && <p className="font-sans text-[12px] text-slate-500">{t('dir.feePerMonth')}: <span className="ltr-num">Rs {e.fee_per_month.toLocaleString()}</span></p>}
-                    {e.current_students_count != null && <p className="font-sans text-[12px] text-slate-500">{t('dir.currentStudents')}: <span className="ltr-num">{e.current_students_count}</span></p>}
-                    {e.teacher_qualifications && <p className="font-sans text-[12px] text-slate-500">{t('dir.teacherQualifications')}: {e.teacher_qualifications}</p>}
+                    {e.fee_per_month != null && <p className="font-sans text-[13px] text-slate-500">{t('dir.feePerMonth')}: <span className="ltr-num">Rs {e.fee_per_month.toLocaleString()}</span></p>}
+                    {e.current_students_count != null && <p className="font-sans text-[13px] text-slate-500">{t('dir.currentStudents')}: <span className="ltr-num">{e.current_students_count}</span></p>}
+                    {e.teacher_qualifications && <p className="font-sans text-[13px] text-slate-500">{t('dir.teacherQualifications')}: {e.teacher_qualifications}</p>}
                   </div>
                 )}
                 {e.category === 'mosque' && (e.fajr_time || e.zuhr_time || e.asr_time || e.maghrib_time || e.isha_time || e.jumma_time) && (
-                  <div className="mt-1.5 grid grid-cols-3 gap-x-2 gap-y-0.5 font-sans text-[11px] text-slate-500 ltr-num">
+                  <div className="mt-1.5 grid grid-cols-3 gap-x-2 gap-y-0.5 font-sans text-[12px] text-slate-500 ltr-num">
                     {e.fajr_time && <span>{t('dir.fajr')}: {fmtTime(e.fajr_time)}</span>}
                     {e.zuhr_time && <span>{t('dir.zuhr')}: {fmtTime(e.zuhr_time)}</span>}
                     {e.asr_time && <span>{t('dir.asr')}: {fmtTime(e.asr_time)}</span>}
@@ -182,17 +182,17 @@ export default function DirectoryPage() {
                 {(e.phone || e.whatsapp_number || e.location_text) && (
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {e.phone && (
-                      <a href={`tel:${e.phone.replace(/\s+/g, '')}`} className="flex items-center gap-1 px-2.5 py-1.5 bg-dp2-primary-dark text-white rounded-lg font-sans text-[11.5px] font-semibold hover:bg-dp2-primary transition-all">
+                      <a href={`tel:${e.phone.replace(/\s+/g, '')}`} className="flex items-center gap-1 px-2.5 py-1.5 bg-dp2-primary-dark text-white rounded-xl font-sans text-[12.5px] font-semibold hover:bg-dp2-primary transition-all">
                         <Phone size={11} /> {t('ic.call')}
                       </a>
                     )}
                     {e.whatsapp_number && (
-                      <a href={`https://wa.me/${normalizePakPhone(e.whatsapp_number)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-2.5 py-1.5 bg-[#25D366] text-white rounded-lg font-sans text-[11.5px] font-semibold hover:bg-[#1ebe5a] transition-all">
+                      <a href={`https://wa.me/${normalizePakPhone(e.whatsapp_number)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-2.5 py-1.5 bg-[#25D366] text-white rounded-xl font-sans text-[12.5px] font-semibold hover:bg-[#1ebe5a] transition-all">
                         <MessageCircle size={11} /> {t('ic.whatsappBtn')}
                       </a>
                     )}
                     {e.location_text && (
-                      <a href={mapsSearchUrl(e.name, e.location_text)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-2.5 py-1.5 border border-dp2-card-border text-slate-500 rounded-lg font-sans text-[11.5px] font-semibold hover:border-dp2-primary-dark hover:text-dp2-primary-dark transition-all">
+                      <a href={mapsSearchUrl(e.name, e.location_text)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-2.5 py-1.5 border border-dp2-card-border text-slate-500 rounded-xl font-sans text-[12.5px] font-semibold hover:border-dp2-primary-dark hover:text-dp2-primary-dark transition-all">
                         <Navigation size={11} /> {t('dir.viewOnMap')}
                       </a>
                     )}

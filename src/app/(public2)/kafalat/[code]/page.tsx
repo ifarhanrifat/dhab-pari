@@ -69,18 +69,18 @@ export default async function KafalatChildSharePage({ params }: { params: Promis
               {child.first_name.charAt(0)}
             </div>
           )}
-          <h1 className="font-heading text-[26px] font-bold mt-4">{child.first_name}</h1>
+          <h1 className="font-heading text-[27px] font-bold mt-4">{child.first_name}</h1>
           {child.first_name_ur && (
-            <p className="text-[20px] mt-1 opacity-90" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{child.first_name_ur}</p>
+            <p className="text-[21px] mt-1 opacity-90" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{child.first_name_ur}</p>
           )}
           <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
-            {child.is_orphan && <span className="px-2.5 py-1 rounded-full bg-sky-500/90 text-[11.5px] font-bold">یتیم · Orphan</span>}
-            {child.current_class && <span className="px-2.5 py-1 rounded-full bg-white/15 text-[11.5px] font-bold">جماعت {child.current_class} · Class {child.current_class}</span>}
+            {child.is_orphan && <span className="px-2.5 py-1 rounded-full bg-sky-500/90 text-[12.5px] font-bold">یتیم · Orphan</span>}
+            {child.current_class && <span className="px-2.5 py-1 rounded-full bg-white/15 text-[12.5px] font-bold">جماعت {child.current_class} · Class {child.current_class}</span>}
             {/* A percentage sign sitting next to Urdu text in one string
                 reorders unpredictably under the browser's bidi algorithm —
                 kept LTR/numeric-only here rather than risk it garbling,
                 same reasoning as the OG image's English-only constraint. */}
-            <span dir="ltr" className={`px-2.5 py-1 rounded-full text-[11.5px] font-bold ${isFull ? 'bg-emerald-500/90' : 'bg-amber-500/90'}`}>
+            <span dir="ltr" className={`px-2.5 py-1 rounded-full text-[12.5px] font-bold ${isFull ? 'bg-emerald-500/90' : 'bg-amber-500/90'}`}>
               {isFull ? 'Fully Sponsored' : `${pct}% Sponsored`}
             </span>
           </div>
@@ -88,13 +88,13 @@ export default async function KafalatChildSharePage({ params }: { params: Promis
 
         {/* ── The pitch, in Urdu first ──────────────────────────────────── */}
         <div className="px-6 py-6">
-          <p className="text-[19px] leading-[2.1] text-slate-800 font-bold text-center"
+          <p className="text-[20px] leading-[2.1] text-slate-800 font-bold text-center"
             style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }}>
             {isFull
               ? `${child.first_name_ur ?? child.first_name} کی اس سال کی تعلیمی ضرورت مکمل طور پر پوری ہو چکی ہے، الحمدللہ۔`
               : `${child.first_name_ur ?? child.first_name} کو اس سال تعلیم جاری رکھنے کے لیے آپ کی مدد کی ضرورت ہے۔ ایک ماہانہ حصہ، اپنے بچے کی طرح ساتھ دیں۔`}
           </p>
-          <p className="font-sans text-[13.5px] text-slate-500 text-center mt-2 leading-relaxed">
+          <p className="font-sans text-[14.5px] text-slate-500 text-center mt-2 leading-relaxed">
             {isFull
               ? `${child.first_name}'s education for this year is fully funded, Alhamdulillah — thank you to everyone who joined.`
               : `${child.first_name} needs help staying in school this year. Join with a monthly share, like your own child.`}
@@ -107,30 +107,30 @@ export default async function KafalatChildSharePage({ params }: { params: Promis
             </div>
             <div className="grid grid-cols-3 gap-3 mt-4 text-center">
               <div>
-                <p className="font-heading text-[20px] font-bold text-dp2-primary">{fmt(child.this_year_requirement)}</p>
-                <p className="font-sans text-[11px] text-slate-500">سالانہ ضرورت · Annual need</p>
+                <p className="font-heading text-[21px] font-bold text-dp2-primary">{fmt(child.this_year_requirement)}</p>
+                <p className="font-sans text-[12px] text-slate-500">سالانہ ضرورت · Annual need</p>
               </div>
               <div>
-                <p className="font-heading text-[20px] font-bold text-dp2-primary-dark">{fmt(child.already_named)}</p>
-                <p className="font-sans text-[11px] text-slate-500">موصول شدہ · Confirmed</p>
+                <p className="font-heading text-[21px] font-bold text-dp2-primary-dark">{fmt(child.already_named)}</p>
+                <p className="font-sans text-[12px] text-slate-500">موصول شدہ · Confirmed</p>
               </div>
               <div>
-                <p className="font-heading text-[20px] font-bold text-slate-800">{fmt(remaining)}</p>
-                <p className="font-sans text-[11px] text-slate-500">باقی · Remaining</p>
+                <p className="font-heading text-[21px] font-bold text-slate-800">{fmt(remaining)}</p>
+                <p className="font-sans text-[12px] text-slate-500">باقی · Remaining</p>
               </div>
             </div>
-            <p className="flex items-center justify-center gap-1.5 font-sans text-[12.5px] text-slate-500 mt-4">
+            <p className="flex items-center justify-center gap-1.5 font-sans text-[13.5px] text-slate-500 mt-4">
               <Users size={14} /> {donorCount ?? 0} {(donorCount ?? 0) === 1 ? 'donor has' : 'donors have'} already joined · {donorCount ?? 0} عطیہ دہندگان شامل ہیں
             </p>
           </div>
 
           {/* ── What this covers ───────────────────────────────────────── */}
           {lines.length > 0 && (
-            <div className="mt-6 bg-dp2-surface rounded-lg p-4">
-              <p className="font-sans text-[12px] font-bold text-dp2-primary mb-2.5">یہ رقم کس چیز میں خرچ ہوتی ہے؟ · What this covers</p>
+            <div className="mt-6 bg-dp2-surface rounded-xl p-4">
+              <p className="font-sans text-[13px] font-bold text-dp2-primary mb-2.5">یہ رقم کس چیز میں خرچ ہوتی ہے؟ · What this covers</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                 {lines.map((l, i) => (
-                  <div key={i} className="flex items-center justify-between font-sans text-[12.5px]">
+                  <div key={i} className="flex items-center justify-between font-sans text-[13.5px]">
                     <span className="text-slate-500">{CATEGORY_LABEL_UR[l.category] ?? l.category} · {CATEGORY_LABEL_EN[l.category] ?? l.category}</span>
                     <span className="font-semibold text-slate-800 shrink-0 ms-2">{fmt(l.amount)}</span>
                   </div>
@@ -143,12 +143,12 @@ export default async function KafalatChildSharePage({ params }: { params: Promis
           <div className="mt-6 space-y-3">
             {isFull ? (
               <Link href="/portal/kafalat"
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-3.5 rounded-lg font-sans text-[15px] font-bold hover:bg-emerald-700 transition-all">
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-3.5 rounded-xl font-sans text-[16px] font-bold hover:bg-emerald-700 transition-all">
                 <CheckCircle2 size={18} /> دوسرے بچوں کی مدد کریں · Help another child
               </Link>
             ) : (
               <Link href="/portal/kafalat"
-                className="w-full flex items-center justify-center gap-2 bg-dp2-primary-dark text-white py-3.5 rounded-lg font-sans text-[15px] font-bold hover:bg-dp2-primary transition-all">
+                className="w-full flex items-center justify-center gap-2 bg-dp2-primary-dark text-white py-3.5 rounded-xl font-sans text-[16px] font-bold hover:bg-dp2-primary transition-all">
                 <Heart size={18} /> کفالت میں شامل ہوں · Join this sponsorship
               </Link>
             )}
@@ -157,14 +157,14 @@ export default async function KafalatChildSharePage({ params }: { params: Promis
 
           <div className="flex items-start gap-2 mt-5 pt-5 border-t border-dp2-card-border">
             <ShieldCheck size={16} className="text-dp2-primary-dark shrink-0 mt-0.5" />
-            <p className="font-sans text-[11.5px] text-slate-500 leading-relaxed">
+            <p className="font-sans text-[12.5px] text-slate-500 leading-relaxed">
               کوئی رقم خودکار طریقے سے نہیں کاٹی جاتی — آپ خود بھیجتے ہیں، اور کمیٹی تصدیق کرتی ہے۔ Nothing is charged automatically — you send it yourself, and the committee confirms it.
             </p>
           </div>
         </div>
       </div>
 
-      <p className="flex items-center justify-center gap-1.5 font-sans text-[12px] text-slate-500 mt-4">
+      <p className="flex items-center justify-center gap-1.5 font-sans text-[13px] text-slate-500 mt-4">
         <GraduationCap size={13} /> {site.fullName} — Kafalat
       </p>
     </div>

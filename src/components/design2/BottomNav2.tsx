@@ -36,13 +36,13 @@ export function BottomNav2({ onOpenMore }: { onOpenMore: () => void }) {
             style={{ color: active ? '#005A36' : '#94a3b8' }}
           >
             <item.icon size={17} strokeWidth={active ? 2.5 : 2} />
-            <span className="text-[9px]" style={{ fontWeight: active ? 700 : 500 }}>{t(item.tKey, item.label)}</span>
+            <span className="text-[10px]" style={{ fontWeight: active ? 700 : 500 }}>{t(item.tKey, item.label)}</span>
           </button>
         )
       })}
       <button onClick={onOpenMore} className="flex flex-col items-center gap-0.5 px-1.5 py-0.5 text-slate-400 cursor-pointer">
         <Menu size={17} />
-        <span className="text-[9px] font-medium">{t('y.more', 'More')}</span>
+        <span className="text-[10px] font-medium">{t('y.more', 'More')}</span>
       </button>
     </nav>
   )

@@ -45,8 +45,8 @@ export default function CivicReportsPage() {
   return (
     <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-slate-800 flex items-center gap-3"><AlertTriangle size={28} className="text-dp2-primary-dark" /> {t('cr.pageTitle')}</h1>
-        <p className="text-slate-500 font-sans text-[16px] leading-[26px] max-w-2xl mt-2">
+        <h1 className="font-heading text-[23px] font-bold leading-[28px] text-slate-800 flex items-center gap-3"><AlertTriangle size={28} className="text-dp2-primary-dark" /> {t('cr.pageTitle')}</h1>
+        <p className="text-slate-500 font-sans text-[17px] leading-[26px] max-w-2xl mt-2">
           {t('cr.pageIntro')}{' '}
           <Link href="/portal/report-problem" className="text-dp2-primary-dark font-semibold hover:underline">{t('cr.reportYours')}</Link>.
         </p>
@@ -64,13 +64,13 @@ export default function CivicReportsPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-[14px] text-slate-500 text-center py-16"><LoadingDots /></p>
+        <p className="font-sans text-[15px] text-slate-500 text-center py-16"><LoadingDots /></p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-slate-500 font-sans text-[16px]">{t('cr.noneFound')}</div>
+        <div className="text-center py-16 text-slate-500 font-sans text-[17px]">{t('cr.noneFound')}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((r) => (
-            <div key={r.id} className="bg-white border border-dp2-card-border rounded-lg overflow-hidden">
+            <div key={r.id} className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden">
               {r.photo_url && (
                 <div className="relative w-full aspect-video bg-dp2-surface">
                   <Image src={r.photo_url} alt="" fill sizes="500px" className="object-cover" />
@@ -78,13 +78,13 @@ export default function CivicReportsPage() {
               )}
               <div className="p-5">
                 <div className="flex items-center gap-2 flex-wrap mb-2">
-                  <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 uppercase">{t(`cr.cat.${r.category}`)}</span>
-                  <span className={`text-[10.5px] font-bold px-2.5 py-1 rounded-full uppercase ${STATUS_TONE[r.status]}`}>{t(`cr.status.${r.status}`)}</span>
+                  <span className="text-[11.5px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 uppercase">{t(`cr.cat.${r.category}`)}</span>
+                  <span className={`text-[11.5px] font-bold px-2.5 py-1 rounded-full uppercase ${STATUS_TONE[r.status]}`}>{t(`cr.status.${r.status}`)}</span>
                 </div>
-                <h3 className="font-sans text-[17px] font-semibold text-slate-800">{r.title}</h3>
-                {r.description && <p className="font-sans text-[13.5px] text-slate-500 mt-1.5 leading-[20px]">{r.description}</p>}
+                <h3 className="font-sans text-[18px] font-semibold text-slate-800">{r.title}</h3>
+                {r.description && <p className="font-sans text-[14.5px] text-slate-500 mt-1.5 leading-[20px]">{r.description}</p>}
                 {r.location_text && (
-                  <p className="font-sans text-[13px] text-slate-500 mt-2 flex items-center gap-1"><MapPin size={12} /> {r.location_text}</p>
+                  <p className="font-sans text-[14px] text-slate-500 mt-2 flex items-center gap-1"><MapPin size={12} /> {r.location_text}</p>
                 )}
               </div>
             </div>

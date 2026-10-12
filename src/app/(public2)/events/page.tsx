@@ -51,25 +51,25 @@ export default function VillageEventsPage() {
   }, [])
 
   const card = (e: Ev, faded = false) => (
-    <div key={e.id} className={`bg-white border border-dp2-card-border rounded-lg p-5 ${faded ? 'opacity-60' : ''}`}>
-      <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full uppercase ${categoryTone[e.category] ?? categoryTone.other}`}>{t(`ve.cat.${e.category}`)}{e.category === 'condolence' && e.gathering_type ? ` · ${t(`ve.gt.${e.gathering_type}`)}` : ''}</span>
-      <p className="font-heading text-[18px] font-bold text-slate-800 mt-2">{isUrdu && e.title_ur ? e.title_ur : e.title}</p>
+    <div key={e.id} className={`bg-white border border-dp2-card-border rounded-2xl p-5 ${faded ? 'opacity-60' : ''}`}>
+      <span className={`text-[11.5px] font-bold px-2 py-0.5 rounded-full uppercase ${categoryTone[e.category] ?? categoryTone.other}`}>{t(`ve.cat.${e.category}`)}{e.category === 'condolence' && e.gathering_type ? ` · ${t(`ve.gt.${e.gathering_type}`)}` : ''}</span>
+      <p className="font-heading text-[19px] font-bold text-slate-800 mt-2">{isUrdu && e.title_ur ? e.title_ur : e.title}</p>
       {e.category === 'wedding' && (e.groom_name || e.bride_name) && (
-        <p className="font-sans text-[13.5px] text-slate-800 mt-1">{e.groom_name}{e.groom_name && e.bride_name ? ' & ' : ''}{e.bride_name}</p>
+        <p className="font-sans text-[14.5px] text-slate-800 mt-1">{e.groom_name}{e.groom_name && e.bride_name ? ' & ' : ''}{e.bride_name}</p>
       )}
       {e.category === 'wedding' && <WeddingFunctionsList eventId={e.id} />}
       {e.category === 'wedding' && (e.groom_muntazim_name || e.bride_muntazim_name) && (
-        <div className="mt-2 space-y-0.5 font-sans text-[12.5px] text-slate-500">
+        <div className="mt-2 space-y-0.5 font-sans text-[13.5px] text-slate-500">
           {e.groom_muntazim_name && <p><span className="font-semibold">{t('ve.muntazim')} ({t('sl.side.groom')})</span>: {e.groom_muntazim_name}{e.groom_muntazim_contact ? ` · ${e.groom_muntazim_contact}` : ''}</p>}
           {e.bride_muntazim_name && <p><span className="font-semibold">{t('ve.muntazim')} ({t('sl.side.bride')})</span>: {e.bride_muntazim_name}{e.bride_muntazim_contact ? ` · ${e.bride_muntazim_contact}` : ''}</p>}
         </div>
       )}
-      {e.category === 'condolence' && e.deceased_name && <p className="font-sans text-[13.5px] text-slate-800 mt-1">{e.deceased_name}</p>}
-      {e.category === 'religious' && e.speaker_name && <p className="font-sans text-[13.5px] text-slate-800 mt-1">{t('ve.speakerName')}: {e.speaker_name}</p>}
-      {e.category === 'sports' && e.tournament_name && <p className="font-sans text-[13.5px] text-slate-800 mt-1">{e.tournament_name}{e.entry_fee ? ` · ${t('ve.entryFee')}: ${e.entry_fee}` : ''}</p>}
-      {e.category === 'meeting' && e.agenda && <p className="font-sans text-[13.5px] text-slate-500 mt-1.5">{e.agenda}</p>}
-      {(isUrdu ? e.description_ur : e.description) && <p className="font-sans text-[13.5px] text-slate-500 mt-1.5">{isUrdu ? e.description_ur : e.description}</p>}
-      <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 font-sans text-[12.5px] text-slate-500">
+      {e.category === 'condolence' && e.deceased_name && <p className="font-sans text-[14.5px] text-slate-800 mt-1">{e.deceased_name}</p>}
+      {e.category === 'religious' && e.speaker_name && <p className="font-sans text-[14.5px] text-slate-800 mt-1">{t('ve.speakerName')}: {e.speaker_name}</p>}
+      {e.category === 'sports' && e.tournament_name && <p className="font-sans text-[14.5px] text-slate-800 mt-1">{e.tournament_name}{e.entry_fee ? ` · ${t('ve.entryFee')}: ${e.entry_fee}` : ''}</p>}
+      {e.category === 'meeting' && e.agenda && <p className="font-sans text-[14.5px] text-slate-500 mt-1.5">{e.agenda}</p>}
+      {(isUrdu ? e.description_ur : e.description) && <p className="font-sans text-[14.5px] text-slate-500 mt-1.5">{isUrdu ? e.description_ur : e.description}</p>}
+      <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 font-sans text-[13.5px] text-slate-500">
         <span className="flex items-center gap-1"><Clock size={12} /> <span className="ltr-num">{new Date(e.start_datetime).toLocaleString()}</span>{e.end_datetime && <span className="ltr-num"> – {new Date(e.end_datetime).toLocaleString()}</span>}</span>
         {e.location_text && <span className="flex items-center gap-1"><MapPin size={12} /> {e.location_text}</span>}
         {(e.venue_men || e.venue_women) && (
@@ -86,23 +86,23 @@ export default function VillageEventsPage() {
     <div className="max-w-[900px] mx-auto px-6 md:px-12 py-10" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="flex items-center gap-2.5 mb-1.5">
         <CalendarDays size={26} className="text-dp2-primary" />
-        <h1 className="font-heading text-[28px] font-bold text-dp2-primary">{t('ve.pageTitle')}</h1>
+        <h1 className="font-heading text-[21px] font-bold text-dp2-primary">{t('ve.pageTitle')}</h1>
       </div>
-      <p className="font-sans text-[14px] text-slate-500 mb-8">{t('ve.pageIntro')}</p>
+      <p className="font-sans text-[15px] text-slate-500 mb-8">{t('ve.pageIntro')}</p>
 
       {loading ? (
         <div className="text-center py-12 text-slate-500"><LoadingDots /></div>
       ) : (
         <>
           {upcoming.length === 0 ? (
-            <p className="text-center py-12 text-slate-500 font-sans text-[14px] bg-white border border-dp2-card-border rounded-lg mb-10">{t('ve.noneFound')}</p>
+            <p className="text-center py-12 text-slate-500 font-sans text-[15px] bg-white border border-dp2-card-border rounded-2xl mb-10">{t('ve.noneFound')}</p>
           ) : (
             <div className="space-y-4 mb-10">{upcoming.map((e) => card(e))}</div>
           )}
 
           {past.length > 0 && (
             <>
-              <h2 className="font-heading text-[18px] font-bold text-slate-500 mb-4">{t('x.past')}</h2>
+              <h2 className="font-heading text-[19px] font-bold text-slate-500 mb-4">{t('x.past')}</h2>
               <div className="space-y-4">{past.map((e) => card(e, true))}</div>
             </>
           )}

@@ -157,27 +157,27 @@ export default function PublicBloodPage() {
   }
 
   const helplineBlock = (
-    <div className="bg-red-600/10 border-2 border-red-600 rounded-lg p-5">
-      <h3 className="font-heading text-[19px] font-bold text-red-600 mb-1.5">{dt('urgentTitle')}</h3>
-      <p className="font-sans text-[13.5px] text-slate-500 mb-4">{dt('urgentBody')}</p>
+    <div className="bg-red-600/10 border-2 border-red-600 rounded-xl p-5">
+      <h3 className="font-heading text-[20px] font-bold text-red-600 mb-1.5">{dt('urgentTitle')}</h3>
+      <p className="font-sans text-[14.5px] text-slate-500 mb-4">{dt('urgentBody')}</p>
       <div className="flex flex-col sm:flex-row gap-3">
         <a href={`tel:${waNumber}`}
-          className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white py-3 rounded-lg font-sans font-semibold hover:opacity-90 transition-all">
+          className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white py-3 rounded-xl font-sans font-semibold hover:opacity-90 transition-all">
           <Phone size={17} /> {dt('callNow')}
         </a>
         <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener noreferrer"
-          className="flex-1 flex items-center justify-center gap-2 bg-[#25D366] text-white py-3 rounded-lg font-sans font-semibold hover:opacity-90 transition-all">
+          className="flex-1 flex items-center justify-center gap-2 bg-[#25D366] text-white py-3 rounded-xl font-sans font-semibold hover:opacity-90 transition-all">
           <MessageCircle size={17} /> {dt('whatsappNow')}
         </a>
       </div>
-      <p dir="ltr" className="text-center font-mono text-[19px] font-bold text-red-600 mt-3">{site.whatsapp}</p>
+      <p dir="ltr" className="text-center font-mono text-[20px] font-bold text-red-600 mt-3">{site.whatsapp}</p>
     </div>
   )
 
   return (
     <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="max-w-2xl mx-auto">
-        <Link href="/" className={`inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline mb-8 ${isUrdu ? 'flex-row-reverse' : ''}`}>
+        <Link href="/" className={`inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[15px] font-semibold tracking-[0.05em] hover:underline mb-8 ${isUrdu ? 'flex-row-reverse' : ''}`}>
           <ArrowLeft size={16} className={isUrdu ? 'rotate-180' : ''} />
           {dt('back')}
         </Link>
@@ -186,33 +186,33 @@ export default function PublicBloodPage() {
           <div className="inline-flex items-center justify-center p-3 bg-red-600/10 rounded-full text-red-600 mb-4">
             <Droplet size={28} />
           </div>
-          <h1 className="font-heading text-[32px] font-bold text-dp2-primary">{dt('title')}</h1>
-          <p className="font-sans text-[14.5px] text-slate-500 mt-2 leading-relaxed">{dt('subtitle')}</p>
+          <h1 className="font-heading text-[23px] font-bold text-dp2-primary">{dt('title')}</h1>
+          <p className="font-sans text-[15.5px] text-slate-500 mt-2 leading-relaxed">{dt('subtitle')}</p>
         </div>
 
         {/* Counts, and nothing that identifies anyone. */}
         {counts.length > 0 && (
-          <div className="bg-white border border-dp2-card-border rounded-lg p-5 mb-8">
+          <div className="bg-white border border-dp2-card-border rounded-2xl p-5 mb-8">
             <div className="grid grid-cols-4 gap-3">
               {counts.map((g) => (
-                <div key={g.blood_group} className="text-center border border-dp2-card-border rounded-lg py-3">
-                  <p className="font-heading text-[18px] font-bold text-red-600 leading-none">{g.blood_group}</p>
-                  <p className="font-sans text-[22px] font-bold text-slate-800 leading-tight mt-1">{g.registered}</p>
-                  <p className="font-sans text-[10px] text-slate-500 leading-tight">{dt('registered')}</p>
-                  <p className="font-sans text-[11px] text-dp2-primary-dark font-semibold mt-1">{g.available_now} {dt('available')}</p>
+                <div key={g.blood_group} className="text-center border border-dp2-card-border rounded-xl py-3">
+                  <p className="font-heading text-[19px] font-bold text-red-600 leading-none">{g.blood_group}</p>
+                  <p className="font-sans text-[23px] font-bold text-slate-800 leading-tight mt-1">{g.registered}</p>
+                  <p className="font-sans text-[11px] text-slate-500 leading-tight">{dt('registered')}</p>
+                  <p className="font-sans text-[12px] text-dp2-primary-dark font-semibold mt-1">{g.available_now} {dt('available')}</p>
                 </div>
               ))}
             </div>
-            <p className="font-sans text-[11.5px] text-slate-500 mt-3 text-center">{dt('countsNote')}</p>
+            <p className="font-sans text-[12.5px] text-slate-500 mt-3 text-center">{dt('countsNote')}</p>
           </div>
         )}
 
         {submitted ? (
           <div className="space-y-6">
-            <div className="bg-white border border-dp2-card-border rounded-lg p-8 text-center">
+            <div className="bg-white border border-dp2-card-border rounded-2xl p-8 text-center">
               <CheckCircle size={44} className="text-dp2-primary-dark mx-auto mb-4" />
-              <h2 className="font-heading text-[24px] font-bold text-dp2-primary mb-2">{dt('doneTitle')}</h2>
-              <p className="font-sans text-[14px] text-slate-500 leading-relaxed">{dt('doneBody')}</p>
+              <h2 className="font-heading text-[19px] font-bold text-dp2-primary mb-2">{dt('doneTitle')}</h2>
+              <p className="font-sans text-[15px] text-slate-500 leading-relaxed">{dt('doneBody')}</p>
             </div>
 
             {/* The number goes up the moment a request is in, so nobody is left
@@ -221,26 +221,26 @@ export default function PublicBloodPage() {
 
             <button
               onClick={() => { setSubmitted(false); setForm({ patientName: '', requesterName: '', requesterWhatsapp: '', relation: '', bloodGroup: '', units: '1', city: '', hospital: '', neededOn: '', notes: '', patientKind: '', neededHour: '', neededPeriod: '' }) }}
-              className="w-full border border-dp2-card-border text-slate-500 py-2.5 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp2-surface transition-all">
+              className="w-full border border-dp2-card-border text-slate-500 py-2.5 rounded-xl font-sans text-[14.5px] font-semibold cursor-pointer hover:bg-dp2-surface transition-all">
               {dt('another')}
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="bg-white border border-dp2-card-border rounded-lg p-6">
-            <h2 className="font-heading text-[22px] font-bold text-dp2-primary mb-1">{dt('formTitle')}</h2>
-            <p className="font-sans text-[13.5px] text-slate-500 mb-5 leading-relaxed">{dt('formIntro')}</p>
+          <form onSubmit={handleSubmit} className="bg-white border border-dp2-card-border rounded-2xl p-6">
+            <h2 className="font-heading text-[23px] font-bold text-dp2-primary mb-1">{dt('formTitle')}</h2>
+            <p className="font-sans text-[14.5px] text-slate-500 mb-5 leading-relaxed">{dt('formIntro')}</p>
 
-            <div className="mb-5 flex items-start gap-2 text-[12.5px] font-sans text-slate-500 bg-dp2-surface rounded-lg px-3 py-2.5">
+            <div className="mb-5 flex items-start gap-2 text-[13.5px] font-sans text-slate-500 bg-dp2-surface rounded-xl px-3 py-2.5">
               <ShieldCheck size={15} className="text-dp2-primary-dark shrink-0 mt-0.5" />
               <span>{dt('whyPhone')}</span>
             </div>
 
             <div className="mb-4">
-              <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('bloodGroup')} *</label>
+              <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('bloodGroup')} *</label>
               <div className="grid grid-cols-4 gap-2">
                 {GROUPS.map((g) => (
                   <button key={g} type="button" onClick={() => setForm((p) => ({ ...p, bloodGroup: g }))}
-                    className={`py-2.5 rounded-lg font-sans text-[15px] font-bold cursor-pointer transition-all ${form.bloodGroup === g ? 'bg-red-600 text-white' : 'border border-dp2-card-border text-slate-500 hover:border-red-600'}`}>
+                    className={`py-2.5 rounded-xl font-sans text-[16px] font-bold cursor-pointer transition-all ${form.bloodGroup === g ? 'bg-red-600 text-white' : 'border border-dp2-card-border text-slate-500 hover:border-red-600'}`}>
                     {g}
                   </button>
                 ))}
@@ -249,35 +249,35 @@ export default function PublicBloodPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('patientName')} *</label>
+                <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('patientName')} *</label>
                 <input name="patientName" value={form.patientName} onChange={handleChange} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('units')} *</label>
+                <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('units')} *</label>
                 <input name="units" type="number" min={1} max={10} value={form.units} onChange={handleChange} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('requesterName')} *</label>
+                <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('requesterName')} *</label>
                 <input name="requesterName" value={form.requesterName} onChange={handleChange} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('requesterWhatsapp')} *</label>
+                <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('requesterWhatsapp')} *</label>
                 <input name="requesterWhatsapp" value={form.requesterWhatsapp} onChange={handleChange} dir="ltr" placeholder="03XX-XXXXXXX" className="input-field" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('relation')}</label>
+                <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('relation')}</label>
                 <input name="relation" value={form.relation} onChange={handleChange} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('hospital')} *</label>
+                <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('hospital')} *</label>
                 <input name="hospital" value={form.hospital} onChange={handleChange} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('city')} *</label>
+                <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('city')} *</label>
                 <input name="city" value={form.city} onChange={handleChange} placeholder="Chakwal" className="input-field" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('neededOn')} *</label>
+                <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('neededOn')} *</label>
                 <input name="neededOn" type="date" value={form.neededOn} onChange={handleChange} dir="ltr" className="input-field" />
               </div>
             </div>
@@ -285,7 +285,7 @@ export default function PublicBloodPage() {
             {/* Nobody here says "16:00". They say شام 4 بجے, so that is what the
                 form asks for and what every message repeats back. */}
             <div className="mb-4">
-              <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('neededTime')} *</label>
+              <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('neededTime')} *</label>
               <div className="flex flex-wrap gap-2">
                 {/* A bare "--" read as a broken field. The select carries its
                     own label instead, and stays LTR because a number does. */}
@@ -299,7 +299,7 @@ export default function PublicBloodPage() {
                 <div className="grid grid-cols-4 gap-2 flex-1 min-w-0">
                   {([['subha', 'periodSubha'], ['dopahar', 'periodDopahar'], ['shaam', 'periodShaam'], ['raat', 'periodRaat']] as const).map(([v, k]) => (
                     <button key={v} type="button" onClick={() => setForm((p) => ({ ...p, neededPeriod: v }))}
-                      className={`py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer transition-all ${form.neededPeriod === v ? 'bg-red-600 text-white' : 'border border-dp2-card-border text-slate-500 hover:border-red-600'}`}>
+                      className={`py-2 rounded-xl font-sans text-[14px] font-semibold cursor-pointer transition-all ${form.neededPeriod === v ? 'bg-red-600 text-white' : 'border border-dp2-card-border text-slate-500 hover:border-red-600'}`}>
                       {dt(k)}
                     </button>
                   ))}
@@ -310,27 +310,27 @@ export default function PublicBloodPage() {
             {/* Drives the public appeal's wording. The name entered above never
                 leaves the committee; this is what strangers see instead. */}
             <div className="mb-4">
-              <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('patientKind')} *</label>
+              <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('patientKind')} *</label>
               <div className="grid grid-cols-3 gap-2">
                 {([['man', 'kindMan'], ['woman', 'kindWoman'], ['child', 'kindChild']] as const).map(([v, k]) => (
                   <button key={v} type="button" onClick={() => setForm((p) => ({ ...p, patientKind: v }))}
-                    className={`py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer transition-all ${form.patientKind === v ? 'bg-red-600 text-white' : 'border border-dp2-card-border text-slate-500 hover:border-red-600'}`}>
+                    className={`py-2.5 rounded-xl font-sans text-[15px] font-semibold cursor-pointer transition-all ${form.patientKind === v ? 'bg-red-600 text-white' : 'border border-dp2-card-border text-slate-500 hover:border-red-600'}`}>
                     {dt(k)}
                   </button>
                 ))}
               </div>
-              <p className="font-sans text-[11.5px] text-slate-500 mt-1.5 leading-snug">{dt('patientKindNote')}</p>
+              <p className="font-sans text-[12.5px] text-slate-500 mt-1.5 leading-snug">{dt('patientKindNote')}</p>
             </div>
 
             <div className="mb-5">
-              <label className="block font-sans text-[13px] font-semibold text-slate-500 mb-1.5">{dt('notes')}</label>
+              <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{dt('notes')}</label>
               <textarea name="notes" value={form.notes} onChange={handleChange} rows={3} className="input-field" />
             </div>
 
-            {error && <p className="font-sans text-[13.5px] text-red-600 mb-4">{error}</p>}
+            {error && <p className="font-sans text-[14.5px] text-red-600 mb-4">{error}</p>}
 
             <button type="submit" disabled={loading}
-              className="w-full bg-red-600 text-white py-3.5 rounded-lg font-sans font-semibold cursor-pointer hover:opacity-90 transition-all disabled:opacity-50">
+              className="w-full bg-red-600 text-white py-3.5 rounded-xl font-sans font-semibold cursor-pointer hover:opacity-90 transition-all disabled:opacity-50">
               {loading ? dt('submitting') : dt('submit')}
             </button>
           </form>

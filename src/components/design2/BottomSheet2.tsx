@@ -23,7 +23,7 @@ export function BottomSheet2({
     >
       <div className="w-full max-h-[88%] overflow-y-auto bg-white rounded-[24px] p-4 animate-in slide-in-from-bottom-full duration-250">
         <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
-          <h3 className="text-[14px] font-bold" style={{ color: titleColor }}>{title}</h3>
+          <h3 className="text-[15px] font-bold" style={{ color: titleColor }}>{title}</h3>
           <button onClick={onClose} aria-label="close" className="text-slate-400 hover:text-slate-600 cursor-pointer">
             <X size={18} />
           </button>

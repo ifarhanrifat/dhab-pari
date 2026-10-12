@@ -95,7 +95,7 @@ export default function ClassifiedsPage() {
   const renderCard = (l: Listing) => {
     const detail = detailLine(l)
     return (
-      <div key={l.id} className="bg-white border border-dp2-card-border rounded-lg overflow-hidden">
+      <div key={l.id} className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden">
         <div className="relative w-full aspect-video bg-dp2-surface">
           {l.photo_url ? (
             <Image src={l.photo_url} alt="" fill sizes="360px" className="object-cover" />
@@ -104,20 +104,20 @@ export default function ClassifiedsPage() {
           )}
         </div>
         <div className="p-4">
-          <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 uppercase">{t(`cl.cat.${l.category}`)}</span>
-          <h3 className="font-sans text-[15.5px] font-semibold text-slate-800 mt-2 truncate">{l.title}</h3>
-          {detail && <p className="font-sans text-[12.5px] text-slate-500 mt-1 ltr-num">{detail}</p>}
-          {l.specifications && <p className="font-sans text-[12px] text-slate-500 mt-1 line-clamp-2">{l.specifications}</p>}
-          {l.price_pkr != null && <p className="font-heading text-[17px] font-bold text-dp2-primary mt-1 ltr-num">PKR {fmt(l.price_pkr)}</p>}
+          <span className="text-[11.5px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 uppercase">{t(`cl.cat.${l.category}`)}</span>
+          <h3 className="font-sans text-[16.5px] font-semibold text-slate-800 mt-2 truncate">{l.title}</h3>
+          {detail && <p className="font-sans text-[13.5px] text-slate-500 mt-1 ltr-num">{detail}</p>}
+          {l.specifications && <p className="font-sans text-[13px] text-slate-500 mt-1 line-clamp-2">{l.specifications}</p>}
+          {l.price_pkr != null && <p className="font-heading text-[18px] font-bold text-dp2-primary mt-1 ltr-num">PKR {fmt(l.price_pkr)}</p>}
           {l.location_text && (
-            <p className="font-sans text-[12.5px] text-slate-500 mt-1.5 flex items-center gap-1"><MapPin size={12} /> {l.location_text}</p>
+            <p className="font-sans text-[13.5px] text-slate-500 mt-1.5 flex items-center gap-1"><MapPin size={12} /> {l.location_text}</p>
           )}
           <div className="flex gap-2 mt-3">
-            <a href={`tel:${l.contact_mobile}`} onClick={(e) => requestContact(e, `tel:${l.contact_mobile}`)} className="flex-1 flex items-center justify-center gap-1.5 border-2 border-dp2-primary text-dp2-primary px-3 py-2 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp2-primary hover:text-white transition-all">
+            <a href={`tel:${l.contact_mobile}`} onClick={(e) => requestContact(e, `tel:${l.contact_mobile}`)} className="flex-1 flex items-center justify-center gap-1.5 border-2 border-dp2-primary text-dp2-primary px-3 py-2 rounded-xl font-sans text-[13.5px] font-semibold hover:bg-dp2-primary hover:text-white transition-all">
               <Phone size={13} /> {t('x.call')}
             </a>
             {l.contact_whatsapp && (
-              <a href={`https://wa.me/${normalizePakPhone(l.contact_whatsapp)}`} onClick={(e) => requestContact(e, `https://wa.me/${normalizePakPhone(l.contact_whatsapp!)}`)} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 bg-dp2-primary-dark text-white px-3 py-2 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp2-primary transition-all">
+              <a href={`https://wa.me/${normalizePakPhone(l.contact_whatsapp)}`} onClick={(e) => requestContact(e, `https://wa.me/${normalizePakPhone(l.contact_whatsapp!)}`)} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 bg-dp2-primary-dark text-white px-3 py-2 rounded-xl font-sans text-[13.5px] font-semibold hover:bg-dp2-primary transition-all">
                 <MessageCircle size={13} /> {t('w.whatsapp')}
               </a>
             )}
@@ -130,8 +130,8 @@ export default function ClassifiedsPage() {
   return (
     <div className="max-w-[1100px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-slate-800 flex items-center gap-3"><ShoppingBag size={28} className="text-dp2-primary-dark" /> {t('cl.pageTitle')}</h1>
-        <p className="text-slate-500 font-sans text-[16px] leading-[26px] max-w-2xl mt-2">
+        <h1 className="font-heading text-[23px] font-bold leading-[28px] text-slate-800 flex items-center gap-3"><ShoppingBag size={28} className="text-dp2-primary-dark" /> {t('cl.pageTitle')}</h1>
+        <p className="text-slate-500 font-sans text-[17px] leading-[26px] max-w-2xl mt-2">
           {t('cl.pageIntro')}{' '}
           <Link href="/portal/classifieds" className="text-dp2-primary-dark font-semibold hover:underline">{t('cl.postYourOwn')}</Link>.
         </p>
@@ -148,9 +148,9 @@ export default function ClassifiedsPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-[14px] text-slate-500 text-center py-16"><LoadingDots /></p>
+        <p className="font-sans text-[15px] text-slate-500 text-center py-16"><LoadingDots /></p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-slate-500 font-sans text-[16px]">{t('cl.noneFound')}</div>
+        <div className="text-center py-16 text-slate-500 font-sans text-[17px]">{t('cl.noneFound')}</div>
       ) : category ? (
         // A specific category is already chosen via the filter — a
         // repeated section heading above a single grid would be noise.
@@ -162,7 +162,7 @@ export default function ClassifiedsPage() {
         // section per category instead of one undifferentiated grid.
         CATEGORIES.filter((c) => filtered.some((l) => l.category === c)).map((c) => (
           <div key={c} className="mb-8">
-            <h2 className="font-sans text-[13px] font-bold text-slate-500 uppercase tracking-wide mb-3">{t(`cl.cat.${c}`)}</h2>
+            <h2 className="font-sans text-[14px] font-bold text-slate-500 uppercase tracking-wide mb-3">{t(`cl.cat.${c}`)}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.filter((l) => l.category === c).map((l) => renderCard(l))}
             </div>
@@ -172,15 +172,15 @@ export default function ClassifiedsPage() {
 
       {pendingContact && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPendingContact(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
             <div className="flex items-start justify-between mb-3">
               <ShieldAlert size={24} className="text-amber-600" />
               <button onClick={() => setPendingContact(null)} className="cursor-pointer text-slate-500"><X size={18} /></button>
             </div>
-            <p className="font-sans text-[13.5px] text-slate-800 leading-relaxed mb-5">{t('cl.disclaimer')}</p>
+            <p className="font-sans text-[14.5px] text-slate-800 leading-relaxed mb-5">{t('cl.disclaimer')}</p>
             <div className="flex gap-2">
-              <button onClick={() => setPendingContact(null)} className="flex-1 border border-dp2-card-border text-slate-500 py-2.5 rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp2-surface">{t('cl.cancelBtn')}</button>
-              <button onClick={confirmContact} className="flex-1 bg-dp2-primary-dark text-white py-2.5 rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp2-primary">{t('cl.continueBtn')}</button>
+              <button onClick={() => setPendingContact(null)} className="flex-1 border border-dp2-card-border text-slate-500 py-2.5 rounded-xl font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp2-surface">{t('cl.cancelBtn')}</button>
+              <button onClick={confirmContact} className="flex-1 bg-dp2-primary-dark text-white py-2.5 rounded-xl font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp2-primary">{t('cl.continueBtn')}</button>
             </div>
           </div>
         </div>

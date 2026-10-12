@@ -49,7 +49,7 @@ export default function ChandaManagePage() {
   }
 
   if (loading) return <div className="text-center py-20 text-slate-500"><LoadingDots /></div>
-  if (invalid || !campaign) return <div className="max-w-md mx-auto py-20 px-6 text-center font-sans text-[14px] text-slate-500">{t('sl.invalidLink')}</div>
+  if (invalid || !campaign) return <div className="max-w-md mx-auto py-20 px-6 text-center font-sans text-[15px] text-slate-500">{t('sl.invalidLink')}</div>
 
   const pending = pledges.filter((p) => p.status === 'pending')
   const received = pledges.filter((p) => p.status === 'received')
@@ -60,29 +60,29 @@ export default function ChandaManagePage() {
     <div className="max-w-[700px] mx-auto px-6 py-10" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="flex items-center gap-2.5 mb-1.5">
         <Landmark size={24} className="text-dp2-primary-dark" />
-        <h1 className="font-heading text-[24px] font-bold text-dp2-primary">{campaign.title}</h1>
+        <h1 className="font-heading text-[19px] font-bold text-dp2-primary">{campaign.title}</h1>
       </div>
-      <p className="font-sans text-[13.5px] text-slate-500 mb-6">{t('sl.managePageIntro')}</p>
+      <p className="font-sans text-[14.5px] text-slate-500 mb-6">{t('sl.managePageIntro')}</p>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-emerald-50 rounded-lg p-3.5"><p className="text-emerald-700 font-bold font-sans text-[15px] ltr-num">{receivedTotal.toLocaleString()}</p><p className="text-emerald-600 font-sans text-[12px]">{t('sl.confirmed')} · {received.length}</p></div>
-        <div className="bg-amber-50 rounded-lg p-3.5"><p className="text-amber-700 font-bold font-sans text-[15px] ltr-num">{pendingTotal.toLocaleString()}</p><p className="text-amber-600 font-sans text-[12px]">{t('sl.pending')} · {pending.length}</p></div>
+        <div className="bg-emerald-50 rounded-xl p-3.5"><p className="text-emerald-700 font-bold font-sans text-[16px] ltr-num">{receivedTotal.toLocaleString()}</p><p className="text-emerald-600 font-sans text-[13px]">{t('sl.confirmed')} · {received.length}</p></div>
+        <div className="bg-amber-50 rounded-xl p-3.5"><p className="text-amber-700 font-bold font-sans text-[16px] ltr-num">{pendingTotal.toLocaleString()}</p><p className="text-amber-600 font-sans text-[13px]">{t('sl.pending')} · {pending.length}</p></div>
       </div>
 
       {pending.length > 0 && (
         <>
-          <h2 className="font-heading text-[16px] font-bold text-slate-800 mb-3">{t('sl.pending')}</h2>
+          <h2 className="font-heading text-[17px] font-bold text-slate-800 mb-3">{t('sl.pending')}</h2>
           <div className="space-y-2 mb-6">
             {pending.map((p) => (
-              <div key={p.id} className="bg-white border border-amber-200 rounded-lg p-3.5 flex items-center justify-between gap-3">
+              <div key={p.id} className="bg-white border border-amber-200 rounded-2xl p-3.5 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-sans text-[13.5px] font-semibold text-slate-800">{p.giver_name}{p.giver_mobile ? ` · ${p.giver_mobile}` : ''}</p>
-                  {p.message && <p className="font-sans text-[12px] text-slate-500 mt-0.5">{p.message}</p>}
-                  <p className="font-sans text-[15px] font-bold text-amber-700 mt-1 ltr-num">{Number(p.amount).toLocaleString()}</p>
+                  <p className="font-sans text-[14.5px] font-semibold text-slate-800">{p.giver_name}{p.giver_mobile ? ` · ${p.giver_mobile}` : ''}</p>
+                  {p.message && <p className="font-sans text-[13px] text-slate-500 mt-0.5">{p.message}</p>}
+                  <p className="font-sans text-[16px] font-bold text-amber-700 mt-1 ltr-num">{Number(p.amount).toLocaleString()}</p>
                 </div>
                 <div className="flex gap-1.5 shrink-0">
-                  <button onClick={() => markReceived(p.id)} title={t('sl.markReceived')} className="p-2 bg-emerald-600 text-white rounded-lg cursor-pointer hover:bg-emerald-700"><CheckCircle2 size={15} /></button>
-                  <button onClick={() => remove(p.id)} title={t('sl.deletePledge')} className="p-2 border border-dp2-card-border text-slate-500 rounded-lg cursor-pointer hover:bg-dp2-surface"><Trash2 size={15} /></button>
+                  <button onClick={() => markReceived(p.id)} title={t('sl.markReceived')} className="p-2 bg-emerald-600 text-white rounded-xl cursor-pointer hover:bg-emerald-700"><CheckCircle2 size={15} /></button>
+                  <button onClick={() => remove(p.id)} title={t('sl.deletePledge')} className="p-2 border border-dp2-card-border text-slate-500 rounded-xl cursor-pointer hover:bg-dp2-surface"><Trash2 size={15} /></button>
                 </div>
               </div>
             ))}
@@ -90,15 +90,15 @@ export default function ChandaManagePage() {
         </>
       )}
 
-      <h2 className="font-heading text-[16px] font-bold text-slate-800 mb-3">{t('sl.confirmed')}</h2>
+      <h2 className="font-heading text-[17px] font-bold text-slate-800 mb-3">{t('sl.confirmed')}</h2>
       {received.length === 0 ? (
-        <p className="font-sans text-[13.5px] text-slate-500">{t('sl.noneYet')}</p>
+        <p className="font-sans text-[14.5px] text-slate-500">{t('sl.noneYet')}</p>
       ) : (
         <div className="space-y-2">
           {received.map((p) => (
-            <div key={p.id} className="bg-white border border-dp2-card-border rounded-lg p-3.5 flex items-center justify-between gap-3">
-              <p className="font-sans text-[13.5px] text-slate-800">{p.giver_name}{p.giver_mobile ? ` · ${p.giver_mobile}` : ''}</p>
-              <span className="font-sans text-[14px] font-bold text-emerald-700 ltr-num">{Number(p.amount).toLocaleString()}</span>
+            <div key={p.id} className="bg-white border border-dp2-card-border rounded-2xl p-3.5 flex items-center justify-between gap-3">
+              <p className="font-sans text-[14.5px] text-slate-800">{p.giver_name}{p.giver_mobile ? ` · ${p.giver_mobile}` : ''}</p>
+              <span className="font-sans text-[15px] font-bold text-emerald-700 ltr-num">{Number(p.amount).toLocaleString()}</span>
             </div>
           ))}
         </div>

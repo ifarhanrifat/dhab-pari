@@ -36,7 +36,7 @@ export default async function AllDonorsPage() {
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-10 py-8" dir={isUrdu ? 'rtl' : 'ltr'}>
-      <Link href="/donate" className="inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[14px] font-semibold hover:underline mb-6">
+      <Link href="/donate" className="inline-flex items-center gap-2 text-dp2-primary-dark font-sans text-[15px] font-semibold hover:underline mb-6">
         <ArrowLeft size={16} /> <T k="x.backToDonate" />
       </Link>
 
@@ -46,15 +46,15 @@ export default async function AllDonorsPage() {
             <Heart size={24} />
           </div>
           <div style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-            <h1 className="font-heading text-[24px] md:text-[28px] font-bold leading-[32px] text-dp2-primary section-title">
+            <h1 className="font-heading text-[19px] md:text-[21px] font-bold leading-[24px] text-dp2-primary section-title">
               <T k="x.allDonorsTitle" />
             </h1>
-            <p className="text-slate-500 font-sans text-[14px] mt-0.5">
+            <p className="text-slate-500 font-sans text-[15px] mt-0.5">
               <T k="x.allDonorsSubtitle" />
             </p>
           </div>
         </div>
-        <span className="px-4 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[14px] font-sans font-bold tracking-[0.05em] shrink-0">
+        <span className="px-4 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[15px] font-sans font-bold tracking-[0.05em] shrink-0">
           <T k="x.totalRaisedLabel" />: <span dir="ltr" className="inline-block">{Math.round(totalRaised).toLocaleString()} ({rows.length})</span>
         </span>
       </div>
