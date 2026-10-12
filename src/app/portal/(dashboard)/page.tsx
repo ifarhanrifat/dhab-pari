@@ -4,19 +4,26 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
-import { HeartHandshake, Droplets, Repeat, ArrowRight, Layers, HandCoins, HandHeart, Wallet } from 'lucide-react'
+import { HeartHandshake, Droplets, Repeat, ArrowRight, HandCoins, HandHeart, Wallet } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalBadgeCard } from '@/components/portal/PortalBadgeCard'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { DownloadAppBanner } from '@/components/portal/DownloadAppBanner'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { ImageSlot2 } from '@/components/design2/ImageSlot2'
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
-interface ProjectCard { id: string; title: string; display_name: string | null; category: string | null; progress_percent: number }
-interface AcademyCard { id: string; title: string; display_name: string | null; category: string | null; funding_model: string | null; monthly_operating_cost_pkr: number | null }
+// Same fixed cover + privacy rule every other project listing on the site
+// already uses (Home2, ProjectsListClient) -- a medical project's real
+// photo is never shown publicly here either.
+const HEALTH_COVER_IMAGE = '/images/health-project-cover.jpg'
+const isHealthCategory = (category: string | null) => category === 'health'
+
+interface ProjectCard { id: string; title: string; display_name: string | null; category: string | null; progress_percent: number; coverUrl?: string | null }
+interface AcademyCard { id: string; title: string; display_name: string | null; category: string | null; funding_model: string | null; monthly_operating_cost_pkr: number | null; coverUrl?: string | null }
 interface BatchFee { project_id: string; fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null }
 interface FundingRow { project_id: string; raised: number; spent: number }
 
@@ -89,35 +96,55 @@ export default function PortalDashboardPage() {
       })
     }
 
-    supabase.from('projects').select('id, title, display_name, category, progress_percent')
+    // Real gap found live on device, 2026-10-13: these cards had no photo
+    // at all, unlike every other project card on the site (Home2's own
+    // carousel, /projects) — same cover-image fetch those already use
+    // (project_media's is_cover row, falling back to after/before, with
+    // the fixed health placeholder taking priority for a medical project).
+    const loadCovers = async (ids: string[]): Promise<Record<string, string>> => {
+      if (ids.length === 0) return {}
+      const { data } = await supabase.from('project_media').select('project_id, url').eq('is_cover', true).in('project_id', ids)
+      const covers: Record<string, string> = {}
+      for (const c of data ?? []) covers[c.project_id] = c.url
+      return covers
+    }
+
+    supabase.from('projects').select('id, title, display_name, category, progress_percent, before_image_url, after_image_url')
       .not('category', 'in', '(sports,training)').or('status.eq.ongoing,funding_model.eq.recurring_support')
       .eq('unlisted', false).order('created_at', { ascending: false }).limit(4)
-      .then(({ data }) => {
-        setProjects(data ?? [])
-        loadFunding((data ?? []).map((p) => p.id))
+      .then(async ({ data }) => {
+        const rows = data ?? []
+        const covers = await loadCovers(rows.map((p) => p.id))
+        setProjects(rows.map((p) => ({
+          ...p,
+          coverUrl: isHealthCategory(p.category) ? HEALTH_COVER_IMAGE : (covers[p.id] ?? p.after_image_url ?? p.before_image_url ?? null),
+        })))
+        loadFunding(rows.map((p) => p.id))
       })
 
-    supabase.from('projects').select('id, title, display_name, category, funding_model, monthly_operating_cost_pkr')
+    supabase.from('projects').select('id, title, display_name, category, funding_model, monthly_operating_cost_pkr, before_image_url, after_image_url')
       .in('category', ['sports', 'training']).in('status', ['ongoing', 'upcoming'])
       .order('created_at', { ascending: false }).limit(4)
-      .then(({ data }) => {
-        setAcademies(data ?? [])
-        loadFunding((data ?? []).map((a) => a.id))
-        if (data && data.length > 0) {
+      .then(async ({ data }) => {
+        const rows = data ?? []
+        const covers = await loadCovers(rows.map((a) => a.id))
+        setAcademies(rows.map((a) => ({ ...a, coverUrl: covers[a.id] ?? a.after_image_url ?? a.before_image_url ?? null })))
+        loadFunding(rows.map((a) => a.id))
+        if (rows.length > 0) {
           supabase.from('training_batches').select('project_id, fee_villager_monthly_pkr, fee_outsider_monthly_pkr')
-            .in('project_id', data.map((a) => a.id)).eq('status', 'active')
+            .in('project_id', rows.map((a) => a.id)).eq('status', 'active')
             .then(({ data: fees }) => setBatchFees(fees ?? []))
         }
       })
   }, [user])
 
-  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
-  if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
+  if (loading) return <div className="text-center py-12 text-slate-500 font-sans"><LoadingDots /></div>
+  if (!user) return <div className="text-center py-12 text-slate-500 font-sans">{t('p.couldNotLoad')}</div>
 
   const cards = [
-    { href: '/portal/statement', icon: HeartHandshake, label: t('p.totalDonated'), value: `${fmt(totalDonated)}`, color: 'text-dp-secondary' },
-    ...(user.consumer_id ? [{ href: '/portal/water', icon: Droplets, label: t('p.waterBillsOutstanding'), value: `${fmt(waterOutstanding)}`, color: waterOutstanding > 0 ? 'text-dp-error' : 'text-dp-secondary' }] : []),
-    { href: '/portal/recurring', icon: Repeat, label: t('p.activeRecurringDonations'), value: String(activeRecurring), color: 'text-dp-primary' },
+    { href: '/portal/statement', icon: HeartHandshake, label: t('p.totalDonated'), value: `${fmt(totalDonated)}`, color: 'text-dp2-primary-dark' },
+    ...(user.consumer_id ? [{ href: '/portal/water', icon: Droplets, label: t('p.waterBillsOutstanding'), value: `${fmt(waterOutstanding)}`, color: waterOutstanding > 0 ? 'text-red-600' : 'text-dp2-primary-dark' }] : []),
+    { href: '/portal/recurring', icon: Repeat, label: t('p.activeRecurringDonations'), value: String(activeRecurring), color: 'text-dp2-primary' },
   ]
 
   const links = [
@@ -133,8 +160,8 @@ export default function PortalDashboardPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-8">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2">{t('p.welcome')}, {user.full_name} <PortalHelp pageKey="dashboard" /></h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">
+        <h1 className="font-heading text-[27px] font-bold text-dp2-primary flex items-center gap-2">{t('p.welcome')}, {user.full_name} <PortalHelp pageKey="dashboard" /></h1>
+        <p className="font-sans text-[15px] text-slate-500 mt-1">
           {user.consumer_id ? <>{t('p.consumerNo')}<span className="ltr-num">{user.consumer_id}</span></> : t('p.noLinkedWaterConnection')} · {t('p.mobileLabel')} <span className="ltr-num">{user.mobile}</span>
         </p>
       </div>
@@ -143,61 +170,72 @@ export default function PortalDashboardPage() {
 
       {user.donor_account_id && <PortalBadgeCard portalUserId={user.id} totalDonated={totalDonated} />}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      {/* Real ask, live on device: "total donation and active recurring
+          tabs on the same row" -- grid-cols-1 kept every stat card
+          stacked one-per-row on mobile until sm: kicked in. Two-up from
+          the smallest width fixes this for both languages (grid pairing
+          is direction-agnostic; RTL just mirrors which card sits on
+          which side of the row). */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-8">
         {cards.map((c) => (
-          <Link key={c.href} href={c.href} className="bg-white border border-dp-outline-variant rounded-lg p-5 hover:border-dp-secondary transition-all">
+          <Link key={c.href} href={c.href} className="bg-white border border-dp2-card-border rounded-2xl p-4 sm:p-5 hover:border-dp2-primary-dark transition-all">
             <c.icon size={20} className={c.color} />
-            <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant uppercase tracking-wide mt-3">{c.label}</p>
-            <p className={`font-heading text-[22px] font-bold mt-1 ${c.color}`}>{c.value}</p>
+            <p className="font-sans text-[12px] sm:text-[13px] font-semibold text-slate-500 uppercase tracking-wide mt-2.5 sm:mt-3">{c.label}</p>
+            <p className={`font-heading text-[20px] sm:text-[23px] font-bold mt-1 ${c.color}`}>{c.value}</p>
           </Link>
         ))}
       </div>
 
       {links.length > 0 && (
-        <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-8">
+        <div className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden mb-8">
           {links.map((l) => (
-            <Link key={l.href} href={l.href} className="flex items-center gap-3 px-5 py-4 border-b border-dp-outline-variant last:border-b-0 hover:bg-dp-surface-container-low transition-all">
-              <l.icon size={18} className="text-dp-secondary" />
-              <span className="font-sans text-[14px] font-semibold text-dp-on-surface">{l.label}</span>
+            <Link key={l.href} href={l.href} className="flex items-center gap-3 px-5 py-4 border-b border-dp2-card-border last:border-b-0 hover:bg-dp2-surface transition-all">
+              <l.icon size={19} className="text-dp2-primary-dark" />
+              <span className="font-sans text-[15px] font-semibold text-slate-800">{l.label}</span>
             </Link>
           ))}
         </div>
       )}
 
-      {/* Projects — compact preview, full list lives on the public site */}
+      {/* Projects — compact preview, full list lives on the public site.
+          Re-skinned 2026-10-13 onto the same photo-card language as
+          Home2's own Projects carousel (real ask: "cards are too small,
+          display with images"), then sized back down the same day (real
+          ask: "too big now, keep 2 per row like before") -- real photo +
+          gradient-overlay treatment kept, card height brought down from
+          Home2's full h-[172px] to fit two per row on a phone screen
+          the way this dashboard always has. */}
       {projects.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2.5">
-            <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('p.projectsHeading')}</p>
-            <Link href="/projects" className="flex items-center gap-1 text-dp-secondary font-sans text-[12px] font-semibold hover:underline">
+            <p className="font-sans text-[13px] font-bold text-slate-500 uppercase tracking-[0.05em]">{t('p.projectsHeading')}</p>
+            <Link href="/projects" className="flex items-center gap-1 text-dp2-primary-dark font-sans text-[13px] font-semibold hover:underline">
               {t('p.viewAll')} <ArrowRight size={12} className={isUrdu ? 'rotate-180' : ''} />
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
             {projects.map((p) => {
               const f = funding[p.id]
               return (
-                <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg p-3 hover:border-dp-secondary transition-colors flex flex-col">
-                  <Link href={`/projects/${p.id}`}>
-                    <p className="text-[9.5px] font-bold text-dp-secondary uppercase tracking-wide flex items-center gap-1"><Layers size={10} /> {t(CATEGORY_LABEL[p.category ?? 'other'] ?? 'pj.catOther')}</p>
-                    {/* A fixed 16px line-height clips Nastaliq's taller
-                        glyphs against line-clamp's overflow-hidden — the
-                        reported "cut off from the bottom". Urdu needs a
-                        visibly taller line-height for the same 2 lines to
-                        render whole. */}
-                    <p className={`font-sans text-[12.5px] font-semibold text-dp-on-surface mt-1 line-clamp-2 ${isUrdu ? 'leading-[22px]' : 'leading-[16px]'}`}>{p.display_name || p.title}</p>
-                    <div className="h-1.5 bg-dp-surface-container rounded-full mt-2 overflow-hidden">
-                      <div className="h-full bg-dp-secondary rounded-full" style={{ width: `${Math.min(100, p.progress_percent ?? 0)}%` }} />
+                <div key={p.id} className="flex flex-col gap-1.5">
+                  <Link href={`/projects/${p.id}`} className="relative block h-[128px] rounded-xl overflow-hidden border border-dp2-gold/20 shadow-[0_4px_8px_rgba(0,0,0,.08)]"
+                    style={{ background: 'linear-gradient(135deg,#005A36,#166534)' }}>
+                    <ImageSlot2 src={p.coverUrl} placeholder={isUrdu ? 'تصویر لگائیں' : 'Add photo'} />
+                    <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(3,58,34,.96) 0%, rgba(3,58,34,.75) 42%, transparent 65%)' }} />
+                    <span className="absolute top-1.5 end-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-dp2-gold text-slate-900">{t(CATEGORY_LABEL[p.category ?? 'other'] ?? 'pj.catOther')}</span>
+                    <div className="absolute inset-x-2 bottom-1.5 text-white flex flex-col gap-1">
+                      <div className={`text-[11px] font-bold line-clamp-2 ${isUrdu ? 'leading-[18px]' : 'leading-[14px]'}`}>{p.display_name || p.title}</div>
+                      <div className="h-[4px] rounded-full bg-white/20 overflow-hidden"><div className="h-full rounded-full bg-dp2-gold" style={{ width: `${Math.min(100, p.progress_percent ?? 0)}%` }} /></div>
+                      {f && (
+                        <div className="flex items-center justify-between gap-1 text-[8.5px] text-green-100">
+                          <span>{t('pj.raisedShort')} <span className="ltr-num font-bold">{fmt(f.raised)}</span></span>
+                          <span>{t('pj.spentShort')} <span className="ltr-num font-bold">{fmt(f.spent)}</span></span>
+                        </div>
+                      )}
                     </div>
-                    {f && (
-                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant">
-                        <span>{t('pj.raisedShort')} <span className="ltr-num">{fmt(f.raised)}</span></span>
-                        <span>{t('pj.spentShort')} <span className="ltr-num">{fmt(f.spent)}</span></span>
-                      </div>
-                    )}
                   </Link>
                   <Link href={`/portal/donate?project=${p.id}`}
-                    className="mt-2 flex items-center justify-center gap-1 bg-dp-secondary text-white text-[10.5px] font-sans font-semibold py-1.5 rounded-md hover:bg-dp-primary transition-colors">
+                    className="flex items-center justify-center gap-1 bg-dp2-primary-dark text-white text-[11px] font-sans font-semibold py-1.5 rounded-lg hover:brightness-110 transition-colors">
                     <HandHeart size={11} /> {t('p.donateNow')}
                   </Link>
                 </div>
@@ -211,40 +249,41 @@ export default function PortalDashboardPage() {
       {academies.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2.5">
-            <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('p.academiesHeading')}</p>
-            <Link href="/portal/training-programs" className="flex items-center gap-1 text-dp-secondary font-sans text-[12px] font-semibold hover:underline">
+            <p className="font-sans text-[13px] font-bold text-slate-500 uppercase tracking-[0.05em]">{t('p.academiesHeading')}</p>
+            <Link href="/portal/training-programs" className="flex items-center gap-1 text-dp2-primary-dark font-sans text-[13px] font-semibold hover:underline">
               {t('p.viewAll')} <ArrowRight size={12} className={isUrdu ? 'rotate-180' : ''} />
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
             {academies.map((a) => {
               const fee = cheapestFee(a.id)
               const f = funding[a.id]
               const isSalaryFunded = a.funding_model === 'recurring_support'
               return (
-                <div key={a.id} className="bg-white border border-dp-outline-variant rounded-lg p-3 hover:border-dp-secondary transition-colors flex flex-col">
-                  <Link href="/portal/training-programs">
-                    <p className="text-[9.5px] font-bold text-amber-600 uppercase tracking-wide flex items-center gap-1"><HandCoins size={10} /> {t(CATEGORY_LABEL[a.category ?? 'sports'] ?? 'pj.catSports')}</p>
-                    <p className={`font-sans text-[12.5px] font-semibold text-dp-on-surface mt-1 line-clamp-2 ${isUrdu ? 'leading-[22px]' : 'leading-[16px]'}`}>{a.display_name || a.title}</p>
-                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{fee > 0 ? <><span className="ltr-num">{fmt(fee)}</span>/{t('af.perMonth')}</> : t('tp.freeLabel')}</p>
-                    {/* A trainer-salary academy (funding_model=recurring_support)
-                        shows what it's raised against the actual monthly need,
-                        not a generic Raised/Spent pair — same distinction the
-                        Academies catalog and admin summary already make. */}
-                    {isSalaryFunded && f ? (
-                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant">
-                        <span>{t('af.salaryFundingLabel')}</span>
-                        <span className="ltr-num">{fmt(f.raised)}{a.monthly_operating_cost_pkr ? ` / ${fmt(a.monthly_operating_cost_pkr)} ${t('af.perMonthShort')}` : ''}</span>
-                      </div>
-                    ) : f && (
-                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant">
-                        <span>{t('pj.raisedShort')} <span className="ltr-num">{fmt(f.raised)}</span></span>
-                        <span>{t('pj.spentShort')} <span className="ltr-num">{fmt(f.spent)}</span></span>
-                      </div>
-                    )}
+                <div key={a.id} className="flex flex-col gap-1.5">
+                  <Link href="/portal/training-programs" className="relative block h-[128px] rounded-xl overflow-hidden border border-dp2-gold/20 shadow-[0_4px_8px_rgba(0,0,0,.08)]"
+                    style={{ background: 'linear-gradient(135deg,#78350f,#b45309)' }}>
+                    <ImageSlot2 src={a.coverUrl} placeholder={isUrdu ? 'تصویر لگائیں' : 'Add photo'} />
+                    <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(69,26,3,.96) 0%, rgba(69,26,3,.75) 42%, transparent 65%)' }} />
+                    <span className="absolute top-1.5 end-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-dp2-gold text-slate-900 flex items-center gap-0.5"><HandCoins size={10} /> {t(CATEGORY_LABEL[a.category ?? 'sports'] ?? 'pj.catSports')}</span>
+                    <div className="absolute inset-x-2 bottom-1.5 text-white flex flex-col gap-1">
+                      <div className={`text-[11px] font-bold line-clamp-2 ${isUrdu ? 'leading-[18px]' : 'leading-[14px]'}`}>{a.display_name || a.title}</div>
+                      <div className="text-[9.5px] text-amber-100">{fee > 0 ? <><span className="ltr-num font-bold">{fmt(fee)}</span>/{t('af.perMonth')}</> : t('tp.freeLabel')}</div>
+                      {isSalaryFunded && f ? (
+                        <div className="flex items-center justify-between gap-1 text-[8.5px] text-amber-100">
+                          <span>{t('af.salaryFundingLabel')}</span>
+                          <span className="ltr-num font-bold">{fmt(f.raised)}{a.monthly_operating_cost_pkr ? ` / ${fmt(a.monthly_operating_cost_pkr)} ${t('af.perMonthShort')}` : ''}</span>
+                        </div>
+                      ) : f && (
+                        <div className="flex items-center justify-between gap-1 text-[8.5px] text-amber-100">
+                          <span>{t('pj.raisedShort')} <span className="ltr-num font-bold">{fmt(f.raised)}</span></span>
+                          <span>{t('pj.spentShort')} <span className="ltr-num font-bold">{fmt(f.spent)}</span></span>
+                        </div>
+                      )}
+                    </div>
                   </Link>
                   <Link href={`/portal/donate?project=${a.id}`}
-                    className="mt-2 flex items-center justify-center gap-1 bg-dp-secondary text-white text-[10.5px] font-sans font-semibold py-1.5 rounded-md hover:bg-dp-primary transition-colors">
+                    className="flex items-center justify-center gap-1 bg-dp2-primary-dark text-white text-[11px] font-sans font-semibold py-1.5 rounded-lg hover:brightness-110 transition-colors">
                     <HandHeart size={11} /> {t('p.donateNow')}
                   </Link>
                 </div>

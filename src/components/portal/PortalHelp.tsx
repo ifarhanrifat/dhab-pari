@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { HelpCircle, X } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { PORTAL_HELP_CONTENT, type PortalHelpKey } from '@/lib/portalHelpContent'
-
-const STORAGE_PREFIX = 'dp-portal-help-dismissed-'
 
 // A dismissible "how does this page work" popup, in plain Pakistani Urdu —
 // not the admin-editable pool-guide FAQ (portalGuideContent.ts, Kafalat/
@@ -14,29 +13,40 @@ const STORAGE_PREFIX = 'dp-portal-help-dismissed-'
 // once automatically, closable, and always reachable again afterwards via
 // the small (؟) icon next to the page title.
 //
-// Dismissal is a plain localStorage flag per page — a browser-local "don't
-// show me this again", not a synced account preference. Good enough for
-// what this is; if cross-device memory ever matters, this is the one place
-// to swap for a portal_users column.
+// Real bug found live on device, 2026-10-13: dismissal used to be a plain
+// localStorage flag per page — browser-local, so a new device or cleared
+// site data read as "never seen" and re-opened this (and WelcomeTour)
+// every time, which is what "shows every time I log in" actually was.
+// Moved to the account itself (portal_users.dismissed_help_pages,
+// migration 643) — dismissed once, from any device, stays dismissed.
 export function PortalHelp({ pageKey }: { pageKey: PortalHelpKey }) {
   const [open, setOpen] = useState(false)
+  const [portalUserId, setPortalUserId] = useState<string | null>(null)
   const content = PORTAL_HELP_CONTENT[pageKey]
 
   useEffect(() => {
     if (!content) return
-    const seen = window.localStorage.getItem(STORAGE_PREFIX + pageKey)
-    // A brand-new account also gets the app-wide WelcomeTour (mounted in
-    // the dashboard layout) on this same first visit — if that hasn't
-    // been dismissed yet, don't stack this one on top of it too. It's
-    // still reachable any time via the (؟) icon; it just won't auto-pop
-    // a second full-screen sheet the moment the first one closes.
-    const welcomeTourPending = !window.localStorage.getItem('dp-portal-welcome-tour-seen')
-    if (!seen && !welcomeTourPending) setOpen(true)
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await supabase.from('portal_users').select('id, welcome_tour_seen, dismissed_help_pages').eq('auth_user_id', user.id).single()
+      if (!data) return
+      setPortalUserId(data.id)
+      const seen = (data.dismissed_help_pages ?? []).includes(pageKey)
+      // A brand-new account also gets the app-wide WelcomeTour (mounted in
+      // the dashboard layout) on this same first visit — if that hasn't
+      // been dismissed yet, don't stack this one on top of it too. It's
+      // still reachable any time via the (؟) icon; it just won't auto-pop
+      // a second full-screen sheet the moment the first one closes.
+      if (!seen && data.welcome_tour_seen) setOpen(true)
+    })
   }, [pageKey, content])
 
   const close = () => {
-    window.localStorage.setItem(STORAGE_PREFIX + pageKey, '1')
     setOpen(false)
+    if (portalUserId) {
+      createClient().rpc('portal_dismiss_help_page', { p_page_key: pageKey }).then()
+    }
   }
 
   if (!content) return null
@@ -48,7 +58,7 @@ export function PortalHelp({ pageKey }: { pageKey: PortalHelpKey }) {
         onClick={() => setOpen(true)}
         aria-label="مدد"
         title="اس صفحے کے استعمال کی مدد"
-        className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-dp-secondary-container text-dp-on-secondary-container hover:bg-dp-secondary hover:text-white transition-colors cursor-pointer shrink-0"
+        className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-dp2-surface text-dp2-primary-dark hover:bg-dp2-primary-dark hover:text-white transition-colors cursor-pointer shrink-0"
       >
         <HelpCircle size={16} />
       </button>
@@ -61,27 +71,27 @@ export function PortalHelp({ pageKey }: { pageKey: PortalHelpKey }) {
           <div
             dir="rtl"
             style={{ fontFamily: 'var(--font-urdu-ui)' }}
-            className="bg-white w-full sm:max-w-[560px] sm:rounded-lg rounded-t-2xl max-h-[85vh] overflow-y-auto shadow-xl"
+            className="bg-white w-full sm:max-w-[560px] sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-white border-b border-dp-outline-variant px-5 py-4 flex items-start justify-between gap-3">
+            <div className="sticky top-0 bg-white border-b border-dp2-card-border px-5 py-4 flex items-start justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-dp-secondary-container text-dp-on-secondary-container shrink-0">
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-dp2-surface text-dp2-primary-dark shrink-0">
                   <HelpCircle size={17} />
                 </span>
-                <h2 className="font-heading text-[19px] font-bold text-dp-primary leading-snug">{content.title}</h2>
+                <h2 className="font-heading text-[20px] font-bold text-dp2-primary leading-snug">{content.title}</h2>
               </div>
-              <button onClick={close} aria-label="بند کریں" className="text-dp-on-surface-variant hover:text-dp-error cursor-pointer p-1 shrink-0">
+              <button onClick={close} aria-label="بند کریں" className="text-slate-500 hover:text-red-600 cursor-pointer p-1 shrink-0">
                 <X size={20} />
               </button>
             </div>
-            <div className="px-5 py-4 space-y-4 text-[14.5px] leading-[27px] text-dp-on-surface">
+            <div className="px-5 py-4 space-y-4 text-[15px] leading-[28px] text-slate-800">
               {content.body}
             </div>
             <div className="px-5 pb-5 pt-1">
               <button
                 onClick={close}
-                className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-colors"
+                className="w-full bg-dp2-primary-dark text-white py-2.5 rounded-xl font-sans text-[15px] font-semibold cursor-pointer hover:brightness-110 transition-colors"
               >
                 سمجھ گیا/گئی، بند کریں
               </button>

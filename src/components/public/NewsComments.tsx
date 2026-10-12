@@ -91,9 +91,14 @@ export function NewsComments({ newsPostId }: { newsPostId: string }) {
         <div className="space-y-4">
           {comments.map((c) => (
             <div key={c.id} className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-dp2-surface flex items-center justify-center shrink-0 font-sans text-[13px] font-bold text-dp2-primary">
-                {(c.username ?? '?').charAt(0).toUpperCase()}
-              </div>
+              {c.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={c.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-dp2-surface flex items-center justify-center shrink-0 font-sans text-[13px] font-bold text-dp2-primary">
+                  {(c.username ?? '?').charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="font-sans text-[14px] font-bold text-slate-800">{c.username}</span>

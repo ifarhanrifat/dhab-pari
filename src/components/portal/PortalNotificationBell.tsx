@@ -29,7 +29,7 @@ function timeAgo(iso: string) {
 // has a delete-own RLS policy the staff `notifications` table deliberately
 // lacks), fixed/floating like the admin bell rather than inline in a nav bar
 // since the portal has its own header bar to sit in.
-export function PortalNotificationBell() {
+export function PortalNotificationBell({ embedded = false }: { embedded?: boolean }) {
   const { t } = useLocale()
   const supabase = createClient()
   const router = useRouter()
@@ -115,48 +115,61 @@ export function PortalNotificationBell() {
 
   if (!portalUserId) return null
 
+  // embedded=true: sits inline inside PortalHeader's own bar on mobile
+  // (real ask, live on device: "why did not you change the portal top
+  // bar like the website was having, profile and alert etc" — a floating
+  // white circle overlapping the page read as disconnected from the
+  // header it was meant to belong to). embedded=false (default): the
+  // original fixed floating button, still used standalone on desktop
+  // where there's no header bar for it to sit inside.
+  const buttonCls = embedded
+    ? 'relative w-9 h-9 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-all cursor-pointer'
+    : 'relative w-10 h-10 flex items-center justify-center bg-white border border-dp2-card-border rounded-full shadow-md hover:shadow-lg transition-all cursor-pointer'
+  const iconColorCls = embedded ? 'text-white' : 'text-dp2-primary'
+
   return (
     <>
     <NotificationOffBanner owner={{ portalUserId }} settingsHref="/portal/notification-preferences" />
-    {/* Fixed, floating — mirrors src/components/layout/NotificationBell.tsx
-    (the admin equivalent). top-16 clears the mobile header bar on small
-    screens; top-4 on desktop where there's no header bar above it. */}
-    <div ref={boxRef} className="fixed top-16 right-4 md:top-4 md:right-4 z-[95] print:hidden">
-      <button onClick={() => setOpen(!open)} className="relative w-10 h-10 flex items-center justify-center bg-white border border-dp-outline-variant rounded-full shadow-md hover:shadow-lg transition-all cursor-pointer" aria-label="Notifications">
-        <Bell size={18} className="text-dp-primary" />
+    {/* Fixed, floating on desktop — mirrors src/components/layout/
+    NotificationBell.tsx (the admin equivalent), where there's no header
+    bar above it to sit inside. Inline/relative when embedded in
+    PortalHeader instead. */}
+    <div ref={boxRef} className={embedded ? 'relative print:hidden' : 'fixed top-4 right-4 z-[95] print:hidden'}>
+      <button onClick={() => setOpen(!open)} className={buttonCls} aria-label="Notifications">
+        <Bell size={18} className={iconColorCls} />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-dp-error text-white rounded-full text-[10px] font-bold flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white border border-dp-outline-variant rounded-lg shadow-lg overflow-hidden text-dp-on-surface">
-          <div className="px-4 py-2.5 border-b border-dp-outline-variant flex items-center justify-between">
+        <div className="absolute end-0 mt-2 w-80 max-w-[90vw] bg-white border border-dp2-card-border rounded-2xl shadow-lg overflow-hidden text-slate-800 z-[95]">
+          <div className="px-4 py-2.5 border-b border-dp2-card-border flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <span className="font-sans text-[13px] font-bold">{t('g.notifications')}</span>
-              <button onClick={() => setMuted(!muted)} title={muted ? t('g.notifSoundOff') : t('g.notifSoundOn')} className="text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+              <span className="font-sans text-[14px] font-bold">{t('g.notifications')}</span>
+              <button onClick={() => setMuted(!muted)} title={muted ? t('g.notifSoundOff') : t('g.notifSoundOn')} className="text-slate-500 hover:text-dp2-primary-dark cursor-pointer">
                 {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
               </button>
             </div>
-            {unreadCount > 0 && <button onClick={markAllRead} className="font-sans text-[11.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">{t('g.markAllRead')}</button>}
+            {unreadCount > 0 && <button onClick={markAllRead} className="font-sans text-[12.5px] font-semibold text-dp2-primary-dark hover:underline cursor-pointer">{t('g.markAllRead')}</button>}
           </div>
           <div className="max-h-96 overflow-y-auto">
             {items.length === 0 ? (
-              <p className="px-4 py-8 text-center font-sans text-[13px] text-dp-on-surface-variant">{t('g.noNotifications')}</p>
+              <p className="px-4 py-8 text-center font-sans text-[14px] text-slate-500">{t('g.noNotifications')}</p>
             ) : (
               items.map((n) => (
                 <div key={n.id} onClick={() => openNotification(n)}
-                  className={`w-full text-start px-4 py-3 border-b border-dp-outline-variant last:border-b-0 hover:bg-dp-surface-container-low transition-all cursor-pointer flex items-start gap-2 ${!n.is_read ? 'bg-dp-secondary/5' : ''}`}>
+                  className={`w-full text-start px-4 py-3 border-b border-dp2-card-border last:border-b-0 hover:bg-dp2-surface transition-all cursor-pointer flex items-start gap-2 ${!n.is_read ? 'bg-dp2-primary-dark/5' : ''}`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-sans text-[13px] font-semibold">{n.title}</p>
-                      {!n.is_read && <span className="w-2 h-2 rounded-full bg-dp-secondary shrink-0 mt-1" />}
+                      <p className="font-sans text-[14px] font-semibold">{n.title}</p>
+                      {!n.is_read && <span className="w-2 h-2 rounded-full bg-dp2-primary-dark shrink-0 mt-1" />}
                     </div>
-                    {n.body && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{n.body}</p>}
-                    <p className="font-sans text-[11px] text-dp-on-surface-variant/70 mt-1">{timeAgo(n.created_at)}</p>
+                    {n.body && <p className="font-sans text-[13px] text-slate-500 mt-0.5">{n.body}</p>}
+                    <p className="font-sans text-[12px] text-slate-400 mt-1">{timeAgo(n.created_at)}</p>
                   </div>
-                  <button onClick={(e) => deleteNotification(e, n.id)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer shrink-0" title="Delete">
+                  <button onClick={(e) => deleteNotification(e, n.id)} className="p-1 text-slate-500 hover:text-red-600 cursor-pointer shrink-0" title="Delete">
                     <Trash2 size={13} />
                   </button>
                 </div>

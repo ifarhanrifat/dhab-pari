@@ -223,17 +223,17 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   // (left in English, right in Urdu) with no extra flip logic of its own.
   const profileBlock = (
     <div className="shrink-0" dir={rowDir}>
-      <Link href="/portal/profile" onClick={onMobileClose} className="bg-dp-primary-container p-3 rounded-lg flex items-center hover:opacity-90 transition-opacity">
+      <Link href="/portal/profile" onClick={onMobileClose} className="bg-dp2-primary-dark p-3 rounded-xl flex items-center hover:opacity-90 transition-opacity">
         {user?.avatar_url ? (
           <Image src={user.avatar_url} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover me-2 shrink-0" />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans me-2 shrink-0">
+          <div className="w-8 h-8 rounded-full bg-dp2-gold text-dp2-primary-dark flex items-center justify-center font-bold text-[13px] font-sans me-2 shrink-0">
             {(user?.full_name ?? '?').charAt(0).toUpperCase()}
           </div>
         )}
         <div className="min-w-0">
-          <p className="text-white text-[13px] font-sans font-semibold truncate">{user?.full_name ?? t('action.loading')}</p>
-          <p className="text-white/60 text-[11px] font-sans">{user?.mobile ?? ''}</p>
+          <p className="text-white text-[14px] font-sans font-semibold truncate">{user?.full_name ?? t('action.loading')}</p>
+          <p className="text-white/60 text-[12px] font-sans">{user?.mobile ?? ''}</p>
         </div>
       </Link>
       <div className="pt-3">
@@ -255,8 +255,8 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
                 <button
                   type="button"
                   onClick={() => toggleGroup(entry.groupKey)}
-                  className={`w-full flex items-center px-4 py-3 mx-2 rounded-lg transition-all text-[14px] font-sans cursor-pointer ${
-                    groupIsActiveCollapsed ? 'bg-[#1D9E75] text-white font-bold' : 'text-white/80 hover:bg-dp-primary-container hover:text-white'
+                  className={`w-full flex items-center px-4 py-3 mx-2 rounded-xl transition-all text-[15px] font-sans cursor-pointer ${
+                    groupIsActiveCollapsed ? 'bg-dp2-gold text-slate-900 font-bold' : 'text-white/80 hover:bg-dp2-primary-dark hover:text-white'
                   }`}
                   style={{ width: 'calc(100% - 1rem)' }}
                   aria-expanded={expanded}
@@ -264,7 +264,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
                   <GroupIcon size={18} className="me-3 shrink-0" />
                   <span className="min-w-0 truncate">{t(entry.tKey, entry.label)}</span>
                   {groupBadgeTotal > 0 && (
-                    <span className="ms-auto me-1.5 shrink-0 bg-dp-error text-white text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center" aria-label={`${groupBadgeTotal} new`}>
+                    <span className="ms-auto me-1.5 shrink-0 bg-red-600 text-white text-[12px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center" aria-label={`${groupBadgeTotal} new`}>
                       {groupBadgeTotal > 99 ? '99+' : groupBadgeTotal}
                     </span>
                   )}
@@ -278,13 +278,13 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
                       const count = badges[item.href.split('/')[2] ?? ''] ?? 0
                       return (
                         <Link key={item.href} href={item.href} onClick={onMobileClose}
-                          className={`flex items-center ps-8 pe-4 py-2.5 mx-2 rounded-lg transition-all text-[13.5px] font-sans ${
-                            isActive ? 'bg-[#1D9E75] text-white font-bold' : 'text-white/70 hover:bg-dp-primary-container hover:text-white'
+                          className={`flex items-center ps-8 pe-4 py-2.5 mx-2 rounded-xl transition-all text-[14.5px] font-sans ${
+                            isActive ? 'bg-dp2-gold text-slate-900 font-bold' : 'text-white/70 hover:bg-dp2-primary-dark hover:text-white'
                           }`}>
                           <Icon size={16} className="me-3 shrink-0" />
                           <span className="min-w-0 truncate">{item.tKey ? t(item.tKey, item.label) : item.label}</span>
                           {count > 0 && (
-                            <span className="ms-auto shrink-0 bg-dp-error text-white text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center" aria-label={`${count} new`}>
+                            <span className="ms-auto shrink-0 bg-red-600 text-white text-[12px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center" aria-label={`${count} new`}>
                               {count > 99 ? '99+' : count}
                             </span>
                           )}
@@ -303,14 +303,14 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
           const count = badges[item.href.split('/')[2] ?? ''] ?? 0
           return (
             <Link key={item.href} href={item.href} onClick={onMobileClose}
-              className={`flex items-center px-4 py-3 mx-2 rounded-lg transition-all text-[14px] font-sans ${
-                isActive ? 'bg-[#1D9E75] text-white font-bold' : 'text-white/80 hover:bg-dp-primary-container hover:text-white'
+              className={`flex items-center px-4 py-3 mx-2 rounded-xl transition-all text-[15px] font-sans ${
+                isActive ? 'bg-dp2-gold text-slate-900 font-bold' : 'text-white/80 hover:bg-dp2-primary-dark hover:text-white'
               }`}>
               <Icon size={18} className="me-3 shrink-0" />
               <span className="min-w-0 truncate">{item.tKey ? t(item.tKey, item.label) : item.label}</span>
               {count > 0 && (
                 <span
-                  className="ms-auto shrink-0 bg-dp-error text-white text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center"
+                  className="ms-auto shrink-0 bg-red-600 text-white text-[12px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center"
                   aria-label={`${count} new`}
                 >
                   {count > 99 ? '99+' : count}
@@ -322,14 +322,14 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
       </nav>
 
       <div className="px-2 pt-2 shrink-0" dir={rowDir}>
-        <a href="/" className="flex items-center px-2 py-2.5 rounded-lg text-white/70 hover:bg-dp-primary-container hover:text-white transition-all text-[13.5px] font-sans">
+        <a href="/" className="flex items-center px-2 py-2.5 rounded-xl text-white/70 hover:bg-dp2-primary-dark hover:text-white transition-all text-[14.5px] font-sans">
           <ArrowLeftCircle size={17} className="me-3 shrink-0" /> {t('nav.backToWebsite')}
         </a>
       </div>
 
       {/* Logout */}
       <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0">
-        <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2 bg-dp-error text-white rounded-lg text-[14px] font-sans font-semibold hover:opacity-90 transition-opacity cursor-pointer">
+        <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2 bg-red-600 text-white rounded-xl text-[15px] font-sans font-semibold hover:opacity-90 transition-opacity cursor-pointer">
           <LogOut size={16} /> {t('nav.logout')}
         </button>
       </div>
@@ -338,7 +338,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
 
   return (
     <>
-      <aside className="hidden md:flex flex-col h-screen py-6 bg-dp-primary border-e border-dp-outline-variant w-[210px] z-50 print:hidden"
+      <aside className="hidden md:flex flex-col h-screen py-6 bg-dp2-primary border-e border-dp2-card-border w-[210px] z-50 print:hidden"
         style={{ position: "fixed", top: 0, left: 0, right: "auto" }}>
         <div className="px-4 mb-6">{profileBlock}</div>
         {sidebarContent}
@@ -360,7 +360,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
           right: 'auto',
           transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
         }}
-        className="h-screen w-[260px] bg-dp-primary z-[10001] md:hidden flex flex-col py-6 transition-transform duration-300 ease-in-out"
+        className="h-screen w-[260px] bg-dp2-primary z-[10001] md:hidden flex flex-col py-6 transition-transform duration-300 ease-in-out"
       >
         <div className="px-4 mb-6 flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">{profileBlock}</div>

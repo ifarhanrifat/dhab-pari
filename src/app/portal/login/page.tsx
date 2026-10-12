@@ -107,57 +107,57 @@ function PortalLoginInner() {
   }
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="min-h-screen bg-[#E1F5EE] flex flex-col items-center justify-center px-4 py-10">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="min-h-screen bg-dp2-surface flex flex-col items-center justify-center px-4 py-10">
       <div className="mb-8 flex flex-col items-center text-center">
-        <div className="w-14 h-14 rounded-full bg-dp-primary flex items-center justify-center text-white mb-4">
+        <div className="w-14 h-14 rounded-full flex items-center justify-center text-white mb-4" style={{ background: 'linear-gradient(135deg,#005A36,#166534)' }}>
           <HeartHandshake size={26} />
         </div>
-        <h1 className="font-heading text-[24px] font-bold text-dp-primary">{t('p.portalTitle')}</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{committeeLabel}</p>
+        <h1 className="font-heading text-[25px] font-bold text-dp2-primary">{t('p.portalTitle')}</h1>
+        <p className="font-sans text-[15px] text-slate-500 mt-1">{committeeLabel}</p>
       </div>
 
-      <div className="bg-white rounded-lg border border-dp-outline-variant p-6 md:p-8 w-full max-w-sm">
+      <div className="bg-white rounded-2xl border border-dp2-card-border p-6 md:p-8 w-full max-w-sm shadow-[0_4px_8px_rgba(0,0,0,.06)]">
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label htmlFor="username" className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('w.username')}</label>
+            <label htmlFor="username" className="block text-[14px] font-bold text-slate-500 mb-2 tracking-[0.06em] uppercase font-sans">{t('w.username')}</label>
             <input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required
               autoComplete="username" disabled={isLocked || loading}
-              className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans disabled:opacity-50"
+              className="w-full px-4 py-3 bg-white border-2 border-dp2-card-border rounded-xl focus:border-dp2-primary-dark focus:ring-0 transition-all text-[17px] font-sans disabled:opacity-50"
               placeholder={t('p.yourUsername', 'Your username')} />
           </div>
           <div>
-            <label htmlFor="password" className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('w.password')}</label>
+            <label htmlFor="password" className="block text-[14px] font-bold text-slate-500 mb-2 tracking-[0.06em] uppercase font-sans">{t('w.password')}</label>
             <div className="relative">
               <input id="password" type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required
                 autoComplete="current-password" disabled={isLocked || loading}
-                className="w-full px-4 py-3 pe-12 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans disabled:opacity-50"
+                className="w-full px-4 py-3 pe-12 bg-white border-2 border-dp2-card-border rounded-xl focus:border-dp2-primary-dark focus:ring-0 transition-all text-[17px] font-sans disabled:opacity-50"
                 placeholder="••••••••" />
-              <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute end-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant cursor-pointer p-1" tabIndex={-1}>
+              <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-500 cursor-pointer p-1" tabIndex={-1}>
                 {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             <div className="text-end mt-1.5">
-              <Link href="/portal/forgot-password" className="font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline">{t('p.forgotPassword')}</Link>
+              <Link href="/portal/forgot-password" className="font-sans text-[13.5px] font-semibold text-dp2-primary-dark hover:underline">{t('p.forgotPassword')}</Link>
             </div>
           </div>
 
           {error && !isLocked && (
-            <div className="bg-dp-error-container text-dp-on-error-container px-4 py-3 rounded-lg text-[14px] font-sans flex items-start gap-2">
+            <div className="bg-red-50 text-red-800 px-4 py-3 rounded-xl text-[15px] font-sans flex items-start gap-2">
               <AlertTriangle size={16} className="shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
           <button type="submit" disabled={isLocked || isThrottled || loading}
-            className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold text-[16px] hover:bg-dp-primary transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+            className="w-full bg-dp2-primary-dark text-white py-3 rounded-xl font-sans font-semibold text-[17px] hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
             {isLocked ? t('p.lockedWait', 'Locked — wait {time}').replace('{time}', `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`)
               : isThrottled ? t('p.waitSeconds', 'Wait {n}s...').replace('{n}', String(delayLeft))
               : loading ? t('p.loggingIn', 'Logging in...') : t('p.logIn', 'Log In')}
           </button>
         </form>
 
-        <p className="text-center font-sans text-[14px] text-dp-on-surface-variant mt-6">
-          {t('p.newHere')} <Link href="/portal/signup" className="text-dp-secondary font-semibold hover:underline">{t('p.createAnAccount')}</Link>
+        <p className="text-center font-sans text-[15px] text-slate-500 mt-6">
+          {t('p.newHere')} <Link href="/portal/signup" className="text-dp2-primary-dark font-semibold hover:underline">{t('p.createAnAccount')}</Link>
         </p>
       </div>
     </div>
