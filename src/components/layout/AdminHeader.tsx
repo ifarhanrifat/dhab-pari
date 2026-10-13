@@ -15,7 +15,7 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
     // Menu button on the LEFT, matching the public header and the sidebar
     // that slides in from the left. It used to sit on the far right, so the
     // panel appeared to come from the opposite side of the tap.
-    <header className="md:hidden bg-dp-primary px-4 py-4 flex items-center gap-2.5 sticky top-0 z-50">
+    <header className="md:hidden bg-dp-primary px-4 py-4 flex items-center gap-2.5">
       <button
         onClick={onMenuToggle}
         className="text-white p-1.5 -ms-1.5 shrink-0"

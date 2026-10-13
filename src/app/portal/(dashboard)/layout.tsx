@@ -15,24 +15,24 @@ export default function PortalDashboardLayout({ children }: { children: React.Re
       <WelcomeTour />
       <PortalSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex-1 min-w-0 md:ml-[210px] print:ml-0">
-        {/* Real ask, live on device: "the news belts and alert belts will
-            always remain at the top where the website news was
-            displaying" — PortalHeader had its own `sticky top-0`, but
-            AnnouncementBar sat below it as a separate, non-sticky
-            sibling, so the ticker scrolled away with the page while the
-            bare header stayed put. One sticky wrapper around both, same
-            fix Header2 already got on the public site. PortalHeader is
-            now shown on every breakpoint (not mobile-only) so there's
-            exactly one PortalNotificationBell in the tree -- two
-            instances (one embedded here, one floating for desktop) each
-            opened their own Realtime channel for the same
-            portal_notifications row and crashed the page the moment
-            both mounted. */}
+        {/* Real ask, live on device: "the news belt still runs under the
+            language toggle and profile, it should display at the top of
+            everything" — the public site renders AnnouncementBar BEFORE
+            Header (ticker first, logo/toggle/bell row below it); this
+            layout had the order flipped, so the ticker sat under the
+            profile row instead of above it. Order now matches the public
+            site exactly, both still inside one sticky wrapper so neither
+            scrolls away independently of the other. PortalHeader is shown
+            on every breakpoint (not mobile-only) so there's exactly one
+            PortalNotificationBell in the tree -- two instances (one
+            embedded here, one floating for desktop) each opened their own
+            Realtime channel for the same portal_notifications row and
+            crashed the page the moment both mounted. */}
         <div className="sticky top-0 z-40">
-          <PortalHeader onMenuToggle={() => setMobileOpen(true)} />
           {/* Same red belt as the website, scoped to the appeals aimed at
               this user — targeted ones appear here even when not public. */}
           <AnnouncementBar source="portal" />
+          <PortalHeader onMenuToggle={() => setMobileOpen(true)} />
         </div>
         {/* Stays up on every page until enough people have joined. */}
         <PoolAppealBanner />
