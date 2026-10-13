@@ -314,8 +314,17 @@
   animation: ticker-scroll 55s linear infinite;
 }
 
-.ticker-track:hover {
-  animation-play-state: paused;
+/* Real ask, live on the Android app: "the belt runs once then freezes
+   permanently" -- a touch device has no mouseleave to clear :hover, so a
+   single tap (or a scroll gesture just brushing the belt, which sits at
+   the very top of the screen where every scroll starts) latched this
+   hover-to-pause rule on for good, with no way to ever un-pause it.
+   Scoped to devices that actually have a mouse, so touch never triggers
+   it at all; desktop keeps the hover-to-read pause it was built for. */
+@media (hover: hover) and (pointer: fine) {
+  .ticker-track:hover {
+    animation-play-state: paused;
+  }
 }
 
 /* Real report, 2026-09-24: "the belt with Urdu news/alerts should run from
