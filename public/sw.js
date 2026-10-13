@@ -16,8 +16,18 @@
 // staleness this app already accepts, not a new risk.
 //
 // Bump CACHE_VERSION / PAGES_CACHE to force every client to drop the old cache.
-const CACHE_VERSION = 'dp-shell-v3'
-const PAGES_CACHE = 'dp-pages-v2'
+// Real ask, live on device: "the app shows the old homepage first, then the
+// new theme once you tap another link" -- the homepage is precached at
+// install time (see PRECACHE below), and every device that already had this
+// worker installed before the redesign/ticker-fix commits landed was still
+// serving that pre-redesign '/' straight out of its own cache, racing a slow
+// network with a stale fallback. These two names are the only thing that
+// tells an already-installed worker its cache is obsolete, so bumping them
+// is what actually invalidates it -- the fix itself can't reach a device
+// that's still reading an old cache entry no matter how many times it's
+// redeployed.
+const CACHE_VERSION = 'dp-shell-v4'
+const PAGES_CACHE = 'dp-pages-v3'
 const CURRENT_CACHES = [CACHE_VERSION, PAGES_CACHE]
 const OFFLINE_URL = '/offline.html'
 // A slow village connection should still feel instant: if the network
