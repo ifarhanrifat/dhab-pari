@@ -39,8 +39,20 @@ export function Header2() {
           rest of the header chrome should all stay put while the page
           scrolls underneath, not scroll away with the content -- one
           sticky wrapper around both the belt and the header bar so they
-          move (or rather, don't move) as a single unit. */}
-      <div className="sticky top-0 z-30">
+          move (or rather, don't move) as a single unit.
+
+          Real bug found live, Android app: in the installed edge-to-edge
+          app the WebView draws content under the status bar (that's what
+          viewportFit:'cover' is for), so without safe-area padding the
+          ticker -- a short 36px bar, the very first thing in this sticky
+          block -- ended up almost entirely hidden behind the status bar,
+          just a sliver peeking out either side. The header below it
+          survived only because it's tall enough that losing its top
+          portion the same way still left its content visible. bg-dp2-
+          primary on the padding strip matches the status bar's own
+          theme-color tint so the two read as one continuous bar instead
+          of a visible seam. */}
+      <div className="sticky top-0 z-30 bg-dp2-primary" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <AnnouncementBar source="public" />
 
         <header className="bg-dp2-primary text-white px-4 pt-2.5 pb-3 shadow-[0_4px_10px_rgba(0,0,0,.15)] relative z-20">

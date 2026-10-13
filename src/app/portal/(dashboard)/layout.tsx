@@ -27,8 +27,16 @@ export default function PortalDashboardLayout({ children }: { children: React.Re
             PortalNotificationBell in the tree -- two instances (one
             embedded here, one floating for desktop) each opened their own
             Realtime channel for the same portal_notifications row and
-            crashed the page the moment both mounted. */}
-        <div className="sticky top-0 z-40">
+            crashed the page the moment both mounted.
+
+            Real bug found live, Android app: in the installed edge-to-edge
+            app the ticker -- a short 36px bar, now the first thing here --
+            ended up almost entirely hidden behind the status bar, same
+            issue Header2 had on the public site. safe-area-inset-top
+            padding pushes the whole block below the status bar; bg-dp2-
+            primary on the strip matches the status bar's own theme-color
+            tint instead of leaving a mismatched gap. */}
+        <div className="sticky top-0 z-40 bg-dp2-primary" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
           {/* Same red belt as the website, scoped to the appeals aimed at
               this user — targeted ones appear here even when not public. */}
           <AnnouncementBar source="portal" />

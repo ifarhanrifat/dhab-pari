@@ -28,8 +28,17 @@ export default function AdminDashboardLayout({
             first, nav row below it); this had the order flipped, so the
             ticker sat under the header instead of above it. Order now
             matches the public site exactly, both still inside one sticky
-            wrapper so neither scrolls away independently of the other. */}
-        <div className="sticky top-0 z-40">
+            wrapper so neither scrolls away independently of the other.
+
+            Real bug found live, Android app: in the installed edge-to-edge
+            app the ticker -- a short 36px bar, now the first thing here --
+            ended up almost entirely hidden behind the status bar, same
+            issue Header2 had on the public site. safe-area-inset-top
+            padding pushes the whole block below the status bar; bg-dp-
+            primary on the strip matches AdminHeader's own color (and the
+            status bar's theme-color tint) instead of leaving a mismatched
+            gap. */}
+        <div className="sticky top-0 z-40 bg-dp-primary" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
           {/* Real ask, 2026-10-01: "make it appear on the portal account and
               admin account as well" — same two-tier belt the public site and
               portal already show. */}
