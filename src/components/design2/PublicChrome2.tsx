@@ -28,10 +28,23 @@ export function PublicChrome2({ children }: { children: ReactNode }) {
             measured one at 472px on a 390px screen. In RTL that extra
             width renders as content clipped off the LEFT edge rather than
             a right-scrollbar, which is what "hidden on the left side"
-            was describing. Applied here once so every page sharing this
-            chrome is covered, not just the one page this was first found
-            on. */}
-        <div className="max-w-[1200px] mx-auto px-3.5 lg:px-8 py-3.5 flex flex-col gap-4 [&>*]:min-w-0">
+            was describing.
+
+            [&>*]:w-full — min-w-0 alone turned out not to be enough on its
+            own. align-items:stretch (the default here, flex-col) is
+            supposed to size a flex item to the container's width with no
+            extra help, but measured directly: it does not reliably do that
+            for a plain block-level child several layers deep with no
+            flex-basis of its own (unlike `main` one level up, which
+            resolves correctly only because it has explicit flex-1 — not
+            because of stretch) — the donate page's own root div still
+            measured 624px on a 390px screen with min-w-0 correctly applied
+            and nothing else explaining the width. Forcing w-full
+            explicitly on every direct child removes the dependency on
+            stretch resolving correctly at all. Both applied here once so
+            every page sharing this chrome is covered, not just the one
+            page each was first found on. */}
+        <div className="max-w-[1200px] mx-auto px-3.5 lg:px-8 py-3.5 flex flex-col gap-4 [&>*]:min-w-0 [&>*]:w-full">
           {children}
           <Footer2 />
         </div>
