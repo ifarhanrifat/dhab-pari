@@ -86,9 +86,7 @@ export default async function DonatePage() {
           </h1>
           <div className="relative px-8 py-4 border-s-4 border-dp2-primary-dark">
             <p className="font-sans text-[19px] leading-[20px] italic text-slate-500">
-              &ldquo;The best of people are those who are most beneficial to
-              others. Your contribution today is the seed for a prosperous Dhab
-              Pari tomorrow.&rdquo;
+              <T k="x.donateHeroQuote" fallback="&ldquo;The best of people are those who are most beneficial to others. Your contribution today is the seed for a prosperous Dhab Pari tomorrow.&rdquo;" />
             </p>
           </div>
         </div>
@@ -147,17 +145,17 @@ export default async function DonatePage() {
           </h2>
           <div className="space-y-8">
             {[
-              { n: '1', title: 'Send via Bank Transfer', desc: 'Transfer to our United Bank Ltd account above — the account number for a local transfer, the IBAN for an international one.' },
-              { n: '2', title: 'Make Payment', desc: 'Enter the account details and amount. Please include "Welfare" or "Project Name" in the reference.' },
-              { n: '3', title: 'Submit Your Receipt', desc: 'Fill out our donation form with your details and upload the payment screenshot for verification.' },
+              { n: '1', titleKey: 'x.step1Title', descKey: 'x.step1Desc' },
+              { n: '2', titleKey: 'x.step2Title', descKey: 'x.step2Desc' },
+              { n: '3', titleKey: 'x.step3Title', descKey: 'x.step3Desc' },
             ].map((step) => (
               <div key={step.n} className="flex gap-4">
                 <div className="w-10 h-10 shrink-0 bg-dp2-primary text-white rounded-full flex items-center justify-center font-bold font-sans">
                   {step.n}
                 </div>
                 <div>
-                  <h4 className="font-sans text-[19px] font-semibold leading-[20px] mb-1">{step.title}</h4>
-                  <p className="text-slate-500 font-sans text-[17px]">{step.desc}</p>
+                  <h4 className="font-sans text-[19px] font-semibold leading-[20px] mb-1"><T k={step.titleKey} /></h4>
+                  <p className="text-slate-500 font-sans text-[17px]"><T k={step.descKey} /></p>
                 </div>
               </div>
             ))}
@@ -269,7 +267,7 @@ export default async function DonatePage() {
                   <tr key={donor.id}>
                     <td className="px-6 py-4 font-bold text-dp2-primary font-sans">{donor.name}</td>
                     <td className="px-6 py-4 font-bold font-sans">{Number(donor.amount_pkr).toLocaleString()}</td>
-                    <td className="px-6 py-4 font-sans text-slate-500">{donor.project_id ? (projectTitleById.get(donor.project_id) ?? 'Project') : 'General Fund'}</td>
+                    <td className="px-6 py-4 font-sans text-slate-500">{donor.project_id ? (projectTitleById.get(donor.project_id) ?? <T k="x.project" />) : <T k="x.generalFund" />}</td>
                     <td className="px-6 py-4">
                       <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[13px] font-sans font-bold tracking-[0.05em]"><T k="x.announced" /></span>
                     </td>

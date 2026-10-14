@@ -175,26 +175,42 @@ export default function VideosPage() {
                   <Link
                     key={video.id}
                     href={`/videos/${video.id}`}
-                    className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden flex hover:border-dp2-primary-dark transition-all group cursor-pointer"
+                    className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden flex flex-col sm:flex-row hover:border-dp2-primary-dark transition-all group cursor-pointer"
                   >
-                    {/* Thumbnail left */}
-                    <div className="w-48 md:w-64 shrink-0 relative bg-black">
-                      <div className="w-full h-full min-h-[120px] bg-gradient-to-br from-dp2-primary to-amber-100 opacity-60 group-hover:opacity-40 transition-opacity" />
+                    {/* Thumbnail — a real uploaded image when there is one, same
+                        gradient placeholder as before when there isn't. Real
+                        bug: thumbnail_url was fetched but never actually
+                        rendered anywhere on this page, so an admin-uploaded
+                        cover photo never showed up here no matter what. */}
+                    <div className="w-full sm:w-48 md:w-64 aspect-video sm:aspect-auto shrink-0 relative bg-black">
+                      {video.thumbnail_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={video.thumbnail_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-70 transition-opacity" />
+                      ) : (
+                        <div className="w-full h-full min-h-[120px] bg-gradient-to-br from-dp2-primary to-amber-100 opacity-60 group-hover:opacity-40 transition-opacity" />
+                      )}
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                           <Play size={18} className="text-white ms-0.5" fill="white" />
                         </div>
                       </div>
-                      <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[11px] px-2 py-0.5 rounded font-sans">
+                      <div className="absolute bottom-2 end-2 bg-black/60 text-white text-[11px] px-2 py-0.5 rounded font-sans">
                         {formatDuration(video.duration_seconds)}
                       </div>
                     </div>
-                    {/* Info right */}
+                    {/* Info */}
                     <div className="p-5 flex flex-col justify-center min-w-0">
                       <span className={`text-[11px] font-bold uppercase tracking-widest font-sans text-white px-2 py-0.5 rounded w-fit mb-2 ${categoryBadgeColors[video.category ?? ''] ?? 'bg-dp2-primary'}`}>
                         {video.category && t(categoryBadgeKeys[video.category.toLowerCase()] ?? '', video.category)}
                       </span>
-                      <h3 className="font-bold text-dp2-primary text-[17px] font-sans leading-[24px] group-hover:text-dp2-primary-dark transition-colors truncate">
+                      {/* dir="ltr" pinned here deliberately — video.title has no
+                          _ur column (it's always an English string, see the
+                          detail page's own note on this), and truncating LTR
+                          text inside an RTL-direction ancestor clips from the
+                          wrong end: this is what showed "sheed - Village
+                          Elder" instead of "Interview with Haji Rasheed -
+                          Village Elder" live on an Urdu phone. */}
+                      <h3 dir="ltr" className="text-start font-bold text-dp2-primary text-[17px] font-sans leading-[24px] group-hover:text-dp2-primary-dark transition-colors truncate">
                         {video.title}
                       </h3>
                       {video.title_ur && (
@@ -246,8 +262,16 @@ function VideoCard({ video, large }: { video: Video; large?: boolean }) {
       href={`/videos/${video.id}`}
       className="group relative rounded-xl overflow-hidden aspect-video bg-black cursor-pointer block"
     >
-      {/* Thumbnail bg */}
-      <div className="w-full h-full bg-gradient-to-br from-dp2-primary to-amber-100 opacity-60 group-hover:opacity-40 transition-opacity" />
+      {/* Thumbnail — real uploaded image when there is one, same gradient
+          placeholder as before when there isn't (see the Interviews card
+          above for the bug this fixes: thumbnail_url was never rendered
+          anywhere on this page before). */}
+      {video.thumbnail_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={video.thumbnail_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-70 transition-opacity" />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-dp2-primary to-amber-100 opacity-60 group-hover:opacity-40 transition-opacity" />
+      )}
 
       {/* Play button */}
       <div className="absolute inset-0 flex items-center justify-center">
@@ -257,20 +281,23 @@ function VideoCard({ video, large }: { video: Video; large?: boolean }) {
       </div>
 
       {/* Duration */}
-      <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[11px] px-2 py-1 rounded font-sans">
+      <div className="absolute bottom-2 end-2 bg-black/60 text-white text-[11px] px-2 py-1 rounded font-sans">
         {formatDuration(video.duration_seconds)}
       </div>
 
       {/* Category badge */}
-      <div className="absolute top-3 left-3">
+      <div className="absolute top-3 start-3">
         <span className={`text-[11px] font-bold uppercase tracking-widest font-sans text-white px-2 py-1 rounded ${categoryBadgeColors[video.category ?? ''] ?? 'bg-dp2-primary'}`}>
           {video.category && t(categoryBadgeKeys[video.category.toLowerCase()] ?? '', video.category)}
         </span>
       </div>
 
       {/* Bottom info */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-        <p className="text-white font-bold text-[15px] font-sans tracking-[0.05em] truncate">
+      <div className="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+        {/* dir="ltr" — video.title has no _ur column, always English; see
+            the Interviews card's note on why truncating it inside an RTL
+            ancestor clips from the wrong end otherwise. */}
+        <p dir="ltr" className="text-start text-white font-bold text-[15px] font-sans tracking-[0.05em] truncate">
           {video.title}
         </p>
         {video.title_ur && (
