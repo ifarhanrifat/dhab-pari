@@ -40,7 +40,17 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
       <span dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[13px] text-slate-500 shrink-0">{label}</span>
-      <span className="font-sans text-[14px] font-semibold text-slate-800 text-end">{value}</span>
+      {/* Real bug, confirmed live on device: "Ismail Abid and Afsar Alam"
+          rendered as "hail Abid and Afsar Alam", clipped off the LEFT
+          edge — min-w-0 here is a different flex row than the one fixed
+          in PublicChrome2 (that fix only reaches its own direct children,
+          not every nested flex container down the tree), and this value
+          span had no width constraint or wrap protection of its own at
+          all. min-w-0 lets the row actually respect its container's
+          width instead of growing to fit the text unbroken; break-words
+          is what then lets a long name/address wrap onto a second line
+          inside that constrained width rather than overflow it. */}
+      <span className="font-sans text-[14px] font-semibold text-slate-800 text-end min-w-0 break-words">{value}</span>
     </div>
   )
 }
