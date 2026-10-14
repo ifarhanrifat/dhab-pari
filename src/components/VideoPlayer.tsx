@@ -7,7 +7,11 @@ interface VideoPlayerProps {
 }
 
 function getYouTubeId(url: string): string | null {
-  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+  // Shorts added after a real link came in as youtube.com/shorts/<id> and
+  // silently fell through to the raw <video> tag below, same dead-end as a
+  // non-YouTube URL — a Shorts link is a completely normal thing for
+  // someone to paste in, not an edge case worth failing on.
+  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
   return match?.[1] ?? null
 }
 

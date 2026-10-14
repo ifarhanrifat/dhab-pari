@@ -50,6 +50,14 @@ export function VideoUpload({ onUpload, currentUrl }: VideoUploadProps) {
     toast.success('Video uploaded')
   }
 
+  // Real bug, found live: the URL only ever reached the parent form's state
+  // when this button was clicked -- typing/pasting a link and going
+  // straight to the main Update/Add button (the one actual save action,
+  // and the obvious thing to do after pasting a link) silently kept
+  // whatever video_url the form already had. Happened twice with the same
+  // video. Now the input applies itself on every change, so there's no
+  // separate step to forget -- this button is just an explicit confirm/
+  // toast on top of that, not the only path to actually saving the link.
   const applyUrl = () => {
     if (!urlInput.trim()) return
     onUpload(urlInput.trim())
@@ -113,7 +121,7 @@ export function VideoUpload({ onUpload, currentUrl }: VideoUploadProps) {
           <input
             type="text"
             value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
+            onChange={(e) => { setUrlInput(e.target.value); onUpload(e.target.value.trim()) }}
             placeholder="https://youtube.com/watch?v=..."
             className="input-field flex-1"
           />

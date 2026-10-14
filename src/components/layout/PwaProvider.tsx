@@ -67,11 +67,23 @@ export function PwaProvider() {
     // clients.claim()) doesn't do much good if the already-open page never
     // finds out and keeps running whatever JS it already loaded. This is
     // the standard fix: the moment a new worker actually takes control of
-    // this page, reload once to pick it up. Guarded so it can only ever
-    // fire once per page load — without that guard, two controllerchange
-    // events in a row (it can happen) would reload in an infinite loop.
+    // this page, reload once to pick it up.
+    //
+    // Real bug, caught live: controllerchange also fires on someone's very
+    // FIRST visit with no worker installed yet at all — sw.js's own
+    // clients.claim() makes the brand-new worker claim the page that's
+    // still loading, which is a controllerchange with nothing to actually
+    // reload onto. Without the hadController guard below this reloaded the
+    // page unconditionally, and a reload mid-render on a page that hadn't
+    // finished its first paint could itself trigger another claim/reload —
+    // an actual loop, caught by watching the page reload itself 4 times in
+    // under 2 seconds. Only a controllerchange where the page was ALREADY
+    // controlled by something is a genuine new-version takeover worth
+    // reloading for.
+    let hadController = !!navigator.serviceWorker.controller
     let reloaded = false
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) { hadController = true; return }
       if (reloaded) return
       reloaded = true
       window.location.reload()
