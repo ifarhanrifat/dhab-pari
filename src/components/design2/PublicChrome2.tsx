@@ -19,7 +19,19 @@ export function PublicChrome2({ children }: { children: ReactNode }) {
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="min-h-full flex flex-col bg-dp2-surface relative">
       <Header2 />
       <main className="flex-1 pb-20 lg:pb-8">
-        <div className="max-w-[1200px] mx-auto px-3.5 lg:px-8 py-3.5 flex flex-col gap-4">
+        {/* [&>*]:min-w-0 — real bug, confirmed live: a page's own top-level
+            wrapper div is a direct child of this flex-col container, and
+            flex items default to min-width:auto rather than 0, so wide
+            unbreakable content further down a page (a donor table was the
+            one actually caught doing this) can grow that wrapper past the
+            width it's meant to stretch to fill instead of respecting it —
+            measured one at 472px on a 390px screen. In RTL that extra
+            width renders as content clipped off the LEFT edge rather than
+            a right-scrollbar, which is what "hidden on the left side"
+            was describing. Applied here once so every page sharing this
+            chrome is covered, not just the one page this was first found
+            on. */}
+        <div className="max-w-[1200px] mx-auto px-3.5 lg:px-8 py-3.5 flex flex-col gap-4 [&>*]:min-w-0">
           {children}
           <Footer2 />
         </div>

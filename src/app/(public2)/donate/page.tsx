@@ -74,7 +74,16 @@ export default async function DonatePage() {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-10 py-8">
+    // min-w-0: this page's own wrapper is a child of PublicChrome2's flex
+    // flex-col container -- flex items default to min-width:auto, not 0,
+    // so wide unbreakable content further down (the donor table is the
+    // main suspect) could grow this past the stretched 390px it's meant
+    // to fill instead of respecting it, pushing the whole page wider than
+    // the viewport. Confirmed live: measured this div at 472px on a 390px
+    // screen, and because the page is RTL that extra width renders as
+    // content clipped off the LEFT edge, not a right-scrollbar -- "hidden
+    // on the left side" was a precise description of exactly this.
+    <div className="max-w-[1200px] mx-auto px-4 md:px-10 py-8 min-w-0">
       {/* Hero Quote */}
       <section className="mb-16">
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
