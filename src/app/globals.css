@@ -327,14 +327,29 @@
   }
 }
 
-/* Real report, 2026-09-24: "the belt with Urdu news/alerts should run from
-   left to right." The keyframe itself never changed with language (a CSS
-   transform is direction-agnostic, dir="rtl" doesn't touch it) -- reversing
-   playback direction is the correct way to flip which way the belt travels:
-   same keyframe, played end-to-start, so content now enters from the left
-   and exits on the right instead of the other way round. */
+/* Real report: "for English the ticker works fine but not for Urdu" --
+   confirmed live, the Urdu belt (the only one using animation-direction:
+   reverse below) never showed any text at all, while the exact same
+   component in English played correctly. animation-direction: reverse
+   starts an animation already AT its end keyframe (translateX(-50%) here)
+   and plays backward toward the start -- on a track that's thousands of
+   pixels wide that initial position is nowhere near the visible 390px
+   viewport, so if this specific WebView has any quirk with reverse
+   playback (stutters, needs a layout nudge to actually start, anything
+   short of immediately interpolating), the result isn't a visible glitch
+   like it would be in English (which starts AT translateX(0), inside the
+   viewport, so even a stuck frame still shows something) -- it's simply
+   nothing, ever, which is exactly what was reported. Replaced with a
+   second keyframe that reaches the identical motion (same start and end
+   transform values as play-direction: reverse would) through NORMAL
+   forward playback instead, so nothing here depends on reverse-direction
+   animations working correctly in this WebView at all. */
+@keyframes ticker-scroll-rtl {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
 html[lang='ur'] .ticker-track {
-  animation-direction: reverse;
+  animation-name: ticker-scroll-rtl;
 }
 
 /* --- Hide scrollbar utility --- */

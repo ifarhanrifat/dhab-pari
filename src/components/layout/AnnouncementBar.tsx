@@ -110,11 +110,7 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   // auto-generated donation thank-you now stores the same Urdu text in
   // both columns (migration 375), so falling back to .message when
   // .message_ur is unset still only ever shows Urdu, never English.
-  // TEMP DIAGNOSTIC — remove once the invisible-ticker-text bug is found.
-  // No console access on a release-signed WebView without a debug rebuild,
-  // but screenshots work — this makes the fetch outcome visible directly
-  // on the device instead of guessing blind.
-  const tickerText = `[DIAG msgs=${messages.length} appeals=${appeals.length} lang=${typeof document !== 'undefined' ? document.documentElement.lang : '?'}] ` + messages.map((m) => m.message_ur || m.message).join(SEPARATOR)
+  const tickerText = messages.map((m) => m.message_ur || m.message).join(SEPARATOR)
   const appealTicker = useTickerDuration(track)
   const messageTicker = useTickerDuration(tickerText)
 
