@@ -86,6 +86,15 @@ export default async function DonatePage() {
     <div className="max-w-[1200px] mx-auto px-4 md:px-10 py-8 min-w-0">
       {/* Hero Quote */}
       <section className="mb-16">
+        {/* Real bug, confirmed in both English and Urdu: items-center on a
+            flex-col container switches children from the default stretch
+            (full container width) to shrink-to-fit their own content's
+            natural width -- for the long quote sentence below, that
+            natural/unwrapped width is far wider than a phone screen, so it
+            rendered at that full width and overflowed instead of wrapping.
+            w-full on the quote block (not the whole row -- the icon and
+            heading are fine shrink-to-fit) restores the width it needs to
+            actually wrap; text-center on the row still centers it. */}
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
           <div className="mb-4 inline-flex items-center justify-center p-3 bg-emerald-100 rounded-full text-emerald-700">
             <Heart size={32} />
@@ -93,7 +102,7 @@ export default async function DonatePage() {
           <h1 className="font-heading text-[19px] md:text-[23px] font-bold leading-[24px] md:leading-[28px] mb-6 text-dp2-primary section-title">
             <T k="x.supportVillageGrowth" />
           </h1>
-          <div className="relative px-8 py-4 border-s-4 border-dp2-primary-dark">
+          <div className="relative px-8 py-4 border-s-4 border-dp2-primary-dark w-full">
             <p className="font-sans text-[19px] leading-[20px] italic text-slate-500">
               <T k="x.donateHeroQuote" fallback="&ldquo;The best of people are those who are most beneficial to others. Your contribution today is the seed for a prosperous Dhab Pari tomorrow.&rdquo;" />
             </p>
