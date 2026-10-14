@@ -22,27 +22,71 @@ interface Appeal {
 
 const SEPARATOR = '    ——    '
 
-// The CSS animation used a fixed 55s regardless of how much text was
-// actually in the track — fine for a handful of messages, but the belt's
-// real length varies a lot (an idle day vs. a flood of backdated imports
-// all posting a "thank you" at once), and a much longer track covering
-// the same fixed 55s reads as sprinting past. Measures the real rendered
-// width and picks a duration for a constant, always-readable scroll speed
-// instead, clamped so a single short message never whips by and a huge
-// track never crawls for minutes.
-function useTickerDuration(text: string) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [duration, setDuration] = useState(55)
+// Real bug, confirmed live on-device via CDP against the production
+// WebView (not just Chrome, which never showed it): a CSS `transform`
+// animation on a wide (~15,000px, the real Urdu belt's full width) element
+// painted completely blank in this Android WebView the whole time it was
+// actively animating -- freezing the transform, or shrinking the track to
+// a few hundred px, both made the text reappear, isolating it to "wide +
+// actively-transform-animating" specifically. English never hit this
+// because its much shorter message set never produced a wide enough
+// track. Replaced the transform/keyframe animation with one driven by
+// `scrollLeft` instead -- a different paint path this WebView doesn't
+// have the same bug on -- confirmed fixed with a side-by-side screenshot
+// of the exact same production page, same element, before/after.
+//
+// scrollLeft also needed its own fix once direction:rtl entered the
+// picture (the Urdu page wraps everything in dir="rtl"): Chromium clamps
+// scrollLeft to <= 0 on an RTL-direction overflow container and silently
+// drops any positive value, confirmed directly on the real element (-500
+// held, +500 reset to 0) -- so the sign of the per-frame position is
+// flipped for Urdu rather than reusing the old mirrored-keyframe approach.
+function useScrollTicker(text: string, rtl: boolean) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const pausedRef = useRef(false)
+
   useEffect(() => {
-    if (!ref.current) return
+    const container = containerRef.current
+    if (!container) return
     // The track renders two back-to-back copies of the same text for a
-    // seamless loop — its scrollWidth is both copies, halve it for the
-    // real content width the animation actually needs to cover.
-    const width = ref.current.scrollWidth / 2
+    // seamless loop -- scrollWidth is both copies, halve it for the real
+    // content width one lap actually needs to cover.
+    const contentWidth = container.scrollWidth / 2
+    if (contentWidth <= 0) return
     const PIXELS_PER_SECOND = 90
-    setDuration(Math.min(180, Math.max(20, width / PIXELS_PER_SECOND)))
-  }, [text])
-  return { ref, duration }
+    let pos = 0
+    let raf = 0
+    let last = performance.now()
+    function step(now: number) {
+      const dt = (now - last) / 1000
+      last = now
+      if (!pausedRef.current) {
+        pos = (pos + PIXELS_PER_SECOND * dt) % contentWidth
+        container!.scrollLeft = rtl ? -pos : pos
+      }
+      raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [text, rtl])
+
+  // Same real ask as the old CSS :hover rule this replaces -- pause to
+  // read on a device that actually has a mouse, never latch paused from a
+  // touch tap (no mouseleave on touch to ever clear it).
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
+    const onEnter = () => { pausedRef.current = true }
+    const onLeave = () => { pausedRef.current = false }
+    container.addEventListener('mouseenter', onEnter)
+    container.addEventListener('mouseleave', onLeave)
+    return () => {
+      container.removeEventListener('mouseenter', onEnter)
+      container.removeEventListener('mouseleave', onLeave)
+    }
+  }, [])
+
+  return { containerRef }
 }
 
 // One word in front of the text so a reader knows in half a second whether to
@@ -72,7 +116,7 @@ const SEVERITY_LABEL: Record<string, string> = {
  * posted while someone has the page open reaches them without a reload.
  */
 export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'portal' | 'admin' }) {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [messages, setMessages] = useState<TickerMessage[]>([])
   const [appeals, setAppeals] = useState<Appeal[]>([])
 
@@ -111,8 +155,8 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   // both columns (migration 375), so falling back to .message when
   // .message_ur is unset still only ever shows Urdu, never English.
   const tickerText = messages.map((m) => m.message_ur || m.message).join(SEPARATOR)
-  const appealTicker = useTickerDuration(track)
-  const messageTicker = useTickerDuration(tickerText)
+  const appealTicker = useScrollTicker(track, isUrdu)
+  const messageTicker = useScrollTicker(tickerText, isUrdu)
 
   if (messages.length === 0 && appeals.length === 0) return null
 
@@ -128,8 +172,8 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   return (
     <>
       {messages.length > 0 && (
-        <div className="bg-dp-primary-container text-white text-[13px] font-sans font-semibold tracking-[0.05em] leading-[20px] h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[60] border-b border-dp-on-primary-container/20">
-          <div ref={messageTicker.ref} className="ticker-track" style={{ animationDuration: `${messageTicker.duration}s` }}>
+        <div ref={messageTicker.containerRef} className="bg-dp-primary-container text-white text-[13px] font-sans font-semibold tracking-[0.05em] leading-[20px] h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[60] border-b border-dp-on-primary-container/20">
+          <div className="ticker-track">
             <span className="px-4">{tickerText}</span>
             <span className="px-4">{SEPARATOR}{tickerText}</span>
           </div>
@@ -145,8 +189,8 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
             <span className="hidden sm:inline">{t('y.urgent')}</span>
           </span>
 
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <div ref={appealTicker.ref} className="ticker-track text-[13px] font-sans font-bold tracking-[0.03em]" style={{ animationDuration: `${appealTicker.duration}s` }}>
+          <div ref={appealTicker.containerRef} className="flex-1 min-w-0 overflow-hidden">
+            <div className="ticker-track text-[13px] font-sans font-bold tracking-[0.03em]">
               <span className="px-4">{track}</span>
               <span className="px-4">{SEPARATOR}{track}</span>
             </div>

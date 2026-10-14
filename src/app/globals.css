@@ -302,54 +302,17 @@
   direction: rtl;
 }
 
-/* --- Ticker animation --- */
-@keyframes ticker-scroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
+/* --- Ticker --- */
+/* The scroll itself is driven by JS (`useScrollTicker` in
+   AnnouncementBar.tsx) via `scrollLeft`, not a CSS transform animation --
+   see that hook's own header comment for why: a transform animation on
+   this element went completely invisible in the real production Android
+   WebView specifically when the track was wide (the real Urdu belt, not
+   English), confirmed live via CDP against the actual device. This rule
+   just keeps the two text copies laid out side by side, unanimated. */
 .ticker-track {
   display: inline-flex;
   white-space: nowrap;
-  animation: ticker-scroll 55s linear infinite;
-}
-
-/* Real ask, live on the Android app: "the belt runs once then freezes
-   permanently" -- a touch device has no mouseleave to clear :hover, so a
-   single tap (or a scroll gesture just brushing the belt, which sits at
-   the very top of the screen where every scroll starts) latched this
-   hover-to-pause rule on for good, with no way to ever un-pause it.
-   Scoped to devices that actually have a mouse, so touch never triggers
-   it at all; desktop keeps the hover-to-read pause it was built for. */
-@media (hover: hover) and (pointer: fine) {
-  .ticker-track:hover {
-    animation-play-state: paused;
-  }
-}
-
-/* Real report: "for English the ticker works fine but not for Urdu" --
-   confirmed live, the Urdu belt (the only one using animation-direction:
-   reverse below) never showed any text at all, while the exact same
-   component in English played correctly. animation-direction: reverse
-   starts an animation already AT its end keyframe (translateX(-50%) here)
-   and plays backward toward the start -- on a track that's thousands of
-   pixels wide that initial position is nowhere near the visible 390px
-   viewport, so if this specific WebView has any quirk with reverse
-   playback (stutters, needs a layout nudge to actually start, anything
-   short of immediately interpolating), the result isn't a visible glitch
-   like it would be in English (which starts AT translateX(0), inside the
-   viewport, so even a stuck frame still shows something) -- it's simply
-   nothing, ever, which is exactly what was reported. Replaced with a
-   second keyframe that reaches the identical motion (same start and end
-   transform values as play-direction: reverse would) through NORMAL
-   forward playback instead, so nothing here depends on reverse-direction
-   animations working correctly in this WebView at all. */
-@keyframes ticker-scroll-rtl {
-  0% { transform: translateX(-50%); }
-  100% { transform: translateX(0); }
-}
-html[lang='ur'] .ticker-track {
-  animation-name: ticker-scroll-rtl;
 }
 
 /* --- Hide scrollbar utility --- */
