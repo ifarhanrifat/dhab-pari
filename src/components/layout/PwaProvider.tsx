@@ -62,11 +62,43 @@ export function PwaProvider() {
       return
     }
 
+    // Real ask: "5 minutes gone till you push the new update and it's still
+    // not showing" — a new worker installing (see sw.js's skipWaiting() /
+    // clients.claim()) doesn't do much good if the already-open page never
+    // finds out and keeps running whatever JS it already loaded. This is
+    // the standard fix: the moment a new worker actually takes control of
+    // this page, reload once to pick it up. Guarded so it can only ever
+    // fire once per page load — without that guard, two controllerchange
+    // events in a row (it can happen) would reload in an infinite loop.
+    let reloaded = false
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return
+      reloaded = true
+      window.location.reload()
+    })
+
+    // Browsers already auto-check for a new sw.js on navigation, but
+    // throttle how often — an app someone keeps open for a while (very much
+    // the common case here) could otherwise go a long time before it next
+    // checks on its own. An explicit check right after registering, and
+    // again every few minutes while the app stays open, is what actually
+    // gets a long-lived session onto a just-shipped fix in reasonable time
+    // instead of whenever the browser's own schedule gets to it.
+    let updateInterval: ReturnType<typeof setInterval> | undefined
+
     // Registered after load so it never competes with the first paint.
-    const onLoad = () => navigator.serviceWorker.register('/sw.js').catch(() => {})
+    const onLoad = () => {
+      navigator.serviceWorker.register('/sw.js').then((reg) => {
+        reg.update().catch(() => {})
+        updateInterval = setInterval(() => reg.update().catch(() => {}), 5 * 60 * 1000)
+      }).catch(() => {})
+    }
     if (document.readyState === 'complete') onLoad()
     else window.addEventListener('load', onLoad)
-    return () => window.removeEventListener('load', onLoad)
+    return () => {
+      window.removeEventListener('load', onLoad)
+      if (updateInterval) clearInterval(updateInterval)
+    }
   }, [])
 
   useEffect(() => {

@@ -5,6 +5,7 @@ import { Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { FloatingWhatsAppButton } from "@/components/layout/FloatingWhatsAppButton";
 import { PwaProvider } from "@/components/layout/PwaProvider";
+import { PullToRefresh } from "@/components/layout/PullToRefresh";
 import { AppUpdateRequiredModal } from "@/components/layout/AppUpdateRequiredModal";
 import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import { SiteProvider } from "@/components/layout/SiteProvider";
@@ -160,6 +161,7 @@ export default async function RootLayout({
             what makes the logical CSS properties mirror the whole layout. */}
         <SiteProvider site={site}>
         <LocaleProvider>
+        <PullToRefresh />
         {children}
         <PwaProvider />
         <FloatingWhatsAppButton />
