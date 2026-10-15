@@ -40,19 +40,26 @@ const SEPARATOR = '    ——    '
 // overflow container and silently drops any positive value (confirmed
 // directly on the real element -- -500 held, +500 reset to 0), so the
 // sign of the per-frame write has to match whichever one the container
-// actually accepts. A real bug this first fix still had: it picked that
-// sign from the `rtl` (isUrdu) flag instead of asking the container
-// itself. On the public site this container happens to sit under a
-// dir="rtl" ancestor, so its *computed* direction is rtl and the
-// Urdu-writes-negative guess happened to be right. On every portal/admin
-// page it does not -- the exact same component's computed direction is
-// ltr there -- so the Urdu belt wrote negative scrollLeft the whole
-// time, every single frame silently clamped back to 0: frozen at the
-// start, never visibly broken by an error, just never moving (confirmed
-// live: public scrolled fine, portal/admin sat at scrollLeft 0 for 5
-// straight seconds). Reading getComputedStyle(container).direction once
-// up front and writing whichever sign that container actually accepts
-// fixes it regardless of which ancestor context it's rendered in.
+// actually accepts. Two bugs chased this one, in order:
+// (1) picking the sign from the `rtl` (isUrdu) flag while the container
+//     itself had no explicit `dir` attribute -- so its *computed*
+//     direction came from whatever ancestor happened to set dir="rtl",
+//     which the public site's wrapper did but portal/admin's didn't,
+//     silently clamping every Urdu frame back to 0 there (frozen, no
+//     error, confirmed live). Fixed by reading getComputedStyle instead
+//     of trusting the flag.
+// (2) that "fix" made direction depend on ambient ancestor context
+//     instead of the ticker's own content language -- correct for not
+//     freezing, but on any page with no rtl ancestor at all (true of
+//     every portal/admin page, mobility shell included), computed
+//     direction is always 'ltr' regardless of locale, so the belt always
+//     scrolled the LTR way even in Urdu: real bug, reported live
+//     ("running right to left for Urdu, that's wrong"). The ticker
+//     should never depend on ambient context -- it now sets `dir`
+//     explicitly on its own container (see the JSX below) from the same
+//     `rtl` flag passed in here, making that flag authoritative again,
+//     this time for real: the container's computed direction is
+//     whatever we just declared, not a guess about some ancestor.
 function useScrollTicker(text: string, rtl: boolean) {
   const containerRef = useRef<HTMLDivElement>(null)
   const pausedRef = useRef(false)
@@ -65,7 +72,7 @@ function useScrollTicker(text: string, rtl: boolean) {
     // content width one lap actually needs to cover.
     const contentWidth = container.scrollWidth / 2
     if (contentWidth <= 0) return
-    const negative = getComputedStyle(container).direction === 'rtl'
+    const negative = rtl
     const PIXELS_PER_SECOND = 90
     let pos = 0
     let raf = 0
@@ -185,7 +192,7 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   return (
     <>
       {messages.length > 0 && (
-        <div ref={messageTicker.containerRef} className="bg-dp-primary-container text-white text-[13px] font-sans font-semibold tracking-[0.05em] leading-[20px] h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[60] border-b border-dp-on-primary-container/20">
+        <div ref={messageTicker.containerRef} dir={isUrdu ? 'rtl' : 'ltr'} className="bg-dp-primary-container text-white text-[13px] font-sans font-semibold tracking-[0.05em] leading-[20px] h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[60] border-b border-dp-on-primary-container/20">
           <div className="ticker-track">
             <span className="px-4">{tickerText}</span>
             <span className="px-4">{SEPARATOR}{tickerText}</span>
@@ -202,7 +209,7 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
             <span className="hidden sm:inline">{t('y.urgent')}</span>
           </span>
 
-          <div ref={appealTicker.containerRef} className="flex-1 min-w-0 overflow-hidden">
+          <div ref={appealTicker.containerRef} dir={isUrdu ? 'rtl' : 'ltr'} className="flex-1 min-w-0 overflow-hidden">
             <div className="ticker-track text-[13px] font-sans font-bold tracking-[0.03em]">
               <span className="px-4">{track}</span>
               <span className="px-4">{SEPARATOR}{track}</span>
