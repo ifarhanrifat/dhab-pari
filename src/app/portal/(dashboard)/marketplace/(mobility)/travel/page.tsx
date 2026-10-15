@@ -51,7 +51,7 @@ function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFr
 
 const SERVICES = [
   { key: 'adda', emoji: '🚐', tint: '#dcfce7', href: '/portal/marketplace/adda' },
-  { key: 'shared', emoji: '👥', tint: '#e0f2fe', href: '/portal/marketplace/commute' },
+  { key: 'shared', emoji: '👥', tint: '#e0f2fe', href: '/portal/marketplace/shared' },
   { key: 'rental', emoji: '🚗', tint: '#f3e8ff', href: '/portal/marketplace/rental' },
   { key: 'purchase', emoji: '🛍️', tint: '#ffe4e6', href: '/portal/marketplace/city-purchase' },
   { key: 'hourly', emoji: '⏱️', tint: '#e0e7ff', href: '/portal/marketplace/hourly' },
