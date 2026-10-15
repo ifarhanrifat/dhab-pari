@@ -25,6 +25,7 @@ import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 import { RateAndReport } from '@/components/portal/RateAndReport'
 import { ShareBookingButton } from '@/components/portal/ShareBookingButton'
 import { CallButton } from '@/components/portal/CallButton'
+import { ChatButton } from '@/components/portal/ChatButton'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -177,7 +178,12 @@ export default function ShadiEventDetailPage() {
                       <>
                         <p className="text-[13.5px] font-semibold text-[#1e293b] truncate">{r.model || r.vehicle_type} — {r.owner_name}</p>
                         {r.color && <p className="text-[11px] text-[#64748b]">{r.color}</p>}
-                        {r.status === 'accepted' && <CallButton phone={r.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[11px] font-semibold text-[#166534] mt-0.5" />}
+                        {r.status === 'accepted' && (
+                          <span className="flex items-center gap-3 mt-0.5">
+                            <CallButton phone={r.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[11px] font-semibold text-[#166534]" />
+                            <ChatButton refType="shadi_vehicle_request" refId={r.id} basePath="/portal/marketplace/negotiations" className="inline-flex items-center gap-1.5 font-sans text-[11px] font-semibold text-[#166534] cursor-pointer" />
+                          </span>
+                        )}
                         {r.replaces_request_id && <p className="text-[10.5px] text-[#64748b] italic">{t('vp.replacementVehicleLabel')}</p>}
                       </>
                     )}

@@ -27,6 +27,7 @@ import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 import { RateAndReport } from '@/components/portal/RateAndReport'
 import { ShareBookingButton } from '@/components/portal/ShareBookingButton'
 import { CallButton } from '@/components/portal/CallButton'
+import { ChatButton } from '@/components/portal/ChatButton'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
 
@@ -202,7 +203,12 @@ export default function HourlyRentalPage() {
                     <p className="text-[14px] font-bold text-[#1e293b]">{b.model || b.vehicle_type} — {b.owner_name}</p>
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {b.pickup_address}</p>
                     <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">{b.hours} {t('vp.hoursShort')} · {fmt(b.base_amount_pkr)}{t('vp.baseAmountSuffix')}</p>
-                    {(b.status === 'accepted' || b.status === 'in_progress') && <CallButton phone={b.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-[#166534] mt-1" />}
+                    {(b.status === 'accepted' || b.status === 'in_progress') && (
+                      <span className="flex items-center gap-3 mt-1">
+                        <CallButton phone={b.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-[#166534]" />
+                        <ChatButton refType="hourly_booking" refId={b.id} basePath="/portal/marketplace/negotiations" className="inline-flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer" />
+                      </span>
+                    )}
                   </div>
                   <span className="shrink-0 text-[10.5px] font-bold px-2 py-1 rounded-full" style={{ background: `${STATUS_COLOR[b.status]}1a`, color: STATUS_COLOR[b.status] }}>{t(`vp.hourlyStatus.${b.status}`)}</span>
                 </div>

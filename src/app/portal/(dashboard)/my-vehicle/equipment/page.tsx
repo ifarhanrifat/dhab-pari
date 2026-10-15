@@ -23,6 +23,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { RateAndReport } from '@/components/portal/RateAndReport'
 import { PinStartModal } from '@/components/portal/PinStartModal'
+import { ChatButton } from '@/components/portal/ChatButton'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -271,7 +272,10 @@ function BookingHeader({ b, label }: { b: Booking; label: string }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-sans text-[14px] font-semibold text-[#1e293b]">{b.customer_name}</p>
-          {b.customer_mobile && <a href={`tel:${b.customer_mobile}`} className="font-sans text-[11.5px] text-[#166534] font-semibold ltr-num underline">{b.customer_mobile}</a>}
+          <span className="flex items-center gap-3">
+            {b.customer_mobile && <a href={`tel:${b.customer_mobile}`} className="font-sans text-[11.5px] text-[#166534] font-semibold ltr-num underline">{b.customer_mobile}</a>}
+            <ChatButton refType="equipment_booking" refId={b.id} basePath="/portal/my-vehicle/chat" className="inline-flex items-center gap-1 font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer" />
+          </span>
           <p className="font-sans text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {b.site_address}</p>
         </div>
         <div className="text-end shrink-0">

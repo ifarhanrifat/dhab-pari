@@ -34,6 +34,7 @@ import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 import { RateAndReport } from '@/components/portal/RateAndReport'
 import { ShareBookingButton } from '@/components/portal/ShareBookingButton'
 import { CallButton } from '@/components/portal/CallButton'
+import { ChatButton } from '@/components/portal/ChatButton'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -228,7 +229,12 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
                     <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">
                       {b.requested_hours != null ? `${b.requested_hours} ${t('vp.hoursShort')} · ` : ''}{fmt(b.rate_pkr)}{kind === 'loader' ? '' : `/${t('vp.hoursShort')}`}
                     </p>
-                    {(b.status === 'accepted' || b.status === 'in_progress') && <CallButton phone={b.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-[#166534] mt-1" />}
+                    {(b.status === 'accepted' || b.status === 'in_progress') && (
+                      <span className="flex items-center gap-3 mt-1">
+                        <CallButton phone={b.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-[#166534]" />
+                        <ChatButton refType="equipment_booking" refId={b.id} basePath="/portal/marketplace/negotiations" className="inline-flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer" />
+                      </span>
+                    )}
                   </div>
                   <span className="shrink-0 text-[10.5px] font-bold px-2 py-1 rounded-full" style={{ background: `${STATUS_COLOR[b.status]}1a`, color: STATUS_COLOR[b.status] }}>{t(`vp.equipmentStatus.${b.status}`)}</span>
                 </div>

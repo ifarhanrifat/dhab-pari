@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Phone, Send, HandCoins, CheckCircle2, XCircle, Package, Users, Truck } from 'lucide-react'
+import { ArrowLeft, Phone, Send, HandCoins, CheckCircle2, XCircle, Package, Users, Truck, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -25,7 +25,7 @@ interface ThreadInfo {
 interface Message { id: string; sender_role: 'user' | 'driver'; kind: 'text' | 'offer' | 'system'; body: string | null; amount_pkr: number | null; created_at: string }
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
-const kindIcon = { fetch: Package, share: Users, pro: Truck } as const
+const kindIcon = { fetch: Package, share: Users, pro: Truck, booking: MessageCircle } as const
 
 export default function NegotiationThreadPage() {
   const { t, isUrdu } = useLocale()
@@ -112,6 +112,7 @@ export default function NegotiationThreadPage() {
   const KindIcon = kindIcon[thread.kind as keyof typeof kindIcon] ?? Package
   const otherPartyLabel = myRole === 'user' ? thread.vehicle_owner_name : t('vp.youAreDriverLabel')
   const isOpen = thread.status === 'open'
+  const isBooking = thread.kind === 'booking'
 
   return (
     <div className="flex flex-col gap-3">
@@ -170,7 +171,7 @@ export default function NegotiationThreadPage() {
 
       {isOpen ? (
         <div className="flex flex-col gap-2">
-          {showOfferBox && (
+          {showOfferBox && !isBooking && (
             <div className="flex flex-col gap-1">
               {fareBand && <FareBandPicker band={fareBand} value={offerAmount === '' ? '' : Number(offerAmount)} onChange={(v) => setOfferAmount(String(v))} ownerLabel={t('cm.yourFareLabel')} />}
               <div className="flex items-center gap-1.5">
@@ -181,13 +182,15 @@ export default function NegotiationThreadPage() {
           )}
           <div className="flex items-center gap-1.5">
             <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendText()} placeholder={t('vp.messagePlaceholder')} className="flex-1 border border-[#e2e8f0] rounded-full px-3.5 py-2 text-[13px]" />
-            <button onClick={() => setShowOfferBox((s) => !s)} className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full border border-[#e5e2d0] text-[#166534] cursor-pointer" title={t('vp.proposeAmountBtn')}><HandCoins size={15} /></button>
+            {!isBooking && <button onClick={() => setShowOfferBox((s) => !s)} className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full border border-[#e5e2d0] text-[#166534] cursor-pointer" title={t('vp.proposeAmountBtn')}><HandCoins size={15} /></button>}
             <button onClick={sendText} disabled={busy || !text.trim()} className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-[#166534] text-white cursor-pointer disabled:opacity-50"><Send size={15} /></button>
           </div>
-          <div className="flex items-center justify-between gap-2">
-            <button onClick={() => close(myRole === 'user' ? 'cancel' : 'decline')} disabled={busy} className="text-[12px] text-[#64748b] cursor-pointer disabled:opacity-50">{t('vp.endWithoutDealBtn')}</button>
-            <button onClick={accept} disabled={busy} className="px-3.5 py-1.5 bg-[#D4AF37] text-[#0f172a] rounded-xl text-[12.5px] font-bold cursor-pointer disabled:opacity-50">{t('vp.acceptLastOfferBtn')}</button>
-          </div>
+          {!isBooking && (
+            <div className="flex items-center justify-between gap-2">
+              <button onClick={() => close(myRole === 'user' ? 'cancel' : 'decline')} disabled={busy} className="text-[12px] text-[#64748b] cursor-pointer disabled:opacity-50">{t('vp.endWithoutDealBtn')}</button>
+              <button onClick={accept} disabled={busy} className="px-3.5 py-1.5 bg-[#D4AF37] text-[#0f172a] rounded-xl text-[12.5px] font-bold cursor-pointer disabled:opacity-50">{t('vp.acceptLastOfferBtn')}</button>
+            </div>
+          )}
         </div>
       ) : (
         <p className="text-center text-[12.5px] text-[#94a3b8] py-2">{t('vp.conversationClosedNote')}</p>

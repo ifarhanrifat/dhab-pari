@@ -16,8 +16,8 @@ interface ThreadRow {
   id: string; kind: string; status: string; item: string | null; agreed_amount_pkr: number | null
   created_at: string; as_role: 'user' | 'driver'; vehicle_owner_name: string; vehicle_type: string; last_message: string | null
 }
-const kindIcon = { fetch: Package, share: Users, pro: Truck } as const
-const KIND_TINT: Record<string, string> = { fetch: '#ffe4e6', share: '#e0f2fe', pro: '#fde68a' }
+const kindIcon = { fetch: Package, share: Users, pro: Truck, booking: MessageCircle } as const
+const KIND_TINT: Record<string, string> = { fetch: '#ffe4e6', share: '#e0f2fe', pro: '#fde68a', booking: '#dcfce7' }
 
 export default function NegotiationsInboxPage() {
   const { t, isUrdu } = useLocale()
@@ -52,11 +52,13 @@ export default function NegotiationsInboxPage() {
               <p className="text-[13.5px] font-bold text-[#1e293b] truncate">{th.item}</p>
               <p className="text-[11.5px] text-[#64748b] truncate">{th.as_role === 'user' ? th.vehicle_owner_name : t('vp.incomingRequestLabel')}{th.last_message ? ` · ${th.last_message}` : ''}</p>
             </div>
-            <div className="shrink-0">
-              {th.status === 'agreed' && <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-[#dcfce7] text-[#166534]"><CheckCircle2 size={10} /> {t('vp.agreedStatusLabel')}</span>}
-              {th.status === 'open' && <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-[#fef3c7] text-[#92400e]"><Clock size={10} /> {t('vp.openStatusLabel')}</span>}
-              {(th.status === 'declined' || th.status === 'cancelled') && <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-[#f1f5f9] text-[#64748b]"><XCircle size={10} /> {t('vp.closedStatusLabel')}</span>}
-            </div>
+            {th.kind !== 'booking' && (
+              <div className="shrink-0">
+                {th.status === 'agreed' && <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-[#dcfce7] text-[#166534]"><CheckCircle2 size={10} /> {t('vp.agreedStatusLabel')}</span>}
+                {th.status === 'open' && <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-[#fef3c7] text-[#92400e]"><Clock size={10} /> {t('vp.openStatusLabel')}</span>}
+                {(th.status === 'declined' || th.status === 'cancelled') && <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-[#f1f5f9] text-[#64748b]"><XCircle size={10} /> {t('vp.closedStatusLabel')}</span>}
+              </div>
+            )}
           </Link>
         )
       })}

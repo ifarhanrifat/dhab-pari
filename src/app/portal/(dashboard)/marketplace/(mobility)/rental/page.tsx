@@ -27,6 +27,7 @@ import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 import { RateAndReport } from '@/components/portal/RateAndReport'
 import { ShareBookingButton } from '@/components/portal/ShareBookingButton'
 import { CallButton } from '@/components/portal/CallButton'
+import { ChatButton } from '@/components/portal/ChatButton'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
 
@@ -194,7 +195,12 @@ export default function RentalPage() {
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5 text-[#166534]" /> {b.from_address}</p>
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5 text-[#b91c1c]" /> {b.to_address}</p>
                     <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">{fmt(b.km)}km · {b.trip_type === 'return' ? t('vp.returnTripLabel') : t('vp.oneWayLabel')} · {fmt(b.total_amount_pkr)}</p>
-                    {(b.status === 'accepted' || b.status === 'in_progress') && <CallButton phone={b.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-[#166534] mt-1" />}
+                    {(b.status === 'accepted' || b.status === 'in_progress') && (
+                      <span className="flex items-center gap-3 mt-1">
+                        <CallButton phone={b.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-[#166534]" />
+                        <ChatButton refType="rental_booking" refId={b.id} basePath="/portal/marketplace/negotiations" className="inline-flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer" />
+                      </span>
+                    )}
                   </div>
                   <span className="shrink-0 text-[10.5px] font-bold px-2 py-1 rounded-full" style={{ background: `${STATUS_COLOR[b.status]}1a`, color: STATUS_COLOR[b.status] }}>{t(`vp.hourlyStatus.${b.status}`)}</span>
                 </div>

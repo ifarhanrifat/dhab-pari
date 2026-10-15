@@ -22,6 +22,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, TrustStrip, type Trust } from '@/components/shared/TrustBadge'
 import { RateAndReport } from '@/components/portal/RateAndReport'
+import { ChatButton } from '@/components/portal/ChatButton'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -275,7 +276,7 @@ function RequestHeader({ r }: { r: Request }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-sans text-[14px] font-semibold text-[#1e293b] flex items-center gap-1.5"><CalendarDays size={13} className="text-[#166534] shrink-0" /> {new Date(r.event_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-          <p className="font-sans text-[12px] text-[#64748b] mt-0.5 flex items-center gap-1.5">{r.customer_name}{r.customer_mobile ? <> · <a href={`tel:${r.customer_mobile}`} className="text-[#166534] font-semibold ltr-num underline">{r.customer_mobile}</a></> : null} <TrustPill trust={r.customer_trust} /></p>
+          <p className="font-sans text-[12px] text-[#64748b] mt-0.5 flex items-center gap-1.5 flex-wrap">{r.customer_name}{r.customer_mobile ? <> · <a href={`tel:${r.customer_mobile}`} className="text-[#166534] font-semibold ltr-num underline">{r.customer_mobile}</a></> : null} <TrustPill trust={r.customer_trust} /> · <ChatButton refType="shadi_vehicle_request" refId={r.id} basePath="/portal/my-vehicle/chat" className="inline-flex items-center gap-1 font-sans text-[12px] font-semibold text-[#166534] cursor-pointer" /></p>
           <p className="font-sans text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {r.venue_address}</p>
           <p className="font-sans text-[11.5px] text-[#64748b] mt-0.5 flex items-center gap-1 ltr-num"><Ruler size={11} /> {r.distance_km}km</p>
           {r.notes && <p className="font-sans text-[11.5px] text-[#64748b] mt-0.5">{r.notes}</p>}

@@ -1,16 +1,16 @@
 'use client'
 
-// Driver bottom nav for the new design — the design file's own driver
-// tab set exactly: Home / Jobs / Earnings / Vehicle (`nav_home`,
-// `nav_jobs`, `nav_earn`, `nav_vehicle` in dhab-pari-mobility.html's own
-// `nav()` function for `S.role==='driver'`). No separate Chat tab on the
-// driver side — the file doesn't have one; messaging for a given job
-// lives on that job's own detail page, same as the file's shared
-// order-detail "page" overlay.
+// Driver bottom nav for the new design. The richer, current design file
+// (the real one — a plain-prototype earlier version was mistakenly used
+// as the reference for a while) has navD = Jobs/Chat/Earnings/Vehicle;
+// this app keeps its own real addition of a separate Home tab on top of
+// that, so 5 tabs: Home/Jobs/Chat/Earnings/Vehicle. Chat was missing
+// entirely until migration 658 gave hourly/equipment/rental/shadi
+// bookings a real messaging thread each.
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, ClipboardList, Wallet, Truck } from 'lucide-react'
+import { Home, ClipboardList, MessageCircle, Wallet, Truck } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export function DriverMobilityNav({ jobsBadge = 0 }: { jobsBadge?: number }) {
@@ -20,13 +20,14 @@ export function DriverMobilityNav({ jobsBadge = 0 }: { jobsBadge?: number }) {
   const tabs = [
     { key: 'home', href: '/portal/my-vehicle', icon: Home, label: t('mb.navHome'), active: pathname === '/portal/my-vehicle', badge: 0 },
     { key: 'jobs', href: '/portal/my-vehicle/jobs', icon: ClipboardList, label: t('mb.navJobs'), active: pathname.startsWith('/portal/my-vehicle/jobs'), badge: jobsBadge },
+    { key: 'chat', href: '/portal/my-vehicle/chat', icon: MessageCircle, label: t('mb.navChat'), active: pathname.startsWith('/portal/my-vehicle/chat'), badge: 0 },
     { key: 'earn', href: '/portal/my-vehicle/earnings', icon: Wallet, label: t('mb.navEarnings'), active: pathname.startsWith('/portal/my-vehicle/earnings'), badge: 0 },
     { key: 'vehicle', href: '/portal/my-vehicle/vehicle', icon: Truck, label: t('mb.navVehicle'), active: pathname.startsWith('/portal/my-vehicle/vehicle'), badge: 0 },
   ]
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40">
-      <div className="max-w-md mx-auto grid grid-cols-4 bg-white border-t border-[#e5e2d0]">
+      <div className="max-w-md mx-auto grid grid-cols-5 bg-white border-t border-[#e5e2d0]">
         {tabs.map((tab) => {
           const Icon = tab.icon
           return (

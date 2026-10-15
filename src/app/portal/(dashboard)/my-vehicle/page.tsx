@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { MapPin, Bus, Route as RouteIcon, Users2, CalendarClock, ChevronRight, AlertCircle } from 'lucide-react'
+import { MapPin, Bus, Route as RouteIcon, Users2, CalendarClock, ChevronRight, AlertCircle, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -21,7 +21,10 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext'
 
 interface Vehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string; is_online: boolean }
-interface Summary { today_earnings_pkr: number; today_jobs_count: number; pending_bookings_count: number }
+interface Summary {
+  today_earnings_pkr: number; today_jobs_count: number; pending_bookings_count: number
+  avg_rating: number | null; balance_pkr: number; commission_mode: string; lumpsum_fee_pkr: number | null; commission_pct: number
+}
 interface City { id: string; name: string; name_ur: string | null }
 interface Presence { city_id: string }
 
@@ -130,9 +133,22 @@ export default function MyVehicleHomePage() {
         </div>
         <div className="bg-white border border-[#e5e2d0] rounded-xl p-2.5 text-center">
           <p className="font-sans text-[9.5px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('vp.ratingLabel')}</p>
-          <p className="font-bold text-[15px] text-[#1e293b] mt-0.5">—</p>
+          <p className="font-bold text-[15px] text-[#1e293b] mt-0.5">{summary?.avg_rating != null ? `⭐ ${summary.avg_rating}` : '—'}</p>
         </div>
       </div>
+
+      <Link href="/portal/my-vehicle/earnings" className="flex items-center gap-2.5 bg-white border border-[#e5e2d0] rounded-2xl p-3">
+        <span className="w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center shrink-0"><Wallet size={16} className="text-[#166534]" /></span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-sans text-[12.5px] font-bold text-[#1e293b]">{t('vp.walletSummaryLabel')}</span>
+          <span className="block font-sans text-[11px] text-[#64748b] ltr-num">
+            {summary?.commission_mode === 'monthly_lumpsum'
+              ? `${t('mv.lumpsumModeLabel')} · ${fmt(summary?.lumpsum_fee_pkr ?? 0)}`
+              : `${t('mv.perOrderModeLabel')} · ${summary?.commission_pct ?? 0}%`}
+          </span>
+        </span>
+        <ChevronRight size={16} className={`text-[#94a3b8] shrink-0 ${isUrdu ? 'rotate-180' : ''}`} />
+      </Link>
 
       {jobsBadge > 0 && (
         <Link href="/portal/my-vehicle/jobs" onClick={() => refreshBadge()} className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-2xl p-3">
