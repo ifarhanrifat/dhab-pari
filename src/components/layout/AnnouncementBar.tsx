@@ -20,6 +20,13 @@ interface Appeal {
   contact_number: string | null
 }
 
+interface EmergencyBroadcast {
+  id: string
+  severity: 'emergency' | 'ilaan'
+  title_ur: string
+  body_ur: string
+}
+
 const SEPARATOR = '    ——    '
 
 // Real bug, confirmed live on-device via CDP against the production
@@ -117,6 +124,11 @@ const SEVERITY_LABEL: Record<string, string> = {
   appeal: 'اپیل  ·  APPEAL',
 }
 
+const NETWORK_SEVERITY_LABEL: Record<string, string> = {
+  emergency: 'ہنگامی اطلاع  ·  EMERGENCY',
+  ilaan: 'اعلان  ·  ILAAN',
+}
+
 /**
  * Two belts stacked across the top of the site, real ask 2026-10-01:
  *
@@ -139,11 +151,22 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   const { t, isUrdu } = useLocale()
   const [messages, setMessages] = useState<TickerMessage[]>([])
   const [appeals, setAppeals] = useState<Appeal[]>([])
+  const [networkAlerts, setNetworkAlerts] = useState<EmergencyBroadcast[]>([])
 
   const load = useCallback(async () => {
     const supabase = createClient()
     const { data: ap } = await supabase.rpc(source === 'portal' ? 'my_appeals' : 'public_appeals')
     setAppeals((ap ?? []) as Appeal[])
+
+    // Cross-village emergency/ilaan broadcasts (migration 670) — a wholly
+    // separate system from this village's own appeals, run by its own
+    // emergency-admin accounts. RLS on emergency_broadcasts already does
+    // all the tenant/time-window filtering, so this is a plain read.
+    const { data: eb } = await supabase
+      .from('emergency_broadcasts')
+      .select('id, severity, title_ur, body_ur')
+      .order('created_at', { ascending: false })
+    setNetworkAlerts((eb ?? []) as EmergencyBroadcast[])
 
     // Real ask, 2026-10-01: the calm belt now runs on every surface, not
     // just the public site — portal and admin get it too. Appeal-sourced
@@ -178,7 +201,11 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   const appealTicker = useScrollTicker(track, isUrdu)
   const messageTicker = useScrollTicker(tickerText, isUrdu)
 
-  if (messages.length === 0 && appeals.length === 0) return null
+  const networkLabel = (b: EmergencyBroadcast) => NETWORK_SEVERITY_LABEL[b.severity] ?? NETWORK_SEVERITY_LABEL.ilaan
+  const networkTrack = networkAlerts.map((b) => `${networkLabel(b)}  ●  ${b.title_ur}  ●  ${b.body_ur}`).join(SEPARATOR)
+  const networkTicker = useScrollTicker(networkTrack, isUrdu)
+
+  if (messages.length === 0 && appeals.length === 0 && networkAlerts.length === 0) return null
 
   // Real ask, 2026-10-01: "for emergency that new belt will display in
   // red background, while for the other ilans... yellow with Black
@@ -226,6 +253,26 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
           )}
         </div>
       )}
+
+      {networkAlerts.length > 0 && (() => {
+        const hasNetworkEmergency = networkAlerts.some((b) => b.severity === 'emergency')
+        const networkBeltClass = hasNetworkEmergency ? 'bg-dp-error text-white' : 'bg-amber-400 text-black'
+        const networkBadgeClass = hasNetworkEmergency ? 'bg-black/20' : 'bg-black/10'
+        return (
+          <div className={`${networkBeltClass} h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[58] print:hidden`}>
+            <span className={`shrink-0 flex items-center gap-1.5 h-full px-3 ${networkBadgeClass} font-sans text-[12px] font-bold tracking-[0.06em]`}>
+              <AlertTriangle size={14} className="shrink-0" />
+              <span className="hidden sm:inline">{t('y.urgent')}</span>
+            </span>
+            <div ref={networkTicker.containerRef} dir={isUrdu ? 'rtl' : 'ltr'} className="flex-1 min-w-0 overflow-hidden">
+              <div className="ticker-track text-[13px] font-sans font-bold tracking-[0.03em]">
+                <span className="px-4">{networkTrack}</span>
+                <span className="px-4">{SEPARATOR}{networkTrack}</span>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </>
   )
 }
