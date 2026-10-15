@@ -6,6 +6,9 @@
 // list of every vehicle waiting at this adda, which the embedded version
 // never rendered (it only ever showed "you're at position N" plus the
 // current server's own countdown).
+//
+// Phase 5: re-skinned to the new Mobility design — same RPCs, reached
+// from the Home screen's quick link.
 
 import { useEffect, useState } from 'react'
 import { MapPin, Signpost, LogOut, SkipForward, Timer, Trophy, Pencil, ListOrdered } from 'lucide-react'
@@ -26,6 +29,8 @@ interface AddaBoardEntry {
   vehicle_id: string; owner_name: string
 }
 interface AddaBoard { adda: Adda; pair_adda: Adda | null; entries: AddaBoardEntry[] }
+
+const inputCls = 'w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] bg-white'
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -176,37 +181,38 @@ export default function MyVehicleAddaPage() {
     reloadAdda(vehicle.id)
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
+  if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!vehicle) return null
 
   return (
-    <div>
-      <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Signpost size={13} /> {t('af.atTheAddaHeading')}</p>
+    <div className="flex flex-col gap-3">
+      <h1 className="font-bold text-[20px] text-[#005A36] flex items-center gap-2"><Signpost size={19} /> {t('af.atTheAddaHeading')}</h1>
+
       {!myEntry && !rideEligible ? (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5">
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
           <p className="font-sans text-[13px] text-amber-800">{t('vp.rideNotAllowedMessage')}</p>
         </div>
       ) : !myEntry && !vehicle.is_online ? (
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
-          <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('vp.goOnlineToCheckInHint')}</p>
+        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
+          <p className="font-sans text-[13px] text-[#64748b]">{t('vp.goOnlineToCheckInHint')}</p>
         </div>
       ) : !myEntry ? (
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2.5">{t('af.checkInHint')}</p>
-          <div className="space-y-2">
+        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
+          <p className="font-sans text-[12.5px] text-[#64748b] mb-2.5">{t('af.checkInHint')}</p>
+          <div className="flex flex-col gap-2">
             <div className="grid grid-cols-2 gap-1.5">
-              <select value={checkInAddaId} onChange={(e) => setCheckInAddaId(e.target.value)} className="input-field">
+              <select value={checkInAddaId} onChange={(e) => setCheckInAddaId(e.target.value)} className={inputCls}>
                 <option value="">{t('af.pickAddaOption')}</option>
                 {addas.map((a) => <option key={a.id} value={a.id}>{isUrdu && a.name_ur ? a.name_ur : a.name}</option>)}
               </select>
-              <select value={checkInFareMode} onChange={(e) => setCheckInFareMode(e.target.value)} className="input-field">
+              <select value={checkInFareMode} onChange={(e) => setCheckInFareMode(e.target.value)} className={inputCls}>
                 <option value="fixed">{t('af.fixedFareOption')}</option>
                 <option value="request">{t('af.rideRequestOption')}</option>
               </select>
             </div>
             <div className="flex items-center gap-1.5">
-              <input type="number" value={checkInSeats || ''} onChange={(e) => setCheckInSeats(+e.target.value)} placeholder={t('af.seatsAvailablePlaceholder')} className="input-field flex-1 min-w-0" />
-              <button onClick={doAddaCheckIn} disabled={addaActionLoading || checkingLocation} className="shrink-0 whitespace-nowrap px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
+              <input type="number" value={checkInSeats || ''} onChange={(e) => setCheckInSeats(+e.target.value)} placeholder={t('af.seatsAvailablePlaceholder')} className={`${inputCls} flex-1 min-w-0`} />
+              <button onClick={doAddaCheckIn} disabled={addaActionLoading || checkingLocation} className="shrink-0 whitespace-nowrap px-3 py-2.5 bg-[#166534] text-white rounded-xl font-sans text-[13px] font-semibold cursor-pointer disabled:opacity-50">
                 {checkingLocation ? t('af.confirmingLocationBtn') : t('af.checkInBtn')}
               </button>
             </div>
@@ -214,43 +220,43 @@ export default function MyVehicleAddaPage() {
           {checkInFareMode === 'fixed' && checkInAddaId && (() => {
             const picked = addas.find((a) => a.id === checkInAddaId)
             return picked?.fixed_fare_per_seat_pkr != null
-              ? <p className="font-sans text-[12px] text-dp-secondary font-semibold mt-2">{t('af.systemFareShownHint').replace('{amount}', fmt(picked.fixed_fare_per_seat_pkr))}</p>
+              ? <p className="font-sans text-[12px] text-[#166534] font-semibold mt-2">{t('af.systemFareShownHint').replace('{amount}', fmt(picked.fixed_fare_per_seat_pkr))}</p>
               : <p className="font-sans text-[12px] text-amber-700 mt-2">{t('af.noSystemFareYet')}</p>
           })()}
           <label className="flex items-center gap-2 cursor-pointer mt-2.5">
-            <input type="checkbox" checked={checkInShareLocation} onChange={(e) => setCheckInShareLocation(e.target.checked)} className="accent-dp-secondary" />
-            <span className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('af.shareLocationOnDepartLabel')}</span>
+            <input type="checkbox" checked={checkInShareLocation} onChange={(e) => setCheckInShareLocation(e.target.checked)} className="accent-[#166534]" />
+            <span className="font-sans text-[12.5px] text-[#64748b]">{t('af.shareLocationOnDepartLabel')}</span>
           </label>
         </div>
       ) : (
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
-          <p className="font-sans text-[13.5px] font-bold text-dp-on-surface flex items-center gap-1.5"><MapPin size={13} className="text-dp-secondary" /> {isUrdu && myEntry.adda_name_ur ? myEntry.adda_name_ur : myEntry.adda_name}</p>
+        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
+          <p className="font-sans text-[13.5px] font-bold text-[#1e293b] flex items-center gap-1.5"><MapPin size={13} className="text-[#166534]" /> {isUrdu && myEntry.adda_name_ur ? myEntry.adda_name_ur : myEntry.adda_name}</p>
           {!editingSeats ? (
-            <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 flex items-center gap-1.5">
+            <p className="font-sans text-[12px] text-[#64748b] mt-1 flex items-center gap-1.5">
               <span className="ltr-num">{myEntry.seats_available}/{myEntry.seats_total}</span> {t('af.seatsFreeLabel')}
-              <button onClick={openEditSeats} disabled={addaActionLoading} className="inline-flex items-center gap-0.5 text-dp-secondary font-semibold hover:underline cursor-pointer disabled:opacity-50"><Pencil size={11} /> {t('af.editSeatsBtn')}</button>
+              <button onClick={openEditSeats} disabled={addaActionLoading} className="inline-flex items-center gap-0.5 text-[#166534] font-semibold cursor-pointer disabled:opacity-50"><Pencil size={11} /> {t('af.editSeatsBtn')}</button>
             </p>
           ) : (
             <div className="flex items-center gap-1.5 mt-1.5">
-              <input type="number" min={1} value={seatsEditValue || ''} onChange={(e) => setSeatsEditValue(+e.target.value)} className="input-field !w-20 !py-1" />
-              <button onClick={doUpdateSeats} disabled={addaActionLoading} className="px-2.5 py-1 bg-dp-secondary text-white rounded-md text-[12px] font-sans font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('af.saveSeatsBtn')}</button>
-              <button onClick={() => setEditingSeats(false)} disabled={addaActionLoading} className="px-2.5 py-1 border border-dp-outline-variant rounded-md text-[12px] font-sans font-semibold cursor-pointer hover:bg-dp-surface-container disabled:opacity-50">{t('action.cancel')}</button>
+              <input type="number" min={1} value={seatsEditValue || ''} onChange={(e) => setSeatsEditValue(+e.target.value)} className="w-20 border border-[#e5e2d0] rounded-lg p-1 text-[13px]" />
+              <button onClick={doUpdateSeats} disabled={addaActionLoading} className="px-2.5 py-1 bg-[#166534] text-white rounded-lg text-[12px] font-sans font-semibold cursor-pointer disabled:opacity-50">{t('af.saveSeatsBtn')}</button>
+              <button onClick={() => setEditingSeats(false)} disabled={addaActionLoading} className="px-2.5 py-1 border border-[#e5e2d0] rounded-lg text-[12px] font-sans font-semibold cursor-pointer disabled:opacity-50">{t('action.cancel')}</button>
             </div>
           )}
           {myEntry.status === 'current' ? (
-            <div className="bg-dp-secondary-container/30 rounded-lg p-2.5 mt-2">
+            <div className="bg-[#166534]/10 rounded-xl p-2.5 mt-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1 font-sans text-[13px] font-bold text-dp-secondary"><Trophy size={13} /> {t('af.yourTurnLabel')}</span>
-                {secondsLeft(myEntry.turn_expires_at) != null && <span className="inline-flex items-center gap-1 font-sans text-[13px] font-bold text-dp-secondary ltr-num"><Timer size={13} /> {fmtCountdown(secondsLeft(myEntry.turn_expires_at)!)}</span>}
+                <span className="inline-flex items-center gap-1 font-sans text-[13px] font-bold text-[#166534]"><Trophy size={13} /> {t('af.yourTurnLabel')}</span>
+                {secondsLeft(myEntry.turn_expires_at) != null && <span className="inline-flex items-center gap-1 font-sans text-[13px] font-bold text-[#166534] ltr-num"><Timer size={13} /> {fmtCountdown(secondsLeft(myEntry.turn_expires_at)!)}</span>}
               </div>
               <div className="flex items-center gap-1.5 mt-2.5">
-                <button onClick={doAddaDeparted} disabled={addaActionLoading} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50"><LogOut size={12} /> {t('af.departedBtn')}</button>
-                <button onClick={doAddaPass} disabled={addaActionLoading} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50"><SkipForward size={12} /> {t('af.passBtn')}</button>
+                <button onClick={doAddaDeparted} disabled={addaActionLoading} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[12.5px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50"><LogOut size={12} /> {t('af.departedBtn')}</button>
+                <button onClick={doAddaPass} disabled={addaActionLoading} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[12.5px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#64748b] disabled:opacity-50"><SkipForward size={12} /> {t('af.passBtn')}</button>
               </div>
             </div>
           ) : (
             <div className="mt-2">
-              <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('af.waitingAtPositionLabel').replace('{n}', String(myEntry.position))}</p>
+              <p className="font-sans text-[12.5px] text-[#64748b]">{t('af.waitingAtPositionLabel').replace('{n}', String(myEntry.position))}</p>
               {myBoard && (() => {
                 const current = myBoard.entries.find((e) => e.status === 'current')
                 const waiting = myBoard.entries.filter((e) => e.status === 'waiting').sort((a, b) => a.position - b.position)
@@ -258,14 +264,14 @@ export default function MyVehicleAddaPage() {
                 const canClaim = waiting[0]?.entry_id === myEntry.entry_id && (!current || secs === 0)
                 return (
                   <>
-                    {current && secs != null && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('af.currentVehicleTimeLeft').replace('{name}', current.owner_name).replace('{time}', fmtCountdown(secs))}</p>}
+                    {current && secs != null && <p className="font-sans text-[12px] text-[#64748b] mt-1">{t('af.currentVehicleTimeLeft').replace('{name}', current.owner_name).replace('{time}', fmtCountdown(secs))}</p>}
                     {canClaim && (
-                      <button onClick={doAddaClaim} disabled={addaActionLoading} className="mt-2 px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50">{t('af.claimBtn')}</button>
+                      <button onClick={doAddaClaim} disabled={addaActionLoading} className="mt-2 px-3 py-1.5 rounded-xl text-[12.5px] font-sans font-semibold cursor-pointer bg-amber-600 text-white disabled:opacity-50">{t('af.claimBtn')}</button>
                     )}
                   </>
                 )
               })()}
-              <button onClick={doAddaLeave} disabled={addaActionLoading} className="mt-2 ms-2 font-sans text-[12px] text-dp-on-surface-variant hover:text-dp-error cursor-pointer">{t('af.leaveQueueBtn')}</button>
+              <button onClick={doAddaLeave} disabled={addaActionLoading} className="mt-2 ms-2 font-sans text-[12px] text-[#64748b] cursor-pointer">{t('af.leaveQueueBtn')}</button>
             </div>
           )}
         </div>
@@ -276,22 +282,22 @@ export default function MyVehicleAddaPage() {
           anywhere before this: the embedded version only ever surfaced
           "you're at position N" plus the current server's own countdown. */}
       {myEntry && myBoard && (
-        <div className="mt-6">
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><ListOrdered size={13} /> {t('af.theQueueHeading')}</p>
+        <div>
+          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5"><ListOrdered size={13} /> {t('af.theQueueHeading')}</p>
           {myBoard.entries.length === 0 ? (
-            <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('af.queueEmptyLabel')}</p>
+            <p className="font-sans text-[13px] text-[#94a3b8]">{t('af.queueEmptyLabel')}</p>
           ) : (
-            <div className="bg-white border border-dp-outline-variant rounded-lg divide-y divide-dp-outline-variant/60">
+            <div className="bg-white border border-[#e5e2d0] rounded-2xl divide-y divide-[#f1f5f9]">
               {[...myBoard.entries].sort((a, b) => a.position - b.position).map((e) => (
-                <div key={e.entry_id} className={`flex items-center gap-3 p-3 ${e.entry_id === myEntry.entry_id ? 'bg-dp-secondary-container/20' : ''}`}>
-                  <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-dp-surface-container-high text-dp-on-surface text-[12px] font-bold ltr-num">{e.position}</span>
+                <div key={e.entry_id} className="flex items-center gap-3 p-3" style={e.entry_id === myEntry.entry_id ? { background: '#166534' + '14' } : undefined}>
+                  <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-[#F9F9F6] text-[#1e293b] text-[12px] font-bold ltr-num">{e.position}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface truncate flex items-center gap-1.5">
+                    <p className="font-sans text-[13px] font-semibold text-[#1e293b] truncate flex items-center gap-1.5">
                       {e.owner_name}
-                      {e.entry_id === myEntry.entry_id && <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-dp-secondary text-white text-[10px] font-bold">{t('af.youChip')}</span>}
+                      {e.entry_id === myEntry.entry_id && <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-[#166534] text-white text-[10px] font-bold">{t('af.youChip')}</span>}
                     </p>
                   </div>
-                  <span className={`shrink-0 text-[11px] font-bold uppercase px-2 py-0.5 rounded-full ${e.status === 'current' ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>{e.status === 'current' ? t('af.yourTurnLabel') : t('mk.active')}</span>
+                  <span className="shrink-0 text-[11px] font-bold uppercase px-2 py-0.5 rounded-full" style={e.status === 'current' ? { background: '#d1fae5', color: '#047857' } : { background: '#F9F9F6', color: '#64748b' }}>{e.status === 'current' ? t('af.yourTurnLabel') : t('mk.active')}</span>
                 </div>
               ))}
             </div>

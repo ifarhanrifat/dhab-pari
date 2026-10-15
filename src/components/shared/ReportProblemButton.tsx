@@ -15,7 +15,7 @@ import { AlertTriangle } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Props {
-  refType: 'shop_order' | 'hourly_booking' | 'shadi_request' | 'trip_offer'
+  refType: 'shop_order' | 'hourly_booking' | 'shadi_request' | 'trip_offer' | 'equipment_booking' | 'rental_booking'
   refId: string
   kindOptions: Array<'fare_dispute' | 'damaged_goods' | 'no_show' | 'shadi_withdrawal' | 'hourly_overage'>
   className?: string

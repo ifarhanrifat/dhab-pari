@@ -36,11 +36,23 @@ const SEPARATOR = '    ——    '
 // of the exact same production page, same element, before/after.
 //
 // scrollLeft also needed its own fix once direction:rtl entered the
-// picture (the Urdu page wraps everything in dir="rtl"): Chromium clamps
-// scrollLeft to <= 0 on an RTL-direction overflow container and silently
-// drops any positive value, confirmed directly on the real element (-500
-// held, +500 reset to 0) -- so the sign of the per-frame position is
-// flipped for Urdu rather than reusing the old mirrored-keyframe approach.
+// picture: Chromium clamps scrollLeft to <= 0 on an RTL-direction
+// overflow container and silently drops any positive value (confirmed
+// directly on the real element -- -500 held, +500 reset to 0), so the
+// sign of the per-frame write has to match whichever one the container
+// actually accepts. A real bug this first fix still had: it picked that
+// sign from the `rtl` (isUrdu) flag instead of asking the container
+// itself. On the public site this container happens to sit under a
+// dir="rtl" ancestor, so its *computed* direction is rtl and the
+// Urdu-writes-negative guess happened to be right. On every portal/admin
+// page it does not -- the exact same component's computed direction is
+// ltr there -- so the Urdu belt wrote negative scrollLeft the whole
+// time, every single frame silently clamped back to 0: frozen at the
+// start, never visibly broken by an error, just never moving (confirmed
+// live: public scrolled fine, portal/admin sat at scrollLeft 0 for 5
+// straight seconds). Reading getComputedStyle(container).direction once
+// up front and writing whichever sign that container actually accepts
+// fixes it regardless of which ancestor context it's rendered in.
 function useScrollTicker(text: string, rtl: boolean) {
   const containerRef = useRef<HTMLDivElement>(null)
   const pausedRef = useRef(false)
@@ -53,6 +65,7 @@ function useScrollTicker(text: string, rtl: boolean) {
     // content width one lap actually needs to cover.
     const contentWidth = container.scrollWidth / 2
     if (contentWidth <= 0) return
+    const negative = getComputedStyle(container).direction === 'rtl'
     const PIXELS_PER_SECOND = 90
     let pos = 0
     let raf = 0
@@ -62,7 +75,7 @@ function useScrollTicker(text: string, rtl: boolean) {
       last = now
       if (!pausedRef.current) {
         pos = (pos + PIXELS_PER_SECOND * dt) % contentWidth
-        container!.scrollLeft = rtl ? -pos : pos
+        container!.scrollLeft = negative ? -pos : pos
       }
       raf = requestAnimationFrame(step)
     }

@@ -5,6 +5,9 @@
 // accept wins, everyone else's invite closes automatically. No phone
 // call, no SMS — a real in-app notification (the ring itself, fired by
 // start_shop_delivery_ring) already pointed here.
+//
+// Phase 5: re-skinned to the new Mobility design — same RPCs, reached
+// from the Jobs tab's delivery rows.
 
 import { useEffect, useState } from 'react'
 import { Truck, MapPin, Check, X, Loader2, RefreshCw } from 'lucide-react'
@@ -79,48 +82,48 @@ export default function MyDeliveriesPage() {
     setInvitations((rows) => rows.filter((r) => r.order_id !== orderId))
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
-  if (!vehicle) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('cm.noVehicleLinked')}</div>
+  if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
+  if (!vehicle) return <div className="text-center py-12 text-[#64748b] text-[14px]">{t('cm.noVehicleLinked')}</div>
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
-      <div className="flex items-center justify-between gap-3 mb-1">
-        <h1 className="font-heading text-[24px] font-bold text-dp-primary flex items-center gap-2"><Truck size={22} /> {t('mv.deliveriesHeading')}</h1>
-        <button onClick={() => loadInvitations(vehicle.id)} className="p-2 rounded-lg border border-dp-outline-variant text-dp-on-surface-variant cursor-pointer hover:bg-dp-surface-container-low">
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-bold text-[20px] text-[#005A36] flex items-center gap-2"><Truck size={19} /> {t('mv.deliveriesHeading')}</h1>
+        <button onClick={() => loadInvitations(vehicle.id)} className="p-2 rounded-lg border border-[#e5e2d0] text-[#64748b] cursor-pointer">
           <RefreshCw size={15} />
         </button>
       </div>
-      <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{t('mv.deliveriesSubtitle')}</p>
+      <p className="font-sans text-[12.5px] text-[#64748b] -mt-2">{t('mv.deliveriesSubtitle')}</p>
 
       {!vehicle.delivers && (
-        <div className="border-2 rounded-lg p-3.5 mb-4" style={{ borderColor: '#ec3013', background: '#fce3dc' }}>
-          <p className="font-sans text-[13px]" style={{ color: '#ae1800' }}>{t('mv.deliversOffHint')}</p>
+        <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-3.5">
+          <p className="font-sans text-[13px] text-[#b91c1c]">{t('mv.deliversOffHint')}</p>
         </div>
       )}
 
       {invitations.length === 0 ? (
-        <p className="text-center py-10 text-dp-on-surface-variant font-sans text-[14px]">{t('mv.noDeliveriesHint')}</p>
+        <p className="text-center py-10 text-[#94a3b8] text-[14px]">{t('mv.noDeliveriesHint')}</p>
       ) : (
-        <div className="space-y-2.5">
+        <div className="flex flex-col gap-2.5">
           {invitations.map((r) => (
-            <div key={r.order_id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+            <div key={r.order_id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-sans text-[14px] font-semibold text-dp-on-surface truncate">{isUrdu && r.shop_name_ur ? r.shop_name_ur : r.shop_name}</p>
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 flex items-start gap-1"><MapPin size={12} className="shrink-0 mt-0.5" /> {r.delivery_address}</p>
+                  <p className="font-sans text-[14px] font-semibold text-[#1e293b] truncate">{isUrdu && r.shop_name_ur ? r.shop_name_ur : r.shop_name}</p>
+                  <p className="font-sans text-[12px] text-[#64748b] mt-1 flex items-start gap-1"><MapPin size={12} className="shrink-0 mt-0.5" /> {r.delivery_address}</p>
                   {r.village_name && (
-                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{isUrdu && r.village_name_ur ? r.village_name_ur : r.village_name}</p>
+                    <p className="font-sans text-[11.5px] text-[#64748b] mt-0.5">{isUrdu && r.village_name_ur ? r.village_name_ur : r.village_name}</p>
                   )}
                 </div>
-                <p className="font-heading text-[18px] font-bold text-dp-secondary shrink-0 ltr-num">{fmt(r.delivery_fee_pkr)}</p>
+                <p className="font-bold text-[18px] text-[#166534] shrink-0 ltr-num">{fmt(r.delivery_fee_pkr)}</p>
               </div>
               <div className="flex items-center gap-2 mt-3">
                 <button onClick={() => decline(r.order_id)} disabled={busyOrderId === r.order_id}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant cursor-pointer disabled:opacity-50">
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-[#e5e2d0] rounded-xl font-sans text-[13px] font-semibold text-[#64748b] cursor-pointer disabled:opacity-50">
                   <X size={14} /> {t('mv.declineBtn')}
                 </button>
                 <button onClick={() => accept(r.order_id)} disabled={busyOrderId === r.order_id}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer disabled:opacity-50 hover:bg-dp-primary transition-all">
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#166534] text-white rounded-xl font-sans text-[13px] font-semibold cursor-pointer disabled:opacity-50">
                   {busyOrderId === r.order_id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {t('mv.acceptBtn')}
                 </button>
               </div>

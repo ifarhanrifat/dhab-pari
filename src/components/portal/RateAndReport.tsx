@@ -23,9 +23,14 @@ interface Props {
   refId: string
   againstPartyType: 'vehicle' | 'shop' | 'portal_user'
   againstPartyId: string
+  // Some booking types (hourly/shadi/equipment) already carry their own
+  // <ReportProblemButton> wired to the separate disputes queue (485) —
+  // this hides the complaints half so a completed booking never shows
+  // two differently-worded "report a problem" actions at once.
+  showComplaint?: boolean
 }
 
-export function RateAndReport({ refType, refId, againstPartyType, againstPartyId }: Props) {
+export function RateAndReport({ refType, refId, againstPartyType, againstPartyId, showComplaint: allowComplaint = true }: Props) {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
 
@@ -95,6 +100,7 @@ export function RateAndReport({ refType, refId, againstPartyType, againstPartyId
         </div>
       )}
 
+      {allowComplaint && (
       <div className="mt-3 pt-3 border-t border-dp-outline-variant/60">
         {complaintFiled ? (
           <p className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1"><ShieldAlert size={12} /> {t('rr.complaintFiledNote')}</p>
@@ -118,6 +124,7 @@ export function RateAndReport({ refType, refId, againstPartyType, againstPartyId
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }

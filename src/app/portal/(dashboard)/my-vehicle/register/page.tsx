@@ -10,6 +10,12 @@
 // verifies documents, confirms village-resident vs outsider, sets
 // rates for whatever was requested, and only then does a real vehicle
 // row get created (admin_approve_vehicle_registration).
+//
+// Phase 5: re-skinned to the new Mobility design. This page renders
+// standalone (the my-vehicle layout's own guard skips its chrome here —
+// there's no vehicle yet to drive that chrome), so it keeps its own
+// dir wrapper but drops the shop-ink-theme class for the same literal
+// hex palette every other re-skinned screen uses.
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -32,6 +38,8 @@ const emptyForm = {
   wants_delivers: false, wants_hourly: false, wants_shadi: false, wants_out_of_city: false, wants_night_booking: false,
   wants_service_class_ids: [] as string[],
 }
+
+const inputCls = 'w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13.5px] bg-white'
 
 export default function VehicleRegisterPage() {
   const { t, isUrdu } = useLocale()
@@ -75,69 +83,69 @@ export default function VehicleRegisterPage() {
     setStatus({ id: '', status: 'pending', rejection_reason: null, created_at: new Date().toISOString() })
   }
 
-  if (userLoading || status === undefined) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
+  if (userLoading || status === undefined) return <div className="text-center py-12"><LoadingDots /></div>
 
   if (status?.status === 'pending') {
     return (
-      <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme max-w-lg mx-auto text-center py-10">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-lg mx-auto text-center py-10">
         <Clock size={32} className="text-amber-600 mx-auto mb-3" />
-        <h1 className="font-heading text-[20px] font-bold text-dp-primary mb-1.5">{t('vr.pendingTitle')}</h1>
-        <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('vr.pendingBody')}</p>
+        <h1 className="font-bold text-[20px] text-[#005A36] mb-1.5">{t('vr.pendingTitle')}</h1>
+        <p className="font-sans text-[13.5px] text-[#64748b]">{t('vr.pendingBody')}</p>
       </div>
     )
   }
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme max-w-lg mx-auto pb-16">
-      <button onClick={() => router.push('/portal/my-vehicle')} className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-4 cursor-pointer">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-lg mx-auto pb-16 p-3.5">
+      <button onClick={() => router.push('/portal/my-vehicle')} className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-[#166534] mb-4 cursor-pointer">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.pageTitle')}
       </button>
-      <h1 className="font-heading text-[24px] font-bold text-dp-primary flex items-center gap-2 mb-1"><Car size={20} /> {t('vr.pageTitle')}</h1>
-      <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">{t('vr.pageSubtitle')}</p>
+      <h1 className="font-bold text-[22px] text-[#005A36] flex items-center gap-2 mb-1"><Car size={20} /> {t('vr.pageTitle')}</h1>
+      <p className="font-sans text-[13px] text-[#64748b] mb-5">{t('vr.pageSubtitle')}</p>
 
       {status?.status === 'rejected' && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3.5 mb-5 flex items-start gap-2">
-          <XCircle size={16} className="text-dp-error shrink-0 mt-0.5" />
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 mb-5 flex items-start gap-2">
+          <XCircle size={16} className="text-[#b91c1c] shrink-0 mt-0.5" />
           <div>
-            <p className="font-sans text-[13px] font-bold text-dp-error">{t('vr.previouslyRejectedTitle')}</p>
-            <p className="font-sans text-[12.5px] text-dp-on-surface mt-0.5">{status.rejection_reason}</p>
-            <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{t('vr.resubmitHint')}</p>
+            <p className="font-sans text-[13px] font-bold text-[#b91c1c]">{t('vr.previouslyRejectedTitle')}</p>
+            <p className="font-sans text-[12.5px] text-[#1e293b] mt-0.5">{status.rejection_reason}</p>
+            <p className="font-sans text-[12px] text-[#64748b] mt-1.5">{t('vr.resubmitHint')}</p>
           </div>
         </div>
       )}
 
-      <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('vr.ownerInfoHeading')}</p>
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-5 space-y-2.5">
-        <input value={form.owner_name} onChange={(e) => setForm({ ...form, owner_name: e.target.value })} placeholder={t('vr.ownerNamePlaceholder')} className="input-field" />
-        <input value={form.cnic_number} onChange={(e) => setForm({ ...form, cnic_number: e.target.value })} placeholder={t('vr.cnicPlaceholder')} className="input-field" />
-        <input value={form.father_husband_name} onChange={(e) => setForm({ ...form, father_husband_name: e.target.value })} placeholder={t('vr.fatherHusbandPlaceholder')} className="input-field" />
-        <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder={t('vr.addressPlaceholder')} rows={2} className="input-field resize-none" />
+      <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.ownerInfoHeading')}</p>
+      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4 mb-5 flex flex-col gap-2.5">
+        <input value={form.owner_name} onChange={(e) => setForm({ ...form, owner_name: e.target.value })} placeholder={t('vr.ownerNamePlaceholder')} className={inputCls} />
+        <input value={form.cnic_number} onChange={(e) => setForm({ ...form, cnic_number: e.target.value })} placeholder={t('vr.cnicPlaceholder')} className={inputCls} />
+        <input value={form.father_husband_name} onChange={(e) => setForm({ ...form, father_husband_name: e.target.value })} placeholder={t('vr.fatherHusbandPlaceholder')} className={inputCls} />
+        <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder={t('vr.addressPlaceholder')} rows={2} className={`${inputCls} resize-none`} />
       </div>
 
-      <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('vr.vehicleInfoHeading')}</p>
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-5 space-y-2.5">
-        <input value={form.vehicle_type} onChange={(e) => setForm({ ...form, vehicle_type: e.target.value })} placeholder={t('vr.vehicleTypePlaceholder')} className="input-field" />
+      <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.vehicleInfoHeading')}</p>
+      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4 mb-5 flex flex-col gap-2.5">
+        <input value={form.vehicle_type} onChange={(e) => setForm({ ...form, vehicle_type: e.target.value })} placeholder={t('vr.vehicleTypePlaceholder')} className={inputCls} />
         <div className="grid grid-cols-2 gap-2.5">
-          <input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder={t('vr.modelPlaceholder')} className="input-field" />
-          <input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder={t('vr.colorPlaceholder')} className="input-field" />
+          <input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder={t('vr.modelPlaceholder')} className={inputCls} />
+          <input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder={t('vr.colorPlaceholder')} className={inputCls} />
         </div>
         <div className="grid grid-cols-2 gap-2.5">
-          <input value={form.vehicle_number} onChange={(e) => setForm({ ...form, vehicle_number: e.target.value })} placeholder={t('vr.vehicleNumberPlaceholder')} className="input-field" />
-          <input type="number" min={1} value={form.total_seats || ''} onChange={(e) => setForm({ ...form, total_seats: +e.target.value })} placeholder={t('vr.totalSeatsPlaceholder')} className="input-field" />
+          <input value={form.vehicle_number} onChange={(e) => setForm({ ...form, vehicle_number: e.target.value })} placeholder={t('vr.vehicleNumberPlaceholder')} className={inputCls} />
+          <input type="number" min={1} value={form.total_seats || ''} onChange={(e) => setForm({ ...form, total_seats: +e.target.value })} placeholder={t('vr.totalSeatsPlaceholder')} className={inputCls} />
         </div>
       </div>
 
-      <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('vr.documentsHeading')}</p>
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-5 space-y-4">
+      <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.documentsHeading')}</p>
+      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4 mb-5 flex flex-col gap-4">
         <DonationReceiptUpload bucket="vehicle_registration_documents" label={t('vr.ownerIdCardLabel')} onUpload={(path) => setForm({ ...form, owner_id_card_url: path })} />
         <DonationReceiptUpload bucket="vehicle_registration_documents" label={t('vr.licenseLabel')} onUpload={(path) => setForm({ ...form, license_url: path })} />
         <DonationReceiptUpload bucket="vehicle_registration_documents" label={t('vr.vehicleDocLabel')} onUpload={(path) => setForm({ ...form, vehicle_doc_url: path })} />
         <DonationReceiptUpload bucket="vehicle_registration_documents" label={t('vr.driverPhotoLabel')} onUpload={(path) => setForm({ ...form, driver_photo_url: path })} />
       </div>
 
-      <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('vr.servicesHeading')}</p>
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-6 space-y-2.5">
-        <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-1">{t('vr.servicesHint')}</p>
+      <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.servicesHeading')}</p>
+      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4 mb-6 flex flex-col gap-2.5">
+        <p className="font-sans text-[11.5px] text-[#64748b] mb-1">{t('vr.servicesHint')}</p>
         {([
           ['wants_delivers', 'vr.wantsDeliversLabel'],
           ['wants_hourly', 'vr.wantsHourlyLabel'],
@@ -146,22 +154,23 @@ export default function VehicleRegisterPage() {
           ['wants_night_booking', 'vr.wantsNightBookingLabel'],
         ] as const).map(([key, labelKey]) => (
           <label key={key} className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.checked })} className="accent-dp-secondary" />
-            <span className="font-sans text-[13.5px] text-dp-on-surface">{t(labelKey)}</span>
+            <input type="checkbox" checked={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.checked })} className="accent-[#166534]" />
+            <span className="font-sans text-[13.5px] text-[#1e293b]">{t(labelKey)}</span>
           </label>
         ))}
       </div>
 
       {serviceClasses.length > 0 && (
         <>
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('vr.serviceClassesHeading')}</p>
-          <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-6">
-            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2.5">{t('vr.serviceClassesHint')}</p>
+          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.serviceClassesHeading')}</p>
+          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4 mb-6">
+            <p className="font-sans text-[11.5px] text-[#64748b] mb-2.5">{t('vr.serviceClassesHint')}</p>
             <div className="flex flex-wrap gap-1.5">
               {serviceClasses.map((sc) => {
                 const on = form.wants_service_class_ids.includes(sc.id)
                 return (
-                  <button key={sc.id} type="button" onClick={() => toggleServiceClass(sc.id)} className={`px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer transition-colors ${on ? 'bg-dp-secondary text-white' : 'bg-dp-surface-container text-dp-on-surface-variant border border-dp-outline-variant'}`}>
+                  <button key={sc.id} type="button" onClick={() => toggleServiceClass(sc.id)} className="px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer"
+                    style={{ background: on ? '#166534' : '#F9F9F6', color: on ? '#fff' : '#64748b', border: on ? 'none' : '1px solid #e5e2d0' }}>
                     {isUrdu && sc.name_ur ? sc.name_ur : sc.name}
                   </button>
                 )
@@ -171,7 +180,7 @@ export default function VehicleRegisterPage() {
         </>
       )}
 
-      <button onClick={submit} disabled={submitting} className="w-full flex items-center justify-center gap-1.5 py-3 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+      <button onClick={submit} disabled={submitting} className="w-full flex items-center justify-center gap-1.5 py-3 bg-[#166534] text-white rounded-xl font-sans text-[14px] font-semibold cursor-pointer disabled:opacity-50">
         <CheckCircle2 size={16} /> {submitting ? t('action.saving') : t('vr.submitBtn')}
       </button>
     </div>

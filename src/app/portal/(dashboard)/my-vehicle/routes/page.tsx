@@ -6,6 +6,9 @@
 // creation itself stays staff-managed (unlike a shop's own catalog) —
 // this is what a per_order driver actually needs day to day: closing a
 // route he no longer runs, and confirming/rejecting/cancelling bookings.
+//
+// Phase 5: re-skinned to the new Mobility design — same RPCs, reached
+// from the Jobs tab's route rows or the Home screen's quick link.
 
 import { useEffect, useState } from 'react'
 import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock } from 'lucide-react'
@@ -96,69 +99,68 @@ export default function MyVehicleRoutesPage() {
     if (vehicleId) reload(vehicleId)
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
+  if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!vehicleId) return null
 
   return (
-    <div>
+    <div className="flex flex-col gap-3">
+      <h1 className="font-bold text-[20px] text-[#005A36] flex items-center gap-2"><Signpost size={19} /> {t('mp.myRoutesHeading')}</h1>
+
       {routes.length > 0 && (
-        <div className="mb-8">
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('mp.myRoutesHeading')}</p>
-          <div className="space-y-2">
-            {routes.map((r) => (
-              <div key={r.id} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg p-3">
-                <div className="min-w-0">
-                  <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate flex items-center gap-1"><Signpost size={12} className="shrink-0 text-dp-secondary" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">
-                    {r.fare_mode === 'flex' ? `${t('mp.flexModeLabel')} · ${fmt(r.total_fare_pkr ?? 0)} ${t('mp.totalSuffix')}` : `${fmt(r.fare_per_seat_pkr)} ${t('mk.perSeat')}`}
-                    {!r.is_active && ` · ${t('mp.routeClosedLabel')}`}
-                  </p>
-                </div>
-                {r.is_active && (
-                  <button onClick={() => closeRoute(r.id)} disabled={closingRouteId === r.id} className="shrink-0 px-2.5 py-1.5 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-error hover:bg-red-50 disabled:opacity-50">
-                    {t('mp.closeRouteBtn')}
-                  </button>
-                )}
+        <div className="flex flex-col gap-2">
+          {routes.map((r) => (
+            <div key={r.id} className="flex items-center justify-between gap-3 bg-white border border-[#e5e2d0] rounded-2xl p-3">
+              <div className="min-w-0">
+                <p className="font-sans text-[13.5px] font-semibold text-[#1e293b] truncate flex items-center gap-1"><Signpost size={12} className="shrink-0 text-[#166534]" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
+                <p className="font-sans text-[12px] text-[#64748b] mt-0.5">
+                  {r.fare_mode === 'flex' ? `${t('mp.flexModeLabel')} · ${fmt(r.total_fare_pkr ?? 0)} ${t('mp.totalSuffix')}` : `${fmt(r.fare_per_seat_pkr)} ${t('mk.perSeat')}`}
+                  {!r.is_active && ` · ${t('mp.routeClosedLabel')}`}
+                </p>
               </div>
-            ))}
-          </div>
+              {r.is_active && (
+                <button onClick={() => closeRoute(r.id)} disabled={closingRouteId === r.id} className="shrink-0 px-2.5 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">
+                  {t('mp.closeRouteBtn')}
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
       <div>
-        <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('mp.bookingsHeading')}</p>
-        {bookings.length === 0 && <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('cm.noBookingsYet')}</p>}
-        <div className="space-y-2">
+        <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('mp.bookingsHeading')}</p>
+        {bookings.length === 0 && <p className="font-sans text-[13px] text-[#94a3b8] text-center py-6">{t('cm.noBookingsYet')}</p>}
+        <div className="flex flex-col gap-2">
           {bookings.map((b) => (
-            <div key={b.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+            <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-sans text-[13px] font-semibold text-dp-on-surface truncate flex items-center gap-1">
-                    <MapPin size={12} className="shrink-0 text-dp-secondary" />
+                  <p className="font-sans text-[13px] font-semibold text-[#1e293b] truncate flex items-center gap-1">
+                    <MapPin size={12} className="shrink-0 text-[#166534]" />
                     {b.vehicle_routes ? `${isUrdu && b.vehicle_routes.origin_ur ? b.vehicle_routes.origin_ur : b.vehicle_routes.origin} → ${isUrdu && b.vehicle_routes.destination_ur ? b.vehicle_routes.destination_ur : b.vehicle_routes.destination}` : '—'}
                   </p>
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{new Date(b.travel_date).toLocaleDateString('en-GB')} · {b.seats} {t('mk.seatsLabel')}</p>
+                  <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{new Date(b.travel_date).toLocaleDateString('en-GB')} · {b.seats} {t('mk.seatsLabel')}</p>
                 </div>
                 <div className="text-end shrink-0">
-                  <p className="font-sans text-[14px] font-bold text-dp-secondary">{fmt(b.total_amount_pkr)}</p>
+                  <p className="font-sans text-[14px] font-bold text-[#166534]">{fmt(b.total_amount_pkr)}</p>
                   {b.status === 'confirmed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={11} /> {t('mp.confirmedStatus')}</span>}
-                  {b.status === 'rejected' && <span className="inline-flex items-center gap-1 text-dp-error text-[11px] font-bold" title={b.rejected_reason ?? undefined}><XCircle size={11} /> {t('mp.rejectedStatus')}</span>}
-                  {b.status === 'cancelled' && <span className="inline-flex items-center gap-1 text-dp-on-surface-variant text-[11px] font-bold"><Ban size={11} /> {t('mp.cancelledStatus')}</span>}
+                  {b.status === 'rejected' && <span className="inline-flex items-center gap-1 text-[#b91c1c] text-[11px] font-bold" title={b.rejected_reason ?? undefined}><XCircle size={11} /> {t('mp.rejectedStatus')}</span>}
+                  {b.status === 'cancelled' && <span className="inline-flex items-center gap-1 text-[#64748b] text-[11px] font-bold"><Ban size={11} /> {t('mp.cancelledStatus')}</span>}
                   {b.status === 'announced' && commissionMode !== 'per_order' && <span className="inline-flex items-center gap-1 text-amber-700 text-[11px] font-bold"><Clock size={11} /> {t('mp.awaitingStatus')}</span>}
                 </div>
               </div>
               {b.status === 'announced' && commissionMode === 'per_order' && (
-                <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
-                  <span className="font-sans text-[11px] text-dp-on-surface-variant">{t('cm.markFulfilledHint')}</span>
+                <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
+                  <span className="font-sans text-[11px] text-[#64748b]">{t('cm.markFulfilledHint')}</span>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <button onClick={() => cancelBooking(b.id)} disabled={actionId === b.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50">{t('mp.rejectBtn')}</button>
-                    <button onClick={() => fulfillBooking(b.id)} disabled={actionId === b.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('cm.markFulfilledBtn')}</button>
+                    <button onClick={() => cancelBooking(b.id)} disabled={actionId === b.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#64748b] disabled:opacity-50">{t('mp.rejectBtn')}</button>
+                    <button onClick={() => fulfillBooking(b.id)} disabled={actionId === b.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('cm.markFulfilledBtn')}</button>
                   </div>
                 </div>
               )}
               {b.status === 'confirmed' && (
-                <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
-                  <button onClick={() => cancelConfirmedBooking(b.id)} disabled={actionId === b.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-error hover:bg-red-50 disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
+                <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
+                  <button onClick={() => cancelConfirmedBooking(b.id)} disabled={actionId === b.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
                 </div>
               )}
             </div>

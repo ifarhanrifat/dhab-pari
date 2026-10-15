@@ -8,9 +8,12 @@
 // Turning either switch on is refused server-side until the committee
 // has actually set a rate, so a vehicle can never list itself bookable
 // at a null price.
+//
+// Phase 5: re-skinned to the new Mobility design — same RPCs, reached
+// from the Vehicle tab's settings list.
 
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Star, Trash2, Loader2, Clock3, Users2 } from 'lucide-react'
+import { Camera, Star, Trash2, Loader2, Clock3, Users2, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -20,11 +23,13 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Vehicle {
   id: string; owner_name: string; color: string | null; model: string | null; has_ac: boolean
-  offers_hourly: boolean; offers_shadi: boolean
+  offers_hourly: boolean; offers_shadi: boolean; offers_rental: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
-  shadi_full_day_rate_pkr: number | null
+  shadi_full_day_rate_pkr: number | null; shadi_vehicle_class: string | null
+  rental_base_pkr: number | null; rental_per_km_pkr: number | null; rental_wait_hour_pkr: number | null
 }
 interface Photo { id: string; url: string; is_cover: boolean }
+interface ShadiClass { class_key: string; name_en: string; name_ur: string }
 
 function fmt(n: number) {
   return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -46,6 +51,9 @@ export default function MyVehicleCatalogPage() {
   const [hasAc, setHasAc] = useState(false)
   const [offersHourly, setOffersHourly] = useState(false)
   const [offersShadi, setOffersShadi] = useState(false)
+  const [offersRental, setOffersRental] = useState(false)
+  const [shadiVehicleClass, setShadiVehicleClass] = useState<string>('')
+  const [shadiClasses, setShadiClasses] = useState<ShadiClass[]>([])
   const [saving, setSaving] = useState(false)
 
   const loadPhotos = (vehicleId: string) =>
@@ -54,16 +62,18 @@ export default function MyVehicleCatalogPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, color, model, has_ac, offers_hourly, offers_shadi, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr')
+    supabase.from('vehicles').select('id, owner_name, color, model, has_ac, offers_hourly, offers_shadi, offers_rental, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_base_pkr, rental_per_km_pkr, rental_wait_hour_pkr')
       .eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
         setVehicle(data)
         if (data) {
           setColor(data.color ?? ''); setModel(data.model ?? ''); setHasAc(data.has_ac)
-          setOffersHourly(data.offers_hourly); setOffersShadi(data.offers_shadi)
+          setOffersHourly(data.offers_hourly); setOffersShadi(data.offers_shadi); setOffersRental(data.offers_rental)
+          setShadiVehicleClass(data.shadi_vehicle_class ?? '')
           await loadPhotos(data.id)
         }
         setLoading(false)
       })
+    supabase.rpc('shadi_vehicle_classes_list').then(({ data }) => setShadiClasses((data ?? []) as ShadiClass[]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
@@ -71,12 +81,13 @@ export default function MyVehicleCatalogPage() {
     if (!vehicle) return
     setSaving(true)
     const { error } = await supabase.rpc('set_vehicle_catalog_prefs', {
-      p_vehicle_id: vehicle.id, p_color: color, p_model: model, p_has_ac: hasAc, p_offers_hourly: offersHourly, p_offers_shadi: offersShadi,
+      p_vehicle_id: vehicle.id, p_color: color, p_model: model, p_has_ac: hasAc, p_offers_hourly: offersHourly, p_offers_shadi: offersShadi, p_offers_rental: offersRental,
+      p_shadi_vehicle_class: shadiVehicleClass || null,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('g.saveChanges'))
-    setVehicle((v) => v ? { ...v, color: color.trim() || null, model: model.trim() || null, has_ac: hasAc, offers_hourly: offersHourly, offers_shadi: offersShadi } : v)
+    setVehicle((v) => v ? { ...v, color: color.trim() || null, model: model.trim() || null, has_ac: hasAc, offers_hourly: offersHourly, offers_shadi: offersShadi, offers_rental: offersRental, shadi_vehicle_class: shadiVehicleClass || v.shadi_vehicle_class } : v)
   }
 
   const uploadPhoto = async (file: File) => {
@@ -115,38 +126,41 @@ export default function MyVehicleCatalogPage() {
     if (vehicle) loadPhotos(vehicle.id)
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
-  if (!vehicle) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('cm.noVehicleLinked')}</div>
+  if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
+  if (!vehicle) return <div className="text-center py-12 text-[#64748b] text-[14px]">{t('cm.noVehicleLinked')}</div>
 
   const hasHourlyRate = vehicle.hourly_rate_pkr != null
   const hasShadiRate = vehicle.shadi_full_day_rate_pkr != null
+  const hasRentalRate = vehicle.rental_base_pkr != null && vehicle.rental_per_km_pkr != null
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
-      <h1 className="font-heading text-[24px] font-bold text-dp-primary flex items-center gap-2 mb-1"><Camera size={22} /> {t('mv.catalogHeading')}</h1>
-      <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{t('mv.catalogSubtitle')}</p>
+    <div className="flex flex-col gap-3">
+      <div>
+        <h1 className="font-bold text-[20px] text-[#005A36] flex items-center gap-2"><Camera size={19} /> {t('mv.catalogHeading')}</h1>
+        <p className="text-[12.5px] text-[#64748b] mt-0.5">{t('mv.catalogSubtitle')}</p>
+      </div>
 
       {/* Photos */}
-      <div className="mb-5">
-        <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-dp-on-surface-variant mb-2">{t('mv.photosLabel')}</p>
+      <div>
+        <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-2">{t('mv.photosLabel')}</p>
         <div className="grid grid-cols-3 gap-2">
           {photos.map((p) => (
-            <div key={p.id} className="relative border border-dp-outline-variant rounded-lg overflow-hidden aspect-square">
+            <div key={p.id} className="relative border border-[#e5e2d0] rounded-xl overflow-hidden aspect-square">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.url} alt="" className="w-full h-full object-cover" />
               {p.is_cover && (
-                <span className="absolute top-1 start-1 bg-dp-secondary text-white rounded px-1.5 py-0.5 text-[9px] font-sans font-bold flex items-center gap-0.5"><Star size={9} fill="currentColor" /> {t('mv.coverLabel')}</span>
+                <span className="absolute top-1 start-1 bg-[#166534] text-white rounded px-1.5 py-0.5 text-[9px] font-sans font-bold flex items-center gap-0.5"><Star size={9} fill="currentColor" /> {t('mv.coverLabel')}</span>
               )}
               <div className="absolute bottom-1 inset-x-1 flex items-center gap-1">
                 {!p.is_cover && (
                   <button onClick={() => makeCover(p)} className="flex-1 bg-white/90 rounded text-[9px] font-sans font-semibold py-1 cursor-pointer">{t('mv.makeCoverBtn')}</button>
                 )}
-                <button onClick={() => removePhoto(p)} className="bg-white/90 rounded p-1 cursor-pointer text-dp-error"><Trash2 size={11} /></button>
+                <button onClick={() => removePhoto(p)} className="bg-white/90 rounded p-1 cursor-pointer text-[#b91c1c]"><Trash2 size={11} /></button>
               </div>
             </div>
           ))}
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="aspect-square border-2 border-dashed border-dp-outline-variant rounded-lg flex flex-col items-center justify-center gap-1 text-dp-on-surface-variant cursor-pointer hover:border-dp-secondary disabled:opacity-50">
+            className="aspect-square border-2 border-dashed border-[#e5e2d0] rounded-xl flex flex-col items-center justify-center gap-1 text-[#64748b] cursor-pointer disabled:opacity-50">
             {uploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
             <span className="font-sans text-[10px]">{t('mv.addPhotoBtn')}</span>
           </button>
@@ -155,61 +169,88 @@ export default function MyVehicleCatalogPage() {
       </div>
 
       {/* Color / model / AC */}
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-4">
+      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('mv.colorLabel')}</label>
-            <input value={color} onChange={(e) => setColor(e.target.value)} placeholder={t('mv.colorPlaceholder')} className="w-full border border-dp-outline-variant rounded-lg p-2.5 font-sans text-[13.5px]" />
+            <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mv.colorLabel')}</label>
+            <input value={color} onChange={(e) => setColor(e.target.value)} placeholder={t('mv.colorPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13.5px]" />
           </div>
           <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('mv.modelLabel')}</label>
-            <input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t('mv.modelPlaceholder')} className="w-full border border-dp-outline-variant rounded-lg p-2.5 font-sans text-[13.5px]" />
+            <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mv.modelLabel')}</label>
+            <input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t('mv.modelPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13.5px]" />
           </div>
         </div>
         <label className="flex items-center gap-2 cursor-pointer mt-3">
-          <input type="checkbox" checked={hasAc} onChange={(e) => setHasAc(e.target.checked)} className="accent-dp-secondary" />
-          <span className="font-sans text-[13.5px] text-dp-on-surface">{t('mv.hasAcLabel')}</span>
+          <input type="checkbox" checked={hasAc} onChange={(e) => setHasAc(e.target.checked)} className="accent-[#166534]" />
+          <span className="font-sans text-[13.5px] text-[#1e293b]">{t('mv.hasAcLabel')}</span>
         </label>
       </div>
 
       {/* Hourly opt-in — rate is read-only here, committee-set */}
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-4">
+      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
         {hasHourlyRate ? (
-          <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-dp-outline-variant">
-            <span className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('mv.yourRateLabel')}</span>
-            <span className="font-heading text-[16px] font-bold text-dp-secondary ltr-num">
+          <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-[#f1f5f9]">
+            <span className="font-sans text-[12.5px] text-[#64748b]">{t('mv.yourRateLabel')}</span>
+            <span className="font-bold text-[16px] text-[#166534] ltr-num">
               {fmt(vehicle.hourly_rate_pkr!)}/{t('mv.perHourShort')}
-              {vehicle.hourly_included_km != null && <span className="font-sans text-[11px] text-dp-on-surface-variant font-normal"> · {fmt(vehicle.hourly_included_km)}km {t('mv.includedShort')}</span>}
+              {vehicle.hourly_included_km != null && <span className="font-sans text-[11px] text-[#64748b] font-normal"> · {fmt(vehicle.hourly_included_km)}km {t('mv.includedShort')}</span>}
             </span>
           </div>
         ) : (
-          <p className="font-sans text-[12.5px] mb-3 pb-3 border-b border-dp-outline-variant" style={{ color: '#ae1800' }}>{t('mv.noRateSetHint')}</p>
+          <p className="font-sans text-[12.5px] mb-3 pb-3 border-b border-[#f1f5f9] text-[#b91c1c]">{t('mv.noRateSetHint')}</p>
         )}
         <label className={`flex items-center gap-2 ${hasHourlyRate ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
-          <input type="checkbox" checked={offersHourly} disabled={!hasHourlyRate} onChange={(e) => setOffersHourly(e.target.checked)} className="accent-dp-secondary" />
-          <Clock3 size={15} className="text-dp-on-surface-variant" />
-          <span className="font-sans text-[13.5px] text-dp-on-surface">{t('mv.offersHourlyLabel')}</span>
+          <input type="checkbox" checked={offersHourly} disabled={!hasHourlyRate} onChange={(e) => setOffersHourly(e.target.checked)} className="accent-[#166534]" />
+          <Clock3 size={15} className="text-[#64748b]" />
+          <span className="font-sans text-[13.5px] text-[#1e293b]">{t('mv.offersHourlyLabel')}</span>
+        </label>
+      </div>
+
+      {/* Rental (point-to-point) opt-in — its own rate, its own gate */}
+      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
+        {hasRentalRate ? (
+          <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-[#f1f5f9]">
+            <span className="font-sans text-[12.5px] text-[#64748b]">{t('mv.yourRentalRateLabel')}</span>
+            <span className="font-bold text-[16px] text-[#166534] ltr-num">
+              {fmt(vehicle.rental_base_pkr!)} + {fmt(vehicle.rental_per_km_pkr!)}/km
+            </span>
+          </div>
+        ) : (
+          <p className="font-sans text-[12.5px] mb-3 pb-3 border-b border-[#f1f5f9] text-[#b91c1c]">{t('mv.noRentalRateSetHint')}</p>
+        )}
+        <label className={`flex items-center gap-2 ${hasRentalRate ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
+          <input type="checkbox" checked={offersRental} disabled={!hasRentalRate} onChange={(e) => setOffersRental(e.target.checked)} className="accent-[#166534]" />
+          <Navigation size={15} className="text-[#64748b]" />
+          <span className="font-sans text-[13.5px] text-[#1e293b]">{t('mv.offersRentalLabel')}</span>
         </label>
       </div>
 
       {/* Shadi (wedding) opt-in — its own rate, its own gate */}
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-4">
+      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
         {hasShadiRate ? (
-          <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-dp-outline-variant">
-            <span className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('mv.yourShadiRateLabel')}</span>
-            <span className="font-heading text-[16px] font-bold text-dp-secondary ltr-num">{fmt(vehicle.shadi_full_day_rate_pkr!)}/{t('mv.perDayShort')}</span>
+          <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-[#f1f5f9]">
+            <span className="font-sans text-[12.5px] text-[#64748b]">{t('mv.yourShadiRateLabel')}</span>
+            <span className="font-bold text-[16px] text-[#166534] ltr-num">{fmt(vehicle.shadi_full_day_rate_pkr!)}/{t('mv.perDayShort')}</span>
           </div>
         ) : (
-          <p className="font-sans text-[12.5px] mb-3 pb-3 border-b border-dp-outline-variant" style={{ color: '#ae1800' }}>{t('mv.noShadiRateSetHint')}</p>
+          <p className="font-sans text-[12.5px] mb-3 pb-3 border-b border-[#f1f5f9] text-[#b91c1c]">{t('mv.noShadiRateSetHint')}</p>
         )}
         <label className={`flex items-center gap-2 ${hasShadiRate ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
-          <input type="checkbox" checked={offersShadi} disabled={!hasShadiRate} onChange={(e) => setOffersShadi(e.target.checked)} className="accent-dp-secondary" />
-          <Users2 size={15} className="text-dp-on-surface-variant" />
-          <span className="font-sans text-[13.5px] text-dp-on-surface">{t('mv.offersShadiLabel')}</span>
+          <input type="checkbox" checked={offersShadi} disabled={!hasShadiRate} onChange={(e) => setOffersShadi(e.target.checked)} className="accent-[#166534]" />
+          <Users2 size={15} className="text-[#64748b]" />
+          <span className="font-sans text-[13.5px] text-[#1e293b]">{t('mv.offersShadiLabel')}</span>
         </label>
+
+        <div className="mt-3 pt-3 border-t border-[#f1f5f9]">
+          <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.yourFleetClassLabel')}</label>
+          <select value={shadiVehicleClass} onChange={(e) => setShadiVehicleClass(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13.5px]">
+            <option value="">—</option>
+            {shadiClasses.map((c) => <option key={c.class_key} value={c.class_key}>{isUrdu ? c.name_ur : c.name_en}</option>)}
+          </select>
+        </div>
       </div>
 
-      <button onClick={save} disabled={saving} className="w-full bg-dp-secondary text-white rounded-lg py-3 font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+      <button onClick={save} disabled={saving} className="w-full bg-[#166534] text-white rounded-xl py-3 font-sans font-semibold cursor-pointer disabled:opacity-50">
         {saving ? t('action.saving') : t('g.saveChanges')}
       </button>
     </div>

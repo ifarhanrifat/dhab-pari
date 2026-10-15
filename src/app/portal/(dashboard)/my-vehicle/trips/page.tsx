@@ -2,6 +2,9 @@
 
 // Post Trip + My Trip Offers + Trip Bookings — its own screen, matching
 // the design zip (previously embedded on the driver dashboard).
+//
+// Phase 5: re-skinned to the new Mobility design — same RPCs, the
+// fixed-position post-trip modal now uses the shared MobilityBottomSheet.
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -16,6 +19,7 @@ import { TripLiveShareToggle } from '@/components/portal/TripLiveShareToggle'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicker'
+import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -37,6 +41,8 @@ const emptyTripOffer = {
   travel_date: '', departure_time_estimate: '', seats_available: 1, listed_fare_per_seat_pkr: 0, distance_km: '' as string,
   dest_lat: null as number | null, dest_lng: null as number | null,
 }
+
+const inputCls = 'w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] bg-white'
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -169,41 +175,41 @@ export default function MyVehicleTripsPage() {
     reload(vehicle.id)
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
+  if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!vehicle) return null
 
   return (
-    <div>
+    <div className="flex flex-col gap-3">
       <button
         onClick={() => {
           if (!rideEligible) { toast.error(t('vp.rideNotAllowedMessage')); return }
           if (!vehicle.is_online) { toast.error(t('vp.goOnlineToPostTripHint')); return }
           setShowPostTrip(true)
         }}
-        className="flex items-center gap-1.5 px-3.5 py-2.5 mb-6 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+        className="flex items-center gap-1.5 px-3.5 py-2.5 bg-[#166534] text-white rounded-xl font-sans text-[13px] font-semibold cursor-pointer w-fit">
         <PlusCircle size={14} /> {t('cm.postTripBtn')}
       </button>
 
       {tripOffers.length > 0 && (
-        <div className="mb-8">
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('cm.myTripOffersHeading')}</p>
-          <div className="space-y-3">
+        <div>
+          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('cm.myTripOffersHeading')}</p>
+          <div className="flex flex-col gap-3">
             {tripOffers.map((tr) => (
-              <div key={tr.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+              <div key={tr.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface truncate flex items-center gap-1"><MapPin size={12} className="shrink-0 text-dp-secondary" /> {isUrdu && tr.origin_ur ? tr.origin_ur : tr.origin} → {isUrdu && tr.destination_ur ? tr.destination_ur : tr.destination}</p>
-                    <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{new Date(tr.travel_date).toLocaleDateString('en-GB')} · {tr.seats_available} {t('mk.seatsLabel')} · {fmt(tr.listed_fare_per_seat_pkr)} {t('mk.perSeat')}</p>
+                    <p className="font-sans text-[13px] font-semibold text-[#1e293b] truncate flex items-center gap-1"><MapPin size={12} className="shrink-0 text-[#166534]" /> {isUrdu && tr.origin_ur ? tr.origin_ur : tr.origin} → {isUrdu && tr.destination_ur ? tr.destination_ur : tr.destination}</p>
+                    <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{new Date(tr.travel_date).toLocaleDateString('en-GB')} · {tr.seats_available} {t('mk.seatsLabel')} · {fmt(tr.listed_fare_per_seat_pkr)} {t('mk.perSeat')}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${tr.trip_type === 'return' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>{tr.trip_type === 'return' ? t('cm.tripTypeReturn') : t('cm.tripTypeOneway')}</span>
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${tr.status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>{tr.status === 'open' ? t('mk.active') : t('mk.inactive')}</span>
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${tr.status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-[#F9F9F6] text-[#64748b]'}`}>{tr.status === 'open' ? t('mk.active') : t('mk.inactive')}</span>
                   </div>
                 </div>
                 {(fareOffersByTrip[tr.id] ?? []).map((fo) => (
-                  <div key={fo.id} className="mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
-                    <p className="font-sans text-[12.5px] text-dp-on-surface flex items-center gap-1.5 flex-wrap">
-                      {fo.portal_users?.full_name ?? '—'} {trustByFareOffer[fo.portal_user_id] && <TrustPill trust={trustByFareOffer[fo.portal_user_id]} />} — <span className="font-bold text-dp-secondary">{fmt(fo.proposed_fare_per_seat_pkr)}</span>/{t('mk.seatsLabel')} × <span className="ltr-num">{fo.seats_requested}</span>
+                  <div key={fo.id} className="mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
+                    <p className="font-sans text-[12.5px] text-[#1e293b] flex items-center gap-1.5 flex-wrap">
+                      {fo.portal_users?.full_name ?? '—'} {trustByFareOffer[fo.portal_user_id] && <TrustPill trust={trustByFareOffer[fo.portal_user_id]} />} — <span className="font-bold text-[#166534]">{fmt(fo.proposed_fare_per_seat_pkr)}</span>/{t('mk.seatsLabel')} × <span className="ltr-num">{fo.seats_requested}</span>
                       {fo.status === 'countered' && <span className="text-amber-700 font-semibold"> ({t('cm.youCountered')} {fmt(fo.counter_fare_per_seat_pkr ?? 0)})</span>}
                     </p>
                     {fo.status === 'pending' && bandByTrip[tr.id] && (
@@ -211,10 +217,10 @@ export default function MyVehicleTripsPage() {
                     )}
                     {fo.status === 'pending' && (
                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                        <button onClick={() => respondFare(fo.id, 'reject')} disabled={actionId === fo.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50">{t('mp.rejectBtn')}</button>
-                        <input type="number" value={counterAmount[fo.id] ?? ''} onChange={(e) => setCounterAmount({ ...counterAmount, [fo.id]: +e.target.value })} placeholder={t('cm.counterPlaceholder')} className="input-field w-24 !py-1.5 !text-[12px]" />
-                        <button onClick={() => respondFare(fo.id, 'counter')} disabled={actionId === fo.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-secondary hover:bg-dp-surface-container disabled:opacity-50">{t('cm.counterBtn')}</button>
-                        <button onClick={() => respondFare(fo.id, 'accept')} disabled={actionId === fo.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('cm.acceptBtn')}</button>
+                        <button onClick={() => respondFare(fo.id, 'reject')} disabled={actionId === fo.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#64748b] disabled:opacity-50">{t('mp.rejectBtn')}</button>
+                        <input type="number" value={counterAmount[fo.id] ?? ''} onChange={(e) => setCounterAmount({ ...counterAmount, [fo.id]: +e.target.value })} placeholder={t('cm.counterPlaceholder')} className="w-24 border border-[#e5e2d0] rounded-lg p-1.5 text-[12px]" />
+                        <button onClick={() => respondFare(fo.id, 'counter')} disabled={actionId === fo.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#166534] disabled:opacity-50">{t('cm.counterBtn')}</button>
+                        <button onClick={() => respondFare(fo.id, 'accept')} disabled={actionId === fo.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('cm.acceptBtn')}</button>
                       </div>
                     )}
                   </div>
@@ -226,7 +232,7 @@ export default function MyVehicleTripsPage() {
                       sharing={tr.share_live_location}
                       onSharingChange={(on) => setTripOffers((rows) => rows.map((r) => r.id === tr.id ? { ...r, share_live_location: on } : r))}
                     />
-                    <button onClick={() => cancelTripOffer(tr.id)} disabled={actionId === tr.id} className="flex items-center gap-1 font-sans text-[11.5px] font-semibold mt-2 pt-2 border-t border-dp-outline-variant cursor-pointer disabled:opacity-50" style={{ color: '#b3261e' }}>
+                    <button onClick={() => cancelTripOffer(tr.id)} disabled={actionId === tr.id} className="flex items-center gap-1 font-sans text-[11.5px] font-semibold mt-2 pt-2 border-t border-[#f1f5f9] cursor-pointer disabled:opacity-50 text-[#b91c1c]">
                       <Ban size={12} /> {t('cm.cancelTripBtn')}
                     </button>
                   </>
@@ -239,23 +245,23 @@ export default function MyVehicleTripsPage() {
 
       {tripBookings.length > 0 && (
         <div>
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('cm.tripBookingsHeading')}</p>
-          <div className="space-y-2">
+          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('cm.tripBookingsHeading')}</p>
+          <div className="flex flex-col gap-2">
             {tripBookings.map((tb) => (
-              <div key={tb.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+              <div key={tb.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface truncate">{tb.vehicle_trip_offers ? `${isUrdu && tb.vehicle_trip_offers.origin_ur ? tb.vehicle_trip_offers.origin_ur : tb.vehicle_trip_offers.origin} → ${isUrdu && tb.vehicle_trip_offers.destination_ur ? tb.vehicle_trip_offers.destination_ur : tb.vehicle_trip_offers.destination}` : '—'}</p>
-                    <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{tb.vehicle_trip_offers && new Date(tb.vehicle_trip_offers.travel_date).toLocaleDateString('en-GB')} · {tb.seats} {t('mk.seatsLabel')}</p>
+                    <p className="font-sans text-[13px] font-semibold text-[#1e293b] truncate">{tb.vehicle_trip_offers ? `${isUrdu && tb.vehicle_trip_offers.origin_ur ? tb.vehicle_trip_offers.origin_ur : tb.vehicle_trip_offers.origin} → ${isUrdu && tb.vehicle_trip_offers.destination_ur ? tb.vehicle_trip_offers.destination_ur : tb.vehicle_trip_offers.destination}` : '—'}</p>
+                    <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{tb.vehicle_trip_offers && new Date(tb.vehicle_trip_offers.travel_date).toLocaleDateString('en-GB')} · {tb.seats} {t('mk.seatsLabel')}</p>
                   </div>
-                  <p className="font-sans text-[14px] font-bold text-dp-secondary shrink-0">{fmt(tb.total_amount_pkr)}</p>
+                  <p className="font-sans text-[14px] font-bold text-[#166534] shrink-0">{fmt(tb.total_amount_pkr)}</p>
                 </div>
-                <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
+                <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
                   {tb.status === 'completed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={11} /> {t('cm.tripCompletedStatus')}</span>}
                   {tb.status === 'confirmed' && (
                     <>
-                      <Link href={`/portal/marketplace/trip/${tb.id}`} className="inline-flex items-center gap-1 text-dp-secondary text-[12px] font-semibold hover:underline"><Navigation size={12} /> {t('cm.trackLocationBtn')}</Link>
-                      <button onClick={() => completeTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('cm.markTripCompleteBtn')}</button>
+                      <Link href={`/portal/marketplace/trip/${tb.id}`} className="inline-flex items-center gap-1 text-[#166534] text-[12px] font-semibold"><Navigation size={12} /> {t('cm.trackLocationBtn')}</Link>
+                      <button onClick={() => completeTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('cm.markTripCompleteBtn')}</button>
                     </>
                   )}
                 </div>
@@ -266,68 +272,64 @@ export default function MyVehicleTripsPage() {
       )}
 
       {showPostTrip && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowPostTrip(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('cm.postTripBtn')}</h2>
-              <button onClick={() => setShowPostTrip(false)} className="cursor-pointer"><X size={20} /></button>
+        <MobilityBottomSheet title={t('cm.postTripBtn')} onClose={() => setShowPostTrip(false)}>
+          <p className="font-sans text-[12.5px] text-[#64748b] mb-3">{t('cm.postTripHint')}</p>
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setTripForm({ ...tripForm, trip_type: 'oneway' })}
+                className="py-2.5 rounded-xl text-[13px] font-sans font-semibold cursor-pointer"
+                style={{ background: tripForm.trip_type === 'oneway' ? '#166534' : '#F9F9F6', color: tripForm.trip_type === 'oneway' ? '#fff' : '#64748b' }}>
+                {t('cm.tripTypeOneway')}
+              </button>
+              <button type="button" onClick={() => setTripForm({ ...tripForm, trip_type: 'return' })}
+                className="py-2.5 rounded-xl text-[13px] font-sans font-semibold cursor-pointer"
+                style={{ background: tripForm.trip_type === 'return' ? '#166534' : '#F9F9F6', color: tripForm.trip_type === 'return' ? '#fff' : '#64748b' }}>
+                {t('cm.tripTypeReturn')}
+              </button>
             </div>
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('cm.postTripHint')}</p>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setTripForm({ ...tripForm, trip_type: 'oneway' })}
-                  className={`py-2.5 rounded-lg text-[13px] font-sans font-semibold cursor-pointer transition-all ${tripForm.trip_type === 'oneway' ? 'bg-dp-secondary text-white' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>
-                  {t('cm.tripTypeOneway')}
-                </button>
-                <button type="button" onClick={() => setTripForm({ ...tripForm, trip_type: 'return' })}
-                  className={`py-2.5 rounded-lg text-[13px] font-sans font-semibold cursor-pointer transition-all ${tripForm.trip_type === 'return' ? 'bg-dp-secondary text-white' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>
-                  {t('cm.tripTypeReturn')}
-                </button>
-              </div>
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{tripForm.trip_type === 'return' ? t('cm.tripTypeReturnHint') : t('cm.tripTypeOnewayHint')}</p>
-              <div className="grid grid-cols-2 gap-3">
-                <input value={tripForm.origin} onChange={(e) => setTripForm({ ...tripForm, origin: e.target.value })} placeholder={t('mk.originPlaceholder')} className="input-field" />
-                <input value={tripForm.destination} onChange={(e) => setTripForm({ ...tripForm, destination: e.target.value })} placeholder={t('mk.destinationPlaceholder')} className="input-field" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <input value={tripForm.origin_ur} onChange={(e) => setTripForm({ ...tripForm, origin_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
-                <input value={tripForm.destination_ur} onChange={(e) => setTripForm({ ...tripForm, destination_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
-              </div>
-              <select value={tripForm.classification} onChange={(e) => setTripForm({ ...tripForm, classification: e.target.value })} className="input-field">
-                <option value="intercity">{t('mk.intercity')}</option>
-                <option value="out_of_city">{t('mk.outOfCity')}</option>
-              </select>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mp.travelDateLabel')}</label><input type="date" value={tripForm.travel_date} onChange={(e) => setTripForm({ ...tripForm, travel_date: e.target.value })} className="input-field" /></div>
-                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.departureTimeLabel')}</label><input type="time" value={tripForm.departure_time_estimate} onChange={(e) => setTripForm({ ...tripForm, departure_time_estimate: e.target.value })} className="input-field" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.totalSeatsLabel')}</label><input type="number" value={tripForm.seats_available || ''} onChange={(e) => setTripForm({ ...tripForm, seats_available: +e.target.value })} className="input-field" placeholder="1" /></div>
-                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.listedFareLabel')}</label><input type="number" value={tripForm.listed_fare_per_seat_pkr || ''} onChange={(e) => setTripForm({ ...tripForm, listed_fare_per_seat_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
-              </div>
-              <div>
-                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.distanceKmOptionalLabel')}</label>
-                <input type="number" value={tripForm.distance_km} onChange={(e) => setTripForm({ ...tripForm, distance_km: e.target.value })} className="input-field" placeholder={t('cm.distanceKmPlaceholder')} />
-                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('cm.distanceKmHint')}</p>
-              </div>
-              <div>
-                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.destPinLabel')}</label>
-                <p className="font-sans text-[11px] text-dp-on-surface-variant mb-1.5">{t('cm.destPinHint')}</p>
-                <LeafletMap
-                  pins={tripForm.dest_lat != null && tripForm.dest_lng != null ? [{ lat: tripForm.dest_lat, lng: tripForm.dest_lng, color: '#dc2626' }] : []}
-                  height={180} zoom={12} className="rounded-lg border border-dp-outline-variant"
-                  onMapClick={(lat, lng) => setTripForm({ ...tripForm, dest_lat: lat, dest_lng: lng })}
-                />
-                {tripForm.dest_lat != null && (
-                  <button onClick={() => setTripForm({ ...tripForm, dest_lat: null, dest_lng: null })} type="button" className="mt-1.5 flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
-                    <X size={12} /> {t('vp.clearPickupPinBtn')}
-                  </button>
-                )}
-              </div>
-              <button onClick={postTripOffer} disabled={posting} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{posting ? t('action.saving') : t('cm.postTripBtn')}</button>
+            <p className="font-sans text-[11.5px] text-[#64748b]">{tripForm.trip_type === 'return' ? t('cm.tripTypeReturnHint') : t('cm.tripTypeOnewayHint')}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <input value={tripForm.origin} onChange={(e) => setTripForm({ ...tripForm, origin: e.target.value })} placeholder={t('mk.originPlaceholder')} className={inputCls} />
+              <input value={tripForm.destination} onChange={(e) => setTripForm({ ...tripForm, destination: e.target.value })} placeholder={t('mk.destinationPlaceholder')} className={inputCls} />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input value={tripForm.origin_ur} onChange={(e) => setTripForm({ ...tripForm, origin_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className={inputCls} style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
+              <input value={tripForm.destination_ur} onChange={(e) => setTripForm({ ...tripForm, destination_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className={inputCls} style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
+            </div>
+            <select value={tripForm.classification} onChange={(e) => setTripForm({ ...tripForm, classification: e.target.value })} className={inputCls}>
+              <option value="intercity">{t('mk.intercity')}</option>
+              <option value="out_of_city">{t('mk.outOfCity')}</option>
+            </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mp.travelDateLabel')}</label><input type="date" value={tripForm.travel_date} onChange={(e) => setTripForm({ ...tripForm, travel_date: e.target.value })} className={inputCls} /></div>
+              <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mk.departureTimeLabel')}</label><input type="time" value={tripForm.departure_time_estimate} onChange={(e) => setTripForm({ ...tripForm, departure_time_estimate: e.target.value })} className={inputCls} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mk.totalSeatsLabel')}</label><input type="number" value={tripForm.seats_available || ''} onChange={(e) => setTripForm({ ...tripForm, seats_available: +e.target.value })} className={inputCls} placeholder="1" /></div>
+              <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('cm.listedFareLabel')}</label><input type="number" value={tripForm.listed_fare_per_seat_pkr || ''} onChange={(e) => setTripForm({ ...tripForm, listed_fare_per_seat_pkr: +e.target.value })} className={inputCls} placeholder="0" /></div>
+            </div>
+            <div>
+              <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('cm.distanceKmOptionalLabel')}</label>
+              <input type="number" value={tripForm.distance_km} onChange={(e) => setTripForm({ ...tripForm, distance_km: e.target.value })} className={inputCls} placeholder={t('cm.distanceKmPlaceholder')} />
+              <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('cm.distanceKmHint')}</p>
+            </div>
+            <div>
+              <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('cm.destPinLabel')}</label>
+              <p className="font-sans text-[11px] text-[#64748b] mb-1.5">{t('cm.destPinHint')}</p>
+              <LeafletMap
+                pins={tripForm.dest_lat != null && tripForm.dest_lng != null ? [{ lat: tripForm.dest_lat, lng: tripForm.dest_lng, color: '#dc2626' }] : []}
+                height={180} zoom={12} className="rounded-xl border border-[#e5e2d0]"
+                onMapClick={(lat, lng) => setTripForm({ ...tripForm, dest_lat: lat, dest_lng: lng })}
+              />
+              {tripForm.dest_lat != null && (
+                <button onClick={() => setTripForm({ ...tripForm, dest_lat: null, dest_lng: null })} type="button" className="mt-1.5 flex items-center gap-1 font-sans text-[12px] font-semibold text-[#64748b] cursor-pointer">
+                  <X size={12} /> {t('vp.clearPickupPinBtn')}
+                </button>
+              )}
+            </div>
+            <button onClick={postTripOffer} disabled={posting} className="w-full bg-[#166534] text-white py-3 rounded-xl font-sans font-semibold cursor-pointer disabled:opacity-50">{posting ? t('action.saving') : t('cm.postTripBtn')}</button>
           </div>
-        </div>
+        </MobilityBottomSheet>
       )}
     </div>
   )

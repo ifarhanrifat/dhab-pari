@@ -8,6 +8,9 @@
 // drawn. Per direct instruction: don't follow the zip blindly where the
 // backend has moved past it — both request kinds are shown here,
 // clearly labeled as separate sections, not just the old one.
+//
+// Phase 5: re-skinned to the new Mobility design — same RPCs, reached
+// from the Jobs tab's dispatch/city-purchase rows.
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -70,30 +73,30 @@ export default function MyVehicleRequestsPage() {
     else reload(vehicleId)
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
+  if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!vehicleId) return null
 
   const nothingIncoming = dispatchInvites.length === 0 && cityPurchaseInvites.length === 0
 
   return (
-    <div>
-      {nothingIncoming && <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('vp.noIncomingRequestsYet')}</p>}
+    <div className="flex flex-col gap-3">
+      {nothingIncoming && <p className="font-sans text-[14px] text-[#94a3b8] text-center py-10">{t('vp.noIncomingRequestsYet')}</p>}
 
       {dispatchInvites.length > 0 && (
-        <div className="mb-8">
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Truck size={13} /> {t('vp.incomingDeliveryCallsHeading')}</p>
-          <div className="space-y-2">
+        <div>
+          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5"><Truck size={13} /> {t('vp.incomingDeliveryCallsHeading')}</p>
+          <div className="flex flex-col gap-2">
             {dispatchInvites.map((c) => (
-              <div key={c.call_id} className="bg-amber-50 border border-amber-200 rounded-lg p-3.5">
+              <div key={c.call_id} className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{c.item}</p>
+                  <p className="font-sans text-[13px] font-semibold text-[#1e293b]">{c.item}</p>
                   <TrustPill trust={c.customer_trust} />
                 </div>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{c.shop_name} · {c.city_name} · {t('vp.tierLabel')} {c.tier}</p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 flex items-center gap-1"><MapPin size={11} /> {c.address}</p>
+                <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{c.shop_name} · {c.city_name} · {t('vp.tierLabel')} {c.tier}</p>
+                <p className="font-sans text-[12px] text-[#64748b] mt-0.5 flex items-center gap-1"><MapPin size={11} /> {c.address}</p>
                 <div className="flex items-center gap-1.5 mt-2">
-                  <button onClick={() => respondDispatchInvite(c.call_id, 'decline')} disabled={vpSaving} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50">{t('vp.declineDeliveryBtn')}</button>
-                  <button onClick={() => respondDispatchInvite(c.call_id, 'accept')} disabled={vpSaving} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('vp.acceptDeliveryBtn')}</button>
+                  <button onClick={() => respondDispatchInvite(c.call_id, 'decline')} disabled={vpSaving} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#64748b] disabled:opacity-50">{t('vp.declineDeliveryBtn')}</button>
+                  <button onClick={() => respondDispatchInvite(c.call_id, 'accept')} disabled={vpSaving} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('vp.acceptDeliveryBtn')}</button>
                 </div>
               </div>
             ))}
@@ -103,13 +106,13 @@ export default function MyVehicleRequestsPage() {
 
       {cityPurchaseInvites.length > 0 && (
         <div>
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><ShoppingBag size={13} /> {t('vp.incomingCityPurchaseHeading')}</p>
-          <div className="space-y-2">
+          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5"><ShoppingBag size={13} /> {t('vp.incomingCityPurchaseHeading')}</p>
+          <div className="flex flex-col gap-2">
             {cityPurchaseInvites.map((r) => (
-              <Link key={r.request_id} href={`/portal/marketplace/city-purchase/${r.request_id}`} className="block bg-amber-50 border border-amber-200 rounded-lg p-3.5 hover:border-amber-400 transition-colors">
-                <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{r.item}</p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{isUrdu && r.city_name_ur ? r.city_name_ur : r.city_name}{r.pickup_label ? ` · ${r.pickup_label}` : ''}</p>
-                <p className="font-sans text-[12px] text-dp-secondary font-semibold mt-1">{t('vp.tapToRespondHint')}</p>
+              <Link key={r.request_id} href={`/portal/marketplace/city-purchase/${r.request_id}`} className="block bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
+                <p className="font-sans text-[13px] font-semibold text-[#1e293b]">{r.item}</p>
+                <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{isUrdu && r.city_name_ur ? r.city_name_ur : r.city_name}{r.pickup_label ? ` · ${r.pickup_label}` : ''}</p>
+                <p className="font-sans text-[12px] text-[#166534] font-semibold mt-1">{t('vp.tapToRespondHint')}</p>
               </Link>
             ))}
           </div>

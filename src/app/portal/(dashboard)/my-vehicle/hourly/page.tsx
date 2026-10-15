@@ -12,8 +12,12 @@
 // (enforced server-side too, 477) — a vehicle can't physically be on
 // two trips, so Start Trip is simply not offered on a second accepted
 // booking while one is already running.
+//
+// Phase 5: re-skinned to the new Mobility design — same RPCs, reached
+// from the Jobs tab's hourly rows rather than its own nav tab.
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Clock3, MapPin, Check, X, Play, Square, Loader2, AlertCircle, CheckCircle2, Wallet, Radio } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -23,14 +27,18 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useLiveLocation } from '@/hooks/useLiveLocation'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, TrustStrip, type Trust } from '@/components/shared/TrustBadge'
+import { RateAndReport } from '@/components/portal/RateAndReport'
+import { PinStartModal } from '@/components/portal/PinStartModal'
+
+const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface Vehicle { id: string; owner_name: string; commission_mode: string }
 interface Booking {
-  id: string; hours: number; status: string; pickup_address: string; decline_reason: string | null
+  id: string; hours: number; status: string; pickup_address: string; pickup_lat: number | null; pickup_lng: number | null; decline_reason: string | null
   base_amount_pkr: number; total_amount_pkr: number | null; distance_km: number
   included_km: number; overage_km: number | null; overage_amount_pkr: number | null
   requested_at: string; started_at: string | null; ended_at: string | null; status_confirmed: boolean
-  customer_name: string; customer_mobile: string | null; customer_trust: Trust | null
+  customer_portal_user_id: string; customer_name: string; customer_mobile: string | null; customer_trust: Trust | null
 }
 
 function fmt(n: number) {
@@ -38,7 +46,7 @@ function fmt(n: number) {
 }
 
 export default function MyHourlyBookingsPage() {
-  const { t, isUrdu } = useLocale()
+  const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
 
@@ -48,6 +56,7 @@ export default function MyHourlyBookingsPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [decliningId, setDecliningId] = useState<string | null>(null)
   const [declineReason, setDeclineReason] = useState('')
+  const [pinBookingId, setPinBookingId] = useState<string | null>(null)
 
   const loadBookings = (vehicleId: string) =>
     supabase.rpc('vehicle_hourly_bookings', { p_vehicle_id: vehicleId }).then(({ data }) => setBookings((data ?? []) as Booking[]))
@@ -100,12 +109,13 @@ export default function MyHourlyBookingsPage() {
     loadBookings(vehicle.id)
   }
 
-  const startTrip = async (bookingId: string) => {
+  const startTrip = async (bookingId: string, pin: string) => {
     if (!vehicle) return
     setBusyId(bookingId)
-    const { error } = await supabase.rpc('start_hourly_trip', { p_booking_id: bookingId })
+    const { error } = await supabase.rpc('start_hourly_trip', { p_booking_id: bookingId, p_pin: pin })
     setBusyId(null)
     if (error) { toast.error(friendlyError(error)); return }
+    setPinBookingId(null)
     loadBookings(vehicle.id)
   }
 
@@ -129,8 +139,8 @@ export default function MyHourlyBookingsPage() {
     loadBookings(vehicle.id)
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
-  if (!vehicle) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('cm.noVehicleLinked')}</div>
+  if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
+  if (!vehicle) return <div className="text-center py-12 text-[#64748b] text-[14px]">{t('cm.noVehicleLinked')}</div>
 
   const requested = bookings.filter((b) => b.status === 'requested')
   const upcoming = bookings.filter((b) => b.status === 'accepted')
@@ -139,39 +149,41 @@ export default function MyHourlyBookingsPage() {
   const history = bookings.filter((b) => (b.status === 'completed' && b.status_confirmed) || b.status === 'declined' || b.status === 'cancelled')
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
-      <h1 className="font-heading text-[24px] font-bold text-dp-primary flex items-center gap-2 mb-1"><Clock3 size={22} /> {t('vp.myHourlyBookingsHeading')}</h1>
-      <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{t('vp.myHourlyBookingsSubtitle')}</p>
+    <div className="flex flex-col gap-3">
+      <div>
+        <h1 className="font-bold text-[20px] text-[#005A36] flex items-center gap-2"><Clock3 size={19} /> {t('vp.myHourlyBookingsHeading')}</h1>
+        <p className="text-[12.5px] text-[#64748b] mt-0.5">{t('vp.myHourlyBookingsSubtitle')}</p>
+      </div>
 
       {activeTrip && locError && (
-        <div className="flex items-center gap-1.5 border rounded-lg p-2.5 mb-3" style={{ borderColor: '#f4a68f', background: '#fce3dc' }}>
-          <AlertCircle size={13} style={{ color: '#ae1800' }} className="shrink-0" />
-          <p className="font-sans text-[11.5px]" style={{ color: '#ae1800' }}>{locError}</p>
+        <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl p-2.5">
+          <AlertCircle size={13} className="text-[#b91c1c] shrink-0" />
+          <p className="font-sans text-[11.5px] text-[#b91c1c]">{locError}</p>
         </div>
       )}
 
       {requested.length > 0 && (
         <Section title={t('vp.newRequestsHeading')}>
           {requested.map((b) => (
-            <div key={b.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+            <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
               <TrustStrip trust={b.customer_trust} />
               <BookingHeader b={b} />
               {decliningId === b.id ? (
-                <div className="mt-2 pt-2 border-t border-dp-outline-variant">
+                <div className="mt-2 pt-2 border-t border-[#f1f5f9]">
                   <input value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} placeholder={t('vp.declineReasonPlaceholder')}
-                    className="w-full border border-dp-outline-variant rounded-lg p-2 font-sans text-[12.5px] mb-2" />
+                    className="w-full border border-[#e5e2d0] rounded-xl p-2 font-sans text-[12.5px] mb-2" />
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setDecliningId(null)} className="flex-1 py-2 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer">{t('action.cancel')}</button>
+                    <button onClick={() => setDecliningId(null)} className="flex-1 py-2 border border-[#e5e2d0] rounded-xl font-sans text-[12.5px] font-semibold cursor-pointer">{t('action.cancel')}</button>
                     <button onClick={() => respond(b.id, false, declineReason.trim() || undefined)} disabled={busyId === b.id}
-                      className="flex-1 py-2 rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer text-white disabled:opacity-50" style={{ background: '#b3261e' }}>{t('vp.confirmDeclineBtn')}</button>
+                      className="flex-1 py-2 rounded-xl font-sans text-[12.5px] font-semibold cursor-pointer text-white disabled:opacity-50 bg-[#b91c1c]">{t('vp.confirmDeclineBtn')}</button>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-dp-outline-variant">
-                  <button onClick={() => setDecliningId(b.id)} disabled={busyId === b.id} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-50">
+                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[#f1f5f9]">
+                  <button onClick={() => setDecliningId(b.id)} disabled={busyId === b.id} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-[#e5e2d0] rounded-xl font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-50">
                     <X size={13} /> {t('vp.declineBtn')}
                   </button>
-                  <button onClick={() => respond(b.id, true)} disabled={busyId === b.id} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-50 hover:bg-dp-primary transition-all">
+                  <button onClick={() => respond(b.id, true)} disabled={busyId === b.id} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#166534] text-white rounded-xl font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-50">
                     {busyId === b.id ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} {t('vp.acceptBtn')}
                   </button>
                 </div>
@@ -184,15 +196,15 @@ export default function MyHourlyBookingsPage() {
       {inProgress.length > 0 && (
         <Section title={t('vp.inProgressHeading')}>
           {inProgress.map((b) => (
-            <div key={b.id} className="bg-white border-2 rounded-lg p-3.5" style={{ borderColor: '#0f7a4d' }}>
+            <div key={b.id} className="bg-white border-2 border-[#166534] rounded-2xl p-3.5">
               <BookingHeader b={b} />
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-dp-outline-variant">
-                <span className="flex items-center gap-1.5 font-sans text-[12px]" style={{ color: '#0f7a4d' }}>
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#f1f5f9]">
+                <span className="flex items-center gap-1.5 font-sans text-[12px] text-[#166534]">
                   <Radio size={12} className="animate-pulse" /> {isNative ? t('vp.trackingActiveHintNative') : t('vp.trackingActiveHint')}
                 </span>
-                <span className="font-heading text-[15px] font-bold ltr-num" style={{ color: '#0f7a4d' }}>{fmt(b.distance_km)}km</span>
+                <span className="font-bold text-[15px] text-[#166534] ltr-num">{fmt(b.distance_km)}km</span>
               </div>
-              <button onClick={() => endTrip(b.id)} disabled={busyId === b.id} className="w-full flex items-center justify-center gap-1.5 py-2.5 mt-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer text-white disabled:opacity-50" style={{ background: '#0f7a4d' }}>
+              <button onClick={() => endTrip(b.id)} disabled={busyId === b.id} className="w-full flex items-center justify-center gap-1.5 py-2.5 mt-2 rounded-xl font-sans text-[13px] font-semibold cursor-pointer text-white disabled:opacity-50 bg-[#166534]">
                 {busyId === b.id ? <Loader2 size={14} className="animate-spin" /> : <Square size={13} />} {t('vp.endTripBtn')}
               </button>
             </div>
@@ -203,14 +215,14 @@ export default function MyHourlyBookingsPage() {
       {upcoming.length > 0 && (
         <Section title={t('vp.readyToStartHeading')}>
           {upcoming.map((b) => (
-            <div key={b.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+            <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
               <BookingHeader b={b} />
-              <button onClick={() => startTrip(b.id)} disabled={busyId === b.id || !!activeTrip}
+              <button onClick={() => setPinBookingId(b.id)} disabled={busyId === b.id || !!activeTrip}
                 title={activeTrip ? t('vp.anotherTripActiveHint') : ''}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 mt-2 pt-2 border-t border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer text-white disabled:opacity-50" style={{ background: '#201e1d' }}>
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 mt-2 pt-2 border-t border-[#f1f5f9] rounded-xl font-sans text-[13px] font-semibold cursor-pointer text-white disabled:opacity-50 bg-[#005A36]">
                 {busyId === b.id ? <Loader2 size={14} className="animate-spin" /> : <Play size={13} />} {t('vp.startTripBtn')}
               </button>
-              {activeTrip && <p className="font-sans text-[10.5px] text-dp-on-surface-variant mt-1 text-center">{t('vp.anotherTripActiveHint')}</p>}
+              {activeTrip && <p className="font-sans text-[10.5px] text-[#64748b] mt-1 text-center">{t('vp.anotherTripActiveHint')}</p>}
             </div>
           ))}
         </Section>
@@ -219,40 +231,51 @@ export default function MyHourlyBookingsPage() {
       {awaitingSettlement.length > 0 && (
         <Section title={t('vp.awaitingSettlementHeading')}>
           {awaitingSettlement.map((b) => (
-            <div key={b.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+            <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
               <BookingHeader b={b} />
-              <div className="mt-2 pt-2 border-t border-dp-outline-variant flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-sans text-[12px] text-dp-on-surface-variant"><CheckCircle2 size={12} className="text-emerald-600" /> {fmt(b.distance_km)}km {t('vp.travelledLabel')}{b.overage_km ? ` (+${fmt(b.overage_km)}km ${t('vp.overageLabel')})` : ''}</span>
-                <span className="font-heading text-[16px] font-bold text-dp-primary ltr-num">{fmt(b.total_amount_pkr ?? b.base_amount_pkr)}</span>
+              <div className="mt-2 pt-2 border-t border-[#f1f5f9] flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-sans text-[12px] text-[#64748b]"><CheckCircle2 size={12} className="text-emerald-600" /> {fmt(b.distance_km)}km {t('vp.travelledLabel')}{b.overage_km ? ` (+${fmt(b.overage_km)}km ${t('vp.overageLabel')})` : ''}</span>
+                <span className="font-bold text-[16px] text-[#005A36] ltr-num">{fmt(b.total_amount_pkr ?? b.base_amount_pkr)}</span>
               </div>
               {vehicle.commission_mode === 'per_order' ? (
-                <button onClick={() => confirmPayment(b.id)} disabled={busyId === b.id} className="w-full flex items-center justify-center gap-1.5 py-2.5 mt-2 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-50 hover:bg-dp-primary transition-all">
+                <button onClick={() => confirmPayment(b.id)} disabled={busyId === b.id} className="w-full flex items-center justify-center gap-1.5 py-2.5 mt-2 bg-[#166534] text-white rounded-xl font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-50">
                   {busyId === b.id ? <Loader2 size={13} className="animate-spin" /> : <Wallet size={13} />} {t('vp.confirmPaymentBtn')}
                 </button>
               ) : (
-                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-2 text-center">{t('vp.awaitingStaffSettlementHint')}</p>
+                <p className="font-sans text-[11px] text-[#64748b] mt-2 text-center">{t('vp.awaitingStaffSettlementHint')}</p>
               )}
+              <div className="mt-2">
+                <RateAndReport refType="hourly_booking" refId={b.id} againstPartyType="portal_user" againstPartyId={b.customer_portal_user_id} showComplaint={false} />
+              </div>
             </div>
           ))}
         </Section>
       )}
 
       {requested.length === 0 && upcoming.length === 0 && inProgress.length === 0 && awaitingSettlement.length === 0 && history.length === 0 && (
-        <p className="text-center py-10 text-dp-on-surface-variant font-sans text-[14px]">{t('vp.noHourlyBookingsYetHint')}</p>
+        <p className="text-center py-10 text-[#94a3b8] text-[14px]">{t('vp.noHourlyBookingsYetHint')}</p>
       )}
 
       {history.length > 0 && (
         <Section title={t('vp.historyHeading')}>
           {history.map((b) => (
-            <div key={b.id} className="bg-white border border-dp-outline-variant rounded-lg p-3 opacity-70">
+            <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 opacity-70">
               <div className="flex items-center justify-between gap-2">
-                <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface truncate">{b.customer_name}</p>
-                <span className="font-sans text-[10px] font-bold" style={{ color: b.status === 'declined' ? '#b3261e' : b.status === 'cancelled' ? '#6b6560' : '#0f7a4d' }}>{t(`vp.hourlyStatus.${b.status}`)}</span>
+                <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{b.customer_name}</p>
+                <span className="font-sans text-[10px] font-bold" style={{ color: b.status === 'declined' ? '#b91c1c' : b.status === 'cancelled' ? '#64748b' : '#166534' }}>{t(`vp.hourlyStatus.${b.status}`)}</span>
               </div>
-              {b.status === 'completed' && <p className="font-sans text-[11px] text-dp-on-surface-variant ltr-num mt-0.5">{fmt(b.total_amount_pkr ?? b.base_amount_pkr)} · {fmt(b.distance_km)}km</p>}
+              {b.status === 'completed' && <p className="font-sans text-[11px] text-[#64748b] ltr-num mt-0.5">{fmt(b.total_amount_pkr ?? b.base_amount_pkr)} · {fmt(b.distance_km)}km</p>}
             </div>
           ))}
         </Section>
+      )}
+
+      {pinBookingId && (
+        <PinStartModal
+          busy={busyId === pinBookingId}
+          onClose={() => setPinBookingId(null)}
+          onConfirm={(pin) => startTrip(pinBookingId, pin)}
+        />
       )}
     </div>
   )
@@ -260,25 +283,30 @@ export default function MyHourlyBookingsPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-5">
-      <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-dp-on-surface-variant mb-2">{title}</p>
-      <div className="space-y-2.5">{children}</div>
+    <div>
+      <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-2">{title}</p>
+      <div className="flex flex-col gap-2.5">{children}</div>
     </div>
   )
 }
 
 function BookingHeader({ b }: { b: Booking }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <p className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-1.5">{b.customer_name} <TrustPill trust={b.customer_trust} /></p>
-        {b.customer_mobile && <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{b.customer_mobile}</p>}
-        <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {b.pickup_address}</p>
+    <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-sans text-[14px] font-semibold text-[#1e293b] flex items-center gap-1.5">{b.customer_name} <TrustPill trust={b.customer_trust} /></p>
+          {b.customer_mobile && <a href={`tel:${b.customer_mobile}`} className="font-sans text-[11.5px] text-[#166534] font-semibold ltr-num underline">{b.customer_mobile}</a>}
+          <p className="font-sans text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {b.pickup_address}</p>
+        </div>
+        <div className="text-end shrink-0">
+          <p className="font-sans text-[11.5px] text-[#64748b] ltr-num">{b.hours}h</p>
+          <p className="font-bold text-[15px] text-[#166534] ltr-num">{fmt(b.base_amount_pkr)}</p>
+        </div>
       </div>
-      <div className="text-end shrink-0">
-        <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{b.hours}h</p>
-        <p className="font-heading text-[15px] font-bold text-dp-secondary ltr-num">{fmt(b.base_amount_pkr)}</p>
-      </div>
+      {b.pickup_lat != null && b.pickup_lng != null && (
+        <LeafletMap pins={[{ lat: b.pickup_lat, lng: b.pickup_lng, color: '#166534' }]} height={120} className="rounded-xl mt-2" />
+      )}
     </div>
   )
 }
