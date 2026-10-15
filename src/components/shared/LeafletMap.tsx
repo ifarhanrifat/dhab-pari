@@ -113,8 +113,8 @@ const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pin
       if (cancelled || !containerRef.current) return
       if (!mapRef.current) {
         mapRef.current = L.map(containerRef.current, { attributionControl: true })
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19, attribution: '© OpenStreetMap contributors',
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 19, attribution: 'Tiles © Esri',
         }).addTo(mapRef.current)
         mapRef.current.on('click', (e) => onMapClickRef.current?.(e.latlng.lat, e.latlng.lng))
       }

@@ -41,7 +41,7 @@ export default function LeafletPinPicker({ originLat, originLng, destinationLat,
         originLat && originLng ? [originLat, originLng] : [30.3753, 69.3451],
         originLat && originLng ? 12 : 5,
       )
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map)
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri' }).addTo(map)
       map.on('click', (e: { latlng: { lat: number; lng: number } }) => {
         const s = stateRef.current
         if (s.originLat == null) {

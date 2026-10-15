@@ -47,7 +47,7 @@ export default function LeafletSinglePinPicker({ lat, lng, onChange }: Props) {
       // which would wrongly report the Pakistan-wide default center as a
       // genuine user pick before any real interaction happened.
       const map = L.map(containerRef.current, { center: lat && lng ? [lat, lng] : [30.3753, 69.3451], zoom: lat && lng ? 15 : 5 })
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map)
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri' }).addTo(map)
 
       const emitCenter = () => {
         const c = map.getCenter()

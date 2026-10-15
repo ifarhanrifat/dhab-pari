@@ -43,7 +43,7 @@ interface TractorService { service_key: string; name_en: string; name_ur: string
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null
   machinery_hourly_rate_pkr: number | null; machinery_min_hours: number | null; machinery_mobilization_fee_pkr: number | null
-  loader_trip_rate_pkr: number | null; tractor_services: TractorService[] | null; cover_url: string | null
+  loader_trip_rate_pkr: number | null; tractor_services: TractorService[] | null; cover_url: string | null; avg_rating: number | null
 }
 interface Booking {
   id: string; kind: Kind; service_key: string | null; site_address: string; site_lat: number | null; site_lng: number | null; material: string | null
@@ -176,27 +176,37 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
           {vehicles.length === 0 ? (
             <p className="text-center py-10 text-[#94a3b8] text-[14px]">{noVehiclesHint}</p>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               {vehicles.map((v) => {
                 const rate = kind === 'machinery' ? v.machinery_hourly_rate_pkr : kind === 'loader' ? v.loader_trip_rate_pkr : (v.tractor_services?.[0]?.rate_pkr ?? 0)
+                const mob = kind === 'machinery' ? v.machinery_mobilization_fee_pkr : null
+                const terms = kind === 'machinery' && v.machinery_min_hours != null
+                  ? `${t('vp.minHoursHint').replace('{hours}', String(v.machinery_min_hours))} · ${mob ? `${t('vp.mobilizationFeeLabel')} ${fmt(mob)}` : t('vp.freeDeliveryLabel')}`
+                  : kind === 'tractor' && v.tractor_services && v.tractor_services.length > 0
+                  ? v.tractor_services.map((s) => (isUrdu ? s.name_ur : s.name_en)).join(', ')
+                  : null
                 return (
                   <button key={v.id} onClick={() => openBooking(v)}
-                    className="w-full flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden text-start cursor-pointer">
-                    <div className="w-16 h-16 bg-[#F9F9F6] shrink-0 flex items-center justify-center overflow-hidden">
+                    className="w-full flex items-stretch bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden text-start cursor-pointer shadow-[0_2px_6px_rgba(0,0,0,0.05)] min-h-[136px]">
+                    <div className="w-[34%] shrink-0 relative bg-[#F9F9F6] flex items-center justify-center overflow-hidden">
                       {v.cover_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
-                      ) : <Icon size={22} className="text-[#94a3b8]" />}
+                      ) : <Icon size={32} className="text-[#94a3b8]" />}
+                      {v.avg_rating != null && (
+                        <span className="absolute top-1.5 start-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#16a34a] text-white ltr-num">⭐ {v.avg_rating}</span>
+                      )}
                     </div>
-                    <div className="py-2.5 pe-1 shrink-0 min-w-[80px]">
-                      <p className="font-extrabold text-[16px] text-[#166534] ltr-num leading-tight">{fmt(rate ?? 0)}</p>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{kind === 'loader' ? t('vp.baseAmountSuffix') : `/${t('vp.hoursShort')}`}</p>
-                    </div>
-                    <div className="flex-1 min-w-0 py-2.5 pe-3 border-s border-[#f1f5f9] ps-3">
-                      <p className="text-[13.5px] font-bold text-[#1e293b] truncate">{v.model || v.vehicle_type}</p>
-                      <p className="text-[11px] text-[#64748b] mt-0.5 truncate">{v.owner_name}</p>
-                      {kind === 'machinery' && v.machinery_min_hours != null && <p className="text-[10.5px] text-[#64748b] mt-0.5 ltr-num">{t('vp.minHoursHint').replace('{hours}', String(v.machinery_min_hours))}</p>}
-                      {kind === 'tractor' && v.tractor_services && v.tractor_services.length > 0 && <p className="text-[10.5px] text-[#64748b] mt-0.5 truncate">{v.tractor_services.map((s) => (isUrdu ? s.name_ur : s.name_en)).join(', ')}</p>}
+                    <div className="flex-1 min-w-0 p-2.5 flex flex-col gap-0.5">
+                      <p className="text-[9px] font-bold uppercase tracking-[0.04em] text-[#16a34a]">{pageTitle}</p>
+                      <p className="text-[13.5px] font-bold text-[#005A36] truncate">{v.model || v.vehicle_type}</p>
+                      <p className="text-[9.5px] text-[#64748b] truncate">{v.owner_name}</p>
+                      <div className="flex items-baseline gap-1 mt-0.5">
+                        <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{fmt(rate ?? 0)}</span>
+                        <span className="text-[9.5px] text-[#64748b]">{kind === 'loader' ? t('vp.baseAmountSuffix') : `/${t('vp.hoursShort')}`}</span>
+                      </div>
+                      {terms && <p className="text-[9.5px] text-[#475569] truncate">{terms}</p>}
+                      <span className="mt-auto self-start rounded-[10px] px-3.5 py-1 bg-[#166534] text-white text-[11px] font-bold">{t('vp.bookNowBtn')}</span>
                     </div>
                   </button>
                 )

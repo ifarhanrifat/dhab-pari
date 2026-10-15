@@ -29,7 +29,7 @@ const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr
 
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
-  shadi_full_day_rate_pkr: number; cover_url: string | null
+  shadi_full_day_rate_pkr: number; cover_url: string | null; avg_rating: number | null
 }
 interface ShadiClass { class_key: string; name_en: string; name_ur: string; full_day_rate_pkr: number; free_km: number; per_extra_km_pkr: number }
 interface EventRequest { id: string; status: string }
@@ -174,22 +174,28 @@ export default function ShadiBookingPage() {
                     const picked = selectedIds.has(v.id)
                     return (
                       <button key={v.id} onClick={() => toggleSelect(v.id)}
-                        className="bg-white border-2 rounded-2xl overflow-hidden text-start cursor-pointer flex flex-col relative"
+                        className="bg-white border-2 rounded-xl overflow-hidden text-start cursor-pointer flex flex-col relative"
                         style={{ borderColor: picked ? '#166534' : '#e5e2d0' }}>
-                        {picked && <span className="absolute top-1.5 end-1.5 z-10 w-5 h-5 rounded-full bg-[#166534] text-white flex items-center justify-center"><Check size={12} /></span>}
-                        <div className="h-24 bg-[#F9F9F6] shrink-0 flex items-center justify-center">
+                        <div className="h-[70px] relative bg-[#F9F9F6] shrink-0 flex items-center justify-center">
                           {v.cover_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
                           ) : <Car size={26} className="text-[#94a3b8]" />}
+                          {v.color && (
+                            <span className="absolute bottom-1 start-1 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/90 text-[9px] font-bold text-[#1e293b]">
+                              <span className="w-2 h-2 rounded-full border border-[#cbd5e1] bg-[#cbd5e1]" /> {v.color}
+                            </span>
+                          )}
                         </div>
-                        <div className="p-2.5 flex-1 flex flex-col">
-                          <p className="text-[13px] font-bold text-[#1e293b] truncate">{v.model || v.vehicle_type}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            {v.color && <span className="text-[10px] text-[#64748b]">{v.color}</span>}
-                            {v.has_ac && <span className="flex items-center gap-0.5 text-[9.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={9} /> {t('mv.hasAcLabel')}</span>}
-                          </div>
-                          <p className="font-extrabold text-[15px] text-[#166534] ltr-num mt-auto pt-1.5">{fmt(v.shadi_full_day_rate_pkr)}<span className="font-normal text-[10px] text-[#64748b]">/{t('mv.perDayShort')}</span></p>
+                        <div className="p-2 flex-1 flex flex-col gap-0.5">
+                          <p className="text-[10.5px] font-bold text-[#1e293b] truncate">{v.model || v.vehicle_type}</p>
+                          <p className="text-[9px] text-[#64748b] truncate">{v.owner_name}{v.avg_rating != null ? ` · ⭐ ${v.avg_rating}` : ''}</p>
+                          {v.has_ac && <span className="self-start flex items-center gap-0.5 text-[8.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={8} /> {t('mv.hasAcLabel')}</span>}
+                          <p className="font-extrabold text-[11.5px] text-[#166534] ltr-num">{fmt(v.shadi_full_day_rate_pkr)}</p>
+                          <span className="mt-auto rounded-[9px] px-1 py-1 text-center text-[9.5px] font-bold"
+                            style={{ background: picked ? '#166534' : '#fff', color: picked ? '#fff' : '#166534', border: '1px solid #166534' }}>
+                            {picked ? `✓ ${t('vp.addedLabel')}` : `+ ${t('vp.addVehicleBtn')}`}
+                          </span>
                         </div>
                       </button>
                     )
