@@ -36,6 +36,7 @@ interface Vehicle {
   shadi_full_day_rate_pkr: number | null
   rental_base_pkr: number | null; rental_per_km_pkr: number | null; rental_wait_hour_pkr: number | null
   offers_machinery: boolean; machinery_hourly_rate_pkr: number | null; machinery_min_hours: number | null; machinery_mobilization_fee_pkr: number | null
+  machinery_hourly_rate_min_pkr: number | null; machinery_hourly_rate_max_pkr: number | null
   offers_tractor: boolean
   offers_loader: boolean; loader_trip_rate_pkr: number | null
 }
@@ -74,6 +75,7 @@ const emptyVehicle = {
   shadi_full_day_rate_pkr: null as number | null,
   rental_base_pkr: null as number | null, rental_per_km_pkr: null as number | null, rental_wait_hour_pkr: null as number | null,
   offers_machinery: false, machinery_hourly_rate_pkr: null as number | null, machinery_min_hours: null as number | null, machinery_mobilization_fee_pkr: null as number | null,
+  machinery_hourly_rate_min_pkr: null as number | null, machinery_hourly_rate_max_pkr: null as number | null,
   offers_tractor: false,
   offers_loader: false, loader_trip_rate_pkr: null as number | null,
 }
@@ -476,6 +478,7 @@ function AdminVehiclesInner() {
       shadi_full_day_rate_pkr: v.shadi_full_day_rate_pkr,
       rental_base_pkr: v.rental_base_pkr, rental_per_km_pkr: v.rental_per_km_pkr, rental_wait_hour_pkr: v.rental_wait_hour_pkr,
       offers_machinery: v.offers_machinery, machinery_hourly_rate_pkr: v.machinery_hourly_rate_pkr, machinery_min_hours: v.machinery_min_hours, machinery_mobilization_fee_pkr: v.machinery_mobilization_fee_pkr,
+      machinery_hourly_rate_min_pkr: v.machinery_hourly_rate_min_pkr, machinery_hourly_rate_max_pkr: v.machinery_hourly_rate_max_pkr,
       offers_tractor: v.offers_tractor,
       offers_loader: v.offers_loader, loader_trip_rate_pkr: v.loader_trip_rate_pkr,
     })
@@ -1019,10 +1022,15 @@ function AdminVehiclesInner() {
               </div>
 
               {/* Machinery / tractor / loader — the 3 verticals imported
-                  from the new "Dhab Pari Mobility" design. Rates stay
-                  admin-only like every other vehicle type (confirmed
-                  directly), so these are plain fields in this already
-                  admin-only form, not a separate owner self-service RPC. */}
+                  from the new "Dhab Pari Mobility" design. Tractor/loader
+                  rates stay admin-only like every other vehicle type
+                  (confirmed directly). Machinery is the one deliberate
+                  carve-out (666): a specific crane/excavator/bulldozer is
+                  a scarce, individually-priced asset, so the committee can
+                  optionally set a min/max band here and the owner can then
+                  self-set their own rate within it (set_own_machinery_rate,
+                  driver's vehicle page) -- leave the band blank and it
+                  stays fully admin-only exactly like today. */}
               <div className="pt-2 border-t border-dp-outline-variant/60">
                 <label className="flex items-center gap-2 cursor-pointer mb-1.5"><input type="checkbox" checked={vehicleForm.offers_machinery} onChange={(e) => setVehicleForm({ ...vehicleForm, offers_machinery: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px] font-semibold">{t('mk.offersMachineryLabel')}</span></label>
                 <div className="grid grid-cols-3 gap-2">
@@ -1031,6 +1039,11 @@ function AdminVehiclesInner() {
                   <input type="number" value={vehicleForm.machinery_mobilization_fee_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, machinery_mobilization_fee_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder={t('mk.machineryMobilizationPlaceholder')} />
                 </div>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.machineryRateHint')}</p>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <input type="number" value={vehicleForm.machinery_hourly_rate_min_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, machinery_hourly_rate_min_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder={t('mk.machineryRateBandMinPlaceholder')} />
+                  <input type="number" value={vehicleForm.machinery_hourly_rate_max_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, machinery_hourly_rate_max_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder={t('mk.machineryRateBandMaxPlaceholder')} />
+                </div>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.machineryRateBandHint')}</p>
               </div>
 
               <div>

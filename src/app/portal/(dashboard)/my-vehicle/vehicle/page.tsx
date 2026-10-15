@@ -10,8 +10,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { Truck, Phone, Lock, ChevronRight, Package, CalendarClock, ShoppingBag, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { friendlyError } from '@/lib/errors'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -24,6 +26,7 @@ interface Vehicle {
   offers_hourly: boolean; offers_shadi: boolean; offers_rental: boolean; offers_machinery: boolean; offers_tractor: boolean; offers_loader: boolean
   hourly_rate_pkr: number | null; shadi_full_day_rate_pkr: number | null
   machinery_hourly_rate_pkr: number | null; machinery_mobilization_fee_pkr: number | null
+  machinery_hourly_rate_min_pkr: number | null; machinery_hourly_rate_max_pkr: number | null
   loader_trip_rate_pkr: number | null; rental_base_pkr: number | null; rental_per_km_pkr: number | null
 }
 interface RegRequest { owner_id_card_url: string | null; license_url: string | null; vehicle_doc_url: string | null; driver_photo_url: string | null }
@@ -50,7 +53,7 @@ export default function MyVehicleVehiclePage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, owner_mobile, owner_whatsapp, vehicle_type, vehicle_number, total_seats, color, model, commission_mode, created_at, delivers, offers_hourly, offers_shadi, offers_rental, offers_machinery, offers_tractor, offers_loader, hourly_rate_pkr, shadi_full_day_rate_pkr, machinery_hourly_rate_pkr, machinery_mobilization_fee_pkr, loader_trip_rate_pkr, rental_base_pkr, rental_per_km_pkr')
+    supabase.from('vehicles').select('id, owner_name, owner_mobile, owner_whatsapp, vehicle_type, vehicle_number, total_seats, color, model, commission_mode, created_at, delivers, offers_hourly, offers_shadi, offers_rental, offers_machinery, offers_tractor, offers_loader, hourly_rate_pkr, shadi_full_day_rate_pkr, machinery_hourly_rate_pkr, machinery_mobilization_fee_pkr, machinery_hourly_rate_min_pkr, machinery_hourly_rate_max_pkr, loader_trip_rate_pkr, rental_base_pkr, rental_per_km_pkr')
       .eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
         setVehicle(data)
         if (data) {
@@ -67,6 +70,19 @@ export default function MyVehicleVehiclePage() {
         setLoading(false)
       })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [savingMachineryRate, setSavingMachineryRate] = useState(false)
+  const adjustMachineryRate = async (delta: number) => {
+    if (!vehicle?.machinery_hourly_rate_min_pkr || !vehicle.machinery_hourly_rate_max_pkr) return
+    const current = vehicle.machinery_hourly_rate_pkr ?? vehicle.machinery_hourly_rate_min_pkr
+    const next = Math.min(vehicle.machinery_hourly_rate_max_pkr, Math.max(vehicle.machinery_hourly_rate_min_pkr, current + delta))
+    if (next === current) return
+    setSavingMachineryRate(true)
+    const { error } = await supabase.rpc('set_own_machinery_rate', { p_vehicle_id: vehicle.id, p_rate_pkr: next })
+    setSavingMachineryRate(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    setVehicle((v) => v ? { ...v, machinery_hourly_rate_pkr: next } : v)
+  }
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!vehicle) return null
@@ -148,7 +164,16 @@ export default function MyVehicleVehiclePage() {
             {vehicle.offers_shadi && vehicle.shadi_full_day_rate_pkr != null && (
               <div className="flex items-center gap-2 px-4 py-2.5"><span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('mv.tab.shadi')}</span><span dir="ltr" className="font-sans text-[12.5px] font-extrabold text-[#166534] ltr-num">{fmt(vehicle.shadi_full_day_rate_pkr)}{t('vp.perFullDaySuffix')}</span></div>
             )}
-            {vehicle.offers_machinery && vehicle.machinery_hourly_rate_pkr != null && (
+            {vehicle.offers_machinery && vehicle.machinery_hourly_rate_min_pkr != null && vehicle.machinery_hourly_rate_max_pkr != null ? (
+              <div className="flex items-center gap-2 px-4 py-2.5">
+                <span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('mv.tab.equipment')}</span>
+                <div dir="ltr" className="flex items-center border border-[#e5e2d0] rounded-[9px] overflow-hidden">
+                  <button onClick={() => adjustMachineryRate(-100)} disabled={savingMachineryRate} className="w-7 h-7 border-0 bg-[#F9F9F6] text-[#166534] font-extrabold cursor-pointer disabled:opacity-50">−</button>
+                  <span className="min-w-[74px] text-center font-sans font-extrabold text-[12px] ltr-num">{fmt(vehicle.machinery_hourly_rate_pkr ?? vehicle.machinery_hourly_rate_min_pkr)}</span>
+                  <button onClick={() => adjustMachineryRate(100)} disabled={savingMachineryRate} className="w-7 h-7 border-0 bg-[#F9F9F6] text-[#166534] font-extrabold cursor-pointer disabled:opacity-50">+</button>
+                </div>
+              </div>
+            ) : vehicle.offers_machinery && vehicle.machinery_hourly_rate_pkr != null && (
               <div className="flex items-center gap-2 px-4 py-2.5"><span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('mv.tab.equipment')}</span><span dir="ltr" className="font-sans text-[12.5px] font-extrabold text-[#166534] ltr-num">{fmt(vehicle.machinery_hourly_rate_pkr)}{t('vp.perHourSuffix')}</span></div>
             )}
             {vehicle.offers_tractor && tractorServices.map((ts) => (
@@ -161,7 +186,11 @@ export default function MyVehicleVehiclePage() {
               <div className="flex items-center gap-2 px-4 py-2.5"><span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('vp.rentalPageTitle')}</span><span dir="ltr" className="font-sans text-[12.5px] font-extrabold text-[#166534] ltr-num">{fmt(vehicle.rental_base_pkr)}{vehicle.rental_per_km_pkr != null ? ` + ${fmt(vehicle.rental_per_km_pkr)}${t('vp.perKmSuffix')}` : ''}</span></div>
             )}
           </div>
-          <div className="px-4 py-2.5 bg-[#F9F9F6] font-sans text-[11px] text-[#64748b]">{t('vp.ratesLockNote')}</div>
+          <div className="px-4 py-2.5 bg-[#F9F9F6] font-sans text-[11px] text-[#64748b]">
+            {vehicle.offers_machinery && vehicle.machinery_hourly_rate_min_pkr != null && vehicle.machinery_hourly_rate_max_pkr != null
+              ? t('vp.ratesLockNoteWithMachineryBand').replace('{min}', fmt(vehicle.machinery_hourly_rate_min_pkr)).replace('{max}', fmt(vehicle.machinery_hourly_rate_max_pkr))
+              : t('vp.ratesLockNote')}
+          </div>
         </div>
       )}
 
