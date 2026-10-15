@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Truck, Phone, Lock, ChevronRight, Package, CalendarClock, ShoppingBag, CheckCircle2 } from 'lucide-react'
+import { Truck, Phone, Lock, ChevronRight, Package, CalendarClock, ShoppingBag, CheckCircle2, Route as RouteIcon, Megaphone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
@@ -216,6 +216,16 @@ export default function MyVehicleVehiclePage() {
         <Link href="/portal/my-vehicle/catalog" className="flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl p-3">
           <span className="shrink-0 w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center"><ShoppingBag size={16} className="text-[#166534]" /></span>
           <span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('mv.tab.catalog')}</span>
+          <ChevronRight size={16} className={`text-[#94a3b8] ${isUrdu ? 'rotate-180' : ''}`} />
+        </Link>
+        <Link href="/portal/my-vehicle/routes" className="flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl p-3">
+          <span className="shrink-0 w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center"><RouteIcon size={16} className="text-[#166534]" /></span>
+          <span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('mv.tab.routes')}</span>
+          <ChevronRight size={16} className={`text-[#94a3b8] ${isUrdu ? 'rotate-180' : ''}`} />
+        </Link>
+        <Link href="/portal/my-vehicle/ilan" className="flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl p-3">
+          <span className="shrink-0 w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center"><Megaphone size={16} className="text-[#166534]" /></span>
+          <span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('mv.tab.ilan')}</span>
           <ChevronRight size={16} className={`text-[#94a3b8] ${isUrdu ? 'rotate-180' : ''}`} />
         </Link>
       </div>

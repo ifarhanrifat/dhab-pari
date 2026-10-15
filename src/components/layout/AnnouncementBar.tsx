@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Megaphone } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface TickerMessage {
@@ -25,6 +25,13 @@ interface EmergencyBroadcast {
   severity: 'emergency' | 'ilaan'
   title_ur: string
   body_ur: string
+}
+
+interface PaidIlan {
+  id: string
+  title_ur: string
+  body_ur: string
+  contact_mobile: string | null
 }
 
 const SEPARATOR = '    ——    '
@@ -152,6 +159,7 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   const [messages, setMessages] = useState<TickerMessage[]>([])
   const [appeals, setAppeals] = useState<Appeal[]>([])
   const [networkAlerts, setNetworkAlerts] = useState<EmergencyBroadcast[]>([])
+  const [paidIlans, setPaidIlans] = useState<PaidIlan[]>([])
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -167,6 +175,17 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
       .select('id, severity, title_ur, body_ur')
       .order('created_at', { ascending: false })
     setNetworkAlerts((eb ?? []) as EmergencyBroadcast[])
+
+    // Paid ticker-placement commercial ilans (migration 671) — run by
+    // the platform team, unrelated to the free belts above. RLS already
+    // restricts this to currently-live, approved, unpaused campaigns
+    // targeted at this viewer's own tenant.
+    const { data: ci } = await supabase
+      .from('commercial_ilans')
+      .select('id, title_ur, body_ur, contact_mobile')
+      .eq('placement', 'ticker')
+      .order('created_at', { ascending: false })
+    setPaidIlans((ci ?? []) as PaidIlan[])
 
     // Real ask, 2026-10-01: the calm belt now runs on every surface, not
     // just the public site — portal and admin get it too. Appeal-sourced
@@ -205,7 +224,10 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   const networkTrack = networkAlerts.map((b) => `${networkLabel(b)}  ●  ${b.title_ur}  ●  ${b.body_ur}`).join(SEPARATOR)
   const networkTicker = useScrollTicker(networkTrack, isUrdu)
 
-  if (messages.length === 0 && appeals.length === 0 && networkAlerts.length === 0) return null
+  const paidTrack = paidIlans.map((p) => `${p.title_ur}  ●  ${p.body_ur}${p.contact_mobile ? `  ●  ${p.contact_mobile}` : ''}`).join(SEPARATOR)
+  const paidTicker = useScrollTicker(paidTrack, isUrdu)
+
+  if (messages.length === 0 && appeals.length === 0 && networkAlerts.length === 0 && paidIlans.length === 0) return null
 
   // Real ask, 2026-10-01: "for emergency that new belt will display in
   // red background, while for the other ilans... yellow with Black
@@ -273,6 +295,20 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
           </div>
         )
       })()}
+
+      {paidIlans.length > 0 && (
+        <div className="bg-[#1a1f2e] text-white h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[57] print:hidden">
+          <span className="shrink-0 flex items-center gap-1.5 h-full px-3 bg-white/10 font-sans text-[12px] font-bold tracking-[0.06em]">
+            <Megaphone size={14} className="shrink-0" /> <span className="hidden sm:inline">{t('il.sponsoredLabel')}</span>
+          </span>
+          <div ref={paidTicker.containerRef} dir={isUrdu ? 'rtl' : 'ltr'} className="flex-1 min-w-0 overflow-hidden">
+            <div className="ticker-track text-[13px] font-sans font-semibold tracking-[0.03em]">
+              <span className="px-4">{paidTrack}</span>
+              <span className="px-4">{SEPARATOR}{paidTrack}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

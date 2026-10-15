@@ -11,13 +11,21 @@
 // from the Jobs tab's route rows or the Home screen's quick link.
 
 import { useEffect, useState } from 'react'
-import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+
+const DAYS = [0, 1, 2, 3, 4, 5, 6]
+const emptyRouteForm = {
+  origin: '', origin_ur: '', destination: '', destination_ur: '',
+  classification: 'intercity', fare_mode: 'fixed', total_fare_pkr: '' as string | number,
+  departure_time: '', days_of_week: [] as number[],
+}
 
 interface Booking {
   id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null
@@ -33,6 +41,7 @@ export default function MyVehicleRoutesPage() {
   const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
+  const router = useRouter()
 
   const [vehicleId, setVehicleId] = useState<string | null>(null)
   const [commissionMode, setCommissionMode] = useState<string | null>(null)
@@ -41,6 +50,9 @@ export default function MyVehicleRoutesPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [actionId, setActionId] = useState<string | null>(null)
   const [closingRouteId, setClosingRouteId] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState(emptyRouteForm)
+  const [posting, setPosting] = useState(false)
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
@@ -88,6 +100,37 @@ export default function MyVehicleRoutesPage() {
     toast.success(n > 0 ? t('mp.routeClosedWithBookingsToast').replace('{n}', String(n)) : t('mp.routeClosedToast'))
     if (vehicleId) reload(vehicleId)
   }
+  const toggleDay = (d: number) => {
+    setForm((f) => ({ ...f, days_of_week: f.days_of_week.includes(d) ? f.days_of_week.filter((x) => x !== d) : [...f.days_of_week, d].sort() }))
+  }
+
+  const postRoute = async () => {
+    if (!vehicleId || !form.origin.trim() || !form.destination.trim()) { toast.error(t('mk.nameRequired')); return }
+    if (form.days_of_week.length === 0) { toast.error(t('mv.pickAtLeastOneDayError')); return }
+    const totalFare = Number(form.total_fare_pkr)
+    if (!totalFare || totalFare <= 0) { toast.error(t('mv.enterTotalFareError')); return }
+    setPosting(true)
+    const { data, error } = await supabase.rpc('create_vehicle_route_self', {
+      p_vehicle_id: vehicleId,
+      p_origin: form.origin, p_origin_ur: form.origin_ur || null,
+      p_destination: form.destination, p_destination_ur: form.destination_ur || null,
+      p_classification: form.classification, p_fare_mode: form.fare_mode, p_total_fare_pkr: totalFare,
+      p_departure_time: form.departure_time || null, p_days_of_week: form.days_of_week,
+    })
+    setPosting(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.routePosted'))
+    setShowForm(false)
+    const routeId = data as string
+    const originLabel = form.origin
+    const destinationLabel = form.destination
+    setForm(emptyRouteForm)
+    if (vehicleId) reload(vehicleId)
+    if (confirm(t('mv.advertiseThisRidePrompt'))) {
+      router.push(`/portal/my-vehicle/ilan?route=${routeId}&origin=${encodeURIComponent(originLabel)}&destination=${encodeURIComponent(destinationLabel)}`)
+    }
+  }
+
   const cancelConfirmedBooking = async (id: string) => {
     if (!confirm(t('mp.confirmCancelConfirmedHint'))) return
     const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
@@ -104,7 +147,54 @@ export default function MyVehicleRoutesPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="font-bold text-[20px] text-[#005A36] flex items-center gap-2"><Signpost size={19} /> {t('mp.myRoutesHeading')}</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="font-bold text-[20px] text-[#005A36] flex items-center gap-2"><Signpost size={19} /> {t('mp.myRoutesHeading')}</h1>
+        <button onClick={() => setShowForm((v) => !v)} className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-semibold cursor-pointer">
+          <Plus size={14} /> {t('mv.postRouteBtn')}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5 flex flex-col gap-2.5">
+          <p className="font-sans text-[13px] font-bold text-[#1e293b]">{t('mv.postRouteHeading')}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <input value={form.origin} onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))} placeholder={t('mv.originPlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            <input value={form.origin_ur} onChange={(e) => setForm((f) => ({ ...f, origin_ur: e.target.value }))} placeholder={t('mv.originUrPlaceholder')} dir="rtl" className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            <input value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} placeholder={t('mv.destinationPlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            <input value={form.destination_ur} onChange={(e) => setForm((f) => ({ ...f, destination_ur: e.target.value }))} placeholder={t('mv.destinationUrPlaceholder')} dir="rtl" className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <select value={form.classification} onChange={(e) => setForm((f) => ({ ...f, classification: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+              <option value="intercity">{t('mv.classification.intercity')}</option>
+              <option value="out_of_city">{t('mv.classification.out_of_city')}</option>
+            </select>
+            <select value={form.fare_mode} onChange={(e) => setForm((f) => ({ ...f, fare_mode: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+              <option value="fixed">{t('mv.fareMode.fixed')}</option>
+              <option value="flex">{t('mv.fareMode.flex')}</option>
+            </select>
+          </div>
+          <input type="number" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+          <div>
+            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
+            <input type="time" value={form.departure_time} onChange={(e) => setForm((f) => ({ ...f, departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+          </div>
+          <div>
+            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {DAYS.map((d) => (
+                <button key={d} type="button" onClick={() => toggleDay(d)} className={`px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${form.days_of_week.includes(d) ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                  {t(`mv.dayShort.${d}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button onClick={postRoute} disabled={posting} className="mt-1 px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
+            {t('mv.postRouteSubmitBtn')}
+          </button>
+        </div>
+      )}
+
+      {routes.length === 0 && !showForm && <p className="font-sans text-[13px] text-[#94a3b8] text-center py-6">{t('mv.noRoutesYet')}</p>}
 
       {routes.length > 0 && (
         <div className="flex flex-col gap-2">

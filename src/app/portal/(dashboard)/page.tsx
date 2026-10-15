@@ -9,6 +9,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalBadgeCard } from '@/components/portal/PortalBadgeCard'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { DownloadAppBanner } from '@/components/portal/DownloadAppBanner'
+import { IlanBanner } from '@/components/portal/IlanBanner'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { ImageSlot2 } from '@/components/design2/ImageSlot2'
 
@@ -167,6 +168,7 @@ export default function PortalDashboardPage() {
       </div>
 
       <DownloadAppBanner />
+      <IlanBanner />
 
       {user.donor_account_id && <PortalBadgeCard portalUserId={user.id} totalDonated={totalDonated} />}
 
