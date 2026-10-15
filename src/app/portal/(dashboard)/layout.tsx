@@ -10,14 +10,24 @@ import { WelcomeTour } from '@/components/portal/WelcomeTour'
 
 // The "Dhab Pari Mobility" screens (my-vehicle/* and the marketplace/
 // (mobility)/* route group) render their own MobilityHeader — real bug
-// found auditing against the design: both headers rendered stacked
-// (two logos, two language toggles), since this layout used to render
+// found auditing against the design: both headers rendered stacked (two
+// logos, two language toggles), since this layout used to render
 // PortalHeader unconditionally on every /portal/(dashboard) route. The
-// design's own header has no hamburger/sidebar at all (bottom-nav covers
-// every mobility screen), so skipping both here for these routes isn't
-// a loss of function — MobilityHeader's own bell-link (added alongside
-// this fix) replaces PortalHeader's embedded PortalNotificationBell for
-// just these routes, without mounting a second Realtime subscription.
+// design's own header has no hamburger at all (bottom-nav covers every
+// mobility screen), so skipping it here for these routes isn't a loss of
+// function — MobilityHeader's own bell-link (added alongside this fix)
+// replaces PortalHeader's embedded PortalNotificationBell for just these
+// routes, without mounting a second Realtime subscription.
+//
+// PortalSidebar itself is NOT part of that fix and must stay — a real
+// regression reported live: on a desktop browser this is still a
+// *webpage*, not a standalone app taking over the window, and the portal's
+// own site navigation has to stay reachable from every page including
+// these. (It's already `hidden md:flex` — invisible on an actual phone —
+// so this was never a mobile-vs-desktop tradeoff, just an overreach that
+// hid real site nav on desktop for no reason.) The mobility content area
+// still gets its own centered, capped-width "phone frame" look inside
+// whatever space remains to the sidebar's right.
 const MOBILITY_MARKETPLACE_SLUGS = ['travel', 'results', 'hourly', 'rental', 'shadi', 'machinery', 'tractor', 'loader', 'trips', 'negotiations', 'account', 'city-purchase', 'notifications']
 function isMobilityRoute(pathname: string) {
   if (pathname.startsWith('/portal/my-vehicle')) return true
@@ -32,8 +42,8 @@ export default function PortalDashboardLayout({ children }: { children: React.Re
   return (
     <div className="portal-shell flex min-h-screen bg-dp2-surface">
       <WelcomeTour />
-      {!isMobility && <PortalSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />}
-      <div className={`flex-1 min-w-0 print:ml-0 ${isMobility ? '' : 'md:ml-[210px]'}`}>
+      <PortalSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+      <div className="flex-1 min-w-0 md:ml-[210px] print:ml-0">
         {/* Real ask, live on device: "the news belt still runs under the
             language toggle and profile, it should display at the top of
             everything" — the public site renders AnnouncementBar BEFORE

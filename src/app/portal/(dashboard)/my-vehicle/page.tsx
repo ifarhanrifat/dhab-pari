@@ -26,6 +26,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { MapPin, Bus, Route as RouteIcon, Users2, CalendarClock, ChevronRight, AlertCircle, Megaphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -34,6 +35,24 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext'
+import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
+import { SITE } from '@/lib/constants'
+
+const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
+
+// Real gap found live ("there was a map... where driver was creating
+// route and ilaan"): the design's own destination picker for this panel
+// opens a map (drag/tap a pin), same shape as `LocationPickerSheet` —
+// already the established picker for hourly pickup/shadi venue/equipment
+// site elsewhere in this app. The quick-publish panel below used flat
+// city-name buttons instead, with no map at all. Reuses that same
+// component now instead of inventing a second, different picker.
+function haversineKm(a: [number, number], b: [number, number]) {
+  const R = 6371, rad = (x: number) => (x * Math.PI) / 180
+  const dLat = rad(b[0] - a[0]), dLng = rad(b[1] - a[1])
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
 
 interface Vehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string; is_online: boolean; total_seats: number }
 interface Summary {
@@ -64,10 +83,12 @@ export default function MyVehicleHomePage() {
 
   const [rideEligible, setRideEligible] = useState(false)
   const [myTripOffers, setMyTripOffers] = useState<TripOffer[]>([])
-  const [destination, setDestination] = useState<City | null>(null)
+  const [destination, setDestination] = useState<PickedLocation | null>(null)
+  const [showDestPicker, setShowDestPicker] = useState(false)
   const [departureChoice, setDepartureChoice] = useState<number | 'tomorrow'>(60)
   const [seats, setSeats] = useState(4)
   const [fare, setFare] = useState(300)
+  const [fareTouched, setFareTouched] = useState(false)
   const [publishing, setPublishing] = useState(false)
 
   const reloadPresence = async (vehicleId: string) => {
@@ -143,19 +164,28 @@ export default function MyVehicleHomePage() {
       travelDate = dep
       timeEstimate = `${String(dep.getHours()).padStart(2, '0')}:${String(dep.getMinutes()).padStart(2, '0')}`
     }
+    const distanceKm = Math.round(haversineKm([SITE.lat, SITE.lng], [destination.lat, destination.lng]) * 1.3)
     const { error } = await supabase.rpc('place_trip_offer', {
       p_vehicle_id: vehicle.id, p_trip_type: 'oneway',
       p_origin: t('vp.myAreaOriginLabel'), p_origin_ur: isUrdu ? t('vp.myAreaOriginLabel') : null,
-      p_destination: destination.name, p_destination_ur: destination.name_ur,
+      p_destination: destination.label, p_destination_ur: isUrdu ? destination.label : null,
       p_classification: 'intercity', p_travel_date: travelDate.toISOString().slice(0, 10), p_departure_time_estimate: timeEstimate,
       p_seats_available: seats, p_listed_fare_per_seat_pkr: fare,
+      p_distance_km: distanceKm, p_dest_lat: destination.lat, p_dest_lng: destination.lng,
     })
     setPublishing(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('cm.tripPostedToast'))
     setDestination(null)
+    setFareTouched(false)
     reloadTripOffers(vehicle.id)
   }
+
+  const suggestedFare = destination ? Math.max(50, Math.round((haversineKm([SITE.lat, SITE.lng], [destination.lat, destination.lng]) * 1.3 * 9) / 10) * 10) : null
+  useEffect(() => {
+    if (suggestedFare != null && !fareTouched) setFare(suggestedFare)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestedFare])
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!vehicle) return null // layout's own guard already handled the no-vehicle case
@@ -214,14 +244,14 @@ export default function MyVehicleHomePage() {
           <p className="font-sans text-[12px] font-bold text-[#005A36] flex items-center gap-1.5"><Megaphone size={14} /> {t('vp.publishRideHeading')}</p>
           <p className="font-sans text-[10.5px] text-[#64748b]">{t('vp.publishRideHint')}</p>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-            {cities.map((c) => (
-              <button key={c.id} onClick={() => setDestination(c)} className="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-sans font-semibold cursor-pointer"
-                style={{ background: destination?.id === c.id ? '#166534' : '#F9F9F6', color: destination?.id === c.id ? '#fff' : '#334155', border: `1px solid ${destination?.id === c.id ? '#166534' : '#e5e2d0'}` }}>
-                📍 {isUrdu && c.name_ur ? c.name_ur : c.name}
-              </button>
-            ))}
-          </div>
+          <button onClick={() => setShowDestPicker(true)} className="w-full flex items-center gap-2.5 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer">
+            <span className="shrink-0 w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center"><MapPin size={14} className="text-[#D4AF37]" /></span>
+            <span className={`flex-1 min-w-0 text-[12.5px] truncate ${destination ? 'font-bold text-[#1e293b]' : 'text-[#94a3b8]'}`}>{destination ? destination.label : t('vp.pickDestinationPlaceholder')}</span>
+            <span className="shrink-0 font-sans text-[10.5px] font-bold text-[#166534]">🗺️ {t('vp.changeLocationBtn')}</span>
+          </button>
+          {destination && (
+            <LeafletMap pins={[{ lat: destination.lat, lng: destination.lng, color: '#D4AF37' }]} height={120} className="rounded-xl" />
+          )}
 
           <div className="flex items-center gap-1.5 flex-wrap">
             {depChips.map((c) => (
@@ -244,9 +274,9 @@ export default function MyVehicleHomePage() {
             <div className="flex flex-col gap-1">
               <span className="font-sans text-[10.5px] font-semibold text-[#334155]">{t('cm.listedFareLabel')}</span>
               <div dir="ltr" className="flex items-center border border-[#e5e2d0] rounded-lg overflow-hidden">
-                <button onClick={() => setFare((f) => Math.max(50, f - 50))} className="w-8 h-8 border-0 bg-[#F9F9F6] text-[#166534] font-bold cursor-pointer">−</button>
+                <button onClick={() => { setFareTouched(true); setFare((f) => Math.max(50, f - 50)) }} className="w-8 h-8 border-0 bg-[#F9F9F6] text-[#166534] font-bold cursor-pointer">−</button>
                 <span className="flex-1 text-center font-bold text-[13px] ltr-num">{fmt(fare)}</span>
-                <button onClick={() => setFare((f) => f + 50)} className="w-8 h-8 border-0 bg-[#F9F9F6] text-[#166534] font-bold cursor-pointer">+</button>
+                <button onClick={() => { setFareTouched(true); setFare((f) => f + 50) }} className="w-8 h-8 border-0 bg-[#F9F9F6] text-[#166534] font-bold cursor-pointer">+</button>
               </div>
             </div>
           </div>
@@ -315,6 +345,16 @@ export default function MyVehicleHomePage() {
           <span className="font-sans text-[12.5px] font-bold text-[#1e293b]">{t('mv.tab.weekend')}</span>
         </Link>
       </div>
+
+      {showDestPicker && (
+        <LocationPickerSheet
+          title={t('vp.pickDestinationPlaceholder')}
+          initial={destination}
+          defaultCenter={[SITE.lat, SITE.lng]}
+          onClose={() => setShowDestPicker(false)}
+          onConfirm={(loc) => { setDestination(loc); setShowDestPicker(false) }}
+        />
+      )}
     </div>
   )
 }
