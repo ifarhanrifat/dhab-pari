@@ -43,8 +43,15 @@ interface Booking {
   trip_type: 'one' | 'return'; wait_hours: number; km: number; status: string; decline_reason: string | null; pin: string | null
   base_amount_pkr: number; trip_amount_pkr: number; wait_amount_pkr: number; total_amount_pkr: number
   requested_at: string; started_at: string | null; ended_at: string | null
+  notes: string | null; payment_method: string
   vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null; color: string | null
 }
+
+const PAYMENT_METHODS: { key: string; emoji: string; labelKey: string }[] = [
+  { key: 'cash', emoji: '💵', labelKey: 'mb.payCash' },
+  { key: 'jazzcash', emoji: '📱', labelKey: 'mb.payJazzCash' },
+  { key: 'easypaisa', emoji: '📲', labelKey: 'mb.payEasypaisa' },
+]
 
 function fmt(n: number) {
   return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -70,6 +77,8 @@ export default function RentalPage() {
   const [fromLoc, setFromLoc] = useState<PickedLocation | null>(null)
   const [toLoc, setToLoc] = useState<PickedLocation | null>(null)
   const [showPicker, setShowPicker] = useState<'from' | 'to' | null>(null)
+  const [notes, setNotes] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('cash')
   const [requesting, setRequesting] = useState(false)
 
   const loadVehicles = () => supabase.rpc('rental_bookable_vehicles').then(({ data }) => setVehicles((data ?? []) as Vehicle[]))
@@ -88,7 +97,7 @@ export default function RentalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, bookings])
 
-  const openBooking = (v: Vehicle) => { setOpenVehicle(v); setTripType('one'); setWaitHours(0); setFromLoc(null); setToLoc(null) }
+  const openBooking = (v: Vehicle) => { setOpenVehicle(v); setTripType('one'); setWaitHours(0); setFromLoc(null); setToLoc(null); setNotes(''); setPaymentMethod('cash') }
   const bookAgain = (vehicleId: string) => {
     setTab('browse')
     const v = vehicles.find((x) => x.id === vehicleId)
@@ -113,6 +122,7 @@ export default function RentalPage() {
     const { error } = await supabase.rpc('create_rental_booking', {
       p_vehicle_id: openVehicle.id, p_from_address: fromLoc.label, p_from_lat: fromLoc.lat, p_from_lng: fromLoc.lng,
       p_to_address: toLoc.label, p_to_lat: toLoc.lat, p_to_lng: toLoc.lng, p_trip_type: tripType, p_wait_hours: tripType === 'return' ? waitHours : 0,
+      p_notes: notes.trim() || null, p_payment_method: paymentMethod,
     })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -195,6 +205,7 @@ export default function RentalPage() {
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5 text-[#166534]" /> {b.from_address}</p>
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5 text-[#b91c1c]" /> {b.to_address}</p>
                     <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">{fmt(b.km)}km · {b.trip_type === 'return' ? t('vp.returnTripLabel') : t('vp.oneWayLabel')} · {fmt(b.total_amount_pkr)}</p>
+                    {b.notes && <p className="text-[11.5px] text-[#64748b] mt-0.5 italic">&ldquo;{b.notes}&rdquo;</p>}
                     {(b.status === 'accepted' || b.status === 'in_progress') && (
                       <span className="flex items-center gap-3 mt-1">
                         <CallButton phone={b.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-[#166534]" />
@@ -304,6 +315,21 @@ export default function RentalPage() {
             </>
           )}
 
+          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.notesLabel')}</label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t('vp.rentalNotesPlaceholder')}
+            className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13px] resize-none mb-3" />
+
+          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('mb.paymentMethodsHeading')}</label>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {PAYMENT_METHODS.map((p) => (
+              <button key={p.key} onClick={() => setPaymentMethod(p.key)}
+                className="px-2.5 py-1.5 rounded-full text-[12px] font-semibold cursor-pointer border"
+                style={{ background: paymentMethod === p.key ? '#166534' : '#fff', color: paymentMethod === p.key ? '#fff' : '#334155', borderColor: paymentMethod === p.key ? '#166534' : '#e5e2d0' }}>
+                {p.emoji} {t(p.labelKey)}
+              </button>
+            ))}
+          </div>
+
           <div className="bg-[#F9F9F6] rounded-xl p-3 mb-3">
             <div className="flex items-center justify-between text-[13px]">
               <span className="text-[#64748b]">{t('vp.rentalBaseFareLabel')}</span>
@@ -326,6 +352,8 @@ export default function RentalPage() {
               <span className="font-extrabold text-[#005A36] ltr-num">{fmt(estimatedTotal)}</span>
             </div>
           </div>
+
+          <p className="flex items-start gap-1.5 text-[11px] text-[#64748b] mb-3"><AlertCircle size={12} className="shrink-0 mt-0.5 text-[#166534]" /> {t('vp.noAdvanceExplainer')}</p>
 
           <button onClick={submitRequest} disabled={requesting} className="w-full bg-[#166534] text-white rounded-xl py-3 font-semibold cursor-pointer disabled:opacity-50">
             {requesting ? t('action.saving') : t('vp.sendRequestBtn')}

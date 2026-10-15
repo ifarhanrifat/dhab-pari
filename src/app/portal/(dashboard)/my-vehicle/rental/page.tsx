@@ -32,6 +32,7 @@ interface Booking {
   trip_type: 'one' | 'return'; wait_hours: number; km: number; status: string; decline_reason: string | null
   base_amount_pkr: number; trip_amount_pkr: number; wait_amount_pkr: number; total_amount_pkr: number; status_confirmed: boolean
   requested_at: string; started_at: string | null; ended_at: string | null
+  notes: string | null; payment_method: string
   customer_portal_user_id: string; customer_name: string; customer_mobile: string | null; customer_trust: Trust | null
 }
 
@@ -263,6 +264,7 @@ function BookingHeader({ b }: { b: Booking }) {
             <ChatButton refType="rental_booking" refId={b.id} basePath="/portal/my-vehicle/chat" className="inline-flex items-center gap-1 font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer" />
           </span>
           <p className="font-sans text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5 text-[#166534]" /> {b.from_address}</p>
+          {b.notes && <p className="font-sans text-[11.5px] text-[#64748b] mt-0.5 italic">&ldquo;{b.notes}&rdquo;</p>}
           <p className="font-sans text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5 text-[#b91c1c]" /> {b.to_address}</p>
         </div>
         <div className="text-end shrink-0">

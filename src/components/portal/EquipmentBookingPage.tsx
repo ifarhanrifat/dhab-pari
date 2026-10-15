@@ -51,8 +51,15 @@ interface Booking {
   requested_hours: number | null; status: string; rate_pkr: number; mobilization_fee_pkr: number
   actual_hours: number | null; total_amount_pkr: number | null
   requested_at: string; started_at: string | null; ended_at: string | null; pin: string | null
+  notes: string | null; payment_method: string
   vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null; color: string | null
 }
+
+const PAYMENT_METHODS: { key: string; emoji: string; labelKey: string }[] = [
+  { key: 'cash', emoji: '💵', labelKey: 'mb.payCash' },
+  { key: 'jazzcash', emoji: '📱', labelKey: 'mb.payJazzCash' },
+  { key: 'easypaisa', emoji: '📲', labelKey: 'mb.payEasypaisa' },
+]
 
 const MATERIALS = ['bricks', 'sand', 'bajri', 'soil', 'crop', 'other']
 
@@ -83,6 +90,8 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
   const [material, setMaterial] = useState('bricks')
   const [siteLoc, setSiteLoc] = useState<PickedLocation | null>(null)
   const [showPicker, setShowPicker] = useState(false)
+  const [notes, setNotes] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('cash')
   const [requesting, setRequesting] = useState(false)
 
   const loadVehicles = () => supabase.rpc('equipment_bookable_vehicles', { p_kind: kind }).then(({ data }) => setVehicles((data ?? []) as Vehicle[]))
@@ -108,6 +117,8 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
     setServiceKey(v.tractor_services?.[0]?.service_key ?? '')
     setMaterial('bricks')
     setSiteLoc(null)
+    setNotes('')
+    setPaymentMethod('cash')
   }
 
   const bookAgain = (vehicleId: string) => {
@@ -132,6 +143,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
       p_site_address: siteLoc.label,
       p_material: kind === 'loader' ? material : null,
       p_site_lat: siteLoc.lat, p_site_lng: siteLoc.lng,
+      p_notes: notes.trim() || null, p_payment_method: paymentMethod,
     })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -229,6 +241,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
                     <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">
                       {b.requested_hours != null ? `${b.requested_hours} ${t('vp.hoursShort')} · ` : ''}{fmt(b.rate_pkr)}{kind === 'loader' ? '' : `/${t('vp.hoursShort')}`}
                     </p>
+                    {b.notes && <p className="text-[11.5px] text-[#64748b] mt-0.5 italic">&ldquo;{b.notes}&rdquo;</p>}
                     {(b.status === 'accepted' || b.status === 'in_progress') && (
                       <span className="flex items-center gap-3 mt-1">
                         <CallButton phone={b.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-[#166534]" />
@@ -347,6 +360,21 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
             <span className={`text-[13.5px] truncate ${siteLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{siteLoc ? siteLoc.label : t('vp.siteAddressPlaceholder')}</span>
           </button>
 
+          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.notesLabel')}</label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t('vp.equipmentNotesPlaceholder')}
+            className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13px] resize-none mb-3" />
+
+          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('mb.paymentMethodsHeading')}</label>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {PAYMENT_METHODS.map((p) => (
+              <button key={p.key} onClick={() => setPaymentMethod(p.key)}
+                className="px-2.5 py-1.5 rounded-full text-[12px] font-semibold cursor-pointer border"
+                style={{ background: paymentMethod === p.key ? '#166534' : '#fff', color: paymentMethod === p.key ? '#fff' : '#334155', borderColor: paymentMethod === p.key ? '#166534' : '#e5e2d0' }}>
+                {p.emoji} {t(p.labelKey)}
+              </button>
+            ))}
+          </div>
+
           <div className="bg-[#F9F9F6] rounded-xl p-3 mb-3">
             <div className="flex items-center justify-between text-[13px]">
               <span className="text-[#64748b]">{kind === 'loader' ? t('vp.baseAmountSuffix') : `${fmt(unitRate)} × ${hours}${t('vp.hoursShort')}`}</span>
@@ -359,6 +387,8 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
               </div>
             )}
           </div>
+
+          <p className="flex items-start gap-1.5 text-[11px] text-[#64748b] mb-3"><AlertCircle size={12} className="shrink-0 mt-0.5 text-[#166534]" /> {t('vp.noAdvanceExplainer')}</p>
 
           <button onClick={submitRequest} disabled={requesting || (kind === 'tractor' && !serviceKey)} className="w-full bg-[#166534] text-white rounded-xl py-3 font-semibold cursor-pointer disabled:opacity-50">
             {requesting ? t('action.saving') : t('vp.sendRequestBtn')}

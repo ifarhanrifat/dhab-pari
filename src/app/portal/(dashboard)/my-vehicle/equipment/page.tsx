@@ -33,6 +33,7 @@ interface Booking {
   requested_hours: number | null; status: string; decline_reason: string | null
   rate_pkr: number; mobilization_fee_pkr: number; actual_hours: number | null; total_amount_pkr: number | null
   requested_at: string; started_at: string | null; ended_at: string | null; status_confirmed: boolean
+  notes: string | null; payment_method: string
   customer_portal_user_id: string; customer_name: string; customer_mobile: string | null
 }
 
@@ -277,6 +278,7 @@ function BookingHeader({ b, label }: { b: Booking; label: string }) {
             <ChatButton refType="equipment_booking" refId={b.id} basePath="/portal/my-vehicle/chat" className="inline-flex items-center gap-1 font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer" />
           </span>
           <p className="font-sans text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {b.site_address}</p>
+          {b.notes && <p className="font-sans text-[11.5px] text-[#64748b] mt-0.5 italic">&ldquo;{b.notes}&rdquo;</p>}
         </div>
         <div className="text-end shrink-0">
           <p className="font-sans text-[11.5px] text-[#64748b] ltr-num">{label}</p>
