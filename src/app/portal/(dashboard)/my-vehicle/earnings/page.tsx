@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Wallet, MessageCircle } from 'lucide-react'
+import { Wallet, MessageCircle, Lock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -22,6 +22,7 @@ interface Summary {
   last_settlement_date: string | null; last_settlement_amount: number | null
 }
 interface LedgerRow { kind: string; label: string; amount: number; at: string }
+interface PendingTopup { id: string; amount_pkr: number; announced_at: string }
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -33,27 +34,31 @@ export default function MyVehicleEarningsPage() {
   const supabase = createClient()
 
   const [vehicleId, setVehicleId] = useState<string | null>(null)
+  const [ownerMobile, setOwnerMobile] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [summary, setSummary] = useState<Summary | null>(null)
   const [ledger, setLedger] = useState<LedgerRow[]>([])
+  const [pendingTopups, setPendingTopups] = useState<PendingTopup[]>([])
   const [showTopup, setShowTopup] = useState(false)
   const [negotiationInbox, setNegotiationInbox] = useState<{ id: string; kind: string; status: string; item: string | null; last_message: string | null; as_role: string }[]>([])
 
   const reload = async (id: string) => {
-    const [{ data: s }, { data: led }, { data: inbox }] = await Promise.all([
+    const [{ data: s }, { data: led }, { data: inbox }, { data: topups }] = await Promise.all([
       supabase.rpc('vehicle_dashboard_summary', { p_vehicle_id: id }),
       supabase.rpc('vehicle_today_ledger', { p_vehicle_id: id }),
       supabase.rpc('my_negotiation_threads'),
+      supabase.from('vehicle_wallet_topups').select('id, amount_pkr, announced_at').eq('vehicle_id', id).eq('status', 'announced').order('announced_at', { ascending: false }),
     ])
     setSummary(s as unknown as Summary)
     setLedger((led ?? []) as LedgerRow[])
     setNegotiationInbox(((inbox ?? []) as typeof negotiationInbox).filter((th) => th.as_role === 'driver'))
+    setPendingTopups((topups ?? []) as PendingTopup[])
   }
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
-      if (data) { setVehicleId(data.id); await reload(data.id) }
+    supabase.from('vehicles').select('id, owner_mobile').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
+      if (data) { setVehicleId(data.id); setOwnerMobile(data.owner_mobile); await reload(data.id) }
       setLoading(false)
     })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -65,9 +70,10 @@ export default function MyVehicleEarningsPage() {
     <div className="flex flex-col gap-3">
       <h1 className="font-bold text-[20px] text-[#005A36]">{t('mb.navEarnings')}</h1>
 
-      <div className="flex items-center gap-1 bg-white border border-[#e5e2d0] rounded-full p-1 w-fit">
-        <span className="px-3 py-1.5 rounded-full text-[12px] font-sans font-semibold" style={{ background: summary?.commission_mode === 'monthly_lumpsum' ? '#166534' : 'transparent', color: summary?.commission_mode === 'monthly_lumpsum' ? '#fff' : '#64748b' }}>{t('mv.lumpsumModeLabel')}</span>
-        <span className="px-3 py-1.5 rounded-full text-[12px] font-sans font-semibold" style={{ background: summary?.commission_mode === 'per_order' ? '#166534' : 'transparent', color: summary?.commission_mode === 'per_order' ? '#fff' : '#64748b' }}>{t('mv.perOrderModeLabel')}</span>
+      <div className="flex items-center gap-2 bg-white border border-[#e5e2d0] rounded-xl p-2.5 w-fit">
+        <Lock size={13} className="text-[#64748b] shrink-0" />
+        <span className="font-sans text-[12px] font-semibold text-[#1e293b]">{summary?.commission_mode === 'monthly_lumpsum' ? t('mv.lumpsumModeLabel') : t('mv.perOrderModeLabel')}</span>
+        <span className="font-sans text-[10.5px] text-[#64748b]">· {t('vp.billingModeLockNote')}</span>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
@@ -98,6 +104,28 @@ export default function MyVehicleEarningsPage() {
           <p className="font-sans text-[12px] text-amber-800 mt-1.5">{t('mv.negativeBalanceNote')}</p>
         )}
       </div>
+
+      {pendingTopups.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          {pendingTopups.map((tu) => (
+            <div key={tu.id} className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              <span className="text-[14px]">⏳</span>
+              <span className="flex-1 font-sans text-[12px] font-semibold text-amber-800">{t('mv.topupVerifyingNote')}</span>
+              <span className="font-sans text-[12.5px] font-extrabold text-amber-900 ltr-num">{fmt(tu.amount_pkr)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {ownerMobile && (
+        <div className="flex items-center gap-2.5 bg-white border border-[#e5e2d0] rounded-2xl p-3">
+          <span className="shrink-0 w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center text-[16px]">📱</span>
+          <div className="min-w-0 flex-1">
+            <p className="font-sans text-[11px] text-[#64748b]">{t('mv.myEasypaisaAccountLabel')}</p>
+            <p className="font-sans text-[13.5px] font-bold text-[#1e293b] ltr-num">{ownerMobile}</p>
+          </div>
+        </div>
+      )}
 
       {summary?.commission_mode === 'monthly_lumpsum' && (
         <div className="bg-violet-50 border border-violet-200 rounded-2xl p-3.5">
