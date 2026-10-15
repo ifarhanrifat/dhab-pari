@@ -1,20 +1,39 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { PortalSidebar } from '@/components/portal/PortalSidebar'
 import { PortalHeader } from '@/components/portal/PortalHeader'
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar'
 import { PoolAppealBanner } from '@/components/portal/PoolAppealBanner'
 import { WelcomeTour } from '@/components/portal/WelcomeTour'
 
+// The "Dhab Pari Mobility" screens (my-vehicle/* and the marketplace/
+// (mobility)/* route group) render their own MobilityHeader — real bug
+// found auditing against the design: both headers rendered stacked
+// (two logos, two language toggles), since this layout used to render
+// PortalHeader unconditionally on every /portal/(dashboard) route. The
+// design's own header has no hamburger/sidebar at all (bottom-nav covers
+// every mobility screen), so skipping both here for these routes isn't
+// a loss of function — MobilityHeader's own bell-link (added alongside
+// this fix) replaces PortalHeader's embedded PortalNotificationBell for
+// just these routes, without mounting a second Realtime subscription.
+const MOBILITY_MARKETPLACE_SLUGS = ['travel', 'results', 'hourly', 'rental', 'shadi', 'machinery', 'tractor', 'loader', 'trips', 'negotiations', 'account', 'city-purchase', 'notifications']
+function isMobilityRoute(pathname: string) {
+  if (pathname.startsWith('/portal/my-vehicle')) return true
+  return MOBILITY_MARKETPLACE_SLUGS.some((slug) => pathname === `/portal/marketplace/${slug}` || pathname.startsWith(`/portal/marketplace/${slug}/`))
+}
+
 export default function PortalDashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const pathname = usePathname()
+  const isMobility = isMobilityRoute(pathname)
 
   return (
     <div className="portal-shell flex min-h-screen bg-dp2-surface">
       <WelcomeTour />
-      <PortalSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
-      <div className="flex-1 min-w-0 md:ml-[210px] print:ml-0">
+      {!isMobility && <PortalSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />}
+      <div className={`flex-1 min-w-0 print:ml-0 ${isMobility ? '' : 'md:ml-[210px]'}`}>
         {/* Real ask, live on device: "the news belt still runs under the
             language toggle and profile, it should display at the top of
             everything" — the public site renders AnnouncementBar BEFORE
@@ -40,7 +59,7 @@ export default function PortalDashboardLayout({ children }: { children: React.Re
           {/* Same red belt as the website, scoped to the appeals aimed at
               this user — targeted ones appear here even when not public. */}
           <AnnouncementBar source="portal" />
-          <PortalHeader onMenuToggle={() => setMobileOpen(true)} />
+          {!isMobility && <PortalHeader onMenuToggle={() => setMobileOpen(true)} />}
         </div>
         {/* Stays up on every page until enough people have joined. */}
         <PoolAppealBanner />

@@ -2,24 +2,28 @@
 
 // Header for the new "Dhab Pari Mobility" design (imported from
 // Dhab Pari Mobility.dc.html) — logo circle, brand name, language
-// toggle. Stacked below the portal's own generic root header
-// (portal/(dashboard)/layout.tsx), same precedent my-vehicle/layout.tsx
-// already established: a section gets its own header on top of the
-// shared one, not instead of it.
+// toggle, bell. The design's own header has no hamburger/sidebar at all
+// (bottom-nav covers every mobility screen), so the root portal layout
+// now skips PortalHeader/PortalSidebar entirely on these routes instead
+// of stacking a second header under this one (a real visual bug found
+// auditing against the design: two logos, two language toggles).
 //
-// Real bug, confirmed live: the design's own bell belongs here too, but
-// PortalHeader.tsx already renders <PortalNotificationBell embedded />
-// above every portal page including this one — a second instance here
-// opened a second Supabase Realtime channel for the same
-// portal_notifications:<id> name, and .channel() + .subscribe() on an
-// already-subscribed channel name throws ("cannot add postgres_changes
-// callbacks ... after subscribe()"), crashing the whole page. The root
-// header's bell is already visible above this one; no second bell needed.
+// The bell here is a plain link to the notifications screen, not
+// <PortalNotificationBell>, deliberately: that component opens a live
+// Supabase Realtime channel, and a second instance of it alongside
+// PortalHeader's embedded one crashed the page outright (duplicate
+// .channel().subscribe() on the same channel name). Since PortalHeader
+// no longer renders on these routes there's no live instance to collide
+// with any more, but this still stays a static link rather than
+// resurrecting a second live subscription for no real benefit — the
+// notifications screen itself fetches the list on load regardless.
 //
 // Colors are the design file's own literal hex values (#005A36 etc),
 // not the app-wide --color-dp-* tokens — a different palette, kept
 // exact per direct instruction ("exactly like the provided html file").
 
+import Link from 'next/link'
+import { Bell } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export function MobilityHeader() {
@@ -34,9 +38,14 @@ export function MobilityHeader() {
           <p className="text-[9.5px] leading-tight text-[#bbf7d0] whitespace-nowrap overflow-hidden text-ellipsis">{t('mb.headerSubtitle')}</p>
         </div>
       </div>
-      <button onClick={() => setLocale(isUrdu ? 'en' : 'ur')} className="shrink-0 bg-[#166534] text-[#fbbf24] border border-[#D4AF37]/40 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold cursor-pointer">
-        🌐 {isUrdu ? 'English' : 'اردو'}
-      </button>
+      <div className="flex items-center gap-2 shrink-0">
+        <button onClick={() => setLocale(isUrdu ? 'en' : 'ur')} className="shrink-0 bg-[#166534] text-[#fbbf24] border border-[#D4AF37]/40 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold cursor-pointer">
+          🌐 {isUrdu ? 'English' : 'اردو'}
+        </button>
+        <Link href="/portal/marketplace/notifications" className="shrink-0 w-8 h-8 rounded-full bg-[#166534] flex items-center justify-center" aria-label={t('g.notifications')}>
+          <Bell size={15} />
+        </Link>
+      </div>
     </header>
   )
 }
