@@ -52,6 +52,7 @@ interface Booking {
 interface LumpsumCharge { id: string; period: string; amount_pkr: number }
 interface WalletTopup { id: string; amount_pkr: number; status: string; announced_method: string; announced_at: string; rejected_reason: string | null }
 interface TypeRate { id: string; vehicle_type: string; classification: string; commission_pct: number }
+interface DispatchBand { id: string; min_distance_km: number; max_distance_km: number | null; commission_pct: number }
 interface Adda {
   id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null; pair_adda_id: string | null
   classification: string; turn_minutes: number; is_active: boolean; fixed_fare_per_seat_pkr: number | null
@@ -177,6 +178,33 @@ function AdminVehiclesInner() {
   const deleteRate = async (id: string) => {
     await supabase.from('vehicle_type_commission_rates').delete().eq('id', id)
     loadRates()
+  }
+
+  const [dispatchBands, setDispatchBands] = useState<DispatchBand[]>([])
+  const [showDispatchBands, setShowDispatchBands] = useState(false)
+  const [newBand, setNewBand] = useState({ min_distance_km: 0, max_distance_km: '' as number | '', commission_pct: 0 })
+  const [savingBand, setSavingBand] = useState(false)
+
+  const loadDispatchBands = async () => {
+    const { data } = await supabase.from('dispatch_commission_bands').select('*').order('min_distance_km')
+    setDispatchBands(data ?? [])
+  }
+  useEffect(() => { loadDispatchBands() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveBand = async () => {
+    setSavingBand(true)
+    const { error } = await supabase.from('dispatch_commission_bands').insert({
+      min_distance_km: newBand.min_distance_km, max_distance_km: newBand.max_distance_km === '' ? null : newBand.max_distance_km, commission_pct: newBand.commission_pct,
+    })
+    setSavingBand(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('cm.rateSaved'))
+    setNewBand({ min_distance_km: 0, max_distance_km: '', commission_pct: 0 })
+    loadDispatchBands()
+  }
+  const deleteBand = async (id: string) => {
+    await supabase.from('dispatch_commission_bands').delete().eq('id', id)
+    loadDispatchBands()
   }
 
   // ═══ Adda queue ═══ two fixed stands (409's seed), a real table so a
@@ -602,6 +630,7 @@ function AdminVehiclesInner() {
             <div className="flex items-center gap-2">
               <button onClick={() => setShowAddaPanel((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Signpost size={14} /> {t('af.addaQueueBtn')}</button>
               <button onClick={() => setShowRates((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Percent size={14} /> {t('cm.ratesBtn')}</button>
+              <button onClick={() => setShowDispatchBands((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Percent size={14} /> {t('cm.dispatchBandsBtn')}</button>
               <button onClick={openNewVehicle} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('mk.newVehicleBtn')}</button>
             </div>
           </div>
@@ -705,6 +734,31 @@ function AdminVehiclesInner() {
                 </select>
                 <input type="number" value={newRate.commission_pct || ''} onChange={(e) => setNewRate({ ...newRate, commission_pct: +e.target.value })} placeholder="%" className="input-field w-20" />
                 <button onClick={saveRate} disabled={savingRate} className="px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('g.saveChanges')}</button>
+              </div>
+            </div>
+          )}
+
+          {showDispatchBands && (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-6">
+              <p className="font-sans text-[13px] font-bold text-dp-on-surface mb-1">{t('cm.dispatchBandsHeading')}</p>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">{t('cm.dispatchBandsHint')}</p>
+              <div className="space-y-1.5 mb-3">
+                {dispatchBands.map((b) => (
+                  <div key={b.id} className="flex items-center justify-between gap-3 bg-dp-surface-container rounded-lg px-3 py-2">
+                    <span className="font-sans text-[13px] text-dp-on-surface ltr-num">{b.min_distance_km}km{b.max_distance_km != null ? ` – ${b.max_distance_km}km` : '+'}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-sans text-[13px] font-bold text-dp-secondary ltr-num">{b.commission_pct}%</span>
+                      <button onClick={() => deleteBand(b.id)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+                {dispatchBands.length === 0 && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('cm.noDispatchBandsYet')}</p>}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input type="number" value={newBand.min_distance_km || ''} onChange={(e) => setNewBand({ ...newBand, min_distance_km: +e.target.value })} placeholder={t('cm.minKmPlaceholder')} className="input-field w-28" />
+                <input type="number" value={newBand.max_distance_km} onChange={(e) => setNewBand({ ...newBand, max_distance_km: e.target.value === '' ? '' : +e.target.value })} placeholder={t('cm.maxKmPlaceholder')} className="input-field w-28" />
+                <input type="number" value={newBand.commission_pct || ''} onChange={(e) => setNewBand({ ...newBand, commission_pct: +e.target.value })} placeholder="%" className="input-field w-20" />
+                <button onClick={saveBand} disabled={savingBand} className="px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('g.saveChanges')}</button>
               </div>
             </div>
           )}
