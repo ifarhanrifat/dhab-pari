@@ -63,7 +63,7 @@ export default function PortalDashboardLayout({ children }: { children: React.Re
         </div>
         {/* Stays up on every page until enough people have joined. */}
         <PoolAppealBanner />
-        <main className="p-6 md:p-10 max-w-[1400px] print:p-0 print:max-w-none">{children}</main>
+        <main className={`p-6 md:p-10 max-w-[1400px] print:p-0 print:max-w-none ${isMobility ? 'mx-auto' : ''}`}>{children}</main>
       </div>
     </div>
   )
