@@ -54,6 +54,9 @@ interface LumpsumCharge { id: string; period: string; amount_pkr: number }
 interface WalletTopup { id: string; amount_pkr: number; status: string; announced_method: string; announced_at: string; rejected_reason: string | null }
 interface TypeRate { id: string; vehicle_type: string; classification: string; commission_pct: number }
 interface DispatchBand { id: string; min_distance_km: number; max_distance_km: number | null; commission_pct: number }
+interface ShareAgreement { id: string; category: string; target_tenant_id: string; is_active: boolean }
+interface OtherTenant { id: string; name: string; name_ur: string | null }
+const SHARE_CATEGORIES = ['hourly', 'shadi', 'rental', 'machinery', 'tractor', 'loader'] as const
 interface Adda {
   id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null; pair_adda_id: string | null
   classification: string; turn_minutes: number; is_active: boolean; fixed_fare_per_seat_pkr: number | null
@@ -207,6 +210,39 @@ function AdminVehiclesInner() {
   const deleteBand = async (id: string) => {
     await supabase.from('dispatch_commission_bands').delete().eq('id', id)
     loadDispatchBands()
+  }
+
+  const [shareAgreements, setShareAgreements] = useState<ShareAgreement[]>([])
+  const [otherTenants, setOtherTenants] = useState<OtherTenant[]>([])
+  const [showShareAgreements, setShowShareAgreements] = useState(false)
+  const [newShare, setNewShare] = useState({ category: 'hourly' as string, target_tenant_id: '' })
+  const [savingShare, setSavingShare] = useState(false)
+
+  const loadShareAgreements = async () => {
+    const { data } = await supabase.from('marketplace_share_agreements').select('*').order('category')
+    setShareAgreements(data ?? [])
+  }
+  const loadOtherTenants = async () => {
+    const { data: myId } = await supabase.rpc('my_tenant_id')
+    const { data } = await supabase.from('tenants').select('id, name, name_ur').eq('is_active', true).order('name')
+    setOtherTenants((data ?? []).filter((tn) => tn.id !== myId))
+  }
+  useEffect(() => { loadShareAgreements(); loadOtherTenants() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveShare = async () => {
+    if (!newShare.target_tenant_id) return
+    setSavingShare(true)
+    const { error } = await supabase.from('marketplace_share_agreements')
+      .upsert({ category: newShare.category, target_tenant_id: newShare.target_tenant_id, is_active: true }, { onConflict: 'owner_tenant_id,category,target_tenant_id' })
+    setSavingShare(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('cm.rateSaved'))
+    setNewShare({ category: 'hourly', target_tenant_id: '' })
+    loadShareAgreements()
+  }
+  const deleteShare = async (id: string) => {
+    await supabase.from('marketplace_share_agreements').delete().eq('id', id)
+    loadShareAgreements()
   }
 
   // ═══ Adda queue ═══ two fixed stands (409's seed), a real table so a
@@ -634,6 +670,7 @@ function AdminVehiclesInner() {
               <button onClick={() => setShowAddaPanel((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Signpost size={14} /> {t('af.addaQueueBtn')}</button>
               <button onClick={() => setShowRates((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Percent size={14} /> {t('cm.ratesBtn')}</button>
               <button onClick={() => setShowDispatchBands((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Percent size={14} /> {t('cm.dispatchBandsBtn')}</button>
+              <button onClick={() => setShowShareAgreements((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Percent size={14} /> {t('cm.shareAgreementsBtn')}</button>
               <button onClick={openNewVehicle} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('mk.newVehicleBtn')}</button>
             </div>
           </div>
@@ -762,6 +799,35 @@ function AdminVehiclesInner() {
                 <input type="number" value={newBand.max_distance_km} onChange={(e) => setNewBand({ ...newBand, max_distance_km: e.target.value === '' ? '' : +e.target.value })} placeholder={t('cm.maxKmPlaceholder')} className="input-field w-28" />
                 <input type="number" value={newBand.commission_pct || ''} onChange={(e) => setNewBand({ ...newBand, commission_pct: +e.target.value })} placeholder="%" className="input-field w-20" />
                 <button onClick={saveBand} disabled={savingBand} className="px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('g.saveChanges')}</button>
+              </div>
+            </div>
+          )}
+
+          {showShareAgreements && (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-6">
+              <p className="font-sans text-[13px] font-bold text-dp-on-surface mb-1">{t('cm.shareAgreementsHeading')}</p>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">{t('cm.shareAgreementsHint')}</p>
+              <div className="space-y-1.5 mb-3">
+                {shareAgreements.map((s) => {
+                  const tenant = otherTenants.find((tn) => tn.id === s.target_tenant_id)
+                  return (
+                    <div key={s.id} className="flex items-center justify-between gap-3 bg-dp-surface-container rounded-lg px-3 py-2">
+                      <span className="font-sans text-[13px] text-dp-on-surface">{t(`mk.shareCategory.${s.category}`)} → {isUrdu ? (tenant?.name_ur ?? tenant?.name) : tenant?.name ?? s.target_tenant_id}</span>
+                      <button onClick={() => deleteShare(s.id)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer shrink-0"><Trash2 size={13} /></button>
+                    </div>
+                  )
+                })}
+                {shareAgreements.length === 0 && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('cm.noShareAgreementsYet')}</p>}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select value={newShare.category} onChange={(e) => setNewShare({ ...newShare, category: e.target.value })} className="input-field w-auto">
+                  {SHARE_CATEGORIES.map((c) => <option key={c} value={c}>{t(`mk.shareCategory.${c}`)}</option>)}
+                </select>
+                <select value={newShare.target_tenant_id} onChange={(e) => setNewShare({ ...newShare, target_tenant_id: e.target.value })} className="input-field flex-1 min-w-[160px]">
+                  <option value="">{t('cm.pickVillageOption')}</option>
+                  {otherTenants.map((tn) => <option key={tn.id} value={tn.id}>{isUrdu ? (tn.name_ur ?? tn.name) : tn.name}</option>)}
+                </select>
+                <button onClick={saveShare} disabled={savingShare} className="px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('g.saveChanges')}</button>
               </div>
             </div>
           )}

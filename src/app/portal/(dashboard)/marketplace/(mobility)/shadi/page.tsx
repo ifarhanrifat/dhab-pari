@@ -19,6 +19,7 @@ import dynamic from 'next/dynamic'
 import { Users2, Car, Snowflake, Check, Loader2, CalendarDays, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { CallButton } from '@/components/portal/CallButton'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -29,8 +30,9 @@ import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface Vehicle {
-  id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
+  id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
   shadi_full_day_rate_pkr: number; cover_url: string | null; avg_rating: number | null
+  shared_from_other_village: boolean; owner_village_name: string | null
 }
 interface ShadiClass { class_key: string; name_en: string; name_ur: string; full_day_rate_pkr: number; free_km: number; per_extra_km_pkr: number }
 interface EventRequest { id: string; status: string }
@@ -173,9 +175,10 @@ export default function ShadiBookingPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {vehicles.map((v) => {
                     const picked = selectedIds.has(v.id)
+                    const Wrapper = v.shared_from_other_village ? 'div' : 'button'
                     return (
-                      <button key={v.id} onClick={() => toggleSelect(v.id)}
-                        className="bg-white border-2 rounded-xl overflow-hidden text-start cursor-pointer flex flex-col relative"
+                      <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => toggleSelect(v.id) })}
+                        className={`bg-white border-2 rounded-xl overflow-hidden text-start flex flex-col relative ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}
                         style={{ borderColor: picked ? '#166534' : '#e5e2d0' }}>
                         <div className="h-[70px] relative bg-[#F9F9F6] shrink-0 flex items-center justify-center">
                           {v.cover_url ? (
@@ -193,12 +196,19 @@ export default function ShadiBookingPage() {
                           <p className="text-[9px] text-[#64748b] truncate">{v.owner_name}{v.avg_rating != null ? ` · ⭐ ${v.avg_rating}` : ''}</p>
                           {v.has_ac && <span className="self-start flex items-center gap-0.5 text-[8.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={8} /> {t('mv.hasAcLabel')}</span>}
                           <p className="font-extrabold text-[11.5px] text-[#166534] ltr-num">{fmt(v.shadi_full_day_rate_pkr)}</p>
-                          <span className="mt-auto rounded-[9px] px-1 py-1 text-center text-[9.5px] font-bold"
-                            style={{ background: picked ? '#166534' : '#fff', color: picked ? '#fff' : '#166534', border: '1px solid #166534' }}>
-                            {picked ? `✓ ${t('vp.addedLabel')}` : `+ ${t('vp.addVehicleBtn')}`}
-                          </span>
+                          {v.shared_from_other_village ? (
+                            <div className="mt-auto flex flex-col gap-0.5">
+                              <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-amber-50 text-amber-800 self-start">{t('vp.sharedFromVillageBadge').replace('{village}', v.owner_village_name ?? '')}</span>
+                              <CallButton phone={v.owner_mobile} className="inline-flex items-center gap-1 text-[9px] font-bold text-[#166534]" />
+                            </div>
+                          ) : (
+                            <span className="mt-auto rounded-[9px] px-1 py-1 text-center text-[9.5px] font-bold"
+                              style={{ background: picked ? '#166534' : '#fff', color: picked ? '#fff' : '#166534', border: '1px solid #166534' }}>
+                              {picked ? `✓ ${t('vp.addedLabel')}` : `+ ${t('vp.addVehicleBtn')}`}
+                            </span>
+                          )}
                         </div>
-                      </button>
+                      </Wrapper>
                     )
                   })}
                 </div>

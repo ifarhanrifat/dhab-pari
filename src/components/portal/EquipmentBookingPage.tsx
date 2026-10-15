@@ -43,9 +43,10 @@ type Kind = 'machinery' | 'tractor' | 'loader'
 
 interface TractorService { service_key: string; name_en: string; name_ur: string; rate_pkr: number; unit: string }
 interface Vehicle {
-  id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null
+  id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; color: string | null; model: string | null
   machinery_hourly_rate_pkr: number | null; machinery_min_hours: number | null; machinery_mobilization_fee_pkr: number | null
   loader_trip_rate_pkr: number | null; tractor_services: TractorService[] | null; cover_url: string | null; avg_rating: number | null
+  shared_from_other_village: boolean; owner_village_name: string | null
 }
 interface Booking {
   id: string; kind: Kind; service_key: string | null; site_address: string; site_lat: number | null; site_lng: number | null; material: string | null
@@ -199,9 +200,10 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
                   : kind === 'tractor' && v.tractor_services && v.tractor_services.length > 0
                   ? v.tractor_services.map((s) => (isUrdu ? s.name_ur : s.name_en)).join(', ')
                   : null
+                const Wrapper = v.shared_from_other_village ? 'div' : 'button'
                 return (
-                  <button key={v.id} onClick={() => openBooking(v)}
-                    className="w-full flex items-stretch bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden text-start cursor-pointer shadow-[0_2px_6px_rgba(0,0,0,0.05)] min-h-[136px]">
+                  <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => openBooking(v) })}
+                    className={`w-full flex items-stretch bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden text-start shadow-[0_2px_6px_rgba(0,0,0,0.05)] min-h-[136px] ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}>
                     <div className="w-[34%] shrink-0 relative bg-[#F9F9F6] flex items-center justify-center overflow-hidden">
                       {v.cover_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -220,9 +222,16 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
                         <span className="text-[9.5px] text-[#64748b]">{kind === 'loader' ? t('vp.baseAmountSuffix') : `/${t('vp.hoursShort')}`}</span>
                       </div>
                       {terms && <p className="text-[9.5px] text-[#475569] truncate">{terms}</p>}
-                      <span className="mt-auto self-start rounded-[10px] px-3.5 py-1 bg-[#166534] text-white text-[11px] font-bold">{t('vp.bookNowBtn')}</span>
+                      {v.shared_from_other_village ? (
+                        <div className="mt-auto flex items-center justify-between gap-2">
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800">{t('vp.sharedFromVillageBadge').replace('{village}', v.owner_village_name ?? '')}</span>
+                          <CallButton phone={v.owner_mobile} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#166534]" />
+                        </div>
+                      ) : (
+                        <span className="mt-auto self-start rounded-[10px] px-3.5 py-1 bg-[#166534] text-white text-[11px] font-bold">{t('vp.bookNowBtn')}</span>
+                      )}
                     </div>
-                  </button>
+                  </Wrapper>
                 )
               })}
             </div>

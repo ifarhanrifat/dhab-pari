@@ -35,8 +35,9 @@ import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface Vehicle {
-  id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
+  id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
   hourly_rate_pkr: number; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null; cover_url: string | null
+  shared_from_other_village: boolean; owner_village_name: string | null
 }
 interface Booking {
   id: string; hours: number; status: string; pickup_address: string; pickup_lat: number | null; pickup_lng: number | null; decline_reason: string | null
@@ -176,9 +177,11 @@ export default function HourlyRentalPage() {
             <p className="text-center py-10 text-[#94a3b8] text-[14px]">{t('vp.noHourlyVehiclesHint')}</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {vehicles.map((v) => (
-                <button key={v.id} onClick={() => openBooking(v)}
-                  className="w-full flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden text-start cursor-pointer">
+              {vehicles.map((v) => {
+                const Wrapper = v.shared_from_other_village ? 'div' : 'button'
+                return (
+                <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => openBooking(v) })}
+                  className={`w-full flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden text-start ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}>
                   <div className="w-16 h-16 bg-[#F9F9F6] shrink-0 flex items-center justify-center overflow-hidden">
                     {v.cover_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -196,9 +199,15 @@ export default function HourlyRentalPage() {
                       {v.has_ac && <span className="flex items-center gap-0.5 text-[9.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={9} /> {t('mv.hasAcLabel')}</span>}
                     </div>
                     {v.hourly_included_km != null && <p className="text-[10.5px] text-[#64748b] mt-0.5 ltr-num">{fmt(v.hourly_included_km)}km {t('mv.includedShort')}</p>}
+                    {v.shared_from_other_village && (
+                      <div className="flex items-center justify-between gap-2 mt-1">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800">{t('vp.sharedFromVillageBadge').replace('{village}', v.owner_village_name ?? '')}</span>
+                        <CallButton phone={v.owner_mobile} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#166534]" />
+                      </div>
+                    )}
                   </div>
-                </button>
-              ))}
+                </Wrapper>
+              )})}
             </div>
           )}
         </>
