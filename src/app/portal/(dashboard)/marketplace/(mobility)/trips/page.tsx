@@ -18,6 +18,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { MapPin, Navigation, CheckCircle2, XCircle, Clock, Receipt } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
@@ -111,10 +112,10 @@ export default function TripsPage() {
       out.push({ id: `trip-${b.id}`, title: t('cm.tripsPageTitle'), subtitle: vto ? `${isUrdu && vto.origin_ur ? vto.origin_ur : vto.origin} → ${isUrdu && vto.destination_ur ? vto.destination_ur : vto.destination}` : '—', amount: b.total_amount_pkr, status: mapStatus(b.status), date: vto?.travel_date ?? '', href: b.status === 'confirmed' ? `/portal/marketplace/trip/${b.id}` : null })
     }
     for (const b of (hourly.data ?? []) as Array<{ id: string; model: string | null; vehicle_type: string; total_amount_pkr: number | null; base_amount_pkr: number; status: string; requested_at: string }>) {
-      out.push({ id: `hourly-${b.id}`, title: t('vp.hourlyPageTitle'), subtitle: b.model || b.vehicle_type, amount: b.total_amount_pkr ?? b.base_amount_pkr, status: mapStatus(b.status), date: b.requested_at, href: null })
+      out.push({ id: `hourly-${b.id}`, title: t('vp.hourlyPageTitle'), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.base_amount_pkr, status: mapStatus(b.status), date: b.requested_at, href: null })
     }
     for (const b of (equipment.data ?? []) as Array<{ id: string; kind: string; model: string | null; vehicle_type: string; total_amount_pkr: number | null; rate_pkr: number; status: string; requested_at: string }>) {
-      out.push({ id: `equip-${b.id}`, title: t(`vp.${b.kind}PageTitle`), subtitle: b.model || b.vehicle_type, amount: b.total_amount_pkr ?? b.rate_pkr, status: mapStatus(b.status), date: b.requested_at, href: null })
+      out.push({ id: `equip-${b.id}`, title: t(`vp.${b.kind}PageTitle`), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.rate_pkr, status: mapStatus(b.status), date: b.requested_at, href: null })
     }
     for (const b of (ride.data ?? []) as unknown as Array<{ id: string; status: string; total_amount_pkr: number; travel_date: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }>) {
       const vr = b.vehicle_routes

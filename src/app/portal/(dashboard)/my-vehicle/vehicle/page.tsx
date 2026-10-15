@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Truck, Phone, Lock, ChevronRight, Package, CalendarClock, ShoppingBag, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
@@ -89,7 +90,7 @@ export default function MyVehicleVehiclePage() {
         <div className="p-4">
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="min-w-0">
-            <p className="font-sans text-[16px] font-bold text-[#1e293b] truncate">{vehicle.model || vehicle.vehicle_type}</p>
+            <p className="font-sans text-[16px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(vehicle.vehicle_type, vehicle.model)}</p>
             <p className="font-sans text-[12.5px] text-[#64748b]">{vehicle.color ?? ''}</p>
           </div>
           <span dir="ltr" className="shrink-0 font-sans text-[12px] font-bold px-2 py-0.5 border-2 border-[#005A36] rounded-[5px] text-[#005A36]">{vehicle.vehicle_number}</span>

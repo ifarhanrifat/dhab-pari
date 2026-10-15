@@ -5334,6 +5334,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.availableByTypeHeading': 'Available Weddings (By Type)', 'vp.claimSlotBtn': 'Claim This Slot',
     'vp.confirmClaimSlot': 'Claim this vehicle slot for this wedding?', 'vp.slotClaimedToast': 'Slot claimed — you\'re booked for this wedding.',
     'vp.yourFleetClassLabel': 'Your vehicle type (for wedding type-requests)', 'vp.noFleetClassSetHint': 'Not set — ask the committee to assign your vehicle a type.',
+    'vp.fleetClassLockedToVehicleNote': 'Only categories matching your registered vehicle ({vehicleType}) are shown.',
     'vp.noOpenSlotsHint': 'No open wedding slots for your vehicle type right now.',
 
     'vp.shadiEventNotFound': 'Booking not found.', 'vp.requestedVehiclesHeading': 'Requested Vehicles',
@@ -10726,6 +10727,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.availableByTypeHeading': 'دستیاب شادیاں (قسم کے مطابق)', 'vp.claimSlotBtn': 'یہ جگہ لیں',
     'vp.confirmClaimSlot': 'اس شادی کے لیے یہ گاڑی کی جگہ لینا چاہتے ہیں؟', 'vp.slotClaimedToast': 'جگہ لے لی گئی — آپ اس شادی کے لیے بک ہو گئے ہیں۔',
     'vp.yourFleetClassLabel': 'آپ کی گاڑی کی قسم (شادی کی درخواستوں کے لیے)', 'vp.noFleetClassSetHint': 'مقرر نہیں — کمیٹی سے اپنی گاڑی کی قسم مقرر کروائیں۔',
+    'vp.fleetClassLockedToVehicleNote': 'صرف وہ قسمیں دکھائی جا رہی ہیں جو آپ کی رجسٹرڈ گاڑی ({vehicleType}) سے میل کھاتی ہیں۔',
     'vp.noOpenSlotsHint': 'اس وقت آپ کی گاڑی کی قسم کے لیے کوئی خالی شادی کی جگہ نہیں۔',
 
     'vp.shadiEventNotFound': 'بکنگ نہیں ملی۔', 'vp.requestedVehiclesHeading': 'درخواست شدہ گاڑیاں',

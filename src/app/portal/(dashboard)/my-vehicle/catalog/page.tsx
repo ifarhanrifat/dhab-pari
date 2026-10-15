@@ -22,7 +22,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Vehicle {
-  id: string; owner_name: string; color: string | null; model: string | null; has_ac: boolean
+  id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
   offers_hourly: boolean; offers_shadi: boolean; offers_rental: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
   shadi_full_day_rate_pkr: number | null; shadi_vehicle_class: string | null
@@ -30,6 +30,19 @@ interface Vehicle {
 }
 interface Photo { id: string; url: string; is_cover: boolean }
 interface ShadiClass { class_key: string; name_en: string; name_ur: string }
+
+// Mirrors set_vehicle_catalog_prefs()'s own keyword check (migration 664)
+// so the picker never offers a class the backend would then reject —
+// a Bolan can't list itself as Hiace and vice versa; anything else
+// (every real passenger-car entry in this committee's data today) is
+// sedan-eligible.
+function shadiClassMatchesVehicleType(classKey: string, vehicleType: string): boolean {
+  const t = vehicleType.toLowerCase()
+  if (classKey === 'hiace') return t.includes('hiace')
+  if (classKey === 'bolan') return t.includes('bolan')
+  if (classKey === 'sedan') return !t.includes('hiace') && !t.includes('bolan')
+  return true
+}
 
 function fmt(n: number) {
   return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -62,7 +75,7 @@ export default function MyVehicleCatalogPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, color, model, has_ac, offers_hourly, offers_shadi, offers_rental, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_base_pkr, rental_per_km_pkr, rental_wait_hour_pkr')
+    supabase.from('vehicles').select('id, owner_name, vehicle_type, color, model, has_ac, offers_hourly, offers_shadi, offers_rental, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_base_pkr, rental_per_km_pkr, rental_wait_hour_pkr')
       .eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
         setVehicle(data)
         if (data) {
@@ -245,8 +258,9 @@ export default function MyVehicleCatalogPage() {
           <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.yourFleetClassLabel')}</label>
           <select value={shadiVehicleClass} onChange={(e) => setShadiVehicleClass(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13.5px]">
             <option value="">—</option>
-            {shadiClasses.map((c) => <option key={c.class_key} value={c.class_key}>{isUrdu ? c.name_ur : c.name_en}</option>)}
+            {shadiClasses.filter((c) => shadiClassMatchesVehicleType(c.class_key, vehicle?.vehicle_type ?? '')).map((c) => <option key={c.class_key} value={c.class_key}>{isUrdu ? c.name_ur : c.name_en}</option>)}
           </select>
+          <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('vp.fleetClassLockedToVehicleNote').replace('{vehicleType}', vehicle?.vehicle_type ?? '')}</p>
         </div>
       </div>
 

@@ -19,6 +19,7 @@ import dynamic from 'next/dynamic'
 import { Car, Snowflake, MapPin, Navigation, Clock3, Loader2, AlertCircle, CheckCircle2, Ban, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -180,7 +181,7 @@ export default function RentalPage() {
                     <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('vp.rentalBaseFareLabel')}</p>
                   </div>
                   <div className="flex-1 min-w-0 py-2.5 pe-3 border-s border-[#f1f5f9] ps-3">
-                    <p className="text-[13.5px] font-bold text-[#1e293b] truncate">{v.model || v.vehicle_type}</p>
+                    <p className="text-[13.5px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(v.vehicle_type, v.model)}</p>
                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                       {v.color && <span className="text-[11px] text-[#64748b]">{v.color}</span>}
                       {v.has_ac && <span className="flex items-center gap-0.5 text-[9.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={9} /> {t('mv.hasAcLabel')}</span>}
@@ -201,7 +202,7 @@ export default function RentalPage() {
               <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[14px] font-bold text-[#1e293b]">{b.model || b.vehicle_type} — {b.owner_name}</p>
+                    <p className="text-[14px] font-bold text-[#1e293b]">{vehicleDisplayName(b.vehicle_type, b.model)} — {b.owner_name}</p>
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5 text-[#166534]" /> {b.from_address}</p>
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5 text-[#b91c1c]" /> {b.to_address}</p>
                     <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">{fmt(b.km)}km · {b.trip_type === 'return' ? t('vp.returnTripLabel') : t('vp.oneWayLabel')} · {fmt(b.total_amount_pkr)}</p>
@@ -247,7 +248,7 @@ export default function RentalPage() {
                     <div className="mt-1.5 flex items-center justify-between">
                       <ShareBookingButton
                         title={t('mb.appName')}
-                        lines={[`${b.model || b.vehicle_type} — ${b.owner_name}`, `${b.from_address} → ${b.to_address}`, `${t('vp.totalLabel')}: ${fmt(b.total_amount_pkr)}`]}
+                        lines={[`${vehicleDisplayName(b.vehicle_type, b.model)} — ${b.owner_name}`, `${b.from_address} → ${b.to_address}`, `${t('vp.totalLabel')}: ${fmt(b.total_amount_pkr)}`]}
                       />
                       <ReportProblemButton refType="rental_booking" refId={b.id} kindOptions={['fare_dispute', 'no_show']} />
                     </div>
@@ -273,7 +274,7 @@ export default function RentalPage() {
       )}
 
       {openVehicle && (
-        <MobilityBottomSheet title={openVehicle.model || openVehicle.vehicle_type} onClose={() => setOpenVehicle(null)}>
+        <MobilityBottomSheet title={vehicleDisplayName(openVehicle.vehicle_type, openVehicle.model)} onClose={() => setOpenVehicle(null)}>
           <p className="text-[12px] text-[#64748b] -mt-2 mb-3">{openVehicle.color}{openVehicle.has_ac ? ` · ${t('mv.hasAcLabel')}` : ''}</p>
 
           <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.tripTypeLabel')}</label>

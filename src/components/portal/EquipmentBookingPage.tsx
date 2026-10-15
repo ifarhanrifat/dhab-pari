@@ -24,6 +24,7 @@ import dynamic from 'next/dynamic'
 import { Wrench, Tractor, Truck, MapPin, Loader2, AlertCircle, CheckCircle2, Ban, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -212,7 +213,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
                     </div>
                     <div className="flex-1 min-w-0 p-2.5 flex flex-col gap-0.5">
                       <p className="text-[9px] font-bold uppercase tracking-[0.04em] text-[#16a34a]">{pageTitle}</p>
-                      <p className="text-[13.5px] font-bold text-[#005A36] truncate">{v.model || v.vehicle_type}</p>
+                      <p className="text-[13.5px] font-bold text-[#005A36] truncate">{vehicleDisplayName(v.vehicle_type, v.model)}</p>
                       <p className="text-[9.5px] text-[#64748b] truncate">{v.owner_name}</p>
                       <div className="flex items-baseline gap-1 mt-0.5">
                         <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{fmt(rate ?? 0)}</span>
@@ -236,7 +237,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
               <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[14px] font-bold text-[#1e293b]">{b.model || b.vehicle_type} — {b.owner_name}</p>
+                    <p className="text-[14px] font-bold text-[#1e293b]">{vehicleDisplayName(b.vehicle_type, b.model)} — {b.owner_name}</p>
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {b.site_address}</p>
                     <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">
                       {b.requested_hours != null ? `${b.requested_hours} ${t('vp.hoursShort')} · ` : ''}{fmt(b.rate_pkr)}{kind === 'loader' ? '' : `/${t('vp.hoursShort')}`}
@@ -283,7 +284,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
                     <div className="mt-1.5 flex items-center justify-between">
                       <ShareBookingButton
                         title={t('mb.appName')}
-                        lines={[`${b.model || b.vehicle_type} — ${b.owner_name}`, b.site_address, `${t('vp.totalLabel')}: ${fmt(b.total_amount_pkr ?? b.rate_pkr)}`]}
+                        lines={[`${vehicleDisplayName(b.vehicle_type, b.model)} — ${b.owner_name}`, b.site_address, `${t('vp.totalLabel')}: ${fmt(b.total_amount_pkr ?? b.rate_pkr)}`]}
                       />
                       <ReportProblemButton refType="equipment_booking" refId={b.id} kindOptions={['fare_dispute', 'no_show']} />
                     </div>
@@ -309,7 +310,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
       )}
 
       {openVehicle && (
-        <MobilityBottomSheet title={openVehicle.model || openVehicle.vehicle_type} onClose={() => setOpenVehicle(null)}>
+        <MobilityBottomSheet title={vehicleDisplayName(openVehicle.vehicle_type, openVehicle.model)} onClose={() => setOpenVehicle(null)}>
           <p className="text-[12px] text-[#64748b] -mt-2 mb-3">{openVehicle.owner_name}</p>
 
           {kind === 'tractor' && openVehicle.tractor_services && openVehicle.tractor_services.length > 0 && (

@@ -19,6 +19,7 @@ import dynamic from 'next/dynamic'
 import { Users2, Car, Snowflake, Check, Loader2, CalendarDays, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -188,7 +189,7 @@ export default function ShadiBookingPage() {
                           )}
                         </div>
                         <div className="p-2 flex-1 flex flex-col gap-0.5">
-                          <p className="text-[10.5px] font-bold text-[#1e293b] truncate">{v.model || v.vehicle_type}</p>
+                          <p className="text-[10.5px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(v.vehicle_type, v.model)}</p>
                           <p className="text-[9px] text-[#64748b] truncate">{v.owner_name}{v.avg_rating != null ? ` · ⭐ ${v.avg_rating}` : ''}</p>
                           {v.has_ac && <span className="self-start flex items-center gap-0.5 text-[8.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={8} /> {t('mv.hasAcLabel')}</span>}
                           <p className="font-extrabold text-[11.5px] text-[#166534] ltr-num">{fmt(v.shadi_full_day_rate_pkr)}</p>
