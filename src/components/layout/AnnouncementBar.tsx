@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AlertTriangle, Megaphone } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -18,6 +19,7 @@ interface Appeal {
   body_en: string
   body_ur: string
   contact_number: string | null
+  project_id: string | null
 }
 
 interface PaidIlan {
@@ -25,6 +27,26 @@ interface PaidIlan {
   title_ur: string
   body_ur: string
   contact_mobile: string | null
+  vehicle_route_id: string | null
+  vehicle_trip_offer_id: string | null
+}
+
+// Real ask, 2026-10-17: "can a click on those news and alerts and
+// sponsored add click can be land to its actual place... this vehicle
+// that created route will get the click navigate to that page where
+// user can book ride?" A commercial ilan already carries its own real
+// source (vehicle_route_id for a recurring route, vehicle_trip_offer_id
+// for a one-off trip); an appeal's only structured destination is a
+// linked project. News ticker items have no structured destination in
+// the schema at all (plain text only) -- left unlinked rather than
+// guessed at.
+function appealLink(a: Appeal): string | null {
+  return a.project_id ? `/projects/${a.project_id}` : null
+}
+function paidIlanLink(p: PaidIlan): string | null {
+  if (p.vehicle_route_id) return `/portal/marketplace/route/${p.vehicle_route_id}`
+  if (p.vehicle_trip_offer_id) return '/portal/marketplace/shared'
+  return null
 }
 
 const SEPARATOR = '    ——    '
@@ -159,7 +181,7 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
     // targeted at this viewer's own tenant.
     const { data: ci } = await supabase
       .from('commercial_ilans')
-      .select('id, title_ur, body_ur, contact_mobile')
+      .select('id, title_ur, body_ur, contact_mobile, vehicle_route_id, vehicle_trip_offer_id')
       .in('placement', ['ticker', 'auto_trip'])
       .order('created_at', { ascending: false })
     setPaidIlans((ci ?? []) as PaidIlan[])
@@ -185,6 +207,7 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   }, [load])
 
   const label = (a: Appeal) => SEVERITY_LABEL[a.severity] ?? SEVERITY_LABEL.appeal
+  const appealText = (a: Appeal) => `${label(a)}  ●  ${a.body_ur}  ●  ${a.body_en}`
   // Real ask, 2026-10-17: three stacked belts "looking very bad" once a
   // free appeal and a paid ilan were both live at once. Emergency keeps
   // its own dedicated red belt (never diluted by sharing scroll-time
@@ -196,44 +219,62 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   const emergencyAppeals = appeals.filter((a) => a.severity === 'emergency')
   const calmAppeals = appeals.filter((a) => a.severity !== 'emergency')
 
-  const emergencyTrack = emergencyAppeals.map((a) => `${label(a)}  ●  ${a.body_ur}  ●  ${a.body_en}`).join(SEPARATOR)
+  // Both plain strings purely so useScrollTicker's effect has something
+  // to diff against when content changes — the actual visible belts
+  // below are real JSX (renderEmergencyPass/renderYellowPass), not these
+  // strings, so an item can be its own clickable link (2026-10-17: "can
+  // a click... land to its actual place") and a paid item can carry its
+  // own distinct pill styling.
+  const emergencyTrack = emergencyAppeals.map(appealText).join(SEPARATOR)
   const emergencyTicker = useScrollTicker(emergencyTrack, isUrdu)
-
-  const calmAppealItems = calmAppeals.map((a) => `${label(a)}  ●  ${a.body_ur}  ●  ${a.body_en}`)
-  const paidItems = paidIlans.map((p) => `${p.title_ur}  ●  ${p.body_ur}${p.contact_mobile ? `  ●  ${p.contact_mobile}` : ''}`)
-  // Kept as a plain string purely so useScrollTicker's effect has
-  // something to diff against when content changes — the actual visible
-  // belt below is real JSX (renderYellowPass), not this string, so a
-  // paid item can carry its own distinct pill styling.
-  const yellowTrack = [...calmAppealItems, ...paidItems].join(SEPARATOR)
+  const yellowTrack = [...calmAppeals.map(appealText), ...paidIlans.map((p) => `${p.title_ur}  ●  ${p.body_ur}`)].join(SEPARATOR)
   const yellowTicker = useScrollTicker(yellowTrack, isUrdu)
+
+  const renderEmergencyPass = (keyPrefix: string) => (
+    <span className="px-4">
+      {emergencyAppeals.map((a, i) => {
+        const href = appealLink(a)
+        const content = appealText(a)
+        return (
+          <span key={`${keyPrefix}-${i}`}>
+            {href ? <Link href={href} className="hover:underline">{content}</Link> : content}
+            {i < emergencyAppeals.length - 1 ? SEPARATOR : ''}
+          </span>
+        )
+      })}
+    </span>
+  )
 
   // Real ask, 2026-10-17: make a paid item in the shared belt look
   // "gorgeous" — its own pill, not just plain text indistinguishable
   // from a free appeal. One pass (one lap); rendered twice back-to-back
   // for the seamless loop, same as every other belt here.
-  type YellowSlot = { kind: 'appeal'; text: string } | { kind: 'paid'; ilan: PaidIlan }
+  type YellowSlot = { kind: 'appeal'; appeal: Appeal } | { kind: 'paid'; ilan: PaidIlan }
   const yellowSlots: YellowSlot[] = [
-    ...calmAppealItems.map((text): YellowSlot => ({ kind: 'appeal', text })),
+    ...calmAppeals.map((appeal): YellowSlot => ({ kind: 'appeal', appeal })),
     ...paidIlans.map((ilan): YellowSlot => ({ kind: 'paid', ilan })),
   ]
   const renderYellowPass = (keyPrefix: string) => (
     <span className="px-4">
-      {yellowSlots.map((slot, i) => (
-        <span key={`${keyPrefix}-${i}`}>
-          {slot.kind === 'appeal' ? (
-            slot.text
-          ) : (
-            <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#1a1f2e] to-[#2d3548] text-white px-3 py-1 rounded-full shadow-[0_1px_4px_rgba(0,0,0,.25)] border border-white/10 align-middle mx-0.5">
-              <Megaphone size={11} className="shrink-0 text-amber-300" />
-              <span className="text-[10px] font-black tracking-[0.08em] text-amber-300 shrink-0">{t('il.sponsoredLabel')}</span>
-              <span className="opacity-40">●</span>
-              <span>{slot.ilan.title_ur}  ●  {slot.ilan.body_ur}{slot.ilan.contact_mobile ? `  ●  ${slot.ilan.contact_mobile}` : ''}</span>
-            </span>
-          )}
-          {i < yellowSlots.length - 1 ? SEPARATOR : ''}
-        </span>
-      ))}
+      {yellowSlots.map((slot, i) => {
+        const href = slot.kind === 'appeal' ? appealLink(slot.appeal) : paidIlanLink(slot.ilan)
+        const inner = slot.kind === 'appeal' ? (
+          appealText(slot.appeal)
+        ) : (
+          <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#1a1f2e] to-[#2d3548] text-white px-3 py-1 rounded-full shadow-[0_1px_4px_rgba(0,0,0,.25)] border border-white/10 align-middle mx-0.5">
+            <Megaphone size={11} className="shrink-0 text-amber-300" />
+            <span className="text-[10px] font-black tracking-[0.08em] text-amber-300 shrink-0">{t('il.sponsoredLabel')}</span>
+            <span className="opacity-40">●</span>
+            <span>{slot.ilan.title_ur}  ●  {slot.ilan.body_ur}{slot.ilan.contact_mobile ? `  ●  ${slot.ilan.contact_mobile}` : ''}</span>
+          </span>
+        )
+        return (
+          <span key={`${keyPrefix}-${i}`}>
+            {href ? <Link href={href} className="hover:underline">{inner}</Link> : inner}
+            {i < yellowSlots.length - 1 ? SEPARATOR : ''}
+          </span>
+        )
+      })}
     </span>
   )
 
@@ -269,8 +310,8 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
 
           <div ref={emergencyTicker.containerRef} dir={isUrdu ? 'rtl' : 'ltr'} className="flex-1 min-w-0 overflow-hidden">
             <div className="ticker-track text-[13px] font-sans font-bold tracking-[0.03em]">
-              <span className="px-4">{emergencyTrack}</span>
-              <span className="px-4">{SEPARATOR}{emergencyTrack}</span>
+              {renderEmergencyPass('e1')}
+              {renderEmergencyPass('e2')}
             </div>
           </div>
 
