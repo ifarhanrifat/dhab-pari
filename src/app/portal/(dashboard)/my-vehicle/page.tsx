@@ -129,12 +129,33 @@ export default function MyVehicleHomePage() {
 
   const toggleOnline = async () => {
     if (!vehicle) return
+    const goingOnline = !vehicle.is_online
     setSaving(true)
-    const { error } = await supabase.rpc('set_vehicle_online_status', { p_vehicle_id: vehicle.id, p_is_online: !vehicle.is_online })
+
+    // Real ask, 2026-10-17: "why is there a manual 'where are you now'
+    // button, why not the system just knows" -- going online now grabs
+    // one GPS fix automatically instead. Best-effort only: a denied
+    // permission or a timeout still lets the driver go online, just
+    // without a location on file for that session (same as before this
+    // change existed at all) -- never block the actual toggle on it.
+    let lat: number | null = null, lng: number | null = null
+    if (goingOnline && typeof navigator !== 'undefined' && navigator.geolocation) {
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, maximumAge: 60000 })
+        )
+        lat = pos.coords.latitude
+        lng = pos.coords.longitude
+      } catch { /* denied/unavailable — go online anyway, without a location */ }
+    }
+
+    const { error } = await supabase.rpc('set_vehicle_online_status', {
+      p_vehicle_id: vehicle.id, p_is_online: goingOnline, p_lat: lat, p_lng: lng,
+    })
     setSaving(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    setVehicle({ ...vehicle, is_online: !vehicle.is_online })
-    toast.success(vehicle.is_online ? t('vp.wentOfflineToast') : t('vp.wentOnlineToast'))
+    setVehicle({ ...vehicle, is_online: goingOnline })
+    toast.success(goingOnline ? t('vp.wentOnlineToast') : t('vp.wentOfflineToast'))
   }
 
   const pickCity = async (cityId: string) => {
