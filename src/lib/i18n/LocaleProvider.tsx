@@ -51,14 +51,19 @@ const RTL_READY = false
  * my_language() so the answer is the same everywhere.
  */
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  // Always starts English, even when localStorage says Urdu.
+  // Always starts Urdu, even when localStorage says English.
   //
-  // Reading the stored choice here instead produced a hydration error: the
-  // server has no localStorage, so it renders English, while the client renders
-  // Urdu — React sees two different trees and throws the whole thing away.
-  // The stored language is applied immediately after mount below, which costs a
-  // brief flash of English and is the price of the markup matching.
-  const [locale, setLocaleState] = useState<Locale>('en')
+  // Urdu is this product's real default — every village's own branding and
+  // nearly every user reads it that way — so the safe initial render (same on
+  // server and client, no hydration mismatch) should be the one almost
+  // everyone actually wants, not English. Reading the stored choice here
+  // instead produced a hydration error: the server has no localStorage, so it
+  // renders one language while the client renders the stored one — React sees
+  // two different trees and throws the whole thing away. The stored language
+  // is applied immediately after mount below; a visitor who has deliberately
+  // chosen English sees a brief flash of Urdu first, which is the price of the
+  // markup matching, but it is now the rare case instead of the default one.
+  const [locale, setLocaleState] = useState<Locale>('ur')
   const [terms, setTerms] = useState<Record<string, TermEntry>>({})
   const [overrides, setOverrides] = useState<Record<string, string>>({})
   const [ready, setReady] = useState(false)
@@ -66,7 +71,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   // Runs after hydration, so it cannot disagree with the server-rendered HTML.
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY)
-    if (saved === 'ur') setLocaleState('ur')
+    if (saved === 'en') setLocaleState('en')
   }, [])
 
   useEffect(() => {
@@ -147,10 +152,10 @@ export function useLocale(): LocaleContextValue {
   const ctx = useContext(LocaleContext)
   if (ctx) return ctx
   return {
-    locale: 'en',
-    isUrdu: false,
+    locale: 'ur',
+    isUrdu: true,
     dir: 'ltr',
-    t: (key: string, fallback?: string) => messages.en[key] ?? fallback ?? key,
+    t: (key: string, fallback?: string) => messages.ur[key] ?? messages.en[key] ?? fallback ?? key,
     term: (_c: string, code: string | null | undefined, fallback?: string) => fallback ?? code ?? '',
     setLocale: async () => {},
     ready: true,

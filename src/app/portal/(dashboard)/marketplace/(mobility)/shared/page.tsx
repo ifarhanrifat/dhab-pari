@@ -30,13 +30,13 @@ interface TripRow {
   id: string; vehicle_id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null; avg_rating: number | null
   origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; travel_date: string; departure_time_estimate: string | null
-  seats_available: number; listed_fare_per_seat_pkr: number
+  seats_available: number; listed_fare_per_seat_pkr: number; trip_type: string
 }
 interface BookingRow {
-  id: string; status: string; seats: number; agreed_fare_per_seat_pkr: number; total_amount_pkr: number
+  id: string; status: string; seats: number; leg: string; agreed_fare_per_seat_pkr: number; total_amount_pkr: number
   cancellation_reason: string | null; owner_name: string; vehicle_type: string; vehicle_number: string | null
   origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
-  travel_date: string; departure_time_estimate: string | null
+  travel_date: string; departure_time_estimate: string | null; trip_type: string
 }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -92,9 +92,9 @@ export default function SharedRidePage() {
     })
   }
 
-  async function bookTrip(trip: TripRow) {
+  async function bookTrip(trip: TripRow, leg: 'oneway' | 'return') {
     setBusyId(trip.id)
-    const { error } = await supabase.rpc('book_trip_offer', { p_trip_offer_id: trip.id, p_seats_requested: seats })
+    const { error } = await supabase.rpc('book_trip_offer', { p_trip_offer_id: trip.id, p_seats_requested: seats, p_leg: leg })
     setBusyId(null)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('vp.tripBookedToast'))
@@ -183,7 +183,12 @@ export default function SharedRidePage() {
                     <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="font-sans text-[13px] font-extrabold text-[#1e293b]">{nm(b.origin, b.origin_ur)} → {nm(b.destination, b.destination_ur)}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-sans text-[13px] font-extrabold text-[#1e293b]">{nm(b.origin, b.origin_ur)} → {nm(b.destination, b.destination_ur)}</p>
+                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${b.leg === 'return' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
+                              {b.leg === 'return' ? t('cm.tripTypeReturn') : t('cm.tripTypeOneway')}
+                            </span>
+                          </div>
                           <p className="text-[10.5px] text-[#64748b]">{b.owner_name} · {b.vehicle_type}{b.vehicle_number ? ` · ${b.vehicle_number}` : ''}</p>
                           <p className="text-[10.5px] text-[#64748b] ltr-num">{new Date(b.travel_date).toLocaleDateString('en-GB')}{depTime ? ` · ${depTime}` : ''} · {b.seats} {t('vp.seatsLabel')}</p>
                           {b.status === 'cancelled' && b.cancellation_reason && (
@@ -246,11 +251,18 @@ export default function SharedRidePage() {
               {trips.map((trip) => {
                 const ok = trip.seats_available >= seats
                 const depTime = fmtTime(trip.departure_time_estimate, isUrdu)
+                const isReturn = trip.trip_type === 'return'
+                const onewayFare = isReturn ? Math.round(trip.listed_fare_per_seat_pkr / 2) : trip.listed_fare_per_seat_pkr
                 return (
                   <div key={trip.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="font-sans text-[13.5px] font-extrabold text-[#1e293b]">{trip.owner_name}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-sans text-[13.5px] font-extrabold text-[#1e293b]">{trip.owner_name}</p>
+                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${isReturn ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
+                            {isReturn ? t('cm.tripTypeReturn') : t('cm.tripTypeOneway')}
+                          </span>
+                        </div>
                         <p className="text-[10.5px] text-[#64748b]">
                           {trip.vehicle_type}{trip.vehicle_number ? ` · ${trip.vehicle_number}` : ''}
                           {trip.avg_rating != null && <> · <Star size={9} className="inline -mt-0.5 fill-amber-400 text-amber-400" /> {trip.avg_rating}</>}
@@ -261,18 +273,33 @@ export default function SharedRidePage() {
                         )}
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-sans text-[13px] font-extrabold text-[#166534] ltr-num">{fmt(trip.listed_fare_per_seat_pkr)}<span className="text-[9.5px] font-semibold text-[#64748b]">{t('vp.perSeatLabel')}</span></p>
+                        <p className="font-sans text-[13px] font-extrabold text-[#166534] ltr-num">{fmt(onewayFare)}<span className="text-[9.5px] font-semibold text-[#64748b]">{t('vp.perSeatLabel')}</span></p>
+                        {isReturn && <p className="text-[9.5px] text-[#64748b] ltr-num">{t('vp.returnFareLabel')} {fmt(trip.listed_fare_per_seat_pkr)}</p>}
                         <span className={`inline-flex items-center gap-1 mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ltr-num ${trip.seats_available <= 1 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'}`}>
                           <Users size={10} /> {t('vp.seatsLeftLabel').replace('{n}', String(trip.seats_available))}
                         </span>
                       </div>
                     </div>
 
-                    <button disabled={!ok || busyId === trip.id} onClick={() => bookTrip(trip)}
-                      className="w-full rounded-xl py-2 text-[11.5px] font-bold text-white cursor-pointer disabled:opacity-50 ltr-num"
-                      style={{ background: ok ? '#166534' : '#94a3b8' }}>
-                      {ok ? t('vp.bookAtListedPriceBtn').replace('{price}', fmt(trip.listed_fare_per_seat_pkr * seats)) : t('vp.notEnoughSeats')}
-                    </button>
+                    {isReturn ? (
+                      <div className="flex items-center gap-2">
+                        <button disabled={!ok || busyId === trip.id} onClick={() => bookTrip(trip, 'oneway')}
+                          className="flex-1 rounded-xl py-2 text-[11px] font-bold text-white cursor-pointer disabled:opacity-50 ltr-num"
+                          style={{ background: ok ? '#166534' : '#94a3b8' }}>
+                          {ok ? t('vp.bookOneWayBtn').replace('{price}', fmt(onewayFare * seats)) : t('vp.notEnoughSeats')}
+                        </button>
+                        <button disabled={!ok || busyId === trip.id} onClick={() => bookTrip(trip, 'return')}
+                          className="flex-1 rounded-xl py-2 text-[11px] font-bold cursor-pointer border border-[#166534] text-[#166534] disabled:opacity-50 ltr-num">
+                          {t('vp.bookReturnBtn').replace('{price}', fmt(trip.listed_fare_per_seat_pkr * seats))}
+                        </button>
+                      </div>
+                    ) : (
+                      <button disabled={!ok || busyId === trip.id} onClick={() => bookTrip(trip, 'oneway')}
+                        className="w-full rounded-xl py-2 text-[11.5px] font-bold text-white cursor-pointer disabled:opacity-50 ltr-num"
+                        style={{ background: ok ? '#166534' : '#94a3b8' }}>
+                        {ok ? t('vp.bookAtListedPriceBtn').replace('{price}', fmt(trip.listed_fare_per_seat_pkr * seats)) : t('vp.notEnoughSeats')}
+                      </button>
+                    )}
                   </div>
                 )
               })}

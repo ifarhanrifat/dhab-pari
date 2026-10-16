@@ -34,7 +34,7 @@ interface FareOffer {
   rider_full_name: string | null; rider_mobile: string | null
 }
 interface TripBooking {
-  id: string; seats: number; agreed_fare_per_seat_pkr: number; total_amount_pkr: number; status: string; cancellation_reason: string | null
+  id: string; seats: number; leg: string; agreed_fare_per_seat_pkr: number; total_amount_pkr: number; status: string; cancellation_reason: string | null
   vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; travel_date: string } | null
 }
 const emptyTripOffer = {
@@ -73,7 +73,7 @@ export default function MyVehicleTripsPage() {
   const reload = async (vehicleId: string) => {
     const [{ data: trips }, { data: tripB }] = await Promise.all([
       supabase.from('vehicle_trip_offers').select('*').eq('vehicle_id', vehicleId).order('created_at', { ascending: false }),
-      supabase.from('vehicle_trip_bookings').select('id, seats, agreed_fare_per_seat_pkr, total_amount_pkr, status, cancellation_reason, vehicle_trip_offers(origin, origin_ur, destination, destination_ur, travel_date)')
+      supabase.from('vehicle_trip_bookings').select('id, seats, leg, agreed_fare_per_seat_pkr, total_amount_pkr, status, cancellation_reason, vehicle_trip_offers(origin, origin_ur, destination, destination_ur, travel_date)')
         .eq('vehicle_id', vehicleId).order('created_at', { ascending: false }).limit(20),
     ])
     setTripOffers(trips ?? [])
@@ -300,7 +300,12 @@ export default function MyVehicleTripsPage() {
               <div key={tb.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-sans text-[13px] font-semibold text-[#1e293b] truncate">{tb.vehicle_trip_offers ? `${isUrdu && tb.vehicle_trip_offers.origin_ur ? tb.vehicle_trip_offers.origin_ur : tb.vehicle_trip_offers.origin} → ${isUrdu && tb.vehicle_trip_offers.destination_ur ? tb.vehicle_trip_offers.destination_ur : tb.vehicle_trip_offers.destination}` : '—'}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-sans text-[13px] font-semibold text-[#1e293b] truncate">{tb.vehicle_trip_offers ? `${isUrdu && tb.vehicle_trip_offers.origin_ur ? tb.vehicle_trip_offers.origin_ur : tb.vehicle_trip_offers.origin} → ${isUrdu && tb.vehicle_trip_offers.destination_ur ? tb.vehicle_trip_offers.destination_ur : tb.vehicle_trip_offers.destination}` : '—'}</p>
+                      <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${tb.leg === 'return' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
+                        {tb.leg === 'return' ? t('cm.tripTypeReturn') : t('cm.tripTypeOneway')}
+                      </span>
+                    </div>
                     <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{tb.vehicle_trip_offers && new Date(tb.vehicle_trip_offers.travel_date).toLocaleDateString('en-GB')} · {tb.seats} {t('mk.seatsLabel')}</p>
                   </div>
                   <p className="font-sans text-[14px] font-bold text-[#166534] shrink-0">{fmt(tb.total_amount_pkr)}</p>
