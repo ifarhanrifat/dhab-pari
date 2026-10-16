@@ -185,31 +185,34 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   }, [load])
 
   const label = (a: Appeal) => SEVERITY_LABEL[a.severity] ?? SEVERITY_LABEL.appeal
-  const track = appeals
-    .map((a) => `${label(a)}  ●  ${a.body_ur}  ●  ${a.body_en}`)
-    .join(SEPARATOR)
+  // Real ask, 2026-10-17: three stacked belts "looking very bad" once a
+  // free appeal and a paid ilan were both live at once. Emergency keeps
+  // its own dedicated red belt (never diluted by sharing scroll-time
+  // with anything else); every non-emergency appeal and every paid
+  // commercial ilan now share one yellow belt instead of each getting
+  // its own strip. A paid item keeps a short "sponsored" tag inline so
+  // it still reads as distinct from a real village appeal even while
+  // sharing the scroll.
+  const emergencyAppeals = appeals.filter((a) => a.severity === 'emergency')
+  const calmAppeals = appeals.filter((a) => a.severity !== 'emergency')
+
+  const emergencyTrack = emergencyAppeals.map((a) => `${label(a)}  ●  ${a.body_ur}  ●  ${a.body_en}`).join(SEPARATOR)
+  const emergencyTicker = useScrollTicker(emergencyTrack, isUrdu)
+
+  const calmAppealItems = calmAppeals.map((a) => `${label(a)}  ●  ${a.body_ur}  ●  ${a.body_en}`)
+  const paidItems = paidIlans.map((p) => `${t('il.sponsoredLabel')}  ●  ${p.title_ur}  ●  ${p.body_ur}${p.contact_mobile ? `  ●  ${p.contact_mobile}` : ''}`)
+  const yellowTrack = [...calmAppealItems, ...paidItems].join(SEPARATOR)
+  const yellowTicker = useScrollTicker(yellowTrack, isUrdu)
+
   // Urdu-only, no English concatenated in — message_ur is what a
   // publisher/admin actually writes for a manually-authored entry; an
   // auto-generated donation thank-you now stores the same Urdu text in
   // both columns (migration 375), so falling back to .message when
   // .message_ur is unset still only ever shows Urdu, never English.
   const tickerText = messages.map((m) => m.message_ur || m.message).join(SEPARATOR)
-  const appealTicker = useScrollTicker(track, isUrdu)
   const messageTicker = useScrollTicker(tickerText, isUrdu)
 
-  const paidTrack = paidIlans.map((p) => `${p.title_ur}  ●  ${p.body_ur}${p.contact_mobile ? `  ●  ${p.contact_mobile}` : ''}`).join(SEPARATOR)
-  const paidTicker = useScrollTicker(paidTrack, isUrdu)
-
   if (messages.length === 0 && appeals.length === 0 && paidIlans.length === 0) return null
-
-  // Real ask, 2026-10-01: "for emergency that new belt will display in
-  // red background, while for the other ilans... yellow with Black
-  // fonts" — one colour for the whole belt, picked by the single most
-  // urgent thing currently live in it, not per-message inside one
-  // continuous scroll.
-  const hasEmergency = appeals.some((a) => a.severity === 'emergency')
-  const alertBeltClass = hasEmergency ? 'bg-dp-error text-white' : 'bg-amber-400 text-black'
-  const badgeClass = hasEmergency ? 'bg-black/20' : 'bg-black/10'
 
   return (
     <>
@@ -222,44 +225,55 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
         </div>
       )}
 
-      {appeals.length > 0 && (
-        <div className={`${alertBeltClass} h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[59] print:hidden`}>
+      {emergencyAppeals.length > 0 && (
+        <div className="bg-dp-error text-white h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[59] print:hidden">
           {/* Static badge outside the scroll, so the warning never scrolls away
               even mid-message. */}
-          <span className={`shrink-0 flex items-center gap-1.5 h-full px-3 ${badgeClass} font-sans text-[12px] font-bold tracking-[0.06em]`}>
+          <span className="shrink-0 flex items-center gap-1.5 h-full px-3 bg-black/20 font-sans text-[12px] font-bold tracking-[0.06em]">
             <AlertTriangle size={14} className="shrink-0" />
             <span className="hidden sm:inline">{t('y.urgent')}</span>
           </span>
 
-          <div ref={appealTicker.containerRef} dir={isUrdu ? 'rtl' : 'ltr'} className="flex-1 min-w-0 overflow-hidden">
+          <div ref={emergencyTicker.containerRef} dir={isUrdu ? 'rtl' : 'ltr'} className="flex-1 min-w-0 overflow-hidden">
             <div className="ticker-track text-[13px] font-sans font-bold tracking-[0.03em]">
-              <span className="px-4">{track}</span>
-              <span className="px-4">{SEPARATOR}{track}</span>
+              <span className="px-4">{emergencyTrack}</span>
+              <span className="px-4">{SEPARATOR}{emergencyTrack}</span>
             </div>
           </div>
 
-          {appeals[0].contact_number && (
+          {emergencyAppeals[0].contact_number && (
             <a
-              href={`tel:${(appeals[0].contact_number ?? '').replace(/[^0-9]/g, '').replace(/^0/, '92')}`}
-              className={`shrink-0 hidden md:flex items-center h-full px-3 ${badgeClass} hover:brightness-95 transition-colors font-sans text-[12.5px] font-bold`}
+              href={`tel:${(emergencyAppeals[0].contact_number ?? '').replace(/[^0-9]/g, '').replace(/^0/, '92')}`}
+              className="shrink-0 hidden md:flex items-center h-full px-3 bg-black/20 hover:brightness-95 transition-colors font-sans text-[12.5px] font-bold"
             >
-              {appeals[0].contact_number}
+              {emergencyAppeals[0].contact_number}
             </a>
           )}
         </div>
       )}
 
-      {paidIlans.length > 0 && (
-        <div className="bg-[#1a1f2e] text-white h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[57] print:hidden">
-          <span className="shrink-0 flex items-center gap-1.5 h-full px-3 bg-white/10 font-sans text-[12px] font-bold tracking-[0.06em]">
-            <Megaphone size={14} className="shrink-0" /> <span className="hidden sm:inline">{t('il.sponsoredLabel')}</span>
+      {(calmAppeals.length > 0 || paidIlans.length > 0) && (
+        <div className="bg-amber-400 text-black h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[58] print:hidden">
+          <span className="shrink-0 flex items-center gap-1.5 h-full px-3 bg-black/10 font-sans text-[12px] font-bold tracking-[0.06em]">
+            <Megaphone size={14} className="shrink-0" />
+            <span className="hidden sm:inline">{t('il.announcementsLabel')}</span>
           </span>
-          <div ref={paidTicker.containerRef} dir={isUrdu ? 'rtl' : 'ltr'} className="flex-1 min-w-0 overflow-hidden">
-            <div className="ticker-track text-[13px] font-sans font-semibold tracking-[0.03em]">
-              <span className="px-4">{paidTrack}</span>
-              <span className="px-4">{SEPARATOR}{paidTrack}</span>
+
+          <div ref={yellowTicker.containerRef} dir={isUrdu ? 'rtl' : 'ltr'} className="flex-1 min-w-0 overflow-hidden">
+            <div className="ticker-track text-[13px] font-sans font-bold tracking-[0.03em]">
+              <span className="px-4">{yellowTrack}</span>
+              <span className="px-4">{SEPARATOR}{yellowTrack}</span>
             </div>
           </div>
+
+          {calmAppeals[0]?.contact_number && (
+            <a
+              href={`tel:${(calmAppeals[0].contact_number ?? '').replace(/[^0-9]/g, '').replace(/^0/, '92')}`}
+              className="shrink-0 hidden md:flex items-center h-full px-3 bg-black/10 hover:brightness-95 transition-colors font-sans text-[12.5px] font-bold"
+            >
+              {calmAppeals[0].contact_number}
+            </a>
+          )}
         </div>
       )}
     </>
