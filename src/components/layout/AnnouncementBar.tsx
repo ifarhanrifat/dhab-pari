@@ -160,7 +160,7 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
     const { data: ci } = await supabase
       .from('commercial_ilans')
       .select('id, title_ur, body_ur, contact_mobile')
-      .eq('placement', 'ticker')
+      .in('placement', ['ticker', 'auto_trip'])
       .order('created_at', { ascending: false })
     setPaidIlans((ci ?? []) as PaidIlan[])
 

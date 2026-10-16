@@ -85,7 +85,7 @@ import { MODULES } from '@/lib/constants'
 
 interface LeafItem {
   href: string; label: string; icon: LucideIcon
-  system?: 'water_supply' | 'donors_projects'
+  system?: 'water_supply' | 'donors_projects' | 'marketplace'
   module?: 'business'
   publish?: 'news' | 'videos' | 'gallery' | 'ticker' | 'jobs' | 'poetry' | 'blog'
   tKey?: string
@@ -244,6 +244,7 @@ const menuItems: MenuEntry[] = [
       { href: '/admin/user-verification', label: 'User Verification', tKey: 'nav.userVerification', icon: ShieldCheck, system: 'donors_projects' },
       { href: '/admin/disputes', label: 'Disputes', tKey: 'nav.disputes', icon: Scale, system: 'donors_projects' },
       { href: '/admin/fleet-map', label: 'Fleet Map', tKey: 'nav.fleetMap', icon: Radar, system: 'donors_projects' },
+      { href: '/admin/ilans', label: 'Ilans', tKey: 'nav.ilans', icon: Megaphone, system: 'marketplace' },
     ],
   },
   { href: '/admin/talent-showcase', label: 'Talent Showcase', tKey: 'nav.talentShowcase', icon: Sparkles, adminAndAbove: true, system: 'donors_projects' },
@@ -375,6 +376,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
     // flashing the other account's menu and then removing it.
     if (item.system === 'water_supply') return !access.loading && access.canWaterSupply
     if (item.system === 'donors_projects') return !access.loading && access.canDonorsProjects
+    if (item.system === 'marketplace') return !access.loading && access.canMarketplace
     return true
   }
 
