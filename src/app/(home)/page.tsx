@@ -18,10 +18,15 @@ export const metadata: Metadata = {
   title: 'Home',
 }
 
-// Homepage stats/activity digest change more often than About/Donate, but
-// nothing here is per-visitor — a 1-minute cache still means every real
-// visitor gets a fast cached page instead of the full stats+jobs+volunteers+
-// achievements query set running fresh on every single visit.
+// Homepage stats/activity digest change more often than About/Donate, so a
+// short revalidate window is the right intent — but this export is
+// currently a no-op in practice: getCookieTenantId() below reads cookies(),
+// which forces Next to render this route fully dynamic (confirmed live:
+// cache-control comes back "private, no-store", x-vercel-cache: MISS)
+// regardless of what's set here. Every visit really does re-run the full
+// query set fresh right now. Left in place as the stated intent for if/when
+// tenant resolution here stops depending on cookies(), not because it's
+// doing anything today.
 export const revalidate = 60
 
 interface HomepageStats {
@@ -65,11 +70,23 @@ export default async function HomePage() {
       .order('is_featured', { ascending: false })
       .order('published_at', { ascending: false })
       .limit(4),
-    supabase
-      .from('video_content')
-      .select('id, title, video_url, thumbnail_url, duration_seconds, category')
-      .eq('is_published', true)
-      .limit(4),
+    // Real bug, 2026-10-17: this page reads cookies (getCookieTenantId,
+    // just above) -- which forces Next into fully dynamic/no-store
+    // rendering for the WHOLE route (confirmed live: cache-control
+    // actually comes back "private, no-store", x-vercel-cache: MISS),
+    // so the `revalidate = 60` export never actually takes effect and
+    // there's no stale-but-good cached page to fall back on. Every
+    // single visit re-runs this entire 18-query Promise.all fresh, so
+    // a transient Supabase hiccup on any one of them is a real,
+    // recurring risk under load, not a rare one-off -- one retry here
+    // covers it without needing the rest of the page to fail too.
+    (async () => {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const res = await supabase.from('video_content').select('id, title, video_url, thumbnail_url, duration_seconds, category').eq('is_published', true).limit(4)
+        if (!res.error) return res
+        if (attempt === 2) { console.error('Homepage videos query failed twice', res.error); return res }
+      }
+    })(),
     // donors_public, not the raw donors table -- donors has no
     // anonymous-read RLS policy at all (donors_read/donors_portal_read_own
     // both require an authenticated admin/portal session), so this always
@@ -162,17 +179,7 @@ export default async function HomePage() {
   }
 
   const news = newsRes.data ?? []
-  // Real bug, 2026-10-17: this page is ISR-cached for 60s (revalidate
-  // above) -- a transient Supabase hiccup during ONE regeneration pass
-  // silently resolved as "zero videos" (data ?? [] swallowed the error
-  // with no check) and that empty result got baked into the shared
-  // cache for every visitor until the next regeneration happened to
-  // succeed, which read as "videos disappear, come back on refresh."
-  // Throwing on a real error instead makes Next's ISR keep serving the
-  // last known-good cached page rather than replacing it with a
-  // broken one.
-  if (videosRes.error) throw new Error(`Homepage videos query failed: ${videosRes.error.message}`)
-  const videos = videosRes.data ?? []
+  const videos = videosRes?.data ?? []
   const donors = donorsRes.data ?? []
   const stats = (statsRes.data as HomepageStats | null) ?? { available_funds: 0, active_projects: 0, donations_this_month: 0, registered_households: 0, revenue_this_month: 0, expenses_this_month: 0 }
   const jobs = jobsRes.data ?? []
