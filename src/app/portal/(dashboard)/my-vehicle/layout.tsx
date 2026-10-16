@@ -39,13 +39,13 @@ function Chrome({ children }: { children: React.ReactNode }) {
   const { count } = useDriverJobsBadge()
   return (
     // Same desktop-width fix as marketplace/(mobility)/layout.tsx — see
-    // its comment (including the 2026-10-17 sm:mx-auto removal, kept in
-    // sync here too). Kept in sync deliberately rather than factored
+    // its comment (including the 2026-10-17 md:max-w-none change, kept
+    // in sync here too). Kept in sync deliberately rather than factored
     // into a shared wrapper, matching this file's own existing precedent
     // of a section owning its full chrome rather than sharing a generic
     // shell.
     <div className="min-h-[calc(100vh-1px)] bg-[#e5e2d0] sm:py-5 -m-6 md:-m-10">
-      <div dir={isUrdu ? 'rtl' : 'ltr'} className="sm:max-w-[460px] bg-[#F9F9F6] min-h-[calc(100vh-1px)] sm:min-h-[calc(100vh-40px)] sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,.35)]">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="sm:max-w-[460px] md:max-w-none bg-[#F9F9F6] min-h-[calc(100vh-1px)] sm:min-h-[calc(100vh-40px)] sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,.35)]">
         <MobilityHeader />
         <div className="p-3.5 pb-24">{children}</div>
       </div>

@@ -13,24 +13,19 @@ import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 export default function MobilityLayout({ children }: { children: React.ReactNode }) {
   const { isUrdu } = useLocale()
   return (
-    // Real bug found live on a desktop browser: this shell had no width
-    // cap at all, so on anything wider than a phone the map and every
-    // card stretched full-bleed across the window instead of reading as
-    // a phone-width app (the design's own wide/outerPad/frameR state,
-    // window.innerWidth >= 520, does the same thing). MobilityBottomNav
-    // is viewport-fixed and already centers its own max-w-md content, so
-    // just capping this column's width keeps the nav visually aligned
-    // under it without having to rebuild the nav as part of the frame.
-    //
-    // Real ask, 2026-10-17: centering this frame in whatever width the
-    // sidebar leaves it looked like a disconnected phone widget floating
-    // in a sea of empty page on a wide laptop screen. Dropping the
-    // sm:mx-auto makes it hug the sidebar's own edge instead — still
-    // phone-width (not full-bleed, the original bug this cap fixed), but
-    // reading as part of the page layout rather than something stranded
-    // in the middle of it.
+    // Real bug found live on a desktop browser (original version of this
+    // comment): this shell had no width cap at all, so on anything wider
+    // than a phone the map and every card stretched full-bleed across
+    // the window. Capping it to phone-width fixed that, but swung too
+    // far the other way — real ask, 2026-10-17, after seeing it live:
+    // "this page should display like a real webpage like all other
+    // pages." Every other portal page just uses whatever width `main`
+    // itself provides (up to max-w-[1400px]), no inner frame at all; this
+    // now does the same from md (768px) up — still phone-width below
+    // that (sm:max-w-[460px] for an actual narrow browser/tablet), but a
+    // real desktop gets a real desktop layout, same as everywhere else.
     <div className="min-h-[calc(100vh-1px)] bg-[#e5e2d0] sm:py-5 -m-6 md:-m-10">
-      <div dir={isUrdu ? 'rtl' : 'ltr'} className="sm:max-w-[460px] bg-[#F9F9F6] min-h-[calc(100vh-1px)] sm:min-h-[calc(100vh-40px)] sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,.35)]">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="sm:max-w-[460px] md:max-w-none bg-[#F9F9F6] min-h-[calc(100vh-1px)] sm:min-h-[calc(100vh-40px)] sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,.35)]">
         <MobilityHeader />
         <div className="p-3.5 pb-24">{children}</div>
       </div>
