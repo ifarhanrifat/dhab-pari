@@ -352,12 +352,21 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
           its own stacking higher). */}
       {mobileOpen && <div className="bg-black/50 z-[10000] md:hidden" style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0 }} onClick={onMobileClose} />}
 
+      {/* Real bug, live on the installed Android app: this drawer is
+          `fixed, top: 0`, so it doesn't inherit the safe-area padding
+          the rest of the page applies via its own sticky wrapper (fixed
+          elements are positioned against the viewport directly, not an
+          ancestor's padded box) — the profile block rendered flush under
+          the phone's own status bar. paddingTop keeps the green
+          background at true top: 0 (still covers behind the status bar,
+          no mismatched gap) while pushing the actual content below it. */}
       <aside
         style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 'auto',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
           transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
         }}
         className="h-screen w-[260px] bg-dp2-primary z-[10001] md:hidden flex flex-col py-6 transition-transform duration-300 ease-in-out"

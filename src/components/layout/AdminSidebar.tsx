@@ -616,13 +616,20 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
         />
       )}
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — same safe-area fix as PortalSidebar's own mobile
+          drawer: `fixed, top: 0` doesn't inherit the page's own sticky-
+          wrapper safe-area padding (fixed elements position against the
+          viewport directly), so the profile block rendered under the
+          phone's status bar on the installed Android app. paddingTop
+          keeps the background at true top: 0 (still covers behind the
+          status bar) while pushing the actual content below it. */}
       <aside
         style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 'auto',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
           // Inline, not a class: the drawer was staying on screen taking half
           // the display because the translate utility was not resolving, which
           // left it with no way to hide itself.
