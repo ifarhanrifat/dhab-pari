@@ -5308,7 +5308,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.jobCompletedToast': 'Job completed.', 'vp.anotherJobActiveHint': 'Finish your current job before starting this one.',
     'vp.noEquipmentBookingsYetHint': 'No booking requests yet.',
 
-    'mb.appName': 'Dhab Pari Mobility', 'mb.headerSubtitle': 'Rides, errands & machinery',
+    'mb.appName': 'Dhab Pari Portal', 'mb.headerSubtitle': 'Rides, errands & machinery',
     'mb.navHome': 'Home', 'mb.navMachinery': 'Machinery', 'mb.navBookings': 'Bookings', 'mb.navChat': 'Chat', 'mb.navAccount': 'Account',
     'mb.navJobs': 'Jobs', 'mb.navEarnings': 'Earnings', 'mb.navVehicle': 'Vehicle',
     'mb.useMyLocationBtn': 'Use my location', 'mb.tapMapToPinHint': 'Tap the map to drop a pin', 'mb.locationLabelField': 'What is this place?', 'mb.locationLabelPlaceholder': 'e.g. House near the mosque', 'mb.confirmLocationBtn': 'Use this location',
@@ -10746,7 +10746,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.jobCompletedToast': 'کام مکمل ہو گیا۔', 'vp.anotherJobActiveHint': 'اس سے پہلے اپنا موجودہ کام مکمل کریں۔',
     'vp.noEquipmentBookingsYetHint': 'ابھی کوئی بکنگ درخواست نہیں۔',
 
-    'mb.appName': 'ڈھاب پری موبیلیٹی', 'mb.headerSubtitle': 'سواری، خریداری اور مشینری',
+    'mb.appName': 'ڈھاب پری پورٹل', 'mb.headerSubtitle': 'سواری، خریداری اور مشینری',
     'mb.navHome': 'ہوم', 'mb.navMachinery': 'مشینری', 'mb.navBookings': 'بکنگز', 'mb.navChat': 'چیٹ', 'mb.navAccount': 'اکاؤنٹ',
     'mb.navJobs': 'کام', 'mb.navEarnings': 'کمائی', 'mb.navVehicle': 'گاڑی',
     'mb.useMyLocationBtn': 'میرا مقام استعمال کریں', 'mb.tapMapToPinHint': 'نشان لگانے کے لیے نقشے پر ٹیپ کریں', 'mb.locationLabelField': 'یہ کون سی جگہ ہے؟', 'mb.locationLabelPlaceholder': 'مثلاً مسجد کے قریب گھر', 'mb.confirmLocationBtn': 'یہ جگہ استعمال کریں',

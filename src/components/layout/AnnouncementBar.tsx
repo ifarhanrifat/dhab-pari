@@ -207,7 +207,14 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   }, [load])
 
   const label = (a: Appeal) => SEVERITY_LABEL[a.severity] ?? SEVERITY_LABEL.appeal
-  const appealText = (a: Appeal) => `${label(a)}  ●  ${a.body_ur}  ●  ${a.body_en}`
+  // Real ask, 2026-10-17: a standalone fixed phone-number badge (outside
+  // the scroll) made no sense once a free appeal and a paid vehicle ad
+  // could both be live in the same belt at once -- a reader had no way
+  // to tell whose number the fixed badge actually belonged to. The
+  // number now travels inline with its own appeal's own text instead
+  // (same place a commercial ilan's contact_mobile already lives), never
+  // ambiguous regardless of what else is sharing the scroll.
+  const appealText = (a: Appeal) => `${label(a)}  ●  ${a.body_ur}  ●  ${a.body_en}${a.contact_number ? `  ●  ${a.contact_number}` : ''}`
   // Real ask, 2026-10-17: three stacked belts "looking very bad" once a
   // free appeal and a paid ilan were both live at once. Emergency keeps
   // its own dedicated red belt (never diluted by sharing scroll-time
@@ -300,7 +307,12 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
       )}
 
       {emergencyAppeals.length > 0 && (
-        <div className="bg-dp-error text-white h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[59] print:hidden">
+        // Explicit dir, not ambient — same reason the scrolling track
+        // below already sets its own: the public site and the portal
+        // don't share the same ambient direction context, which was
+        // putting this badge on opposite physical sides of the two
+        // surfaces for the same language. (2026-10-17)
+        <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-dp-error text-white h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[59] print:hidden">
           {/* Static badge outside the scroll, so the warning never scrolls away
               even mid-message. */}
           <span className="shrink-0 flex items-center gap-1.5 h-full px-3 bg-black/20 font-sans text-[12px] font-bold tracking-[0.06em]">
@@ -314,20 +326,11 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
               {renderEmergencyPass('e2')}
             </div>
           </div>
-
-          {emergencyAppeals[0].contact_number && (
-            <a
-              href={`tel:${(emergencyAppeals[0].contact_number ?? '').replace(/[^0-9]/g, '').replace(/^0/, '92')}`}
-              className="shrink-0 hidden md:flex items-center h-full px-3 bg-black/20 hover:brightness-95 transition-colors font-sans text-[12.5px] font-bold"
-            >
-              {emergencyAppeals[0].contact_number}
-            </a>
-          )}
         </div>
       )}
 
       {(calmAppeals.length > 0 || paidIlans.length > 0) && (
-        <div className="bg-amber-400 text-black h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[58] print:hidden">
+        <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-amber-400 text-black h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[58] print:hidden">
           <span className="shrink-0 flex items-center gap-1.5 h-full px-3 bg-black/10 font-sans text-[12px] font-bold tracking-[0.06em]">
             <Megaphone size={14} className="shrink-0" />
             <span className="hidden sm:inline">{t('il.announcementsLabel')}</span>
@@ -339,15 +342,6 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
               {renderYellowPass('p2')}
             </div>
           </div>
-
-          {calmAppeals[0]?.contact_number && (
-            <a
-              href={`tel:${(calmAppeals[0].contact_number ?? '').replace(/[^0-9]/g, '').replace(/^0/, '92')}`}
-              className="shrink-0 hidden md:flex items-center h-full px-3 bg-black/10 hover:brightness-95 transition-colors font-sans text-[12.5px] font-bold"
-            >
-              {calmAppeals[0].contact_number}
-            </a>
-          )}
         </div>
       )}
     </>

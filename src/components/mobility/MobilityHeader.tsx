@@ -32,7 +32,14 @@ export function MobilityHeader() {
   const openMobileNav = usePortalMobileNavToggle()
 
   return (
-    <header dir={isUrdu ? 'rtl' : 'ltr'} className="bg-[#005A36] text-white px-3.5 py-2.5 flex items-center justify-between gap-2 shadow-[0_4px_10px_rgba(0,0,0,.15)] relative z-20">
+    // Real ask, 2026-10-17: "hamburger menu... profile section should
+    // remain in the left side" for both English and Urdu — dir here used
+    // to flip with the language (same pattern PortalHeader already fixed
+    // for exactly this reason), which visually swapped the hamburger/logo
+    // group to the right in Urdu. Hardcoded ltr so the chrome's physical
+    // layout never moves; Urdu text inside still renders RTL correctly on
+    // its own via each element's own dir/the browser's bidi handling.
+    <header dir="ltr" className="bg-[#005A36] text-white px-3.5 py-2.5 flex items-center justify-between gap-2 shadow-[0_4px_10px_rgba(0,0,0,.15)] relative z-20">
       <div className="flex items-center gap-2.5 min-w-0">
         {/* Only the sidebar's own trigger -- hidden on md+ where the
             sidebar already shows permanently, same breakpoint it uses. */}
@@ -42,7 +49,7 @@ export function MobilityHeader() {
           </button>
         )}
         <div className="shrink-0 w-[38px] h-[38px] rounded-full bg-[#D4AF37] flex items-center justify-center text-[17px] shadow-[0_0_0_2px_rgba(212,175,55,.5)]">🚐</div>
-        <div className="min-w-0">
+        <div dir={isUrdu ? 'rtl' : 'ltr'} className="min-w-0 text-start">
           <p className="font-bold text-[13px] leading-tight whitespace-nowrap">{t('mb.appName')}</p>
           <p className="text-[9.5px] leading-tight text-[#bbf7d0] whitespace-nowrap overflow-hidden text-ellipsis">{t('mb.headerSubtitle')}</p>
         </div>
