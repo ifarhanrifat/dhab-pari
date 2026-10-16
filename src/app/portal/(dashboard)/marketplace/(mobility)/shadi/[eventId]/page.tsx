@@ -20,6 +20,7 @@ import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { useSite } from '@/components/layout/SiteProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
@@ -54,6 +55,7 @@ const REQ_STATUS_COLOR: Record<string, string> = { open: '#92400e', requested: '
 
 export default function ShadiEventDetailPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const { user, loading: userLoading } = usePortalUser()
   const params = useParams<{ eventId: string }>()
   const supabase = createClient()
@@ -217,7 +219,7 @@ export default function ShadiEventDetailPage() {
                   <p className="text-[11.5px] text-[#64748b] mt-1.5 ltr-num">{t('vp.balanceDueLabel')}: <span className="font-bold text-[#1e293b]">{fmt(r.full_day_rate_pkr - r.advance_share_pkr)}</span></p>
                   <div className="flex items-center justify-between mt-1">
                     <ShareBookingButton
-                      title={t('mb.appName')}
+                      title={`${isUrdu ? site.nameUrdu : site.name} ${t('mb.portalSuffix')}`}
                       lines={[`${vehicleDisplayName(r.vehicle_type, r.model)} — ${r.owner_name}`, event.venue_address, `${t('vp.totalLabel')}: ${fmt(r.full_day_rate_pkr)}`]}
                     />
                     <ReportProblemButton refType="shadi_request" refId={r.id} kindOptions={['shadi_withdrawal', 'fare_dispute']} />

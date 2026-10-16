@@ -25,10 +25,12 @@
 import Link from 'next/link'
 import { Bell, Menu } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { useSite } from '@/components/layout/SiteProvider'
 import { usePortalMobileNavToggle } from '@/components/portal/PortalMobileNavContext'
 
 export function MobilityHeader() {
   const { t, isUrdu, setLocale } = useLocale()
+  const site = useSite()
   const openMobileNav = usePortalMobileNavToggle()
 
   return (
@@ -49,8 +51,16 @@ export function MobilityHeader() {
           </button>
         )}
         <div className="shrink-0 w-[38px] h-[38px] rounded-full bg-[#D4AF37] flex items-center justify-center text-[17px] shadow-[0_0_0_2px_rgba(212,175,55,.5)]">🚐</div>
+        {/* Real bug, live: the title here was a hardcoded translation
+            string ("Dhab Pari Portal" / "ڈھاب پری پورٹل") -- wrong
+            spelling even for this one tenant (real name is "ڈھاب پڑی",
+            with ڑ not ر), and flatly wrong for the other two tenants,
+            who'd see Dhab Pari's own name on their own mobility screens.
+            Pulled from the same real per-tenant useSite() PortalHeader
+            already uses, instead of inventing a second, hand-typed copy
+            of a name that's already configured correctly elsewhere. */}
         <div dir={isUrdu ? 'rtl' : 'ltr'} className="min-w-0 text-start">
-          <p className="font-bold text-[13px] leading-tight whitespace-nowrap">{t('mb.appName')}</p>
+          <p className="font-bold text-[13px] leading-tight whitespace-nowrap">{isUrdu ? site.nameUrdu : site.name} {t('mb.portalSuffix')}</p>
           <p className="text-[9.5px] leading-tight text-[#bbf7d0] whitespace-nowrap overflow-hidden text-ellipsis">{t('mb.headerSubtitle')}</p>
         </div>
       </div>

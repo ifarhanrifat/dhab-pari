@@ -23,6 +23,7 @@ import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { useSite } from '@/components/layout/SiteProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 import { RateAndReport } from '@/components/portal/RateAndReport'
@@ -63,6 +64,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function HourlyRentalPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
 
@@ -269,7 +271,7 @@ export default function HourlyRentalPage() {
                     </div>
                     <div className="mt-1.5 flex items-center justify-between">
                       <ShareBookingButton
-                        title={t('mb.appName')}
+                        title={`${isUrdu ? site.nameUrdu : site.name} ${t('mb.portalSuffix')}`}
                         lines={[`${vehicleDisplayName(b.vehicle_type, b.model)} — ${b.owner_name}`, b.pickup_address, `${t('vp.totalLabel')}: ${fmt(b.total_amount_pkr ?? b.base_amount_pkr)}`]}
                       />
                       <ReportProblemButton refType="hourly_booking" refId={b.id} kindOptions={['hourly_overage', 'no_show']} />

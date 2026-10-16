@@ -188,12 +188,21 @@ export default function MyVehicleTripsPage() {
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!vehicle) return null
 
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const hasOpenTrip = tripOffers.some((o) => o.status === 'open' && o.travel_date >= todayStr)
+
   return (
     <div className="flex flex-col gap-3">
       <button
         onClick={() => {
           if (!rideEligible) { toast.error(t('vp.rideNotAllowedMessage')); return }
           if (!vehicle.is_online) { toast.error(t('vp.goOnlineToPostTripHint')); return }
+          // Real ask, 2026-10-17: a vehicle can only have one open trip
+          // at a time — a new one waits until the current one is closed
+          // or its own date has passed. Same client-side pre-check style
+          // as the two above it (the server enforces this regardless;
+          // this just avoids a round-trip just to show the same error).
+          if (hasOpenTrip) { toast.error(t('cm.alreadyHasOpenTripError')); return }
           setShowPostTrip(true)
         }}
         className="flex items-center gap-1.5 px-3.5 py-2.5 bg-[#166534] text-white rounded-xl font-sans text-[13px] font-semibold cursor-pointer w-fit">

@@ -2626,6 +2626,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'mv.yourShadiRateLabel': 'Your full-day wedding rate', 'mv.perDayShort': 'day',
     'mv.noShadiRateSetHint': 'The committee hasn\'t set your full-day wedding rate yet — ask them to before turning this on.',
     'cm.myTripOffersHeading': 'My Posted Trips', 'cm.youCountered': 'you countered', 'cm.counterPlaceholder': 'Counter amount',
+    'cm.alreadyHasOpenTripError': 'You already have an open trip posted — close it, or wait for its date to pass, before posting a new one.',
     'cm.counterBtn': 'Counter', 'cm.acceptBtn': 'Accept',
     'cm.tripBookingsHeading': 'Agreed Trips', 'cm.tripCompletedStatus': 'Completed',
     'cm.liveSharingOnBtn': 'Sharing live location', 'cm.liveShareOffBtn': 'Share my live location',
@@ -5308,7 +5309,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.jobCompletedToast': 'Job completed.', 'vp.anotherJobActiveHint': 'Finish your current job before starting this one.',
     'vp.noEquipmentBookingsYetHint': 'No booking requests yet.',
 
-    'mb.appName': 'Dhab Pari Portal', 'mb.headerSubtitle': 'Rides, errands & machinery',
+    'mb.portalSuffix': 'Portal', 'mb.headerSubtitle': 'Rides, errands & machinery',
     'mb.navHome': 'Home', 'mb.navMachinery': 'Machinery', 'mb.navBookings': 'Bookings', 'mb.navChat': 'Chat', 'mb.navAccount': 'Account',
     'mb.navJobs': 'Jobs', 'mb.navEarnings': 'Earnings', 'mb.navVehicle': 'Vehicle',
     'mb.useMyLocationBtn': 'Use my location', 'mb.tapMapToPinHint': 'Tap the map to drop a pin', 'mb.locationLabelField': 'What is this place?', 'mb.locationLabelPlaceholder': 'e.g. House near the mosque', 'mb.confirmLocationBtn': 'Use this location',
@@ -8072,6 +8073,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'mv.yourShadiRateLabel': 'آپ کا فل ڈے شادی ریٹ', 'mv.perDayShort': 'دن',
     'mv.noShadiRateSetHint': 'کمیٹی نے ابھی آپ کا فل ڈے شادی ریٹ مقرر نہیں کیا — یہ آن کرنے سے پہلے انہیں کہیں۔',
     'cm.myTripOffersHeading': 'میرے درج کردہ سفر', 'cm.youCountered': 'آپ نے جوابی پیشکش کی', 'cm.counterPlaceholder': 'جوابی رقم',
+    'cm.alreadyHasOpenTripError': 'آپ کا ایک سفر پہلے سے درج ہے — نیا سفر درج کرنے سے پہلے اسے بند کریں یا اس کی تاریخ گزرنے کا انتظار کریں۔',
     'cm.counterBtn': 'جوابی پیشکش', 'cm.acceptBtn': 'قبول کریں',
     'cm.tripBookingsHeading': 'طے شدہ سفر', 'cm.tripCompletedStatus': 'مکمل ہو گیا',
     'cm.liveSharingOnBtn': 'لائیو لوکیشن شیئر ہو رہی ہے', 'cm.liveShareOffBtn': 'اپنی لائیو لوکیشن شیئر کریں',
@@ -10746,7 +10748,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.jobCompletedToast': 'کام مکمل ہو گیا۔', 'vp.anotherJobActiveHint': 'اس سے پہلے اپنا موجودہ کام مکمل کریں۔',
     'vp.noEquipmentBookingsYetHint': 'ابھی کوئی بکنگ درخواست نہیں۔',
 
-    'mb.appName': 'ڈھاب پری پورٹل', 'mb.headerSubtitle': 'سواری، خریداری اور مشینری',
+    'mb.portalSuffix': 'پورٹل', 'mb.headerSubtitle': 'سواری، خریداری اور مشینری',
     'mb.navHome': 'ہوم', 'mb.navMachinery': 'مشینری', 'mb.navBookings': 'بکنگز', 'mb.navChat': 'چیٹ', 'mb.navAccount': 'اکاؤنٹ',
     'mb.navJobs': 'کام', 'mb.navEarnings': 'کمائی', 'mb.navVehicle': 'گاڑی',
     'mb.useMyLocationBtn': 'میرا مقام استعمال کریں', 'mb.tapMapToPinHint': 'نشان لگانے کے لیے نقشے پر ٹیپ کریں', 'mb.locationLabelField': 'یہ کون سی جگہ ہے؟', 'mb.locationLabelPlaceholder': 'مثلاً مسجد کے قریب گھر', 'mb.confirmLocationBtn': 'یہ جگہ استعمال کریں',

@@ -37,7 +37,15 @@ import { PortalMobileNavProvider } from '@/components/portal/PortalMobileNavCont
 // which on a wide desktop screen read as a disconnected widget floating
 // in empty page rather than part of the layout — it now hugs the
 // sidebar's edge instead, main's own mx-auto removed to match.
-const MOBILITY_MARKETPLACE_SLUGS = ['travel', 'results', 'hourly', 'rental', 'shadi', 'machinery', 'tractor', 'loader', 'trips', 'negotiations', 'account', 'city-purchase', 'notifications']
+// Real bug, live, 2026-10-17: this list exists purely because Next.js
+// strips route-group names ((mobility)) from the URL, so there's no
+// runtime way to ask "is this page actually inside that folder" --
+// this has to be hand-kept in sync with every page actually under
+// marketplace/(mobility)/, and "shared" was missed when that page was
+// added, so PortalHeader rendered a second time stacked under
+// MobilityHeader on it. If a page 404s into a double header again,
+// check this list against `ls src/app/portal/(dashboard)/marketplace/(mobility)/` first.
+const MOBILITY_MARKETPLACE_SLUGS = ['travel', 'results', 'hourly', 'rental', 'shadi', 'machinery', 'tractor', 'loader', 'trips', 'negotiations', 'account', 'city-purchase', 'notifications', 'shared']
 function isMobilityRoute(pathname: string) {
   if (pathname.startsWith('/portal/my-vehicle')) return true
   return MOBILITY_MARKETPLACE_SLUGS.some((slug) => pathname === `/portal/marketplace/${slug}` || pathname.startsWith(`/portal/marketplace/${slug}/`))

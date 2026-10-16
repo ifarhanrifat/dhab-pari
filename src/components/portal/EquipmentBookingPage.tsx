@@ -28,6 +28,7 @@ import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { useSite } from '@/components/layout/SiteProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
@@ -77,6 +78,7 @@ const KIND_ICON: Record<Kind, typeof Wrench> = { machinery: Wrench, tractor: Tra
 
 export function EquipmentBookingPage({ kind }: { kind: Kind }) {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
   const Icon = KIND_ICON[kind]
@@ -292,7 +294,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
                     </div>
                     <div className="mt-1.5 flex items-center justify-between">
                       <ShareBookingButton
-                        title={t('mb.appName')}
+                        title={`${isUrdu ? site.nameUrdu : site.name} ${t('mb.portalSuffix')}`}
                         lines={[`${vehicleDisplayName(b.vehicle_type, b.model)} — ${b.owner_name}`, b.site_address, `${t('vp.totalLabel')}: ${fmt(b.total_amount_pkr ?? b.rate_pkr)}`]}
                       />
                       <ReportProblemButton refType="equipment_booking" refId={b.id} kindOptions={['fare_dispute', 'no_show']} />
