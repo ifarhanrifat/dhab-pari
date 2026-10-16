@@ -162,6 +162,16 @@ export default async function HomePage() {
   }
 
   const news = newsRes.data ?? []
+  // Real bug, 2026-10-17: this page is ISR-cached for 60s (revalidate
+  // above) -- a transient Supabase hiccup during ONE regeneration pass
+  // silently resolved as "zero videos" (data ?? [] swallowed the error
+  // with no check) and that empty result got baked into the shared
+  // cache for every visitor until the next regeneration happened to
+  // succeed, which read as "videos disappear, come back on refresh."
+  // Throwing on a real error instead makes Next's ISR keep serving the
+  // last known-good cached page rather than replacing it with a
+  // broken one.
+  if (videosRes.error) throw new Error(`Homepage videos query failed: ${videosRes.error.message}`)
   const videos = videosRes.data ?? []
   const donors = donorsRes.data ?? []
   const stats = (statsRes.data as HomepageStats | null) ?? { available_funds: 0, active_projects: 0, donations_this_month: 0, registered_households: 0, revenue_this_month: 0, expenses_this_month: 0 }

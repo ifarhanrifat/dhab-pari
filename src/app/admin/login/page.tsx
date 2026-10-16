@@ -254,6 +254,10 @@ export default function AdminLoginPage() {
                 : `Warning: ${5 - failCount} attempt${5 - failCount === 1 ? '' : 's'} left before lockout.`}
             </p>
           )}
+
+          <p className="text-center font-sans text-[13px] text-dp-on-surface-variant mt-5">
+            {t('y.lookingForPortalLogin')} <Link href="/portal/login" className="text-dp-secondary font-semibold hover:underline">{t('y.portalLoginLink')}</Link>
+          </p>
         </div>
       </div>
 

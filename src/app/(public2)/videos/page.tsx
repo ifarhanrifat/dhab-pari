@@ -76,17 +76,31 @@ export default function VideosPage() {
   const [activeTab, setActiveTab] = useState('All')
   const [loading, setLoading] = useState(true)
 
+  // Real bug, 2026-10-17: a transient fetch failure here used to look
+  // identical to "genuinely no videos" — data ?? [] swallowed any error
+  // silently, with no retry and nothing visible in the console. One
+  // automatic retry covers the common transient case (a momentary auth
+  // token refresh or network blip); a real, persisting error at least
+  // now logs instead of vanishing.
   useEffect(() => {
     const supabase = createClient()
-    supabase
-      .from('video_content')
-      .select('*')
-      .eq('is_published', true)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setVideos(data ?? [])
-        setLoading(false)
-      })
+    let cancelled = false
+    async function load(attempt = 1) {
+      const { data, error } = await supabase
+        .from('video_content')
+        .select('*')
+        .eq('is_published', true)
+        .order('created_at', { ascending: false })
+      if (cancelled) return
+      if (error) {
+        console.error('Failed to load videos', error)
+        if (attempt < 2) { setTimeout(() => load(attempt + 1), 800); return }
+      }
+      setVideos(data ?? [])
+      setLoading(false)
+    }
+    load()
+    return () => { cancelled = true }
   }, [])
 
   const filtered =

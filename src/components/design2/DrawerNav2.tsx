@@ -131,12 +131,16 @@ export function DrawerNav2({
           ))}
         </nav>
 
+        {/* Two fully independent entry points, real ask 2026-10-17: a
+            person can hold a portal account, a staff account, both, or
+            neither -- each button reflects only its own login state (filled
+            gold when that one is actually signed in, outlined when it
+            isn't), rather than one button's state deciding what the other
+            one shows. Previously the staff-login link was hardcoded with
+            no login-state check at all, so it always looked "empty" even
+            when staff was actually signed in. */}
         <div className="mt-4 flex flex-col gap-2 px-3 pt-3 pb-5 border-t border-white/10">
-          {isStaffUser ? (
-            <Link href="/admin" onClick={onClose} className="flex items-center justify-center gap-2 rounded-xl py-2.5 bg-sky-600 text-white text-[15px] font-bold">
-              <ShieldCheck size={16} /> {t('site.adminPanel')}
-            </Link>
-          ) : isPortalUser ? (
+          {isPortalUser ? (
             <Link href="/portal" onClick={onClose} className="flex items-center justify-center gap-2 rounded-xl py-2.5 bg-dp2-gold text-[#0f172a] text-[15px] font-bold">
               <ShieldCheck size={16} /> {t('site.myPortal')}
             </Link>
@@ -145,9 +149,15 @@ export function DrawerNav2({
               <LogOut size={16} /> {t('site.login')}
             </Link>
           )}
-          <Link href="/admin" onClick={onClose} className="flex items-center justify-center gap-2 rounded-xl py-2.5 border border-white/20 text-white/80 text-[14px] font-semibold">
-            {t('y.staffLogIn')}
-          </Link>
+          {isStaffUser ? (
+            <Link href="/admin" onClick={onClose} className="flex items-center justify-center gap-2 rounded-xl py-2.5 bg-dp2-gold text-[#0f172a] text-[15px] font-bold">
+              <ShieldCheck size={16} /> {t('site.adminPanel')}
+            </Link>
+          ) : (
+            <Link href="/admin/login" onClick={onClose} className="flex items-center justify-center gap-2 rounded-xl py-2.5 border border-white/20 text-white/80 text-[14px] font-semibold">
+              {t('y.staffLogIn')}
+            </Link>
+          )}
         </div>
       </aside>
     </div>
