@@ -4,21 +4,26 @@
 // then a seat-stepper + ride list for the picked city). The Home
 // screen's "Shared Ride" tile used to hard-route to the unrelated old
 // weekly commute-matcher (marketplace/commute); this is the real
-// screen, backed by the one-off trip-offer negotiation backend
-// (vehicle_trip_offers/vehicle_trip_fare_offers/vehicle_trip_bookings,
-// migration 400+) that already powers the driver's own "publish a
-// ride" panel on my-vehicle/page.tsx — nothing new on the write side,
-// just the rider-facing read + the two new browse RPCs (660).
+// screen, backed by the one-off trip-offer backend
+// (vehicle_trip_offers/vehicle_trip_bookings) that already powers the
+// driver's own "publish a ride" panel on my-vehicle/page.tsx.
+//
+// 2026-10-17: fares are fixed at the driver's listed price — no
+// propose/counter negotiation on this screen any more (book_trip_offer,
+// migration 685). The old propose_trip_fare/respond_trip_fare_offer
+// negotiation RPCs/table are untouched in the backend (a few real
+// pending/accepted rows from before this change still need the
+// driver's own trips page to resolve them), this screen just stops
+// creating new ones.
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { ChevronLeft, Star, Users } from 'lucide-react'
+import { ChevronLeft, Star, Users, Clock, CheckCircle2, Ban, CalendarClock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 
 interface CityRow { city_key: string; destination: string; destination_ur: string | null; ride_count: number }
 interface TripRow {
@@ -27,12 +32,22 @@ interface TripRow {
   classification: string; travel_date: string; departure_time_estimate: string | null
   seats_available: number; listed_fare_per_seat_pkr: number
 }
-interface MyFareOffer {
-  id: string; trip_offer_id: string; seats_requested: number; proposed_fare_per_seat_pkr: number
-  counter_fare_per_seat_pkr: number | null; status: string
+interface BookingRow {
+  id: string; status: string; seats: number; agreed_fare_per_seat_pkr: number; total_amount_pkr: number
+  cancellation_reason: string | null; owner_name: string; vehicle_type: string; vehicle_number: string | null
+  origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
+  travel_date: string; departure_time_estimate: string | null
 }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
+
+function fmtTime(t: string | null, isUrdu: boolean) {
+  if (!t) return null
+  const [h, m] = t.split(':').map(Number)
+  const hour12 = h % 12 === 0 ? 12 : h % 12
+  const suffix = isUrdu ? (h < 12 ? 'صبح' : h < 17 ? 'دوپہر' : 'شام') : (h < 12 ? 'AM' : 'PM')
+  return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`
+}
 
 export default function SharedRidePage() {
   const { t, isUrdu } = useLocale()
@@ -40,24 +55,20 @@ export default function SharedRidePage() {
   const supabase = createClient()
 
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<'browse' | 'bookings'>('browse')
   const [cities, setCities] = useState<CityRow[]>([])
   const [cityKey, setCityKey] = useState<string | null>(null)
   const [trips, setTrips] = useState<TripRow[]>([])
   const [listLoading, setListLoading] = useState(false)
   const [seats, setSeats] = useState(1)
-  const [myOffers, setMyOffers] = useState<Record<string, MyFareOffer>>({})
-  const [offerSheetTrip, setOfferSheetTrip] = useState<TripRow | null>(null)
-  const [offerAmount, setOfferAmount] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [myBookings, setMyBookings] = useState<BookingRow[]>([])
 
-  async function loadMyOffers() {
-    if (!user) return
-    const { data } = await supabase.from('vehicle_trip_fare_offers')
-      .select('id, trip_offer_id, seats_requested, proposed_fare_per_seat_pkr, counter_fare_per_seat_pkr, status')
-      .eq('portal_user_id', user.id).in('status', ['pending', 'countered', 'accepted'])
-    const byTripOffer: Record<string, MyFareOffer> = {}
-    for (const row of data || []) byTripOffer[row.trip_offer_id] = row
-    setMyOffers(byTripOffer)
+  function loadMyBookings() {
+    supabase.rpc('my_trip_bookings').then(({ data, error }) => {
+      if (error) toast.error(friendlyError(error, undefined, isUrdu))
+      setMyBookings((data as BookingRow[]) || [])
+    })
   }
 
   useEffect(() => {
@@ -66,8 +77,8 @@ export default function SharedRidePage() {
       setCities((data as CityRow[]) || [])
       setLoading(false)
     })
-    loadMyOffers()
-  }, [user?.id])
+    loadMyBookings()
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function openCity(c: CityRow) {
     setCityKey(c.city_key)
@@ -80,53 +91,93 @@ export default function SharedRidePage() {
     })
   }
 
-  async function sendOffer(trip: TripRow, farePerSeat: number) {
+  async function bookTrip(trip: TripRow) {
     setBusyId(trip.id)
-    const { error } = await supabase.rpc('propose_trip_fare', {
-      p_trip_offer_id: trip.id, p_seats_requested: seats, p_proposed_fare_per_seat_pkr: farePerSeat,
-    })
+    const { error } = await supabase.rpc('book_trip_offer', { p_trip_offer_id: trip.id, p_seats_requested: seats })
     setBusyId(null)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    toast.success(t('vp.offerSentToast'))
-    setOfferSheetTrip(null); setOfferAmount('')
-    loadMyOffers()
-  }
-
-  async function acceptCounter(offer: MyFareOffer) {
-    setBusyId(offer.trip_offer_id)
-    const { error } = await supabase.rpc('accept_trip_fare_counter', { p_fare_offer_id: offer.id })
-    setBusyId(null)
-    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    toast.success(t('vp.offerStatusAccepted'))
-    loadMyOffers()
-    if (cityKey) supabase.rpc('browse_open_trip_offers', { p_city_key: cityKey }).then(({ data }) => setTrips((data as TripRow[]) || []))
-  }
-
-  async function withdrawOffer(offer: MyFareOffer) {
-    setBusyId(offer.trip_offer_id)
-    const { error } = await supabase.rpc('withdraw_trip_fare_offer', { p_fare_offer_id: offer.id })
-    setBusyId(null)
-    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    loadMyOffers()
+    toast.success(t('vp.tripBookedToast'))
+    if (cityKey) {
+      setListLoading(true)
+      supabase.rpc('browse_open_trip_offers', { p_city_key: cityKey }).then(({ data }) => {
+        setTrips((data as TripRow[]) || [])
+        setListLoading(false)
+      })
+    }
+    loadMyBookings()
   }
 
   const nm = (en: string, ur: string | null) => (isUrdu && ur ? ur : en)
+
+  // The seat stepper is shared across every ride listed for this city —
+  // never let it climb past the most seats any of them actually has, so
+  // a 4-seat vehicle can't be stepped up to 6 and shown as unbookable.
+  const maxSeatsHere = trips.length > 0 ? Math.max(...trips.map((t) => t.seats_available)) : 6
 
   if (loading) return <div className="flex justify-center py-16"><LoadingDots /></div>
 
   return (
     <div className="p-3.5 pb-24 space-y-3">
       <div className="flex items-center gap-2">
-        {cityKey && (
+        {cityKey && tab === 'browse' && (
           <button onClick={() => setCityKey(null)} className="cursor-pointer text-[#166534]"><ChevronLeft size={18} /></button>
         )}
         <div>
           <h1 className="font-sans text-[16px] font-extrabold text-[#1e293b]">{t('vp.sharedRideHeading')}</h1>
-          <p className="text-[11px] text-[#64748b]">{cityKey ? nm(trips[0]?.destination ?? '', trips[0]?.destination_ur ?? null) : t('vp.sharedRideCitiesHint')}</p>
+          <p className="text-[11px] text-[#64748b]">
+            {tab === 'bookings' ? t('vp.myBookingsTab') : cityKey ? nm(trips[0]?.destination ?? '', trips[0]?.destination_ur ?? null) : t('vp.sharedRideCitiesHint')}
+          </p>
         </div>
       </div>
 
-      {!cityKey && (
+      <div className="flex items-center gap-1.5 bg-[#F9F9F6] border border-[#e5e2d0] rounded-xl p-1">
+        <button onClick={() => setTab('browse')}
+          className="flex-1 rounded-lg py-1.5 text-[12px] font-bold cursor-pointer"
+          style={{ background: tab === 'browse' ? '#166534' : 'transparent', color: tab === 'browse' ? '#fff' : '#64748b' }}>
+          {t('vp.browseTab')}
+        </button>
+        <button onClick={() => setTab('bookings')}
+          className="flex-1 rounded-lg py-1.5 text-[12px] font-bold cursor-pointer"
+          style={{ background: tab === 'bookings' ? '#166534' : 'transparent', color: tab === 'bookings' ? '#fff' : '#64748b' }}>
+          {t('vp.myBookingsTab')}
+        </button>
+      </div>
+
+      {tab === 'bookings' && (
+        myBookings.length === 0 ? (
+          <p className="text-center text-[12.5px] text-[#64748b] py-10">{t('cm.noBookingsYet')}</p>
+        ) : (
+          <div className="space-y-2.5">
+            {myBookings.map((b) => {
+              const depTime = fmtTime(b.departure_time_estimate, isUrdu)
+              const badge =
+                b.status === 'confirmed' ? { icon: <CalendarClock size={11} />, cls: 'bg-emerald-50 text-emerald-700', label: t('mp.confirmedStatus') } :
+                b.status === 'completed' ? { icon: <CheckCircle2 size={11} />, cls: 'bg-sky-50 text-sky-700', label: t('cm.tripCompletedStatus') } :
+                { icon: <Ban size={11} />, cls: 'bg-rose-50 text-rose-600', label: t('mp.cancelledStatus') }
+              return (
+                <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-sans text-[13px] font-extrabold text-[#1e293b]">{nm(b.origin, b.origin_ur)} → {nm(b.destination, b.destination_ur)}</p>
+                      <p className="text-[10.5px] text-[#64748b]">{b.owner_name} · {b.vehicle_type}{b.vehicle_number ? ` · ${b.vehicle_number}` : ''}</p>
+                      <p className="text-[10.5px] text-[#64748b] ltr-num">{new Date(b.travel_date).toLocaleDateString('en-GB')}{depTime ? ` · ${depTime}` : ''} · {b.seats} {t('vp.seatsLabel')}</p>
+                      {b.status === 'cancelled' && b.cancellation_reason && (
+                        <p className="text-[10.5px] text-rose-600 mt-0.5">{b.cancellation_reason}</p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0 space-y-1">
+                      <p className="font-sans text-[13px] font-extrabold text-[#166534] ltr-num">{fmt(b.total_amount_pkr)}</p>
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.icon} {badge.label}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
+      )}
+
+      {tab === 'browse' && !cityKey && (
         cities.length === 0 ? (
           <p className="text-center text-[12.5px] text-[#64748b] py-10">{t('vp.noOpenTripsAnywhere')}</p>
         ) : (
@@ -142,14 +193,14 @@ export default function SharedRidePage() {
         )
       )}
 
-      {cityKey && (
+      {tab === 'browse' && cityKey && (
         <>
           <div className="flex items-center justify-between bg-white border border-[#e5e2d0] rounded-2xl p-3">
             <span className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#1e293b]"><Users size={14} /> {t('vp.seatsLabel')}</span>
             <div className="flex items-center gap-3">
               <button onClick={() => setSeats((s) => Math.max(1, s - 1))} className="w-7 h-7 rounded-full bg-[#F9F9F6] border border-[#e5e2d0] font-bold cursor-pointer">−</button>
               <span className="font-sans text-[14px] font-extrabold w-4 text-center ltr-num">{seats}</span>
-              <button onClick={() => setSeats((s) => Math.min(6, s + 1))} className="w-7 h-7 rounded-full bg-[#F9F9F6] border border-[#e5e2d0] font-bold cursor-pointer">+</button>
+              <button onClick={() => setSeats((s) => Math.min(maxSeatsHere, s + 1))} className="w-7 h-7 rounded-full bg-[#F9F9F6] border border-[#e5e2d0] font-bold cursor-pointer">+</button>
             </div>
           </div>
 
@@ -161,7 +212,7 @@ export default function SharedRidePage() {
             <div className="space-y-2.5">
               {trips.map((trip) => {
                 const ok = trip.seats_available >= seats
-                const mine = myOffers[trip.id]
+                const depTime = fmtTime(trip.departure_time_estimate, isUrdu)
                 return (
                   <div key={trip.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -172,67 +223,29 @@ export default function SharedRidePage() {
                           {trip.avg_rating != null && <> · <Star size={9} className="inline -mt-0.5 fill-amber-400 text-amber-400" /> {trip.avg_rating}</>}
                         </p>
                         <p className="text-[10.5px] text-[#64748b]">{nm(trip.origin, trip.origin_ur)} → {nm(trip.destination, trip.destination_ur)}</p>
+                        {depTime && (
+                          <p className="text-[10.5px] text-[#64748b] flex items-center gap-1 mt-0.5"><Clock size={10} /> {t('vp.departureLabel')} <span className="ltr-num font-semibold text-[#1e293b]">{depTime}</span></p>
+                        )}
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-sans text-[13px] font-extrabold text-[#166534] ltr-num">{fmt(trip.listed_fare_per_seat_pkr)}<span className="text-[9.5px] font-semibold text-[#64748b]">{t('vp.perSeatLabel')}</span></p>
-                        <p className="text-[9.5px] text-[#64748b] ltr-num">{t('vp.seatsLeftLabel').replace('{n}', String(trip.seats_available))}</p>
+                        <span className={`inline-flex items-center gap-1 mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ltr-num ${trip.seats_available <= 1 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                          <Users size={10} /> {t('vp.seatsLeftLabel').replace('{n}', String(trip.seats_available))}
+                        </span>
                       </div>
                     </div>
 
-                    {mine && mine.status === 'pending' && (
-                      <div className="flex items-center justify-between bg-[#F9F9F6] rounded-xl px-2.5 py-1.5">
-                        <span className="text-[10.5px] font-semibold text-[#64748b]">{t('vp.offerStatusPending')}</span>
-                        <button disabled={busyId === trip.id} onClick={() => withdrawOffer(mine)} className="text-[10.5px] font-bold text-rose-600 cursor-pointer disabled:opacity-50">{t('vp.withdrawOfferBtn')}</button>
-                      </div>
-                    )}
-                    {mine && mine.status === 'countered' && (
-                      <div className="flex items-center justify-between bg-amber-50 rounded-xl px-2.5 py-1.5">
-                        <span className="text-[10.5px] font-semibold text-amber-800 ltr-num">{t('vp.offerStatusCountered').replace('{price}', fmt(mine.counter_fare_per_seat_pkr ?? 0))}</span>
-                        <button disabled={busyId === trip.id} onClick={() => acceptCounter(mine)} className="text-[10.5px] font-bold text-[#166534] cursor-pointer disabled:opacity-50 ltr-num">{t('vp.acceptCounterBtn').replace('{price}', fmt(mine.counter_fare_per_seat_pkr ?? 0))}</button>
-                      </div>
-                    )}
-                    {mine && mine.status === 'accepted' && (
-                      <div className="bg-emerald-50 rounded-xl px-2.5 py-1.5 text-center text-[10.5px] font-bold text-emerald-700">{t('vp.offerStatusAccepted')}</div>
-                    )}
-
-                    {!mine && (
-                      <div className="flex items-center gap-2">
-                        <button disabled={!ok || busyId === trip.id} onClick={() => sendOffer(trip, trip.listed_fare_per_seat_pkr)}
-                          className="flex-1 rounded-xl py-2 text-[11.5px] font-bold text-white cursor-pointer disabled:opacity-50 ltr-num"
-                          style={{ background: ok ? '#166534' : '#94a3b8' }}>
-                          {ok ? t('vp.bookAtListedPriceBtn').replace('{price}', fmt(trip.listed_fare_per_seat_pkr * seats)) : t('vp.notEnoughSeats')}
-                        </button>
-                        {ok && (
-                          <button onClick={() => { setOfferSheetTrip(trip); setOfferAmount(String(trip.listed_fare_per_seat_pkr)) }}
-                            className="rounded-xl px-2.5 py-2 text-[10.5px] font-bold text-[#166534] border border-[#166534] cursor-pointer">
-                            {t('vp.offerYourOwnPriceBtn')}
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    <button disabled={!ok || busyId === trip.id} onClick={() => bookTrip(trip)}
+                      className="w-full rounded-xl py-2 text-[11.5px] font-bold text-white cursor-pointer disabled:opacity-50 ltr-num"
+                      style={{ background: ok ? '#166534' : '#94a3b8' }}>
+                      {ok ? t('vp.bookAtListedPriceBtn').replace('{price}', fmt(trip.listed_fare_per_seat_pkr * seats)) : t('vp.notEnoughSeats')}
+                    </button>
                   </div>
                 )
               })}
             </div>
           )}
         </>
-      )}
-
-      {offerSheetTrip && (
-        <MobilityBottomSheet title={t('vp.offerYourOwnPriceBtn')} onClose={() => setOfferSheetTrip(null)}>
-          <div className="space-y-3">
-            <div>
-              <label className="text-[11px] font-semibold text-[#64748b]">{t('vp.yourOfferLabel')}</label>
-              <input type="number" value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)}
-                className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] bg-white mt-1 ltr-num" />
-            </div>
-            <button disabled={busyId === offerSheetTrip.id || !Number(offerAmount)}
-              onClick={() => sendOffer(offerSheetTrip, Number(offerAmount))}
-              className="w-full rounded-xl py-2.5 text-[12.5px] font-bold text-white cursor-pointer disabled:opacity-50" style={{ background: '#166534' }}>
-              {t('vp.shSendOfferBtn')}
-            </button>
-          </div>
-        </MobilityBottomSheet>
       )}
     </div>
   )

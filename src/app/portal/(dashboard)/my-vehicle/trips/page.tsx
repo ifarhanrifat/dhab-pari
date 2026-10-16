@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { MapPin, PlusCircle, X, Navigation, CheckCircle2, Ban } from 'lucide-react'
+import { MapPin, PlusCircle, X, Navigation, CheckCircle2, Ban, Check, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -30,7 +30,8 @@ interface TripOffer {
 }
 interface FareOffer {
   id: string; trip_offer_id: string; seats_requested: number; proposed_fare_per_seat_pkr: number
-  counter_fare_per_seat_pkr: number | null; status: string; portal_user_id: string; portal_users: { full_name: string; mobile: string } | null
+  counter_fare_per_seat_pkr: number | null; status: string; portal_user_id: string
+  rider_full_name: string | null; rider_mobile: string | null
 }
 interface TripBooking {
   id: string; seats: number; agreed_fare_per_seat_pkr: number; total_amount_pkr: number; status: string
@@ -78,9 +79,7 @@ export default function MyVehicleTripsPage() {
     setTripBookings((tripB ?? []) as unknown as TripBooking[])
 
     if (trips && trips.length > 0) {
-      const { data: fareOffers } = await supabase.from('vehicle_trip_fare_offers')
-        .select('id, trip_offer_id, seats_requested, proposed_fare_per_seat_pkr, counter_fare_per_seat_pkr, status, portal_user_id, portal_users(full_name, mobile)')
-        .in('trip_offer_id', trips.map((tr) => tr.id)).in('status', ['pending', 'countered']).order('created_at', { ascending: false })
+      const { data: fareOffers } = await supabase.rpc('my_vehicle_trip_fare_offers', { p_vehicle_id: vehicleId })
       const grouped: Record<string, FareOffer[]> = {}
       for (const fo of (fareOffers ?? []) as unknown as FareOffer[]) {
         grouped[fo.trip_offer_id] = [...(grouped[fo.trip_offer_id] ?? []), fo]
@@ -185,6 +184,18 @@ export default function MyVehicleTripsPage() {
     reload(vehicle.id)
   }
 
+  const cancelTripBooking = async (id: string) => {
+    if (!vehicle) return
+    if (!window.confirm(t('mp.confirmCancelConfirmedHint'))) return
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setActionId(id)
+    const { error } = await supabase.rpc('cancel_trip_booking', { p_trip_booking_id: id, p_reason: reason || null })
+    setActionId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mp.bookingCancelledToast'))
+    reload(vehicle.id)
+  }
+
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!vehicle) return null
 
@@ -226,20 +237,27 @@ export default function MyVehicleTripsPage() {
                   </div>
                 </div>
                 {(fareOffersByTrip[tr.id] ?? []).map((fo) => (
-                  <div key={fo.id} className="mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
-                    <p className="font-sans text-[12.5px] text-[#1e293b] flex items-center gap-1.5 flex-wrap">
-                      {fo.portal_users?.full_name ?? '—'} {trustByFareOffer[fo.portal_user_id] && <TrustPill trust={trustByFareOffer[fo.portal_user_id]} />} — <span className="font-bold text-[#166534]">{fmt(fo.proposed_fare_per_seat_pkr)}</span>/{t('mk.seatsLabel')} × <span className="ltr-num">{fo.seats_requested}</span>
-                      {fo.status === 'countered' && <span className="text-amber-700 font-semibold"> ({t('cm.youCountered')} {fmt(fo.counter_fare_per_seat_pkr ?? 0)})</span>}
-                    </p>
+                  <div key={fo.id} className="mt-2.5 bg-amber-50/60 border border-amber-100 rounded-xl p-2.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-[#1e293b]">
+                        {fo.rider_full_name ?? '—'} {trustByFareOffer[fo.portal_user_id] && <TrustPill trust={trustByFareOffer[fo.portal_user_id]} />}
+                      </span>
+                      <span className="font-sans text-[13px] font-extrabold text-[#166534] ltr-num">{fmt(fo.proposed_fare_per_seat_pkr)}<span className="text-[10px] font-semibold text-[#64748b]">/{t('mk.seatsLabel')} × {fo.seats_requested}</span></span>
+                    </div>
+                    {fo.status === 'countered' && (
+                      <p className="text-[11.5px] text-amber-700 font-semibold mt-1">{t('cm.youCountered')} <span className="ltr-num">{fmt(fo.counter_fare_per_seat_pkr ?? 0)}</span></p>
+                    )}
                     {fo.status === 'pending' && bandByTrip[tr.id] && (
                       <FareBandPicker band={bandByTrip[tr.id]} value={counterAmount[fo.id] ?? ''} onChange={(v) => setCounterAmount({ ...counterAmount, [fo.id]: v })} ownerLabel={t('cm.yourCounterLabel')} />
                     )}
                     {fo.status === 'pending' && (
-                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                        <button onClick={() => respondFare(fo.id, 'reject')} disabled={actionId === fo.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#64748b] disabled:opacity-50">{t('mp.rejectBtn')}</button>
-                        <input type="number" value={counterAmount[fo.id] ?? ''} onChange={(e) => setCounterAmount({ ...counterAmount, [fo.id]: +e.target.value })} placeholder={t('cm.counterPlaceholder')} className="w-24 border border-[#e5e2d0] rounded-lg p-1.5 text-[12px]" />
-                        <button onClick={() => respondFare(fo.id, 'counter')} disabled={actionId === fo.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#166534] disabled:opacity-50">{t('cm.counterBtn')}</button>
-                        <button onClick={() => respondFare(fo.id, 'accept')} disabled={actionId === fo.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('cm.acceptBtn')}</button>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        <button onClick={() => respondFare(fo.id, 'accept')} disabled={actionId === fo.id} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50"><Check size={13} /> {t('cm.acceptBtn')}</button>
+                        <button onClick={() => respondFare(fo.id, 'reject')} disabled={actionId === fo.id} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] bg-white text-[#64748b] disabled:opacity-50"><XCircle size={13} /> {t('mp.rejectBtn')}</button>
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <input type="number" value={counterAmount[fo.id] ?? ''} onChange={(e) => setCounterAmount({ ...counterAmount, [fo.id]: +e.target.value })} placeholder={t('cm.counterPlaceholder')} className="w-20 border border-[#e5e2d0] rounded-lg p-1.5 text-[12px] bg-white" />
+                          <button onClick={() => respondFare(fo.id, 'counter')} disabled={actionId === fo.id} className="px-2.5 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#166534] text-[#166534] bg-white disabled:opacity-50">{t('cm.counterBtn')}</button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -277,10 +295,14 @@ export default function MyVehicleTripsPage() {
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
                   {tb.status === 'completed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={11} /> {t('cm.tripCompletedStatus')}</span>}
+                  {tb.status === 'cancelled' && <span className="inline-flex items-center gap-1 text-[#64748b] text-[11px] font-bold"><Ban size={11} /> {t('mp.cancelledStatus')}</span>}
                   {tb.status === 'confirmed' && (
                     <>
                       <Link href={`/portal/marketplace/trip/${tb.id}`} className="inline-flex items-center gap-1 text-[#166534] text-[12px] font-semibold"><Navigation size={12} /> {t('cm.trackLocationBtn')}</Link>
-                      <button onClick={() => completeTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('cm.markTripCompleteBtn')}</button>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => cancelTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
+                        <button onClick={() => completeTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('cm.markTripCompleteBtn')}</button>
+                      </div>
                     </>
                   )}
                 </div>
