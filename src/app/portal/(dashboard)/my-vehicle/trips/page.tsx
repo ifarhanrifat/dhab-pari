@@ -34,7 +34,7 @@ interface FareOffer {
   rider_full_name: string | null; rider_mobile: string | null
 }
 interface TripBooking {
-  id: string; seats: number; agreed_fare_per_seat_pkr: number; total_amount_pkr: number; status: string
+  id: string; seats: number; agreed_fare_per_seat_pkr: number; total_amount_pkr: number; status: string; cancellation_reason: string | null
   vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; travel_date: string } | null
 }
 const emptyTripOffer = {
@@ -68,11 +68,12 @@ export default function MyVehicleTripsPage() {
   const [bandByTrip, setBandByTrip] = useState<Record<string, FareBand>>({})
   const [trustByFareOffer, setTrustByFareOffer] = useState<Record<string, Trust>>({})
   const [actionId, setActionId] = useState<string | null>(null)
+  const [bookingsFilter, setBookingsFilter] = useState<'upcoming' | 'completed' | 'cancelled'>('upcoming')
 
   const reload = async (vehicleId: string) => {
     const [{ data: trips }, { data: tripB }] = await Promise.all([
       supabase.from('vehicle_trip_offers').select('*').eq('vehicle_id', vehicleId).order('created_at', { ascending: false }),
-      supabase.from('vehicle_trip_bookings').select('id, seats, agreed_fare_per_seat_pkr, total_amount_pkr, status, vehicle_trip_offers(origin, origin_ur, destination, destination_ur, travel_date)')
+      supabase.from('vehicle_trip_bookings').select('id, seats, agreed_fare_per_seat_pkr, total_amount_pkr, status, cancellation_reason, vehicle_trip_offers(origin, origin_ur, destination, destination_ur, travel_date)')
         .eq('vehicle_id', vehicleId).order('created_at', { ascending: false }).limit(20),
     ])
     setTripOffers(trips ?? [])
@@ -283,8 +284,19 @@ export default function MyVehicleTripsPage() {
       {tripBookings.length > 0 && (
         <div>
           <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('cm.tripBookingsHeading')}</p>
+          <div className="flex items-center gap-1.5 mb-2">
+            {(['upcoming', 'completed', 'cancelled'] as const).map((f) => (
+              <button key={f} onClick={() => setBookingsFilter(f)}
+                className="px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer border"
+                style={{ background: bookingsFilter === f ? '#166534' : '#fff', color: bookingsFilter === f ? '#fff' : '#64748b', borderColor: bookingsFilter === f ? '#166534' : '#e5e2d0' }}>
+                {t(`vp.bookingsFilter.${f}`)}
+              </button>
+            ))}
+          </div>
           <div className="flex flex-col gap-2">
-            {tripBookings.map((tb) => (
+            {tripBookings.filter((tb) =>
+              bookingsFilter === 'upcoming' ? tb.status === 'confirmed' : bookingsFilter === 'completed' ? tb.status === 'completed' : tb.status === 'cancelled'
+            ).map((tb) => (
               <div key={tb.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -293,6 +305,9 @@ export default function MyVehicleTripsPage() {
                   </div>
                   <p className="font-sans text-[14px] font-bold text-[#166534] shrink-0">{fmt(tb.total_amount_pkr)}</p>
                 </div>
+                {tb.status === 'cancelled' && tb.cancellation_reason && (
+                  <p className="font-sans text-[11px] text-rose-600 mt-1">{tb.cancellation_reason}</p>
+                )}
                 <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
                   {tb.status === 'completed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={11} /> {t('cm.tripCompletedStatus')}</span>}
                   {tb.status === 'cancelled' && <span className="inline-flex items-center gap-1 text-[#64748b] text-[11px] font-bold"><Ban size={11} /> {t('mp.cancelledStatus')}</span>}

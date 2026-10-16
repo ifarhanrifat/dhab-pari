@@ -63,6 +63,7 @@ export default function SharedRidePage() {
   const [seats, setSeats] = useState(1)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [myBookings, setMyBookings] = useState<BookingRow[]>([])
+  const [bookingsFilter, setBookingsFilter] = useState<'upcoming' | 'completed' | 'cancelled'>('upcoming')
 
   function loadMyBookings() {
     supabase.rpc('my_trip_bookings').then(({ data, error }) => {
@@ -107,6 +108,17 @@ export default function SharedRidePage() {
     loadMyBookings()
   }
 
+  async function cancelBooking(b: BookingRow) {
+    if (!window.confirm(t('mp.confirmCancelConfirmedHint'))) return
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setBusyId(b.id)
+    const { error } = await supabase.rpc('cancel_trip_booking', { p_trip_booking_id: b.id, p_reason: reason || null })
+    setBusyId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mp.bookingCancelledToast'))
+    loadMyBookings()
+  }
+
   const nm = (en: string, ur: string | null) => (isUrdu && ur ? ur : en)
 
   // The seat stepper is shared across every ride listed for this city —
@@ -144,37 +156,58 @@ export default function SharedRidePage() {
       </div>
 
       {tab === 'bookings' && (
-        myBookings.length === 0 ? (
-          <p className="text-center text-[12.5px] text-[#64748b] py-10">{t('cm.noBookingsYet')}</p>
-        ) : (
-          <div className="space-y-2.5">
-            {myBookings.map((b) => {
-              const depTime = fmtTime(b.departure_time_estimate, isUrdu)
-              const badge =
-                b.status === 'confirmed' ? { icon: <CalendarClock size={11} />, cls: 'bg-emerald-50 text-emerald-700', label: t('mp.confirmedStatus') } :
-                b.status === 'completed' ? { icon: <CheckCircle2 size={11} />, cls: 'bg-sky-50 text-sky-700', label: t('cm.tripCompletedStatus') } :
-                { icon: <Ban size={11} />, cls: 'bg-rose-50 text-rose-600', label: t('mp.cancelledStatus') }
-              return (
-                <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-sans text-[13px] font-extrabold text-[#1e293b]">{nm(b.origin, b.origin_ur)} → {nm(b.destination, b.destination_ur)}</p>
-                      <p className="text-[10.5px] text-[#64748b]">{b.owner_name} · {b.vehicle_type}{b.vehicle_number ? ` · ${b.vehicle_number}` : ''}</p>
-                      <p className="text-[10.5px] text-[#64748b] ltr-num">{new Date(b.travel_date).toLocaleDateString('en-GB')}{depTime ? ` · ${depTime}` : ''} · {b.seats} {t('vp.seatsLabel')}</p>
-                      {b.status === 'cancelled' && b.cancellation_reason && (
-                        <p className="text-[10.5px] text-rose-600 mt-0.5">{b.cancellation_reason}</p>
+        <>
+          <div className="flex items-center gap-1.5">
+            {(['upcoming', 'completed', 'cancelled'] as const).map((f) => (
+              <button key={f} onClick={() => setBookingsFilter(f)}
+                className="px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer border"
+                style={{ background: bookingsFilter === f ? '#166534' : '#fff', color: bookingsFilter === f ? '#fff' : '#64748b', borderColor: bookingsFilter === f ? '#166534' : '#e5e2d0' }}>
+                {t(`vp.bookingsFilter.${f}`)}
+              </button>
+            ))}
+          </div>
+
+          {(() => {
+            const filtered = myBookings.filter((b) =>
+              bookingsFilter === 'upcoming' ? b.status === 'confirmed' : bookingsFilter === 'completed' ? b.status === 'completed' : b.status === 'cancelled')
+            if (filtered.length === 0) return <p className="text-center text-[12.5px] text-[#64748b] py-10">{t('cm.noBookingsYet')}</p>
+            return (
+              <div className="space-y-2.5">
+                {filtered.map((b) => {
+                  const depTime = fmtTime(b.departure_time_estimate, isUrdu)
+                  const badge =
+                    b.status === 'confirmed' ? { icon: <CalendarClock size={11} />, cls: 'bg-emerald-50 text-emerald-700', label: t('mp.confirmedStatus') } :
+                    b.status === 'completed' ? { icon: <CheckCircle2 size={11} />, cls: 'bg-sky-50 text-sky-700', label: t('cm.tripCompletedStatus') } :
+                    { icon: <Ban size={11} />, cls: 'bg-rose-50 text-rose-600', label: t('mp.cancelledStatus') }
+                  return (
+                    <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-sans text-[13px] font-extrabold text-[#1e293b]">{nm(b.origin, b.origin_ur)} → {nm(b.destination, b.destination_ur)}</p>
+                          <p className="text-[10.5px] text-[#64748b]">{b.owner_name} · {b.vehicle_type}{b.vehicle_number ? ` · ${b.vehicle_number}` : ''}</p>
+                          <p className="text-[10.5px] text-[#64748b] ltr-num">{new Date(b.travel_date).toLocaleDateString('en-GB')}{depTime ? ` · ${depTime}` : ''} · {b.seats} {t('vp.seatsLabel')}</p>
+                          {b.status === 'cancelled' && b.cancellation_reason && (
+                            <p className="text-[10.5px] text-rose-600 mt-0.5">{b.cancellation_reason}</p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0 space-y-1">
+                          <p className="font-sans text-[13px] font-extrabold text-[#166534] ltr-num">{fmt(b.total_amount_pkr)}</p>
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.icon} {badge.label}</span>
+                        </div>
+                      </div>
+                      {b.status === 'confirmed' && (
+                        <button onClick={() => cancelBooking(b)} disabled={busyId === b.id}
+                          className="w-full rounded-xl py-1.5 text-[11px] font-bold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">
+                          {t('mp.cancelBookingBtn')}
+                        </button>
                       )}
                     </div>
-                    <div className="text-right shrink-0 space-y-1">
-                      <p className="font-sans text-[13px] font-extrabold text-[#166534] ltr-num">{fmt(b.total_amount_pkr)}</p>
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.icon} {badge.label}</span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )
+                  )
+                })}
+              </div>
+            )
+          })()}
+        </>
       )}
 
       {tab === 'browse' && !cityKey && (
