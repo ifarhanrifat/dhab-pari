@@ -203,7 +203,18 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   useEffect(() => {
     load()
     const id = setInterval(load, 120000)
-    return () => clearInterval(id)
+    // Real bug, 2026-10-17: a committee rejecting/pausing an ilan took
+    // effect instantly on the backend (confirmed live), but a phone's
+    // browser/WebView throttles or fully suspends setInterval timers
+    // while the tab is backgrounded — so returning to an already-open
+    // tab could keep showing a since-stopped ad for a long time, well
+    // past the 2-minute window, since the timer never actually fired
+    // while backgrounded. Re-checking the moment the tab becomes
+    // visible again covers exactly that "I changed something
+    // elsewhere, then came back" case the blind interval alone misses.
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisible) }
   }, [load])
 
   const label = (a: Appeal) => SEVERITY_LABEL[a.severity] ?? SEVERITY_LABEL.appeal
