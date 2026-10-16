@@ -200,9 +200,42 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   const emergencyTicker = useScrollTicker(emergencyTrack, isUrdu)
 
   const calmAppealItems = calmAppeals.map((a) => `${label(a)}  ●  ${a.body_ur}  ●  ${a.body_en}`)
-  const paidItems = paidIlans.map((p) => `${t('il.sponsoredLabel')}  ●  ${p.title_ur}  ●  ${p.body_ur}${p.contact_mobile ? `  ●  ${p.contact_mobile}` : ''}`)
+  const paidItems = paidIlans.map((p) => `${p.title_ur}  ●  ${p.body_ur}${p.contact_mobile ? `  ●  ${p.contact_mobile}` : ''}`)
+  // Kept as a plain string purely so useScrollTicker's effect has
+  // something to diff against when content changes — the actual visible
+  // belt below is real JSX (renderYellowPass), not this string, so a
+  // paid item can carry its own distinct pill styling.
   const yellowTrack = [...calmAppealItems, ...paidItems].join(SEPARATOR)
   const yellowTicker = useScrollTicker(yellowTrack, isUrdu)
+
+  // Real ask, 2026-10-17: make a paid item in the shared belt look
+  // "gorgeous" — its own pill, not just plain text indistinguishable
+  // from a free appeal. One pass (one lap); rendered twice back-to-back
+  // for the seamless loop, same as every other belt here.
+  type YellowSlot = { kind: 'appeal'; text: string } | { kind: 'paid'; ilan: PaidIlan }
+  const yellowSlots: YellowSlot[] = [
+    ...calmAppealItems.map((text): YellowSlot => ({ kind: 'appeal', text })),
+    ...paidIlans.map((ilan): YellowSlot => ({ kind: 'paid', ilan })),
+  ]
+  const renderYellowPass = (keyPrefix: string) => (
+    <span className="px-4">
+      {yellowSlots.map((slot, i) => (
+        <span key={`${keyPrefix}-${i}`}>
+          {slot.kind === 'appeal' ? (
+            slot.text
+          ) : (
+            <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#1a1f2e] to-[#2d3548] text-white px-3 py-1 rounded-full shadow-[0_1px_4px_rgba(0,0,0,.25)] border border-white/10 align-middle mx-0.5">
+              <Megaphone size={11} className="shrink-0 text-amber-300" />
+              <span className="text-[10px] font-black tracking-[0.08em] text-amber-300 shrink-0">{t('il.sponsoredLabel')}</span>
+              <span className="opacity-40">●</span>
+              <span>{slot.ilan.title_ur}  ●  {slot.ilan.body_ur}{slot.ilan.contact_mobile ? `  ●  ${slot.ilan.contact_mobile}` : ''}</span>
+            </span>
+          )}
+          {i < yellowSlots.length - 1 ? SEPARATOR : ''}
+        </span>
+      ))}
+    </span>
+  )
 
   // Urdu-only, no English concatenated in — message_ur is what a
   // publisher/admin actually writes for a manually-authored entry; an
@@ -261,8 +294,8 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
 
           <div ref={yellowTicker.containerRef} dir={isUrdu ? 'rtl' : 'ltr'} className="flex-1 min-w-0 overflow-hidden">
             <div className="ticker-track text-[13px] font-sans font-bold tracking-[0.03em]">
-              <span className="px-4">{yellowTrack}</span>
-              <span className="px-4">{SEPARATOR}{yellowTrack}</span>
+              {renderYellowPass('p1')}
+              {renderYellowPass('p2')}
             </div>
           </div>
 

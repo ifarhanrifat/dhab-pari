@@ -7,6 +7,7 @@ import { PortalHeader } from '@/components/portal/PortalHeader'
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar'
 import { PoolAppealBanner } from '@/components/portal/PoolAppealBanner'
 import { WelcomeTour } from '@/components/portal/WelcomeTour'
+import { PortalMobileNavProvider } from '@/components/portal/PortalMobileNavContext'
 
 // The "Dhab Pari Mobility" screens (my-vehicle/* and the marketplace/
 // (mobility)/* route group) render their own MobilityHeader — real bug
@@ -23,11 +24,19 @@ import { WelcomeTour } from '@/components/portal/WelcomeTour'
 // regression reported live: on a desktop browser this is still a
 // *webpage*, not a standalone app taking over the window, and the portal's
 // own site navigation has to stay reachable from every page including
-// these. (It's already `hidden md:flex` — invisible on an actual phone —
-// so this was never a mobile-vs-desktop tradeoff, just an overreach that
-// hid real site nav on desktop for no reason.) The mobility content area
-// still gets its own centered, capped-width "phone frame" look inside
-// whatever space remains to the sidebar's right.
+// these.
+//
+// Two more real bugs in that same area, found 2026-10-17: (1) "hidden
+// md:flex" being invisible on an actual phone was never actually paired
+// with a way to OPEN it below that breakpoint — MobilityHeader had no
+// hamburger at all, so mobile/narrow-browser users on these routes had
+// no path to the sidebar, full stop. Fixed via PortalMobileNavProvider
+// below, which hands MobilityHeader the same setMobileOpen this layout
+// already owns. (2) The mobility content's own capped-width "phone
+// frame" used to center itself in whatever space the sidebar left,
+// which on a wide desktop screen read as a disconnected widget floating
+// in empty page rather than part of the layout — it now hugs the
+// sidebar's edge instead, main's own mx-auto removed to match.
 const MOBILITY_MARKETPLACE_SLUGS = ['travel', 'results', 'hourly', 'rental', 'shadi', 'machinery', 'tractor', 'loader', 'trips', 'negotiations', 'account', 'city-purchase', 'notifications']
 function isMobilityRoute(pathname: string) {
   if (pathname.startsWith('/portal/my-vehicle')) return true
@@ -73,7 +82,9 @@ export default function PortalDashboardLayout({ children }: { children: React.Re
         </div>
         {/* Stays up on every page until enough people have joined. */}
         <PoolAppealBanner />
-        <main className={`p-6 md:p-10 max-w-[1400px] print:p-0 print:max-w-none ${isMobility ? 'mx-auto' : ''}`}>{children}</main>
+        <main className="p-6 md:p-10 max-w-[1400px] print:p-0 print:max-w-none">
+          <PortalMobileNavProvider onOpen={() => setMobileOpen(true)}>{children}</PortalMobileNavProvider>
+        </main>
       </div>
     </div>
   )

@@ -23,15 +23,24 @@
 // exact per direct instruction ("exactly like the provided html file").
 
 import Link from 'next/link'
-import { Bell } from 'lucide-react'
+import { Bell, Menu } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { usePortalMobileNavToggle } from '@/components/portal/PortalMobileNavContext'
 
 export function MobilityHeader() {
   const { t, isUrdu, setLocale } = useLocale()
+  const openMobileNav = usePortalMobileNavToggle()
 
   return (
     <header dir={isUrdu ? 'rtl' : 'ltr'} className="bg-[#005A36] text-white px-3.5 py-2.5 flex items-center justify-between gap-2 shadow-[0_4px_10px_rgba(0,0,0,.15)] relative z-20">
       <div className="flex items-center gap-2.5 min-w-0">
+        {/* Only the sidebar's own trigger -- hidden on md+ where the
+            sidebar already shows permanently, same breakpoint it uses. */}
+        {openMobileNav && (
+          <button onClick={openMobileNav} className="md:hidden shrink-0 w-8 h-8 rounded-full bg-[#166534] flex items-center justify-center" aria-label="Toggle menu">
+            <Menu size={16} />
+          </button>
+        )}
         <div className="shrink-0 w-[38px] h-[38px] rounded-full bg-[#D4AF37] flex items-center justify-center text-[17px] shadow-[0_0_0_2px_rgba(212,175,55,.5)]">🚐</div>
         <div className="min-w-0">
           <p className="font-bold text-[13px] leading-tight whitespace-nowrap">{t('mb.appName')}</p>

@@ -144,7 +144,7 @@ export function PortalNotificationBell({ embedded = false }: { embedded?: boolea
         )}
       </button>
       {open && (
-        <div className="absolute end-0 mt-2 w-80 max-w-[90vw] bg-white border border-dp2-card-border rounded-2xl shadow-lg overflow-hidden text-slate-800 z-[95]">
+        <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white border border-dp2-card-border rounded-2xl shadow-lg overflow-hidden text-slate-800 z-[95]">
           <div className="px-4 py-2.5 border-b border-dp2-card-border flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <span className="font-sans text-[14px] font-bold">{t('g.notifications')}</span>
