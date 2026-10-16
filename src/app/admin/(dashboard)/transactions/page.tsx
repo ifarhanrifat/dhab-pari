@@ -19,7 +19,7 @@ import { SearchableField } from '@/components/admin/SearchablePicker'
 import { presetRange, detectPreset, formatRangeLabel, presetLabelKey, PRESET_ORDER, today, monthStart, type DateRangePreset } from '@/lib/dateRangePresets'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
-type SystemTab = 'water_supply' | 'donors_projects'
+type SystemTab = 'water_supply' | 'donors_projects' | 'marketplace'
 
 interface TxnRow {
   id: string
@@ -88,7 +88,7 @@ interface TxnRow {
   paymentConsumerId?: string
 }
 
-const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System' }
+const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System', marketplace: 'Marketplace' }
 
 function fmtAmount(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
@@ -101,14 +101,15 @@ export default function AllTransactionsPage() {
   const [systemOverride] = useState<SystemTab | null>(() => {
     if (typeof window === 'undefined') return null
     const p = new URLSearchParams(window.location.search).get('system')
-    return p === 'water_supply' || p === 'donors_projects' ? p : null
+    return p === 'water_supply' || p === 'donors_projects' || p === 'marketplace' ? p : null
   })
   useEffect(() => {
     if (access.loading) return
     if (systemOverride === 'water_supply' && access.canWaterSupply) { setSystem('water_supply'); return }
     if (systemOverride === 'donors_projects' && access.canDonorsProjects) { setSystem('donors_projects'); return }
+    if (systemOverride === 'marketplace' && access.canMarketplace) { setSystem('marketplace'); return }
     setSystem(access.defaultSystem)
-  }, [access.loading, access.defaultSystem, access.canWaterSupply, access.canDonorsProjects, systemOverride])
+  }, [access.loading, access.defaultSystem, access.canWaterSupply, access.canDonorsProjects, access.canMarketplace, systemOverride])
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'partial' | 'pending' | 'overdue' | 'waived'>('all')
@@ -540,13 +541,16 @@ export default function AllTransactionsPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary">{t('tx.title')}</h1>
-        {!access.loading && (access.canWaterSupply || access.canDonorsProjects) && (
+        {!access.loading && (access.canWaterSupply || access.canDonorsProjects || access.canMarketplace) && (
           <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
             {access.canWaterSupply && (
               <button onClick={() => setSystem('water_supply')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>{t('a.waterSupply')}</button>
             )}
             {access.canDonorsProjects && (
               <button onClick={() => setSystem('donors_projects')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>{t('a.donorsProjects')}</button>
+            )}
+            {access.canMarketplace && (
+              <button onClick={() => setSystem('marketplace')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'marketplace' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>{t('a.marketplaceSystem')}</button>
             )}
           </div>
         )}

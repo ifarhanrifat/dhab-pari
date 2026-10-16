@@ -10,10 +10,10 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 interface Plan {
   id: string; key: string; name: string; monthly_price_pkr: number
   commission_pct: number; max_admin_users: number | null; is_active: boolean
-  includes_water_supply: boolean; includes_donors_projects: boolean; includes_commercial_ilans: boolean
+  includes_water_supply: boolean; includes_donors_projects: boolean; includes_commercial_ilans: boolean; includes_marketplace: boolean
 }
 
-const emptyForm = { key: '', name: '', monthly_price_pkr: '', commission_pct: '', max_admin_users: '', includesWaterSupply: true, includesDonorsProjects: true, includesCommercialIlans: false }
+const emptyForm = { key: '', name: '', monthly_price_pkr: '', commission_pct: '', max_admin_users: '', includesWaterSupply: true, includesDonorsProjects: true, includesCommercialIlans: false, includesMarketplace: true }
 
 export default function PlatformPlansPage() {
   const supabase = createClient()
@@ -43,7 +43,7 @@ export default function PlatformPlansPage() {
       key: p.key, name: p.name, monthly_price_pkr: String(p.monthly_price_pkr), commission_pct: String(p.commission_pct),
       max_admin_users: p.max_admin_users ? String(p.max_admin_users) : '',
       includesWaterSupply: p.includes_water_supply, includesDonorsProjects: p.includes_donors_projects,
-      includesCommercialIlans: p.includes_commercial_ilans,
+      includesCommercialIlans: p.includes_commercial_ilans, includesMarketplace: p.includes_marketplace,
     })
     setShowModal(true)
   }
@@ -68,6 +68,7 @@ export default function PlatformPlansPage() {
       includes_water_supply: form.includesWaterSupply,
       includes_donors_projects: form.includesDonorsProjects,
       includes_commercial_ilans: form.includesCommercialIlans,
+      includes_marketplace: form.includesMarketplace,
     }
     const { error } = editingId
       ? await supabase.from('subscription_plans').update(payload).eq('id', editingId)
@@ -129,7 +130,7 @@ export default function PlatformPlansPage() {
                 {p.commission_pct}% platform commission{p.max_admin_users ? ` · up to ${p.max_admin_users} admins` : ''}
               </p>
               <p className="font-sans text-[12px] text-dp-on-surface-variant mb-4">
-                {[p.includes_water_supply && 'Water Supply', p.includes_donors_projects && 'Donors & Projects', p.includes_commercial_ilans && 'Commercial Ilans'].filter(Boolean).join(' · ') || 'No modules included'}
+                {[p.includes_water_supply && 'Water Supply', p.includes_donors_projects && 'Donors & Projects', p.includes_marketplace && 'Marketplace', p.includes_commercial_ilans && 'Commercial Ilans'].filter(Boolean).join(' · ') || 'No modules included'}
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -222,7 +223,16 @@ export default function PlatformPlansPage() {
                     onChange={(e) => setForm((f) => ({ ...f, includesDonorsProjects: e.target.checked }))}
                     className="cursor-pointer"
                   />
-                  Donors &amp; Projects <span className="text-dp-on-surface-variant font-normal">(also covers Marketplace, Meetings, Complaints)</span>
+                  Donors &amp; Projects <span className="text-dp-on-surface-variant font-normal">(also covers Meetings, Complaints)</span>
+                </label>
+                <label className="flex items-center gap-2 text-[14px] font-sans text-dp-on-surface cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.includesMarketplace}
+                    onChange={(e) => setForm((f) => ({ ...f, includesMarketplace: e.target.checked }))}
+                    className="cursor-pointer"
+                  />
+                  Marketplace <span className="text-dp-on-surface-variant font-normal">(vehicles, shops, bookings — its own chart of accounts)</span>
                 </label>
                 <label className="flex items-center gap-2 text-[14px] font-sans text-dp-on-surface cursor-pointer">
                   <input

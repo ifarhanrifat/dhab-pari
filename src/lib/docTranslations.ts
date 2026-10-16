@@ -146,6 +146,7 @@ export const DOC_STRINGS = {
   waterSupplySystem: { en: 'Water Supply System', ur: 'واٹر سپلائی سسٹم' },
   donorsProjectsSystem: { en: 'Donors & Projects System', ur: 'ڈونرز اور منصوبہ جات سسٹم' },
   donorsProjects: { en: 'Donors & Projects', ur: 'ڈونرز اور منصوبہ جات' },
+  marketplaceSystem: { en: 'Marketplace', ur: 'مارکیٹ پلیس' },
 
   // Reports — titles
   reportTrialBalance: { en: 'Trial Balance', ur: 'ٹرائل بیلنس' },

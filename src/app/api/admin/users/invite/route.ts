@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     can_view_reports?: boolean; can_approve_transactions?: boolean
     can_manage_parties?: boolean; can_manage_accounts?: boolean; can_edit_accounts?: boolean; can_delete_accounts?: boolean
     can_restore_deleted?: boolean; can_invite_users?: boolean
-    access_water_supply?: boolean; access_donors_projects?: boolean
+    access_water_supply?: boolean; access_donors_projects?: boolean; access_marketplace?: boolean
     can_publish_news?: boolean; can_publish_videos?: boolean; can_publish_gallery?: boolean
     can_publish_ticker?: boolean; can_publish_jobs?: boolean; can_publish_poetry?: boolean; can_publish_blog?: boolean
   }
@@ -143,6 +143,7 @@ export async function POST(req: NextRequest) {
     can_publish_poetry: !!body.can_publish_poetry,
     can_publish_blog: !!body.can_publish_blog,
     access_donors_projects: !!body.access_donors_projects,
+    access_marketplace: !!body.access_marketplace,
     invited_at: new Date().toISOString(),
   }, { onConflict: 'email' })
 

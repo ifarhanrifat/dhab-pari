@@ -33,6 +33,7 @@ interface AdminUser {
   can_invite_users: boolean
   access_water_supply: boolean
   access_donors_projects: boolean
+  access_marketplace: boolean
   can_publish_news: boolean
   can_publish_videos: boolean
   can_publish_gallery: boolean
@@ -60,6 +61,7 @@ const roleColors: Record<string, string> = {
   accountant: 'bg-teal-100 text-teal-800',
   water_accountant: 'bg-blue-100 text-blue-800',
   donor_accountant: 'bg-violet-100 text-violet-800',
+  marketplace_accountant: 'bg-orange-100 text-orange-800',
   publisher: 'bg-amber-100 text-amber-800',
   viewer: 'bg-gray-100 text-gray-600',
 }
@@ -72,6 +74,7 @@ const roleLabelKey: Record<string, string> = {
   accountant: 'us.roleAccountant',
   water_accountant: 'us.roleWaterAccountant',
   donor_accountant: 'us.roleDonorAccountant',
+  marketplace_accountant: 'us.roleMarketplaceAccountant',
   publisher: 'us.rolePublisher',
   viewer: 'us.viewer',
 }
@@ -82,6 +85,7 @@ const roleDescriptionKey: Record<string, string> = {
   accountant: 'us.descAccountant',
   water_accountant: 'us.descWaterAccountant',
   donor_accountant: 'us.descDonorAccountant',
+  marketplace_accountant: 'us.descMarketplaceAccountant',
   publisher: 'us.descPublisher',
   viewer: 'us.descViewer',
 }
@@ -99,6 +103,7 @@ const rolePermissionKeys: Record<string, string[]> = {
   accountant: ['us.perm.accountant1', 'us.perm.accountant2'],
   water_accountant: ['us.perm.waterAccountant1', 'us.perm.waterAccountant2'],
   donor_accountant: ['us.perm.donorAccountant1', 'us.perm.donorAccountant2'],
+  marketplace_accountant: ['us.perm.marketplaceAccountant1', 'us.perm.marketplaceAccountant2'],
   publisher: ['us.perm.publisher1', 'us.perm.publisher2'],
   viewer: ['us.perm.viewer1', 'us.perm.viewer2', 'us.perm.viewer3', 'us.perm.viewer4'],
 }
@@ -138,7 +143,7 @@ const emptyInvite = {
   can_view_reports: false, can_approve_transactions: false,
   can_manage_parties: false, can_manage_accounts: false, can_edit_accounts: false, can_delete_accounts: false,
   can_restore_deleted: false, can_invite_users: false,
-  access_water_supply: false, access_donors_projects: false,
+  access_water_supply: false, access_donors_projects: false, access_marketplace: false,
   can_publish_news: false, can_publish_videos: false, can_publish_gallery: false,
   can_publish_ticker: false, can_publish_jobs: false,
   can_publish_poetry: false, can_publish_blog: false,
@@ -164,7 +169,7 @@ function generatePassword() {
 const emptyCollectorForm = {
   mobile: '', can_collect_payments: false, assigned_sectors: [] as string[],
   can_verify_complaints: false, can_verify_needs: false, secondary_role: '',
-  access_water_supply: false, access_donors_projects: false,
+  access_water_supply: false, access_donors_projects: false, access_marketplace: false,
   can_publish_news: false, can_publish_videos: false, can_publish_gallery: false,
   can_publish_ticker: false, can_publish_jobs: false,
   can_publish_poetry: false, can_publish_blog: false,
@@ -238,7 +243,7 @@ export default function AdminUsersPage() {
     setCollectorForm({
       mobile: u.mobile ?? '', can_collect_payments: u.can_collect_payments, assigned_sectors: u.assigned_sectors ?? [],
       can_verify_complaints: u.can_verify_complaints, can_verify_needs: u.can_verify_needs, secondary_role: u.secondary_role ?? '',
-      access_water_supply: u.access_water_supply, access_donors_projects: u.access_donors_projects,
+      access_water_supply: u.access_water_supply, access_donors_projects: u.access_donors_projects, access_marketplace: u.access_marketplace,
       can_publish_news: u.can_publish_news, can_publish_videos: u.can_publish_videos,
       can_publish_gallery: u.can_publish_gallery, can_publish_ticker: u.can_publish_ticker,
       can_publish_jobs: u.can_publish_jobs,
@@ -281,6 +286,7 @@ export default function AdminUsersPage() {
       secondary_role: collectorForm.secondary_role || null,
       access_water_supply: collectorForm.access_water_supply,
       access_donors_projects: collectorForm.access_donors_projects,
+      access_marketplace: collectorForm.access_marketplace,
       can_publish_news: collectorForm.can_publish_news,
       can_publish_videos: collectorForm.can_publish_videos,
       can_publish_gallery: collectorForm.can_publish_gallery,
@@ -296,11 +302,11 @@ export default function AdminUsersPage() {
     load()
   }
 
-  const permissionEligibleRoles = ['admin', 'accountant', 'water_accountant', 'donor_accountant']
+  const permissionEligibleRoles = ['admin', 'accountant', 'water_accountant', 'donor_accountant', 'marketplace_accountant']
   const showPermissions = permissionEligibleRoles.includes(form.role) || permissionEligibleRoles.includes(form.secondary_role)
   const availableRoles = currentRole === 'super_admin'
-    ? ['water_accountant', 'donor_accountant', 'accountant', 'viewer', 'publisher', 'admin', 'super_admin']
-    : ['water_accountant', 'donor_accountant', 'accountant', 'viewer', 'publisher', 'admin']
+    ? ['water_accountant', 'donor_accountant', 'marketplace_accountant', 'accountant', 'viewer', 'publisher', 'admin', 'super_admin']
+    : ['water_accountant', 'donor_accountant', 'marketplace_accountant', 'accountant', 'viewer', 'publisher', 'admin']
 
   const sendInvite = async () => {
     if (!form.email.trim() || !form.full_name.trim()) { toast.error(t('us.emailNameRequired')); return }
@@ -681,7 +687,11 @@ export default function AdminUsersPage() {
                     <input type="checkbox" checked={form.access_donors_projects} onChange={(e) => setForm({ ...form, access_donors_projects: e.target.checked })} className="accent-dp-secondary" />
                     <span className="font-sans text-[13.5px]">{t('ac.donorsSystem')}</span>
                   </label>
-                  {!form.access_water_supply && !form.access_donors_projects && form.role !== 'publisher' && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.access_marketplace} onChange={(e) => setForm({ ...form, access_marketplace: e.target.checked })} className="accent-dp-secondary" />
+                    <span className="font-sans text-[13.5px]">{t('a.marketplaceSystem')}</span>
+                  </label>
+                  {!form.access_water_supply && !form.access_donors_projects && !form.access_marketplace && form.role !== 'publisher' && (
                     <p className="font-sans text-[12px] text-dp-error bg-dp-error/5 border border-dp-error/30 rounded px-2.5 py-2 mt-1">
                       {t('us.neitherTickedWarning')}
                     </p>
@@ -944,6 +954,10 @@ export default function AdminUsersPage() {
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={collectorForm.access_donors_projects} onChange={(e) => setCollectorForm({ ...collectorForm, access_donors_projects: e.target.checked })} className="accent-dp-secondary" />
                       <span className="font-sans text-[13.5px]">{t('a.donorsProjects')}</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={collectorForm.access_marketplace} onChange={(e) => setCollectorForm({ ...collectorForm, access_marketplace: e.target.checked })} className="accent-dp-secondary" />
+                      <span className="font-sans text-[13.5px]">{t('a.marketplaceSystem')}</span>
                     </label>
                   </div>
                 )}

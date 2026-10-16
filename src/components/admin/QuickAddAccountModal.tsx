@@ -10,7 +10,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 export interface NewAccount { id: string; code: string; name: string; type: string }
 
 interface Props {
-  system: 'water_supply' | 'donors_projects'
+  system: 'water_supply' | 'donors_projects' | 'marketplace'
   allowedTypes: string[]
   onClose: () => void
   onCreated: (account: NewAccount) => void

@@ -15,11 +15,11 @@ import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
-type SystemTab = 'water_supply' | 'donors_projects'
+type SystemTab = 'water_supply' | 'donors_projects' | 'marketplace'
 type ReportType = 'trial_balance' | 'balance_sheet' | 'income_expense' | 'consumer_outstanding' | 'donor_report' | 'account_statement'
 
-const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects' }
-const systemLabelKeys: Record<SystemTab, DocStringKey> = { water_supply: 'waterSupplySystem', donors_projects: 'donorsProjects' }
+const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects', marketplace: 'Marketplace' }
+const systemLabelKeys: Record<SystemTab, DocStringKey> = { water_supply: 'waterSupplySystem', donors_projects: 'donorsProjects', marketplace: 'marketplaceSystem' }
 const reportTypeLabels: Record<ReportType, string> = {
   trial_balance: 'Trial Balance',
   balance_sheet: 'Balance Sheet',
@@ -41,8 +41,13 @@ const reportTypeDocKeys: Record<ReportType, DocStringKey> = {
 // they show correctly on the Trial Balance), but a proper P&L needs them pulled
 // out of "Operating Expenses" — COGS to compute Gross Profit, Discount to reduce
 // Revenue — rather than sitting flat next to office supplies and salaries.
-const cogsCode: Record<SystemTab, string> = { water_supply: 'WS-3007', donors_projects: 'DP-3004' }
-const discountCode: Record<SystemTab, string> = { water_supply: 'WS-3008', donors_projects: 'DP-3005' }
+// Marketplace's chart of accounts has no COGS/discount-type header at all
+// (it's cash/bank/income/liability/shop/vehicle_owner, not the WS/DP
+// numeric-code layout) -- these placeholder codes deliberately never
+// match a real account, so incomeExpense's .find() below just resolves
+// to null and the P&L renders without a COGS/discount split, correctly.
+const cogsCode: Record<SystemTab, string> = { water_supply: 'WS-3007', donors_projects: 'DP-3004', marketplace: 'MP-NONE' }
+const discountCode: Record<SystemTab, string> = { water_supply: 'WS-3008', donors_projects: 'DP-3005', marketplace: 'MP-NONE' }
 
 interface Account { id: string; code: string; name: string; type: string; system: string; opening_balance: number; consumer_id: string | null }
 interface AccountHeader { system: string; code: string; label: string }
@@ -96,8 +101,9 @@ function ReportsPageInner() {
     if (access.loading) return
     if (system === 'water_supply' && !access.canWaterSupply) setSystem(access.defaultSystem)
     if (system === 'donors_projects' && !access.canDonorsProjects) setSystem(access.defaultSystem)
+    if (system === 'marketplace' && !access.canMarketplace) setSystem(access.defaultSystem)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [access.loading, access.canWaterSupply, access.canDonorsProjects, system])
+  }, [access.loading, access.canWaterSupply, access.canDonorsProjects, access.canMarketplace, system])
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const [loading, setLoading] = useState(false)
@@ -385,6 +391,7 @@ function ReportsPageInner() {
           <select value={system} onChange={(e) => setSystem(e.target.value as SystemTab)} className="filter-field">
             {access.canWaterSupply && <option value="water_supply">{t('a.waterSupplySystem')}</option>}
             {access.canDonorsProjects && <option value="donors_projects">{t('a.donorsProjects')}</option>}
+            {access.canMarketplace && <option value="marketplace">{t('a.marketplaceSystem')}</option>}
           </select>
         </div>
         <div className="flex-1 min-w-[190px]">

@@ -129,7 +129,7 @@ const NO_FALLBACK_KEYS = new Set([
 // Pass system: 'donors_projects' to let a donor_* override win over its
 // shared counterpart wherever one has actually been filled in — otherwise
 // (or for 'water_supply'/omitted) this behaves exactly as before.
-export async function fetchBrandingSettings(system?: 'water_supply' | 'donors_projects'): Promise<BrandingSettings> {
+export async function fetchBrandingSettings(system?: 'water_supply' | 'donors_projects' | 'marketplace'): Promise<BrandingSettings> {
   const supabase = createClient()
   const donorKeys = system === 'donors_projects' ? Object.values(DONOR_OVERRIDE_KEYS) : []
   const { data } = await supabase.from('site_settings').select('key, value').in('key', [...KEYS, ...donorKeys])

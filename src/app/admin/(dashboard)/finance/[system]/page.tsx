@@ -29,7 +29,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 
-type SystemTab = 'water_supply' | 'donors_projects'
+type SystemTab = 'water_supply' | 'donors_projects' | 'marketplace'
 type VoucherType = 'expense' | 'income' | 'contra' | 'withdrawal' | 'deposit' | 'advance'
 type ActiveType = VoucherType | 'bill' | 'donation' | 'purchase' | 'cash_receipt' | 'project_transfer'
 
@@ -100,7 +100,7 @@ interface BillLine {
 }
 interface PurchaseLine { inventory_item_id: string; description: string; quantity: number; unit_cost: number }
 
-const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects' }
+const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects', marketplace: 'Marketplace' }
 
 // label/fromLabel/toLabel/partyLabel are i18n keys (with their English text as
 // the literal fallback baked in via the key name's t(key, fallback) call site)
@@ -198,7 +198,7 @@ export default function TransactionsWorkspace({ params }: { params: Promise<{ sy
 function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: string }> }) {
   const { t, isUrdu } = useLocale()
   const { system: rawSystem } = usePromise(params)
-  const system = (rawSystem === 'donors_projects' ? 'donors_projects' : 'water_supply') as SystemTab
+  const system = (rawSystem === 'donors_projects' ? 'donors_projects' : rawSystem === 'marketplace' ? 'marketplace' : 'water_supply') as SystemTab
   const searchParams = useSearchParams()
   const router = useRouter()
   const access = useSystemAccess()
@@ -1198,7 +1198,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   // chart of accounts — mirrors the reference flow's "+ Add New" in the charge picker.
   const createChargeAccount = async () => {
     if (!newChargeAccountName.trim()) { toast.error(t('fw.enterName')); return }
-    const code = `${system === 'water_supply' ? 'WS' : 'DP'}-OC-${Date.now().toString(36).toUpperCase()}`
+    const code = `${system === 'water_supply' ? 'WS' : system === 'donors_projects' ? 'DP' : 'MKT'}-OC-${Date.now().toString(36).toUpperCase()}`
     const { data, error } = await supabase.from('accounts')
       .insert({ code, name: newChargeAccountName.trim(), type: 'income', system })
       .select('id, name, type, code, system').single()
@@ -1804,8 +1804,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           else on the page keeps the scoped flip. */}
       <div dir="ltr" className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-heading text-[22px] sm:text-[28px] font-bold leading-[28px] sm:leading-[36px] text-dp-primary">{t(system === 'water_supply' ? 'dash.waterSupplySystem' : 'dash.donorsProjectsSystem', systemLabels[system])} — {t('v.transactions')}</h1>
-          {!access.loading && (access.canWaterSupply || access.canDonorsProjects) && (
+          <h1 className="font-heading text-[22px] sm:text-[28px] font-bold leading-[28px] sm:leading-[36px] text-dp-primary">{t(system === 'water_supply' ? 'dash.waterSupplySystem' : system === 'donors_projects' ? 'dash.donorsProjectsSystem' : 'a.marketplaceSystem', systemLabels[system])} — {t('v.transactions')}</h1>
+          {!access.loading && (access.canWaterSupply || access.canDonorsProjects || access.canMarketplace) && (
             <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1 mt-3 w-fit">
               {access.canWaterSupply && (
                 <button
@@ -1821,6 +1821,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant hover:bg-dp-surface-container'}`}
                 >
                   {t('a.donorsProjects')}
+                </button>
+              )}
+              {access.canMarketplace && (
+                <button
+                  onClick={() => system !== 'marketplace' && router.push('/admin/finance/marketplace')}
+                  className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'marketplace' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant hover:bg-dp-surface-container'}`}
+                >
+                  {t('a.marketplaceSystem')}
                 </button>
               )}
             </div>

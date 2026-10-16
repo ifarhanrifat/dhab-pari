@@ -20,7 +20,7 @@ export default function RegisterPage() {
     if (access.loading) return
     if (systemOverride === 'water_supply' && access.canWaterSupply) { setSystem('water_supply'); return }
     if (systemOverride === 'donors_projects' && access.canDonorsProjects) { setSystem('donors_projects'); return }
-    setSystem(access.defaultSystem)
+    setSystem(access.defaultSystem === 'marketplace' ? (access.canWaterSupply ? 'water_supply' : 'donors_projects') : access.defaultSystem)
   }, [access.loading, access.defaultSystem, access.canWaterSupply, access.canDonorsProjects, systemOverride])
 
   return (

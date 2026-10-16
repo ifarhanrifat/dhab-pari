@@ -21,7 +21,7 @@ interface ReceiptModalProps {
   // Pass 'donors_projects' to pick up donor-specific footer/help-numbers/
   // template overrides (Settings → Donor Templates) instead of the shared
   // ones — see fetchBrandingSettings(). Omit for water_supply (unchanged).
-  system?: 'water_supply' | 'donors_projects'
+  system?: 'water_supply' | 'donors_projects' | 'marketplace'
 }
 
 export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps) {

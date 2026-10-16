@@ -325,7 +325,7 @@ export default function RunningCapitalPage() {
   const { t, isUrdu } = useLocale()
   const access = useSystemAccess()
   const [system, setSystem] = useState<SystemTab>('water_supply')
-  useEffect(() => { if (!access.loading) setSystem(access.defaultSystem) }, [access.loading, access.defaultSystem])
+  useEffect(() => { if (!access.loading) setSystem(access.defaultSystem === 'marketplace' ? (access.canWaterSupply ? 'water_supply' : 'donors_projects') : access.defaultSystem) }, [access.loading, access.defaultSystem])
 
   // An internal report -- follows the admin's own chosen language rather
   // than the site's public-document branding default.

@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Pencil, Save, Droplets, Heart, Search, MoreVertical, ChevronDown, ChevronUp, SlidersHorizontal, Eye, Power } from 'lucide-react'
+import { PlusCircle, X, Pencil, Save, Droplets, Heart, Store, Search, MoreVertical, ChevronDown, ChevronUp, SlidersHorizontal, Eye, Power } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
@@ -54,7 +54,7 @@ interface ConsumerInfo {
   status: string
 }
 
-type SystemTab = 'water_supply' | 'donors_projects'
+type SystemTab = 'water_supply' | 'donors_projects' | 'marketplace'
 type Lang = 'en' | 'ur'
 
 const emptyAccount = {
@@ -101,8 +101,9 @@ export default function AccountsPage() {
     if (access.loading) return
     if (tab === 'water_supply' && !access.canWaterSupply) setTab(access.defaultSystem)
     if (tab === 'donors_projects' && !access.canDonorsProjects) setTab(access.defaultSystem)
+    if (tab === 'marketplace' && !access.canMarketplace) setTab(access.defaultSystem)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [access.loading, access.canWaterSupply, access.canDonorsProjects, tab])
+  }, [access.loading, access.canWaterSupply, access.canDonorsProjects, access.canMarketplace, tab])
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   // Only 'donor' shows the profile fields below (phone/WhatsApp/type/
@@ -378,6 +379,7 @@ export default function AccountsPage() {
 
   const waterCount = accounts.filter((a) => a.system === 'water_supply').length
   const donorCount = accounts.filter((a) => a.system === 'donors_projects').length
+  const marketplaceCount = accounts.filter((a) => a.system === 'marketplace').length
 
   const renderRow = (a: Account, indented = false) => {
     const bal = balanceOf(a)
@@ -485,6 +487,14 @@ export default function AccountsPage() {
           <Heart size={15} className="shrink-0" />
           <span className="truncate">{t('a.donorsProjects')}</span>
           <span className={`shrink-0 text-[10.5px] px-1.5 py-0.5 rounded-full ${tab === 'donors_projects' ? 'bg-white/20 text-white' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>{donorCount}</span>
+        </button>}
+        {access.canMarketplace && <button
+          onClick={() => setTab('marketplace')}
+          className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-3 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[12.5px] py-2.5' : 'text-[12px] py-2'} ${tab === 'marketplace' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
+        >
+          <Store size={15} className="shrink-0" />
+          <span className="truncate">{t('a.marketplaceSystem')}</span>
+          <span className={`shrink-0 text-[10.5px] px-1.5 py-0.5 rounded-full ${tab === 'marketplace' ? 'bg-white/20 text-white' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>{marketplaceCount}</span>
         </button>}
       </div>
 
@@ -683,7 +693,8 @@ export default function AccountsPage() {
                   value={form.system}
                   onChange={(e) => {
                     const system = e.target.value as SystemTab
-                    const firstHeader = headers.find((h) => h.system === system && h.code !== (system === 'water_supply' ? 'consumer' : 'donor'))
+                    const excludeCode = system === 'water_supply' ? 'consumer' : system === 'donors_projects' ? 'donor' : ''
+                    const firstHeader = headers.find((h) => h.system === system && h.code !== excludeCode)
                     setForm({ ...form, system, headerId: firstHeader?.id ?? '' })
                   }}
                   className="input-field"
@@ -691,6 +702,7 @@ export default function AccountsPage() {
                 >
                   <option value="water_supply">{t('a.waterSupplySystem')}</option>
                   <option value="donors_projects">{t('ac.donorsSystem')}</option>
+                  {access.canMarketplace && <option value="marketplace">{t('a.marketplaceSystem')}</option>}
                 </select>
               </div>
               <div>
@@ -798,7 +810,7 @@ export default function AccountsPage() {
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.codePrefix')}</label>
-                <input value={headerForm.code_prefix} onChange={(e) => setHeaderForm({ ...headerForm, code_prefix: e.target.value.toUpperCase() })} placeholder={`e.g. ${form.system === 'water_supply' ? 'WS' : 'DP'}-INV`} className="input-field" />
+                <input value={headerForm.code_prefix} onChange={(e) => setHeaderForm({ ...headerForm, code_prefix: e.target.value.toUpperCase() })} placeholder={`e.g. ${form.system === 'water_supply' ? 'WS' : form.system === 'donors_projects' ? 'DP' : 'MP'}-INV`} className="input-field" />
               </div>
               <button onClick={saveHeader} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
                 <Save size={16} /> {t('ac.createHeader')}
