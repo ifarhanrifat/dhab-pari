@@ -6,7 +6,9 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { IlanApprovalSection } from '@/components/admin/IlanApprovalSection'
 
 interface HelpReqPending {
   sourceType: 'help_request'; id: string; category: string; description: string; location_text: string | null
@@ -88,6 +90,7 @@ const KIND_KEYS: [string, string][] = [
 export default function AdminNotificationsPage() {
   const { t, isUrdu } = useLocale()
   const site = useSite()
+  const access = useSystemAccess()
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -349,6 +352,16 @@ export default function AdminNotificationsPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-8">{t('al.title')}</h1>
+
+      {/* Commercial ilans joined this same "one control room" rather than
+          getting their own sidebar page — real ask, 2026-10-16. Gated on
+          marketplace access since this page's main alerts/appeals content
+          below has no such requirement. */}
+      {!access.loading && access.canMarketplace && (
+        <div className="mb-8 pb-8 border-b border-dp-outline-variant">
+          <IlanApprovalSection />
+        </div>
+      )}
 
       {/* Real ask, 2026-10-01: one control room, not scattered approve
           buttons on every feature's own page. Help Requests and Death

@@ -136,7 +136,7 @@ export default function MyVehicleTripsPage() {
   const postTripOffer = async () => {
     if (!vehicle || !tripForm.origin.trim() || !tripForm.destination.trim() || !tripForm.travel_date) { toast.error(t('mk.nameRequired')); return }
     setPosting(true)
-    const { error } = await supabase.rpc('place_trip_offer', {
+    const { data: tripId, error } = await supabase.rpc('place_trip_offer', {
       p_vehicle_id: vehicle.id, p_trip_type: tripForm.trip_type, p_origin: tripForm.origin, p_origin_ur: tripForm.origin_ur || null,
       p_destination: tripForm.destination, p_destination_ur: tripForm.destination_ur || null,
       p_classification: tripForm.classification, p_travel_date: tripForm.travel_date,
@@ -151,6 +151,16 @@ export default function MyVehicleTripsPage() {
     setShowPostTrip(false)
     setTripForm(emptyTripOffer)
     reload(vehicle.id)
+
+    // The system auto-posts a ticker ilan for every trip (no manual step) —
+    // tell the driver this happened and what it costs, so it's never a
+    // silent surprise waiting for the committee to collect cash for.
+    if (tripId) {
+      const { data: ilan } = await supabase.from('commercial_ilans').select('price_pkr').eq('vehicle_trip_offer_id', tripId).eq('is_auto_generated', true).maybeSingle()
+      if (ilan) {
+        toast.message(t('cm.autoIlanCreatedToast').replace('{price}', fmt(ilan.price_pkr)))
+      }
+    }
   }
 
   const respondFare = async (fareOfferId: string, action: 'accept' | 'reject' | 'counter') => {
@@ -290,7 +300,7 @@ export default function MyVehicleTripsPage() {
             <p className="font-sans text-[11.5px] text-[#64748b]">{tripForm.trip_type === 'return' ? t('cm.tripTypeReturnHint') : t('cm.tripTypeOnewayHint')}</p>
             <div className="grid grid-cols-2 gap-3">
               <input value={tripForm.origin} onChange={(e) => setTripForm({ ...tripForm, origin: e.target.value })} placeholder={t('mk.originPlaceholder')} className={inputCls} />
-              <input value={tripForm.destination} onChange={(e) => setTripForm({ ...tripForm, destination: e.target.value })} placeholder={t('mk.destinationPlaceholder')} className={inputCls} />
+              <input value={tripForm.destination} onChange={(e) => setTripForm({ ...tripForm, destination: e.target.value })} placeholder={t('cm.tripDestinationCityPlaceholder')} className={inputCls} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <input value={tripForm.origin_ur} onChange={(e) => setTripForm({ ...tripForm, origin_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className={inputCls} style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />

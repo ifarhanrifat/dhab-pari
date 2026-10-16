@@ -86,6 +86,11 @@ import { MODULES } from '@/lib/constants'
 interface LeafItem {
   href: string; label: string; icon: LucideIcon
   system?: 'water_supply' | 'donors_projects' | 'marketplace'
+  // For the one item (Alerts & Appeals) a pure marketplace_accountant
+  // still needs reachable — the commercial-ilan approval section now
+  // embedded there (real ask, 2026-10-16) has no donors_projects
+  // involvement at all. Visible if EITHER system grants access.
+  extraSystem?: 'water_supply' | 'donors_projects' | 'marketplace'
   module?: 'business'
   publish?: 'news' | 'videos' | 'gallery' | 'ticker' | 'jobs' | 'poetry' | 'blog'
   tKey?: string
@@ -207,7 +212,7 @@ const menuItems: MenuEntry[] = [
     ],
   },
   { href: '/admin/suggestions', label: 'Suggestions', tKey: 'nav.suggestions', icon: MessageSquare, badge: 'suggestions', system: 'donors_projects' },
-  { href: '/admin/notifications', label: 'Alerts & Appeals', tKey: 'nav.alerts', icon: Bell, badge: 'alerts', system: 'donors_projects' },
+  { href: '/admin/notifications', label: 'Alerts & Appeals', tKey: 'nav.alerts', icon: Bell, badge: 'alerts', system: 'donors_projects', extraSystem: 'marketplace' },
   {
     groupKey: 'blood', label: 'Blood Bank', tKey: 'nav.groupBlood', icon: Droplet,
     children: [
@@ -244,7 +249,6 @@ const menuItems: MenuEntry[] = [
       { href: '/admin/user-verification', label: 'User Verification', tKey: 'nav.userVerification', icon: ShieldCheck, system: 'donors_projects' },
       { href: '/admin/disputes', label: 'Disputes', tKey: 'nav.disputes', icon: Scale, system: 'donors_projects' },
       { href: '/admin/fleet-map', label: 'Fleet Map', tKey: 'nav.fleetMap', icon: Radar, system: 'donors_projects' },
-      { href: '/admin/ilans', label: 'Ilans', tKey: 'nav.ilans', icon: Megaphone, system: 'marketplace' },
     ],
   },
   { href: '/admin/talent-showcase', label: 'Talent Showcase', tKey: 'nav.talentShowcase', icon: Sparkles, adminAndAbove: true, system: 'donors_projects' },
@@ -374,9 +378,16 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
 
     // While access is still loading, show nothing system-specific rather than
     // flashing the other account's menu and then removing it.
-    if (item.system === 'water_supply') return !access.loading && access.canWaterSupply
-    if (item.system === 'donors_projects') return !access.loading && access.canDonorsProjects
-    if (item.system === 'marketplace') return !access.loading && access.canMarketplace
+    const grantsSystem = (s?: 'water_supply' | 'donors_projects' | 'marketplace') => {
+      if (!s) return null
+      if (access.loading) return false
+      if (s === 'water_supply') return access.canWaterSupply
+      if (s === 'donors_projects') return access.canDonorsProjects
+      return access.canMarketplace
+    }
+    const primary = grantsSystem(item.system)
+    const extra = grantsSystem(item.extraSystem)
+    if (primary !== null || extra !== null) return !!primary || !!extra
     return true
   }
 

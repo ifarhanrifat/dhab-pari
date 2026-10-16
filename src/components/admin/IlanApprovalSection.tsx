@@ -1,5 +1,13 @@
 'use client'
 
+// Commercial ilan approval — real ask, 2026-10-16: "why not put this
+// option in already existing alerts and ilan" rather than its own
+// separate sidebar page. Lives inside /admin/notifications (Alerts &
+// Appeals) now, matching that page's own stated principle ("one
+// control room, not scattered approve buttons on every feature's own
+// page") -- a self-contained component rather than merged state, so it
+// can't collide with that page's own `pending`/`loading`/`actionId`.
+
 import { useEffect, useState, useCallback } from 'react'
 import { Megaphone, CheckCircle2, XCircle, Pencil, Bot } from 'lucide-react'
 import { toast } from 'sonner'
@@ -16,7 +24,7 @@ interface Ilan {
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
-export default function AdminIlansPage() {
+export function IlanApprovalSection() {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
@@ -70,17 +78,17 @@ export default function AdminIlansPage() {
     load()
   }
 
-  if (loading) return <div className="text-center py-12"><LoadingDots /></div>
+  if (loading) return <div className="text-center py-8"><LoadingDots /></div>
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="space-y-6">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="space-y-5">
       <div>
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Megaphone size={22} /> {t('il.adminHeading')}</h1>
+        <h2 className="font-heading text-[22px] font-bold text-dp-primary flex items-center gap-2"><Megaphone size={20} /> {t('il.adminHeading')}</h2>
         <p className="text-dp-on-surface-variant text-[13px] font-sans mt-0.5">{t('il.adminHint')}</p>
       </div>
 
       <div>
-        <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2">{t('il.pendingHeading')}</h2>
+        <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2">{t('il.pendingHeading')}</h3>
         {pending.length === 0 ? (
           <p className="text-dp-on-surface-variant text-[13.5px] font-sans">{t('pf.noPendingIlans')}</p>
         ) : (
@@ -131,7 +139,7 @@ export default function AdminIlansPage() {
       </div>
 
       <div>
-        <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2">{t('il.historyHeading')}</h2>
+        <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2">{t('il.historyHeading')}</h3>
         {history.length === 0 ? (
           <p className="text-dp-on-surface-variant text-[13.5px] font-sans">{t('il.noIlansYet')}</p>
         ) : (
