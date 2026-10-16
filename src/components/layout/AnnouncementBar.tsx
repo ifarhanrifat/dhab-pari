@@ -176,13 +176,30 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
     setAppeals((ap ?? []) as Appeal[])
 
     // Paid ticker-placement commercial ilans (migration 671) — run by
-    // the platform team, unrelated to the free belts above. RLS already
-    // restricts this to currently-live, approved, unpaused campaigns
-    // targeted at this viewer's own tenant.
+    // the platform team, unrelated to the free belts above.
+    //
+    // Real bug, 2026-10-17, confirmed on a real device: this relied on
+    // RLS alone to decide what's live, assuming only approved/unpaused/
+    // in-window rows could ever come back. That's true for an
+    // anonymous visitor (commercial_ilans_display_public) — but
+    // commercial_ilans_advertiser_read grants the ad's OWN owner full
+    // read access to their own row regardless of status, so they can
+    // check on their pending/rejected request from their own account.
+    // That policy exists for a genuinely different reason (self-
+    // service status checking) and was never meant to feed the public
+    // belt — an advertiser logged into their own portal account was
+    // seeing their own rejected ad still "running" here, invisible to
+    // everyone else. The belt now states its own real criteria
+    // explicitly instead of trusting whichever RLS policy happens to
+    // let the request through.
     const { data: ci } = await supabase
       .from('commercial_ilans')
       .select('id, title_ur, body_ur, contact_mobile, vehicle_route_id, vehicle_trip_offer_id')
       .in('placement', ['ticker', 'auto_trip'])
+      .eq('status', 'approved')
+      .eq('is_paused', false)
+      .lte('starts_at', new Date().toISOString())
+      .gt('ends_at', new Date().toISOString())
       .order('created_at', { ascending: false })
     setPaidIlans((ci ?? []) as PaidIlan[])
 
