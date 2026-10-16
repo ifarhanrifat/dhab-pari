@@ -94,6 +94,13 @@ export function DrawerNav2({
       <aside
         dir={isUrdu ? 'rtl' : 'ltr'}
         onClick={(e) => e.stopPropagation()}
+        // Real bug, live on device: this is `fixed`/viewport-pinned (via its
+        // `h-full` + the backdrop's `fixed inset-0` parent), and a fixed
+        // element does NOT inherit an ancestor's safe-area padding — same
+        // bug already fixed on PortalSidebar/AdminSidebar's mobile drawers.
+        // Without its own top inset, the header row (title + close button)
+        // renders partly under the phone's status bar.
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         className="w-[62%] max-w-[230px] h-full bg-[#033a22] text-white flex flex-col overflow-y-auto shadow-[8px_0_30px_rgba(0,0,0,.35)] animate-in slide-in-from-left duration-250"
       >
         <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 border-b border-white/10 shrink-0">

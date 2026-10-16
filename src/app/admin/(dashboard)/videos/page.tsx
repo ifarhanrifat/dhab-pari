@@ -20,13 +20,20 @@ export default function AdminVideosPage() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState(empty)
+  const [missingField, setMissingField] = useState<'title' | 'video_url' | null>(null)
   const supabase = createClient()
 
   const load = async () => { const { data } = await supabase.from('video_content').select('*').order('created_at', { ascending: false }); setVideos(data ?? []); setLoading(false) }
   useEffect(() => { load() }, [])
 
+  // Real bug, 2026-10-17: a save with no title (common after just pasting a
+  // YouTube link and going straight to Save) silently did nothing beyond a
+  // toast — easy to miss, and the video then simply never existed with no
+  // further trace. The field itself now turns visibly red until fixed.
   const save = async () => {
-    if (!form.title.trim() || !form.video_url.trim()) { toast.error(t('vd.titleUrlRequired')); return }
+    if (!form.title.trim()) { setMissingField('title'); toast.error(t('vd.titleUrlRequired')); return }
+    if (!form.video_url.trim()) { setMissingField('video_url'); toast.error(t('vd.titleUrlRequired')); return }
+    setMissingField(null)
     const payload = { ...form, duration_seconds: form.duration_seconds || null }
     if (editing) { const { error } = await supabase.from('video_content').update(payload).eq('id', editing); if (error) { toast.error(friendlyError(error)); return }; toast.success(t('vd.updated')) }
     else { const { error } = await supabase.from('video_content').insert(payload); if (error) { toast.error(friendlyError(error)); return }; toast.success(t('vd.added')) }
@@ -66,9 +73,17 @@ export default function AdminVideosPage() {
           <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{editing ? t('vd.editVideoTitle') : t('vd.addVideoTitle')}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleEn')}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleEn')}</label>
+                <input value={form.title} onChange={(e) => { setForm({ ...form, title: e.target.value }); if (missingField === 'title') setMissingField(null) }}
+                  className={`input-field ${missingField === 'title' ? 'border-dp-error ring-2 ring-dp-error/30' : ''}`} />
+                {missingField === 'title' && <p className="text-dp-error text-[12px] font-sans mt-1">{t('vd.titleUrlRequired')}</p>}
+              </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleUr')}</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} /></div>
-              <VideoUpload currentUrl={form.video_url} onUpload={(url) => setForm({ ...form, video_url: url })} />
+              <div className={missingField === 'video_url' ? 'rounded-lg ring-2 ring-dp-error/30' : ''}>
+                <VideoUpload currentUrl={form.video_url} onUpload={(url) => { setForm({ ...form, video_url: url }); if (missingField === 'video_url') setMissingField(null) }} />
+                {missingField === 'video_url' && <p className="text-dp-error text-[12px] font-sans mt-1">{t('vd.titleUrlRequired')}</p>}
+              </div>
               <ImageUpload bucket="thumbnails" currentUrl={form.thumbnail_url} onUpload={(url) => setForm({ ...form, thumbnail_url: url })} label={t('vd.thumbnailImage')} />
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.category')}</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>

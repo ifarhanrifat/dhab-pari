@@ -367,7 +367,13 @@ export default function MyVehicleTripsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mk.totalSeatsLabel')}</label><input type="number" value={tripForm.seats_available || ''} onChange={(e) => setTripForm({ ...tripForm, seats_available: +e.target.value })} className={inputCls} placeholder="1" /></div>
-              <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('cm.listedFareLabel')}</label><input type="number" value={tripForm.listed_fare_per_seat_pkr || ''} onChange={(e) => setTripForm({ ...tripForm, listed_fare_per_seat_pkr: +e.target.value })} className={inputCls} placeholder="0" /></div>
+              <div>
+                <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{tripForm.trip_type === 'return' ? t('cm.listedFareLabelReturn') : t('cm.listedFareLabel')}</label>
+                <input type="number" value={tripForm.listed_fare_per_seat_pkr || ''} onChange={(e) => setTripForm({ ...tripForm, listed_fare_per_seat_pkr: +e.target.value })} className={inputCls} placeholder="0" />
+                {tripForm.trip_type === 'return' && tripForm.listed_fare_per_seat_pkr > 0 && (
+                  <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('cm.oneWayAutoHalfHint').replace('{price}', String(Math.round(tripForm.listed_fare_per_seat_pkr / 2)))}</p>
+                )}
+              </div>
             </div>
             <div>
               <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('cm.distanceKmOptionalLabel')}</label>
