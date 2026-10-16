@@ -12,7 +12,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus } from 'lucide-react'
+import Link from 'next/link'
+import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus, Megaphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -32,6 +33,7 @@ interface Booking {
   vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
 }
 interface Route { id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; fare_mode: string; fare_per_seat_pkr: number; total_fare_pkr: number | null; is_active: boolean }
+interface RouteIlan { id: string; vehicle_route_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -48,6 +50,7 @@ export default function MyVehicleRoutesPage() {
   const [loading, setLoading] = useState(true)
   const [routes, setRoutes] = useState<Route[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [ilansByRoute, setIlansByRoute] = useState<Record<string, RouteIlan>>({})
   const [actionId, setActionId] = useState<string | null>(null)
   const [closingRouteId, setClosingRouteId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -63,6 +66,19 @@ export default function MyVehicleRoutesPage() {
     ])
     setRoutes(rts ?? [])
     setBookings((b ?? []) as unknown as Booking[])
+
+    if (rts && rts.length > 0) {
+      const { data: ilans } = await supabase.from('commercial_ilans')
+        .select('id, vehicle_route_id, status, is_paused, ends_at, created_at')
+        .in('vehicle_route_id', rts.map((r) => r.id)).order('created_at', { ascending: false })
+      // Only the most recent ilan per route matters for the card's status —
+      // older rejected/cancelled/expired ones from a previous "run again" don't.
+      const latest: Record<string, RouteIlan> = {}
+      for (const i of (ilans ?? []) as RouteIlan[]) {
+        if (!latest[i.vehicle_route_id]) latest[i.vehicle_route_id] = i
+      }
+      setIlansByRoute(latest)
+    } else setIlansByRoute({})
   }
 
   useEffect(() => {
@@ -198,22 +214,53 @@ export default function MyVehicleRoutesPage() {
 
       {routes.length > 0 && (
         <div className="flex flex-col gap-2">
-          {routes.map((r) => (
-            <div key={r.id} className="flex items-center justify-between gap-3 bg-white border border-[#e5e2d0] rounded-2xl p-3">
-              <div className="min-w-0">
-                <p className="font-sans text-[13.5px] font-semibold text-[#1e293b] truncate flex items-center gap-1"><Signpost size={12} className="shrink-0 text-[#166534]" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
-                <p className="font-sans text-[12px] text-[#64748b] mt-0.5">
-                  {r.fare_mode === 'flex' ? `${t('mp.flexModeLabel')} · ${fmt(r.total_fare_pkr ?? 0)} ${t('mp.totalSuffix')}` : `${fmt(r.fare_per_seat_pkr)} ${t('mk.perSeat')}`}
-                  {!r.is_active && ` · ${t('mp.routeClosedLabel')}`}
-                </p>
+          {routes.map((r) => {
+            const ilan = ilansByRoute[r.id]
+            const ilanLive = ilan && ilan.status === 'approved' && !ilan.is_paused && new Date(ilan.ends_at).getTime() > Date.now()
+            const ilanPending = ilan && ilan.status === 'pending_approval'
+            const ilanPaused = ilan && ilan.status === 'approved' && ilan.is_paused && new Date(ilan.ends_at).getTime() > Date.now()
+            const ilanHref = `/portal/my-vehicle/ilan?route=${r.id}&origin=${encodeURIComponent(isUrdu && r.origin_ur ? r.origin_ur : r.origin)}&destination=${encodeURIComponent(isUrdu && r.destination_ur ? r.destination_ur : r.destination)}`
+            return (
+              <div key={r.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-sans text-[13.5px] font-semibold text-[#1e293b] truncate flex items-center gap-1"><Signpost size={12} className="shrink-0 text-[#166534]" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
+                    <p className="font-sans text-[12px] text-[#64748b] mt-0.5">
+                      {r.fare_mode === 'flex' ? `${t('mp.flexModeLabel')} · ${fmt(r.total_fare_pkr ?? 0)} ${t('mp.totalSuffix')}` : `${fmt(r.fare_per_seat_pkr)} ${t('mk.perSeat')}`}
+                      {!r.is_active && ` · ${t('mp.routeClosedLabel')}`}
+                    </p>
+                  </div>
+                  {r.is_active && (
+                    <button onClick={() => closeRoute(r.id)} disabled={closingRouteId === r.id} className="shrink-0 px-2.5 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">
+                      {t('mp.closeRouteBtn')}
+                    </button>
+                  )}
+                </div>
+                {r.is_active && (
+                  <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-[#f1f5f9]">
+                    {ilanLive ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700"><Megaphone size={12} /> {t('il.adIsRunningLabel')}</span>
+                    ) : ilanPending ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700"><Clock size={12} /> {t('il.statusPending')}</span>
+                    ) : ilanPaused ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700"><Ban size={12} /> {t('il.pausedBadge')}</span>
+                    ) : (
+                      <span className="text-[11px] text-[#94a3b8]">{t('il.noAdRunningLabel')}</span>
+                    )}
+                    {ilanPaused ? (
+                      <Link href="/portal/my-vehicle/ilan" className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11.5px] font-sans font-semibold cursor-pointer border border-[#166534] text-[#166534]">
+                        <Megaphone size={12} /> {t('il.manageAdBtn')}
+                      </Link>
+                    ) : !ilanLive && !ilanPending && (
+                      <Link href={ilanHref} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11.5px] font-sans font-semibold cursor-pointer border border-[#166534] text-[#166534]">
+                        <Megaphone size={12} /> {ilan ? t('il.runAdAgainBtn') : t('il.runAdBtn')}
+                      </Link>
+                    )}
+                  </div>
+                )}
               </div>
-              {r.is_active && (
-                <button onClick={() => closeRoute(r.id)} disabled={closingRouteId === r.id} className="shrink-0 px-2.5 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">
-                  {t('mp.closeRouteBtn')}
-                </button>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
