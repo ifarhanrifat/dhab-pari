@@ -49,7 +49,7 @@ const emptyTripOffer = {
   dest_lat: null as number | null, dest_lng: null as number | null, return_departure_time_estimate: '',
 }
 
-const inputCls = 'w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] bg-white'
+const inputCls = 'dp2-input'
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })

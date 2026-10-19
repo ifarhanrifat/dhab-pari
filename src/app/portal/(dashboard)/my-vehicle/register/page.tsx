@@ -47,7 +47,7 @@ const emptyForm = {
   wants_service_class_ids: [] as string[],
 }
 
-const inputCls = 'w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13.5px] bg-white'
+const inputCls = 'dp2-input'
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 

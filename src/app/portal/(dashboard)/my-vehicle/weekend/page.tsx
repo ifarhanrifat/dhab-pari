@@ -19,7 +19,7 @@ import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 
 interface WeekendOffer { id: string; city_name: string; city_name_ur: string | null; direction: string; day_of_week: number; seats_total: number; seats_taken: number; fare_per_seat_pkr: number; is_active: boolean }
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
-const inputCls = 'w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] bg-white'
+const inputCls = 'dp2-input'
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })

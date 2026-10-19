@@ -30,7 +30,7 @@ interface AddaBoardEntry {
 }
 interface AddaBoard { adda: Adda; pair_adda: Adda | null; entries: AddaBoardEntry[] }
 
-const inputCls = 'w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] bg-white'
+const inputCls = 'dp2-input'
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
