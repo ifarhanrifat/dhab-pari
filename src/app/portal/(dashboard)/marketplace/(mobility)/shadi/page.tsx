@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { Users2, Car, Snowflake, Check, Loader2, CalendarDays, MapPin } from 'lucide-react'
+import { Users2, Car, Snowflake, Check, Loader2, CalendarDays, MapPin, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { CallButton } from '@/components/portal/CallButton'
@@ -26,6 +26,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
+import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -67,6 +68,7 @@ export default function ShadiBookingPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [fleetQty, setFleetQty] = useState<Record<string, number>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [openVehicle, setOpenVehicle] = useState<Vehicle | null>(null)
 
   const loadVehicles = () => supabase.rpc('shadi_bookable_vehicles').then(({ data }) => setVehicles((data ?? []) as Vehicle[]))
   const loadClasses = () => supabase.rpc('shadi_vehicle_classes_list').then(({ data }) => setClasses((data ?? []) as ShadiClass[]))
@@ -177,7 +179,7 @@ export default function ShadiBookingPage() {
                     const picked = selectedIds.has(v.id)
                     const Wrapper = v.shared_from_other_village ? 'div' : 'button'
                     return (
-                      <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => toggleSelect(v.id) })}
+                      <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => setOpenVehicle(v) })}
                         className={`bg-white border-2 rounded-xl overflow-hidden text-start flex flex-col relative ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}
                         style={{ borderColor: picked ? '#166534' : '#e5e2d0' }}>
                         <div className="h-[70px] relative bg-[#F9F9F6] shrink-0 flex items-center justify-center">
@@ -289,6 +291,60 @@ export default function ShadiBookingPage() {
           onClose={() => setShowPicker(false)}
           onConfirm={(loc) => { setVenueLoc(loc); setShowPicker(false) }}
         />
+      )}
+
+      {openVehicle && (
+        <MobilityBottomSheet title={vehicleDisplayName(openVehicle.vehicle_type, openVehicle.model)} onClose={() => setOpenVehicle(null)}>
+          <div className="flex flex-col gap-3">
+            <div className="h-[160px] rounded-xl bg-[#F9F9F6] flex items-center justify-center overflow-hidden">
+              {openVehicle.cover_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={openVehicle.cover_url} alt="" className="w-full h-full object-cover" />
+              ) : <Car size={40} className="text-[#94a3b8]" />}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[14px] font-bold text-[#1e293b]">{openVehicle.owner_name}</p>
+                {openVehicle.avg_rating != null && (
+                  <p className="flex items-center gap-1 text-[12px] text-[#64748b] mt-0.5"><Star size={11} className="fill-amber-400 text-amber-400" /> {openVehicle.avg_rating} {t('vp.ratingLabel')}</p>
+                )}
+              </div>
+              {!openVehicle.shared_from_other_village && <CallButton phone={openVehicle.owner_mobile} />}
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {openVehicle.color && (
+                <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-[#F9F9F6] text-[11px] font-semibold text-[#1e293b]">
+                  <span className="w-2.5 h-2.5 rounded-full border border-[#cbd5e1] bg-[#cbd5e1]" /> {t('mv.colorLabel')}: {openVehicle.color}
+                </span>
+              )}
+              {openVehicle.has_ac && (
+                <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-sky-50 text-sky-700 text-[11px] font-semibold"><Snowflake size={11} /> {t('mv.hasAcLabel')}</span>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between bg-[#F9F9F6] rounded-xl p-3">
+              <span className="text-[12.5px] font-semibold text-[#64748b]">{t('vp.fullDayRateLabel')}</span>
+              <span className="font-extrabold text-[16px] text-[#166534] ltr-num">{fmt(openVehicle.shadi_full_day_rate_pkr)}</span>
+            </div>
+
+            {openVehicle.shared_from_other_village ? (
+              <span className="text-[11.5px] font-bold px-2.5 py-1.5 rounded-xl bg-amber-50 text-amber-800 self-start">
+                {t('vp.sharedFromVillageBadge').replace('{village}', openVehicle.owner_village_name ?? '')}
+              </span>
+            ) : (
+              <button
+                onClick={() => { toggleSelect(openVehicle.id); setOpenVehicle(null) }}
+                className="w-full rounded-xl py-3 font-bold cursor-pointer flex items-center justify-center gap-2"
+                style={selectedIds.has(openVehicle.id)
+                  ? { background: '#fff', color: '#b91c1c', border: '1px solid #e5e2d0' }
+                  : { background: '#166534', color: '#fff' }}>
+                {selectedIds.has(openVehicle.id) ? t('vp.removeFromSelectionBtn') : <><Check size={16} /> {t('vp.addVehicleBtn')}</>}
+              </button>
+            )}
+          </div>
+        </MobilityBottomSheet>
       )}
     </div>
   )
