@@ -21,13 +21,13 @@ interface City { id: string; name: string; name_ur: string | null; distance_km: 
 interface ServiceClass {
   id: string; name: string; name_ur: string | null; category: string; capacity_label: string | null; capacity_label_ur: string | null
   note: string | null; note_ur: string | null; base_fare_pkr: number; per_km_pkr: number; is_active: boolean; display_order: number
-  delivery_eligible: boolean; ride_eligible: boolean
+  delivery_eligible: boolean; ride_eligible: boolean; home_city_delivery_eligible: boolean; outstation_delivery_eligible: boolean
 }
 interface Village { id: string; name: string; name_ur: string | null; delivery_fee_pkr: number; is_home_village: boolean; is_active: boolean; display_order: number }
 interface FareBand { flow: 'trip_share' | 'city_fetch' | 'route'; base_pkr: number; per_km_pkr: number; spread: number }
 
 const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, display_order: 0 }
-const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', base_fare_pkr: 0, per_km_pkr: 0, display_order: 0, delivery_eligible: true, ride_eligible: true }
+const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', base_fare_pkr: 0, per_km_pkr: 0, display_order: 0, delivery_eligible: true, ride_eligible: true, home_city_delivery_eligible: true, outstation_delivery_eligible: true }
 const emptyVillage = { name: '', name_ur: '', delivery_fee_pkr: 0, is_home_village: false, display_order: 0 }
 const emptyFareBand = { base_pkr: 0, per_km_pkr: 0, spread: 0.28 }
 
@@ -224,6 +224,11 @@ export default function MarketplaceReferencePage() {
                   <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={serviceForm.delivery_eligible} onChange={(e) => setServiceForm({ ...serviceForm, delivery_eligible: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.deliveryEligibleLabel')}</span></label>
                   <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={serviceForm.ride_eligible} onChange={(e) => setServiceForm({ ...serviceForm, ride_eligible: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.rideEligibleLabel')}</span></label>
                   <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.eligibilityHint')}</p>
+                  <div className="pt-1.5 mt-1.5 border-t border-dp-outline-variant space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={serviceForm.home_city_delivery_eligible} onChange={(e) => setServiceForm({ ...serviceForm, home_city_delivery_eligible: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.homeCityDeliveryEligibleLabel')}</span></label>
+                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={serviceForm.outstation_delivery_eligible} onChange={(e) => setServiceForm({ ...serviceForm, outstation_delivery_eligible: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.outstationDeliveryEligibleLabel')}</span></label>
+                    <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.categoryEligibilityHint')}</p>
+                  </div>
                 </div>
               </div>
             )}

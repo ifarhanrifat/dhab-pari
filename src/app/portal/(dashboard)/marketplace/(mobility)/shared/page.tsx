@@ -25,6 +25,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { RiderLiveShareToggle } from '@/components/portal/RiderLiveShareToggle'
 
 interface CityRow { city_key: string; destination: string; destination_ur: string | null; ride_count: number }
 interface TripRow {
@@ -38,6 +39,7 @@ interface BookingRow {
   cancellation_reason: string | null; owner_name: string; vehicle_type: string; vehicle_number: string | null
   origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   travel_date: string; departure_time_estimate: string | null; trip_type: string
+  return_departure_time_estimate: string | null; rider_sharing_location: boolean
 }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -189,6 +191,7 @@ export default function SharedRidePage() {
               <div className="space-y-2.5">
                 {filtered.map((b) => {
                   const depTime = fmtTime(b.departure_time_estimate, isUrdu)
+                  const returnDepTime = fmtTime(b.return_departure_time_estimate, isUrdu)
                   const badge =
                     b.status === 'confirmed' ? { icon: <CalendarClock size={11} />, cls: 'bg-emerald-50 text-emerald-700', label: t('mp.confirmedStatus') } :
                     b.status === 'completed' ? { icon: <CheckCircle2 size={11} />, cls: 'bg-sky-50 text-sky-700', label: t('cm.tripCompletedStatus') } :
@@ -205,6 +208,9 @@ export default function SharedRidePage() {
                           </div>
                           <p className="text-[10.5px] text-[#64748b]">{b.owner_name} · {b.vehicle_type}{b.vehicle_number ? ` · ${b.vehicle_number}` : ''}</p>
                           <p className="text-[10.5px] text-[#64748b] ltr-num">{new Date(b.travel_date).toLocaleDateString('en-GB')}{depTime ? ` · ${depTime}` : ''} · {b.seats} {t('vp.seatsLabel')}</p>
+                          {b.leg === 'return' && returnDepTime && (
+                            <p className="text-[10.5px] text-[#64748b] flex items-center gap-1 mt-0.5"><Clock size={10} /> {t('cm.returnDepartureTimeLabel').replace(' (optional)', '')}: <span className="ltr-num font-semibold text-[#1e293b]">{returnDepTime}</span></p>
+                          )}
                           {b.status === 'cancelled' && b.cancellation_reason && (
                             <p className="text-[10.5px] text-rose-600 mt-0.5">{b.cancellation_reason}</p>
                           )}
@@ -214,6 +220,13 @@ export default function SharedRidePage() {
                           <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.icon} {badge.label}</span>
                         </div>
                       </div>
+                      {b.status === 'confirmed' && b.leg === 'return' && (
+                        <RiderLiveShareToggle
+                          tripBookingId={b.id}
+                          sharing={b.rider_sharing_location}
+                          onSharingChange={(on) => setMyBookings((rows) => rows.map((r) => r.id === b.id ? { ...r, rider_sharing_location: on } : r))}
+                        />
+                      )}
                       {b.status === 'confirmed' && (
                         <button onClick={() => cancelBooking(b)} disabled={busyId === b.id}
                           className="w-full rounded-xl py-1.5 text-[11px] font-bold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">

@@ -36,14 +36,16 @@ interface FareOffer {
 }
 interface TripBooking {
   id: string; seats: number; leg: string; agreed_fare_per_seat_pkr: number; total_amount_pkr: number; status: string; cancellation_reason: string | null
-  vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; travel_date: string } | null
+  rider_sharing_location: boolean
+  vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; travel_date: string; return_departure_time_estimate: string | null } | null
 }
+interface RiderLocation { lat: number; lng: number }
 interface TripIlan { id: string; trip_offer_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 interface IlanQuote { price_pkr: number; wallet_balance_pkr: number; covered_by_wallet: boolean }
 const emptyTripOffer = {
   trip_type: 'oneway' as string, origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
   travel_date: '', departure_time_estimate: '', seats_available: 1, listed_fare_per_seat_pkr: 0, distance_km: '' as string,
-  dest_lat: null as number | null, dest_lng: null as number | null,
+  dest_lat: null as number | null, dest_lng: null as number | null, return_departure_time_estimate: '',
 }
 
 const inputCls = 'w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] bg-white'
@@ -73,6 +75,7 @@ export default function MyVehicleTripsPage() {
   const [actionId, setActionId] = useState<string | null>(null)
   const [bookingsFilter, setBookingsFilter] = useState<'upcoming' | 'completed' | 'cancelled'>('upcoming')
   const [ilansByTrip, setIlansByTrip] = useState<Record<string, TripIlan>>({})
+  const [riderLocationByBooking, setRiderLocationByBooking] = useState<Record<string, RiderLocation>>({})
   const [adSheetTrip, setAdSheetTrip] = useState<string | null>(null)
   const [adQuote, setAdQuote] = useState<IlanQuote | null>(null)
   const [adQuoting, setAdQuoting] = useState(false)
@@ -81,11 +84,20 @@ export default function MyVehicleTripsPage() {
   const reload = async (vehicleId: string) => {
     const [{ data: trips }, { data: tripB }] = await Promise.all([
       supabase.from('vehicle_trip_offers').select('*').eq('vehicle_id', vehicleId).order('created_at', { ascending: false }),
-      supabase.from('vehicle_trip_bookings').select('id, seats, leg, agreed_fare_per_seat_pkr, total_amount_pkr, status, cancellation_reason, vehicle_trip_offers(origin, origin_ur, destination, destination_ur, travel_date)')
+      supabase.from('vehicle_trip_bookings').select('id, seats, leg, agreed_fare_per_seat_pkr, total_amount_pkr, status, cancellation_reason, rider_sharing_location, vehicle_trip_offers(origin, origin_ur, destination, destination_ur, travel_date, return_departure_time_estimate)')
         .eq('vehicle_id', vehicleId).order('created_at', { ascending: false }).limit(20),
     ])
     setTripOffers(trips ?? [])
-    setTripBookings((tripB ?? []) as unknown as TripBooking[])
+    const bookings = (tripB ?? []) as unknown as TripBooking[]
+    setTripBookings(bookings)
+
+    const sharingIds = bookings.filter((b) => b.status === 'confirmed' && b.leg === 'return' && b.rider_sharing_location).map((b) => b.id)
+    if (sharingIds.length > 0) {
+      const { data: locs } = await supabase.from('vehicle_trip_locations').select('trip_booking_id, lat, lng').in('trip_booking_id', sharingIds).eq('role', 'rider')
+      setRiderLocationByBooking(Object.fromEntries((locs ?? []).map((l) => [l.trip_booking_id, { lat: l.lat, lng: l.lng }])))
+    } else {
+      setRiderLocationByBooking({})
+    }
 
     if (trips && trips.length > 0) {
       const { data: fareOffers } = await supabase.rpc('my_vehicle_trip_fare_offers', { p_vehicle_id: vehicleId })
@@ -183,6 +195,7 @@ export default function MyVehicleTripsPage() {
       p_seats_available: tripForm.seats_available, p_listed_fare_per_seat_pkr: tripForm.listed_fare_per_seat_pkr,
       p_distance_km: tripForm.distance_km ? Number(tripForm.distance_km) : null,
       p_dest_lat: tripForm.dest_lat, p_dest_lng: tripForm.dest_lng,
+      p_return_departure_time_estimate: tripForm.trip_type === 'return' ? (tripForm.return_departure_time_estimate || null) : null,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -361,6 +374,15 @@ export default function MyVehicleTripsPage() {
                 {tb.status === 'cancelled' && tb.cancellation_reason && (
                   <p className="font-sans text-[11px] text-rose-600 mt-1">{tb.cancellation_reason}</p>
                 )}
+                {tb.leg === 'return' && tb.vehicle_trip_offers?.return_departure_time_estimate && (
+                  <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('cm.returnDepartureTimeLabel').replace(' (optional)', '')}: <span className="ltr-num font-semibold text-[#1e293b]">{tb.vehicle_trip_offers.return_departure_time_estimate.slice(0, 5)}</span></p>
+                )}
+                {tb.status === 'confirmed' && tb.leg === 'return' && riderLocationByBooking[tb.id] && (
+                  <div className="mt-2 pt-2 border-t border-[#f1f5f9]">
+                    <p className="inline-flex items-center gap-1 font-sans text-[11px] font-bold text-emerald-700"><Navigation size={11} /> {t('cm.riderSharingLocationBadge')}</p>
+                    <LeafletMap pins={[{ lat: riderLocationByBooking[tb.id].lat, lng: riderLocationByBooking[tb.id].lng, color: '#166534' }]} height={120} className="rounded-xl mt-1.5" />
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
                   {tb.status === 'completed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={11} /> {t('cm.tripCompletedStatus')}</span>}
                   {tb.status === 'cancelled' && <span className="inline-flex items-center gap-1 text-[#64748b] text-[11px] font-bold"><Ban size={11} /> {t('mp.cancelledStatus')}</span>}
@@ -413,6 +435,9 @@ export default function MyVehicleTripsPage() {
               <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mp.travelDateLabel')}</label><input type="date" value={tripForm.travel_date} onChange={(e) => setTripForm({ ...tripForm, travel_date: e.target.value })} className={inputCls} /></div>
               <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mk.departureTimeLabel')}</label><input type="time" value={tripForm.departure_time_estimate} onChange={(e) => setTripForm({ ...tripForm, departure_time_estimate: e.target.value })} className={inputCls} /></div>
             </div>
+            {tripForm.trip_type === 'return' && (
+              <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label><input type="time" value={tripForm.return_departure_time_estimate} onChange={(e) => setTripForm({ ...tripForm, return_departure_time_estimate: e.target.value })} className={inputCls} /></div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mk.totalSeatsLabel')}</label><input type="number" value={tripForm.seats_available || ''} onChange={(e) => setTripForm({ ...tripForm, seats_available: +e.target.value })} className={inputCls} placeholder="1" /></div>
               <div>
