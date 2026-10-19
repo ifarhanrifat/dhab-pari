@@ -29,6 +29,7 @@ interface PaidIlan {
   contact_mobile: string | null
   vehicle_route_id: string | null
   vehicle_trip_offer_id: string | null
+  vehicle_trip_offers: { destination: string } | { destination: string }[] | null
 }
 
 // Real ask, 2026-10-17: "can a click on those news and alerts and
@@ -45,7 +46,13 @@ function appealLink(a: Appeal): string | null {
 }
 function paidIlanLink(p: PaidIlan): string | null {
   if (p.vehicle_route_id) return `/portal/marketplace/route/${p.vehicle_route_id}`
-  if (p.vehicle_trip_offer_id) return '/portal/marketplace/shared'
+  if (p.vehicle_trip_offer_id) {
+    // One tap should land on the specific ride being advertised, not a
+    // blank city-picker grid the reader has to search through again.
+    const offer = Array.isArray(p.vehicle_trip_offers) ? p.vehicle_trip_offers[0] : p.vehicle_trip_offers
+    const city = offer?.destination?.trim().toLowerCase()
+    return city ? `/portal/marketplace/shared?city=${encodeURIComponent(city)}` : '/portal/marketplace/shared'
+  }
   return null
 }
 
@@ -194,7 +201,7 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
     // let the request through.
     const { data: ci } = await supabase
       .from('commercial_ilans')
-      .select('id, title_ur, body_ur, contact_mobile, vehicle_route_id, vehicle_trip_offer_id')
+      .select('id, title_ur, body_ur, contact_mobile, vehicle_route_id, vehicle_trip_offer_id, vehicle_trip_offers(destination)')
       .in('placement', ['ticker', 'auto_trip'])
       .eq('status', 'approved')
       .eq('is_paused', false)

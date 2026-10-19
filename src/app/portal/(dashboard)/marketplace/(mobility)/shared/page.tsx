@@ -17,6 +17,7 @@
 // creating new ones.
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { ChevronLeft, Star, Users, Clock, CheckCircle2, Ban, CalendarClock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -53,6 +54,7 @@ export default function SharedRidePage() {
   const { t, isUrdu } = useLocale()
   const { user } = usePortalUser()
   const supabase = createClient()
+  const searchParams = useSearchParams()
 
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'browse' | 'bookings'>('browse')
@@ -75,11 +77,23 @@ export default function SharedRidePage() {
   useEffect(() => {
     supabase.rpc('open_trip_destinations').then(({ data, error }) => {
       if (error) toast.error(friendlyError(error, undefined, isUrdu))
-      setCities((data as CityRow[]) || [])
+      const rows = (data as CityRow[]) || []
+      setCities(rows)
       setLoading(false)
+      // Real ask, 2026-10-19: "how will the visitor get to your ride with
+      // one click" — a tapped ilan used to always land on the generic city
+      // grid, never the specific city it was actually advertising. A
+      // ?city= param (set by the ilan's own link) jumps straight past that
+      // grid into the right city's ride list, same as tapping the tile.
+      const wantedCity = searchParams.get('city')
+      if (wantedCity) {
+        const match = rows.find((c) => c.city_key === wantedCity)
+        if (match) openCity(match)
+      }
     })
     loadMyBookings()
-  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   function openCity(c: CityRow) {
     setCityKey(c.city_key)

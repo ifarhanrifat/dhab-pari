@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { MapPin, PlusCircle, X, Navigation, CheckCircle2, Ban, Check, XCircle } from 'lucide-react'
+import { MapPin, PlusCircle, X, Navigation, CheckCircle2, Ban, Check, XCircle, Megaphone, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -37,6 +37,8 @@ interface TripBooking {
   id: string; seats: number; leg: string; agreed_fare_per_seat_pkr: number; total_amount_pkr: number; status: string; cancellation_reason: string | null
   vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; travel_date: string } | null
 }
+interface TripIlan { id: string; trip_offer_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
+interface IlanQuote { price_pkr: number; wallet_balance_pkr: number; covered_by_wallet: boolean }
 const emptyTripOffer = {
   trip_type: 'oneway' as string, origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
   travel_date: '', departure_time_estimate: '', seats_available: 1, listed_fare_per_seat_pkr: 0, distance_km: '' as string,
@@ -69,6 +71,11 @@ export default function MyVehicleTripsPage() {
   const [trustByFareOffer, setTrustByFareOffer] = useState<Record<string, Trust>>({})
   const [actionId, setActionId] = useState<string | null>(null)
   const [bookingsFilter, setBookingsFilter] = useState<'upcoming' | 'completed' | 'cancelled'>('upcoming')
+  const [ilansByTrip, setIlansByTrip] = useState<Record<string, TripIlan>>({})
+  const [adSheetTrip, setAdSheetTrip] = useState<string | null>(null)
+  const [adQuote, setAdQuote] = useState<IlanQuote | null>(null)
+  const [adQuoting, setAdQuoting] = useState(false)
+  const [adRequesting, setAdRequesting] = useState(false)
 
   const reload = async (vehicleId: string) => {
     const [{ data: trips }, { data: tripB }] = await Promise.all([
@@ -86,7 +93,38 @@ export default function MyVehicleTripsPage() {
         grouped[fo.trip_offer_id] = [...(grouped[fo.trip_offer_id] ?? []), fo]
       }
       setFareOffersByTrip(grouped)
-    } else setFareOffersByTrip({})
+
+      const { data: ilans } = await supabase.from('commercial_ilans')
+        .select('id, vehicle_trip_offer_id, status, is_paused, ends_at, created_at')
+        .in('vehicle_trip_offer_id', trips.map((tr) => tr.id)).order('created_at', { ascending: false })
+      const latestIlan: Record<string, TripIlan> = {}
+      for (const i of (ilans ?? []) as unknown as (TripIlan & { vehicle_trip_offer_id: string })[]) {
+        if (!latestIlan[i.vehicle_trip_offer_id]) latestIlan[i.vehicle_trip_offer_id] = i
+      }
+      setIlansByTrip(latestIlan)
+    } else { setFareOffersByTrip({}); setIlansByTrip({}) }
+  }
+
+  const openAdSheet = async (tripOfferId: string) => {
+    setAdSheetTrip(tripOfferId)
+    setAdQuote(null)
+    setAdQuoting(true)
+    const { data, error } = await supabase.rpc('quote_trip_ilan', { p_trip_offer_id: tripOfferId })
+    setAdQuoting(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); setAdSheetTrip(null); return }
+    setAdQuote(data as IlanQuote)
+  }
+
+  const confirmAd = async () => {
+    if (!adSheetTrip || !vehicle) return
+    setAdRequesting(true)
+    const { data, error } = await supabase.rpc('request_trip_ilan', { p_trip_offer_id: adSheetTrip })
+    setAdRequesting(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    const approved = (data as { approved_instantly: boolean } | null)?.approved_instantly
+    toast.success(approved ? t('cm.adApprovedInstantlyToast') : t('cm.adPendingApprovalToast'))
+    setAdSheetTrip(null); setAdQuote(null)
+    reload(vehicle.id)
   }
 
   useEffect(() => {
@@ -136,7 +174,7 @@ export default function MyVehicleTripsPage() {
   const postTripOffer = async () => {
     if (!vehicle || !tripForm.origin.trim() || !tripForm.destination.trim() || !tripForm.travel_date) { toast.error(t('mk.nameRequired')); return }
     setPosting(true)
-    const { data: tripId, error } = await supabase.rpc('place_trip_offer', {
+    const { error } = await supabase.rpc('place_trip_offer', {
       p_vehicle_id: vehicle.id, p_trip_type: tripForm.trip_type, p_origin: tripForm.origin, p_origin_ur: tripForm.origin_ur || null,
       p_destination: tripForm.destination, p_destination_ur: tripForm.destination_ur || null,
       p_classification: tripForm.classification, p_travel_date: tripForm.travel_date,
@@ -151,16 +189,6 @@ export default function MyVehicleTripsPage() {
     setShowPostTrip(false)
     setTripForm(emptyTripOffer)
     reload(vehicle.id)
-
-    // The system auto-posts a ticker ilan for every trip (no manual step) —
-    // tell the driver this happened and what it costs, so it's never a
-    // silent surprise waiting for the committee to collect cash for.
-    if (tripId) {
-      const { data: ilan } = await supabase.from('commercial_ilans').select('price_pkr').eq('vehicle_trip_offer_id', tripId).eq('is_auto_generated', true).maybeSingle()
-      if (ilan) {
-        toast.message(t('cm.autoIlanCreatedToast').replace('{price}', fmt(ilan.price_pkr)))
-      }
-    }
   }
 
   const respondFare = async (fareOfferId: string, action: 'accept' | 'reject' | 'counter') => {
@@ -263,18 +291,37 @@ export default function MyVehicleTripsPage() {
                     )}
                   </div>
                 ))}
-                {tr.status === 'open' && (
-                  <>
-                    <TripLiveShareToggle
-                      tripOfferId={tr.id}
-                      sharing={tr.share_live_location}
-                      onSharingChange={(on) => setTripOffers((rows) => rows.map((r) => r.id === tr.id ? { ...r, share_live_location: on } : r))}
-                    />
-                    <button onClick={() => cancelTripOffer(tr.id)} disabled={actionId === tr.id} className="flex items-center gap-1 font-sans text-[11.5px] font-semibold mt-2 pt-2 border-t border-[#f1f5f9] cursor-pointer disabled:opacity-50 text-[#b91c1c]">
-                      <Ban size={12} /> {t('cm.cancelTripBtn')}
-                    </button>
-                  </>
-                )}
+                {tr.status === 'open' && (() => {
+                  const ilan = ilansByTrip[tr.id]
+                  const ilanLive = ilan && ilan.status === 'approved' && !ilan.is_paused && new Date(ilan.ends_at).getTime() > Date.now()
+                  const ilanPending = ilan && ilan.status === 'pending_approval'
+                  return (
+                    <>
+                      <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
+                        {ilanLive ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700"><Megaphone size={12} /> {t('il.adIsRunningLabel')}</span>
+                        ) : ilanPending ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700"><Clock size={12} /> {t('il.statusPending')}</span>
+                        ) : (
+                          <span className="text-[11px] text-[#94a3b8]">{t('il.noAdRunningLabel')}</span>
+                        )}
+                        {!ilanLive && !ilanPending && (
+                          <button onClick={() => openAdSheet(tr.id)} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11.5px] font-sans font-semibold cursor-pointer border border-[#166534] text-[#166534]">
+                            <Megaphone size={12} /> {t('cm.advertiseThisRideBtn')}
+                          </button>
+                        )}
+                      </div>
+                      <TripLiveShareToggle
+                        tripOfferId={tr.id}
+                        sharing={tr.share_live_location}
+                        onSharingChange={(on) => setTripOffers((rows) => rows.map((r) => r.id === tr.id ? { ...r, share_live_location: on } : r))}
+                      />
+                      <button onClick={() => cancelTripOffer(tr.id)} disabled={actionId === tr.id} className="flex items-center gap-1 font-sans text-[11.5px] font-semibold mt-2 pt-2 border-t border-[#f1f5f9] cursor-pointer disabled:opacity-50 text-[#b91c1c]">
+                        <Ban size={12} /> {t('cm.cancelTripBtn')}
+                      </button>
+                    </>
+                  )
+                })()}
               </div>
             ))}
           </div>
@@ -395,6 +442,41 @@ export default function MyVehicleTripsPage() {
               )}
             </div>
             <button onClick={postTripOffer} disabled={posting} className="w-full bg-[#166534] text-white py-3 rounded-xl font-sans font-semibold cursor-pointer disabled:opacity-50">{posting ? t('action.saving') : t('cm.postTripBtn')}</button>
+          </div>
+        </MobilityBottomSheet>
+      )}
+
+      {adSheetTrip && (
+        <MobilityBottomSheet title={t('cm.advertiseThisRideBtn')} onClose={() => { setAdSheetTrip(null); setAdQuote(null) }}>
+          <div className="space-y-3">
+            <div className="bg-[#F9F9F6] border border-[#e5e2d0] rounded-xl p-3 space-y-2">
+              <p className="font-sans text-[12.5px] font-bold text-[#1e293b]">{t('cm.adWhatItDoesHeading')}</p>
+              <ul className="space-y-1.5">
+                <li className="flex items-start gap-2 text-[12px] text-[#64748b]"><Megaphone size={13} className="shrink-0 mt-0.5 text-[#166534]" /> {t('cm.adExplainBelt')}</li>
+                <li className="flex items-start gap-2 text-[12px] text-[#64748b]"><MapPin size={13} className="shrink-0 mt-0.5 text-[#166534]" /> {t('cm.adExplainOneClick')}</li>
+              </ul>
+            </div>
+
+            {adQuoting ? (
+              <div className="flex justify-center py-6"><LoadingDots /></div>
+            ) : adQuote ? (
+              <div className="bg-white border border-[#e5e2d0] rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12.5px] font-semibold text-[#64748b]">{t('cm.adPriceLabel')}</span>
+                  <span className="font-sans text-[15px] font-extrabold text-[#166534] ltr-num">₨{fmt(adQuote.price_pkr)}</span>
+                </div>
+                {adQuote.covered_by_wallet ? (
+                  <p className="text-[12px] text-emerald-700 font-semibold">{t('cm.adWalletCoversToast').replace('{balance}', fmt(adQuote.wallet_balance_pkr))}</p>
+                ) : (
+                  <p className="text-[12px] text-amber-700 font-semibold">{t('cm.adNeedsCommitteeHint')}</p>
+                )}
+              </div>
+            ) : null}
+
+            <button onClick={confirmAd} disabled={adRequesting || adQuoting || !adQuote}
+              className="w-full bg-[#166534] text-white py-3 rounded-xl font-sans font-semibold cursor-pointer disabled:opacity-50">
+              {adRequesting ? t('action.saving') : adQuote?.covered_by_wallet ? t('cm.adPayFromWalletBtn') : t('cm.adSendToCommitteeBtn')}
+            </button>
           </div>
         </MobilityBottomSheet>
       )}
