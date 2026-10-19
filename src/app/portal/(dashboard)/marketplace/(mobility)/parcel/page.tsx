@@ -125,17 +125,17 @@ export default function ParcelDeliveryPage() {
       </div>
 
       <div className="bg-white border-2 border-[#005A36] rounded-2xl p-3.5 flex flex-col gap-2.5">
-        <select value={cityId} onChange={(e) => setCityId(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]">
+        <select value={cityId} onChange={(e) => setCityId(e.target.value)} className="dp2-input text-[13.5px]">
           <option value="">{t('vp.pickCityOption')}</option>
           {cities.map((c) => <option key={c.id} value={c.id}>{isUrdu && c.name_ur ? c.name_ur : c.name}</option>)}
         </select>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('vp.parcelDescriptionPlaceholder')} rows={3} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] resize-none leading-relaxed" />
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('vp.parcelDescriptionPlaceholder')} rows={3} className="dp2-input text-[13.5px] resize-none leading-relaxed" />
         <div className="grid grid-cols-2 gap-2">
-          <input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder={t('vp.recipientNamePlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
-          <input value={recipientMobile} onChange={(e) => setRecipientMobile(e.target.value)} placeholder={t('vp.recipientMobilePlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
+          <input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder={t('vp.recipientNamePlaceholder')} className="dp2-input text-[13.5px]" />
+          <input value={recipientMobile} onChange={(e) => setRecipientMobile(e.target.value)} placeholder={t('vp.recipientMobilePlaceholder')} className="dp2-input text-[13.5px]" />
         </div>
 
-        <input value={pickupLabel} onChange={(e) => setPickupLabel(e.target.value)} placeholder={t('vp.pickupLabelPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
+        <input value={pickupLabel} onChange={(e) => setPickupLabel(e.target.value)} placeholder={t('vp.pickupLabelPlaceholder')} className="dp2-input text-[13.5px]" />
         {cityId && (
           <div>
             <p className="text-[12px] text-[#64748b] mb-1.5">{t('vp.tapMapForPickupHint')}</p>
@@ -157,7 +157,7 @@ export default function ParcelDeliveryPage() {
           </div>
         )}
 
-        <input value={dropoffLabel} onChange={(e) => setDropoffLabel(e.target.value)} placeholder={t('vp.dropoffLabelPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
+        <input value={dropoffLabel} onChange={(e) => setDropoffLabel(e.target.value)} placeholder={t('vp.dropoffLabelPlaceholder')} className="dp2-input text-[13.5px]" />
         {cityId && (
           <div>
             <p className="text-[12px] text-[#64748b] mb-1.5">{t('vp.tapMapForDropoffHint')}</p>

@@ -145,11 +145,11 @@ export default function ShadiBookingPage() {
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.eventDateLabel')}</label>
-                <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
+                <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} className="dp2-input text-[13.5px]" />
               </div>
               <div>
                 <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.distanceKmLabel')}</label>
-                <input type="number" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} placeholder={t('vp.distanceKmPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
+                <input type="number" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} placeholder={t('vp.distanceKmPlaceholder')} className="dp2-input text-[13.5px]" />
               </div>
             </div>
             <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.venueAddressLabel')}</label>
@@ -160,7 +160,7 @@ export default function ShadiBookingPage() {
             </button>
             <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.shadiNotesLabel')}</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder={t('vp.shadiNotesPlaceholder')}
-              className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] resize-none leading-relaxed" />
+              className="dp2-input text-[13.5px] resize-none leading-relaxed" />
           </div>
 
           <div className="flex items-center gap-1 bg-white border border-[#e5e2d0] rounded-full p-1 w-fit">

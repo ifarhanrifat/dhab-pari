@@ -307,7 +307,7 @@ export default function ShadiEventDetailPage() {
             <span className="font-extrabold text-[15px] text-[#1e293b] ltr-num">{fmt(accepted.reduce((s, r) => s + r.full_day_rate_pkr, 0))}</span>
           </div>
           <label className="block text-[13px] font-semibold text-[#64748b] mb-1.5">{t('w.paymentMethod')}</label>
-          <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] mb-3">
+          <select value={method} onChange={(e) => setMethod(e.target.value)} className="dp2-input text-[13.5px] mb-3">
             <option value="cash">{t('w.cash')}</option>
             <option value="jazzcash">{t('w.jazzcash')}</option>
             <option value="easypaisa">{t('w.easypaisa')}</option>

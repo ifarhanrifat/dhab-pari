@@ -178,7 +178,7 @@ export default function CityPurchaseDetailPage() {
           </div>
           {canRespond && (
             <div className="mt-3 pt-3 border-t border-amber-200 flex flex-col gap-2">
-              <input type="number" value={addonInput} onChange={(e) => setAddonInput(e.target.value)} placeholder={t('vp.yourServiceFeePlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] bg-white" />
+              <input type="number" value={addonInput} onChange={(e) => setAddonInput(e.target.value)} placeholder={t('vp.yourServiceFeePlaceholder')} className="dp2-input text-[13.5px] bg-white" />
               <p className="text-[11px] text-[#64748b]">{t('vp.serviceFeeBandHint')}</p>
               <div className="flex items-center gap-1.5">
                 <button onClick={decline} disabled={busy} className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold cursor-pointer border border-[#e5e2d0] text-[#64748b] disabled:opacity-50">{t('vp.declineDeliveryBtn')}</button>
@@ -229,7 +229,7 @@ export default function CityPurchaseDetailPage() {
           {request.status === 'approved' && isAcceptedDriver && (
             <div className="mt-3 pt-3 border-t border-[#f1f5f9] flex flex-col gap-2">
               <p className="text-[12.5px] font-semibold text-[#1e293b]">{t('vp.markPurchasedHeading')}</p>
-              <input type="number" value={purchaseCostInput} onChange={(e) => setPurchaseCostInput(e.target.value)} placeholder={t('vp.actualGoodsCostPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
+              <input type="number" value={purchaseCostInput} onChange={(e) => setPurchaseCostInput(e.target.value)} placeholder={t('vp.actualGoodsCostPlaceholder')} className="dp2-input text-[13.5px]" />
               <DonationReceiptUpload bucket="city_purchase_attachments" label={t('vp.attachBillLabel')} onUpload={setBillPath} />
               <button onClick={markPurchased} disabled={busy} className="w-full flex items-center justify-center gap-1.5 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-semibold cursor-pointer disabled:opacity-50">{t('vp.markPurchasedBtn')}</button>
             </div>

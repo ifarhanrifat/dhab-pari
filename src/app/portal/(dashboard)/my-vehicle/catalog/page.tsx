@@ -186,11 +186,11 @@ export default function MyVehicleCatalogPage() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mv.colorLabel')}</label>
-            <input value={color} onChange={(e) => setColor(e.target.value)} placeholder={t('mv.colorPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13.5px]" />
+            <input value={color} onChange={(e) => setColor(e.target.value)} placeholder={t('mv.colorPlaceholder')} className="dp2-input font-sans text-[13.5px]" />
           </div>
           <div>
             <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mv.modelLabel')}</label>
-            <input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t('mv.modelPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13.5px]" />
+            <input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t('mv.modelPlaceholder')} className="dp2-input font-sans text-[13.5px]" />
           </div>
         </div>
         <label className="flex items-center gap-2 cursor-pointer mt-3">
@@ -256,7 +256,7 @@ export default function MyVehicleCatalogPage() {
 
         <div className="mt-3 pt-3 border-t border-[#f1f5f9]">
           <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.yourFleetClassLabel')}</label>
-          <select value={shadiVehicleClass} onChange={(e) => setShadiVehicleClass(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13.5px]">
+          <select value={shadiVehicleClass} onChange={(e) => setShadiVehicleClass(e.target.value)} className="dp2-input font-sans text-[13.5px]">
             <option value="">—</option>
             {shadiClasses.filter((c) => shadiClassMatchesVehicleType(c.class_key, vehicle?.vehicle_type ?? '')).map((c) => <option key={c.class_key} value={c.class_key}>{isUrdu ? c.name_ur : c.name_en}</option>)}
           </select>
