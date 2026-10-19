@@ -17,7 +17,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock, Percent, Signpost, ChevronRight, LogOut, SkipForward, Timer, Ban, Star } from 'lucide-react'
+import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock, Percent, Signpost, ChevronRight, LogOut, SkipForward, Timer, Ban, Star, Search, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -30,6 +30,7 @@ const LeafletSinglePinPicker = dynamic(() => import('@/components/shared/Leaflet
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; owner_whatsapp: string | null
   vehicle_type: string; vehicle_number: string | null; total_seats: number; is_active: boolean
+  category_id: string | null; model: string | null
   portal_user_id: string | null; commission_mode: string; lumpsum_fee_pkr: number | null; night_booking_enabled: boolean
   allows_out_of_city: boolean; per_km_pkr: number | null; is_online: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
@@ -56,6 +57,8 @@ interface TypeRate { id: string; vehicle_type: string; classification: string; c
 interface DispatchBand { id: string; min_distance_km: number; max_distance_km: number | null; commission_pct: number }
 interface ShareAgreement { id: string; category: string; target_tenant_id: string; is_active: boolean }
 interface OtherTenant { id: string; name: string; name_ur: string | null }
+interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; per_km_pkr: number; intercity_commission_pct: number }
+interface VehicleModel { id: string; make: string; model: string }
 const SHARE_CATEGORIES = ['hourly', 'shadi', 'rental', 'machinery', 'tractor', 'loader'] as const
 interface Adda {
   id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null; pair_adda_id: string | null
@@ -72,6 +75,7 @@ interface AddaBoard { adda: Adda; pair_adda: Adda | null; entries: AddaBoardEntr
 
 const emptyVehicle = {
   owner_name: '', owner_mobile: '', owner_whatsapp: '', vehicle_type: '', vehicle_number: '', total_seats: 4, is_active: true,
+  category_id: null as string | null, model: '',
   portal_user_id: null as string | null, commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0, night_booking_enabled: false,
   allows_out_of_city: true, per_km_pkr: null as number | null,
   hourly_rate_pkr: null as number | null, hourly_included_km: null as number | null, hourly_overage_per_km_pkr: null as number | null,
@@ -136,6 +140,48 @@ function AdminVehiclesInner() {
   useEffect(() => {
     supabase.from('service_classes').select('id, name, name_ur').eq('is_active', true).order('display_order').then(({ data }) => setServiceClasses(data ?? []))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Same category/model picker the driver self-registration form uses
+  // (707/708) — the admin's own manual add/edit form never got wired up
+  // to it, so an admin adding a vehicle directly was still typing a
+  // free-text vehicle_type with no rate/commission preview and no model
+  // search — a real gap, not a stylistic choice.
+  const [categories, setCategories] = useState<VehicleCategory[]>([])
+  const [modelQuery, setModelQuery] = useState('')
+  const [modelResults, setModelResults] = useState<VehicleModel[]>([])
+  const [showAddModel, setShowAddModel] = useState(false)
+  const [newMake, setNewMake] = useState('')
+  const [newModel, setNewModel] = useState('')
+  const [addingModel, setAddingModel] = useState(false)
+  useEffect(() => {
+    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, per_km_pkr, intercity_commission_pct').eq('is_active', true).order('display_order').then(({ data }) => setCategories(data ?? []))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      if (!modelQuery.trim()) { setModelResults([]); return }
+      supabase.rpc('vehicle_models_search', { p_query: modelQuery, p_category_id: vehicleForm.category_id || null }).then(({ data }) => setModelResults((data ?? []) as VehicleModel[]))
+    }, 250)
+    return () => clearTimeout(handle)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelQuery, vehicleForm.category_id])
+  const pickModel = (m: VehicleModel) => {
+    setVehicleForm((f) => ({ ...f, model: `${m.make} ${m.model}` }))
+    setModelQuery(''); setModelResults([])
+  }
+  const addNewModel = async () => {
+    if (!newMake.trim() || !newModel.trim()) return
+    setAddingModel(true)
+    const { error } = await supabase.rpc('add_vehicle_model', { p_make: newMake.trim(), p_model: newModel.trim(), p_category_id: vehicleForm.category_id || null })
+    setAddingModel(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('vr.modelAddedToast'))
+    setVehicleForm((f) => ({ ...f, model: `${newMake.trim()} ${newModel.trim()}` }))
+    setNewMake(''); setNewModel(''); setShowAddModel(false)
+  }
+  const pickCategory = (c: VehicleCategory) => {
+    setVehicleForm((f) => ({ ...f, category_id: c.id, vehicle_type: c.name, per_km_pkr: f.per_km_pkr == null ? c.per_km_pkr : f.per_km_pkr }))
+  }
+  const selectedVehicleCategory = categories.find((c) => c.id === vehicleForm.category_id) ?? null
 
   const [rates, setRates] = useState<TypeRate[]>([])
   const [showRates, setShowRates] = useState(false)
@@ -502,12 +548,18 @@ function AdminVehiclesInner() {
     if (selected) loadBookings(selected.id)
   }
 
-  const openNewVehicle = () => { setEditingVehicle(null); setVehicleForm(emptyVehicle); setVehicleClassIds([]); setTractorServices([]); setShowVehicleForm(true) }
+  const openNewVehicle = () => {
+    setEditingVehicle(null); setVehicleForm(emptyVehicle); setVehicleClassIds([]); setTractorServices([])
+    setModelQuery(''); setModelResults([]); setShowAddModel(false); setNewMake(''); setNewModel('')
+    setShowVehicleForm(true)
+  }
   const openEditVehicle = (v: Vehicle) => {
     setEditingVehicle(v)
+    setModelQuery(''); setModelResults([]); setShowAddModel(false); setNewMake(''); setNewModel('')
     setVehicleForm({
       owner_name: v.owner_name, owner_mobile: v.owner_mobile ?? '', owner_whatsapp: v.owner_whatsapp ?? '',
       vehicle_type: v.vehicle_type, vehicle_number: v.vehicle_number ?? '', total_seats: v.total_seats, is_active: v.is_active,
+      category_id: v.category_id, model: v.model ?? '',
       portal_user_id: v.portal_user_id, commission_mode: v.commission_mode, lumpsum_fee_pkr: v.lumpsum_fee_pkr ?? 0,
       night_booking_enabled: v.night_booking_enabled, allows_out_of_city: v.allows_out_of_city, per_km_pkr: v.per_km_pkr,
       hourly_rate_pkr: v.hourly_rate_pkr, hourly_included_km: v.hourly_included_km, hourly_overage_per_km_pkr: v.hourly_overage_per_km_pkr,
@@ -767,7 +819,10 @@ function AdminVehiclesInner() {
                 {rates.length === 0 && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('cm.noRatesYet')}</p>}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <input value={newRate.vehicle_type} onChange={(e) => setNewRate({ ...newRate, vehicle_type: e.target.value })} placeholder={t('mk.vehicleTypePlaceholder')} className="input-field flex-1 min-w-[140px]" />
+                <select value={newRate.vehicle_type} onChange={(e) => setNewRate({ ...newRate, vehicle_type: e.target.value })} className="input-field flex-1 min-w-[140px]">
+                  <option value="">{t('vr.categoryPickerLabel')}</option>
+                  {categories.map((c) => <option key={c.id} value={c.name}>{c.emoji} {isUrdu && c.name_ur ? c.name_ur : c.name}</option>)}
+                </select>
                 <select value={newRate.classification} onChange={(e) => setNewRate({ ...newRate, classification: e.target.value })} className="input-field w-auto">
                   <option value="intercity">{t('mk.intercity')}</option>
                   <option value="out_of_city">{t('mk.outOfCity')}</option>
@@ -1013,11 +1068,75 @@ function AdminVehiclesInner() {
                 <input value={vehicleForm.owner_mobile} onChange={(e) => setVehicleForm({ ...vehicleForm, owner_mobile: e.target.value })} placeholder={t('a.phone')} className="input-field" />
                 <input value={vehicleForm.owner_whatsapp} onChange={(e) => setVehicleForm({ ...vehicleForm, owner_whatsapp: e.target.value })} placeholder={t('w.whatsapp')} className="input-field" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <input value={vehicleForm.vehicle_type} onChange={(e) => setVehicleForm({ ...vehicleForm, vehicle_type: e.target.value })} placeholder={t('mk.vehicleTypePlaceholder')} className="input-field" />
-                <input value={vehicleForm.vehicle_number} onChange={(e) => setVehicleForm({ ...vehicleForm, vehicle_number: e.target.value })} placeholder={t('mk.vehicleNumberPlaceholder')} className="input-field" />
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('vr.categoryPickerLabel')}</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {categories.map((c) => {
+                    const on = vehicleForm.category_id === c.id
+                    return (
+                      <button key={c.id} type="button" onClick={() => pickCategory(c)}
+                        className="flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 cursor-pointer transition-colors"
+                        style={{ borderColor: on ? '#166534' : '#e5e2d0', background: on ? '#F0FDF4' : '#fff' }}>
+                        <span className="text-[20px]">{c.emoji}</span>
+                        <span className="font-sans text-[10px] font-semibold text-dp-on-surface text-center leading-tight">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                {categories.length === 0 && <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('vr.categoryRequiredError')}</p>}
               </div>
-              <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.totalSeatsLabel')}</label><input type="number" value={vehicleForm.total_seats || ''} onChange={(e) => setVehicleForm({ ...vehicleForm, total_seats: +e.target.value })} className="input-field" placeholder="0" /></div>
+
+              {selectedVehicleCategory && (
+                <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl p-3">
+                  <p className="font-sans text-[11px] font-bold text-dp-secondary uppercase tracking-[0.05em] mb-1">{t('vr.rateCardHeading')}</p>
+                  <div className="flex items-center justify-between font-sans text-[13px]">
+                    <span className="text-dp-on-surface-variant">{t('vr.rateCardPerKmLabel')}</span>
+                    <span className="font-bold text-dp-on-surface ltr-num">₨{fmt(selectedVehicleCategory.per_km_pkr)}</span>
+                  </div>
+                  <div className="flex items-center justify-between font-sans text-[13px] mt-1">
+                    <span className="text-dp-on-surface-variant">{t('vr.rateCardCommissionLabel')}</span>
+                    <span className="font-bold text-dp-on-surface ltr-num">{selectedVehicleCategory.intercity_commission_pct}%</span>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="relative">
+                  <Search size={14} className="absolute top-1/2 -translate-y-1/2 start-3 text-dp-on-surface-variant" />
+                  <input value={vehicleForm.model || modelQuery} onChange={(e) => { setModelQuery(e.target.value); setVehicleForm({ ...vehicleForm, model: '' }) }} placeholder={t('vr.modelSearchPlaceholder')} className="input-field ps-9" />
+                </div>
+                {modelResults.length > 0 && !vehicleForm.model && (
+                  <div className="border border-dp-outline-variant rounded-lg mt-1.5 overflow-hidden">
+                    {modelResults.map((m) => (
+                      <button key={m.id} type="button" onClick={() => pickModel(m)} className="w-full text-start px-3 py-2 font-sans text-[13px] cursor-pointer hover:bg-dp-surface-container border-b border-dp-outline-variant/40 last:border-0">
+                        {m.make} {m.model}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {modelQuery.trim() && modelResults.length === 0 && !vehicleForm.model && (
+                  <div className="mt-1.5">
+                    {!showAddModel ? (
+                      <button type="button" onClick={() => { setShowAddModel(true); setNewModel(modelQuery) }} className="flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary cursor-pointer">
+                        <Plus size={12} /> {t('vr.modelNotListedHint')} {t('vr.addModelBtn')}
+                      </button>
+                    ) : (
+                      <div className="flex flex-col gap-1.5 border border-dp-outline-variant rounded-lg p-2.5">
+                        <input value={newMake} onChange={(e) => setNewMake(e.target.value)} placeholder={t('vr.newMakePlaceholder')} className="input-field" />
+                        <input value={newModel} onChange={(e) => setNewModel(e.target.value)} placeholder={t('vr.newModelPlaceholder')} className="input-field" />
+                        <button type="button" onClick={addNewModel} disabled={addingModel} className="w-full py-2 rounded-lg bg-dp-secondary text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">
+                          {addingModel ? t('action.saving') : t('vr.addModelBtn')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <input value={vehicleForm.vehicle_number} onChange={(e) => setVehicleForm({ ...vehicleForm, vehicle_number: e.target.value })} placeholder={t('mk.vehicleNumberPlaceholder')} className="input-field" />
+                <input type="number" value={vehicleForm.total_seats || ''} onChange={(e) => setVehicleForm({ ...vehicleForm, total_seats: +e.target.value })} className="input-field" placeholder={t('mk.totalSeatsLabel')} />
+              </div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.is_active} onChange={(e) => setVehicleForm({ ...vehicleForm, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.vehicleActiveLabel')}</span></label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.night_booking_enabled} onChange={(e) => setVehicleForm({ ...vehicleForm, night_booking_enabled: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('af.nightBookingLabel')}</span></label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.allows_out_of_city} onChange={(e) => setVehicleForm({ ...vehicleForm, allows_out_of_city: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.allowsOutOfCityLabel')}</span></label>
