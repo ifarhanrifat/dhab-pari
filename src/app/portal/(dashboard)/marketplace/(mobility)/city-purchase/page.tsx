@@ -51,6 +51,7 @@ export default function CityPurchasePage() {
   const [checkingLocation, setCheckingLocation] = useState(false)
   const [locationModalReason, setLocationModalReason] = useState<Extract<LocationErrorReason, 'services_disabled' | 'permission_denied'> | null>(null)
   const [budget, setBudget] = useState('')
+  const [urgency, setUrgency] = useState<'standard' | '1hr' | '2hr' | 'urgent'>('standard')
   const [candidates, setCandidates] = useState<Candidate[] | null>(null)
   const [posting, setPosting] = useState<string | null>(null)
   const [myRequests, setMyRequests] = useState<MyRequest[]>([])
@@ -65,9 +66,9 @@ export default function CityPurchasePage() {
   useEffect(() => {
     if (!cityId) { setCandidates(null); return }
     setCandidates(null)
-    supabase.rpc('city_purchase_candidates', { p_city_id: cityId, p_pickup_lat: pickupLat, p_pickup_lng: pickupLng }).then(({ data }) => setCandidates((data ?? []) as Candidate[]))
+    supabase.rpc('city_purchase_candidates', { p_city_id: cityId, p_pickup_lat: pickupLat, p_pickup_lng: pickupLng, p_urgency: urgency }).then(({ data }) => setCandidates((data ?? []) as Candidate[]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cityId, pickupLat, pickupLng])
+  }, [cityId, pickupLat, pickupLng, urgency])
 
   const useMyLocation = async () => {
     setCheckingLocation(true)
@@ -95,7 +96,7 @@ export default function CityPurchasePage() {
     const { data: requestId, error } = await supabase.rpc('create_city_purchase_request', {
       p_city_id: cityId, p_item: item.trim(), p_item_attachment_path: attachmentPath,
       p_pickup_label: pickupLabel.trim() || null, p_pickup_lat: pickupLat, p_pickup_lng: pickupLng,
-      p_goods_budget_pkr: budget ? Number(budget) : 0, p_target_vehicle_id: targetVehicleId,
+      p_goods_budget_pkr: budget ? Number(budget) : 0, p_target_vehicle_id: targetVehicleId, p_urgency: urgency,
     })
     setPosting(null)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -150,6 +151,18 @@ export default function CityPurchasePage() {
           </div>
         )}
         <input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder={t('vp.goodsBudgetPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
+        <div>
+          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.urgencyPickerLabel')}</label>
+          <div className="flex flex-wrap gap-1.5">
+            {(['standard', '1hr', '2hr', 'urgent'] as const).map((u) => (
+              <button key={u} type="button" onClick={() => setUrgency(u)}
+                className="px-2.5 py-1.5 rounded-full text-[12px] font-semibold cursor-pointer border"
+                style={{ background: urgency === u ? '#166534' : '#fff', color: urgency === u ? '#fff' : '#334155', borderColor: urgency === u ? '#166534' : '#e5e2d0' }}>
+                {t(`vp.urgency.${u}`)}
+              </button>
+            ))}
+          </div>
+        </div>
         <button onClick={() => post(null)} disabled={posting !== null} className="w-full bg-[#005A36] text-white py-2.5 rounded-xl text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">
           {posting === 'all' ? t('action.saving') : t('vp.askEveryoneBtn')}
         </button>

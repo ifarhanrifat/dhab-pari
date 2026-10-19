@@ -54,6 +54,7 @@ const SERVICES = [
   { key: 'shared', emoji: '👥', tint: '#e0f2fe', href: '/portal/marketplace/shared' },
   { key: 'rental', emoji: '🚗', tint: '#f3e8ff', href: '/portal/marketplace/rental' },
   { key: 'purchase', emoji: '🛍️', tint: '#ffe4e6', href: '/portal/marketplace/city-purchase' },
+  { key: 'parcel', emoji: '📦', tint: '#fef3c7', href: '/portal/marketplace/parcel' },
   { key: 'hourly', emoji: '⏱️', tint: '#e0e7ff', href: '/portal/marketplace/hourly' },
   { key: 'tractor', emoji: '🚜', tint: '#d1fae5', href: '/portal/marketplace/tractor' },
   { key: 'machine', emoji: '🏗️', tint: '#fde68a', href: '/portal/marketplace/machinery' },

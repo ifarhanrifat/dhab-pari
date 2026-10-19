@@ -22,7 +22,7 @@ import { useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext
 
 interface Vehicle { id: string; offers_hourly: boolean; offers_shadi: boolean; offers_equipment: boolean; offers_rental: boolean; delivers: boolean }
 interface Row {
-  id: string; type: 'hourly' | 'shadi' | 'equipment' | 'rental' | 'route' | 'dispatch' | 'city_purchase' | 'delivery'
+  id: string; type: 'hourly' | 'shadi' | 'equipment' | 'rental' | 'route' | 'dispatch' | 'city_purchase' | 'delivery' | 'parcel'
   title: string; subtitle: string; amount: number | null; at: string; needsAction: boolean; done: boolean; href: string
 }
 
@@ -73,15 +73,19 @@ export default function MyVehicleJobsPage() {
       }
     }
     {
-      const [{ data: dispatch }, { data: cp }] = await Promise.all([
+      const [{ data: dispatch }, { data: cp }, { data: parcels }] = await Promise.all([
         supabase.rpc('my_dispatch_invitations', { p_vehicle_id: v.id }),
         supabase.rpc('my_city_purchase_invitations', { p_vehicle_id: v.id }),
+        supabase.rpc('my_parcel_delivery_invitations', { p_vehicle_id: v.id }),
       ])
       for (const d of (dispatch ?? []) as { call_id: string; item: string; address: string; goods_budget_pkr: number; shop_name: string }[]) {
         out.push({ id: d.call_id, type: 'dispatch', title: d.item, subtitle: d.address, amount: d.goods_budget_pkr, at: new Date().toISOString(), needsAction: true, done: false, href: '/portal/my-vehicle/requests' })
       }
       for (const c of (cp ?? []) as { request_id: string; item: string; goods_budget_pkr: number; pickup_label: string | null }[]) {
         out.push({ id: c.request_id, type: 'city_purchase', title: c.item, subtitle: c.pickup_label ?? '', amount: c.goods_budget_pkr, at: new Date().toISOString(), needsAction: true, done: false, href: '/portal/my-vehicle/requests' })
+      }
+      for (const p of (parcels ?? []) as { delivery_id: string; description: string; pickup_label: string | null }[]) {
+        out.push({ id: p.delivery_id, type: 'parcel', title: p.description, subtitle: p.pickup_label ?? '', amount: null, at: new Date().toISOString(), needsAction: true, done: false, href: '/portal/my-vehicle/requests' })
       }
     }
     if (v.delivers) {
@@ -114,7 +118,7 @@ export default function MyVehicleJobsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicle])
 
-  const ICONS: Record<Row['type'], typeof Bus> = { hourly: Clock3, shadi: Users2, equipment: Wrench, rental: Navigation, route: RouteIcon, dispatch: ShoppingBag, city_purchase: ShoppingBag, delivery: Package }
+  const ICONS: Record<Row['type'], typeof Bus> = { hourly: Clock3, shadi: Users2, equipment: Wrench, rental: Navigation, route: RouteIcon, dispatch: ShoppingBag, city_purchase: ShoppingBag, delivery: Package, parcel: Package }
 
   const groups = { new: rows.filter((r) => r.needsAction), active: rows.filter((r) => !r.needsAction && !r.done), done: rows.filter((r) => r.done) }
   const list = groups[seg]

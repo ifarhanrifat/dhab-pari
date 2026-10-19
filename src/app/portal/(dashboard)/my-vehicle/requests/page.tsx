@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Truck, ShoppingBag, MapPin } from 'lucide-react'
+import { Truck, ShoppingBag, MapPin, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -26,6 +26,7 @@ import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 
 interface DispatchInvite { call_id: string; item: string; address: string; goods_budget_pkr: number; tier: number; shop_name: string; city_name: string; customer_trust: Trust | null }
 interface CityPurchaseInvite { request_id: string; item: string; goods_budget_pkr: number; pickup_label: string | null; source: string; reference_destination: string | null; city_name: string; city_name_ur: string | null }
+interface ParcelInvite { delivery_id: string; description: string; pickup_label: string | null; dropoff_label: string | null; source: string; reference_destination: string | null; city_name: string; city_name_ur: string | null }
 
 export default function MyVehicleRequestsPage() {
   const { t, isUrdu } = useLocale()
@@ -38,14 +39,17 @@ export default function MyVehicleRequestsPage() {
   const [vpSaving, setVpSaving] = useState(false)
   const [dispatchInvites, setDispatchInvites] = useState<DispatchInvite[]>([])
   const [cityPurchaseInvites, setCityPurchaseInvites] = useState<CityPurchaseInvite[]>([])
+  const [parcelInvites, setParcelInvites] = useState<ParcelInvite[]>([])
 
   const reload = async (id: string) => {
-    const [{ data: invites }, { data: cpInvites }] = await Promise.all([
+    const [{ data: invites }, { data: cpInvites }, { data: pInvites }] = await Promise.all([
       supabase.rpc('my_dispatch_invitations', { p_vehicle_id: id }),
       supabase.rpc('my_city_purchase_invitations', { p_vehicle_id: id }),
+      supabase.rpc('my_parcel_delivery_invitations', { p_vehicle_id: id }),
     ])
     setDispatchInvites((invites ?? []) as DispatchInvite[])
     setCityPurchaseInvites((cpInvites ?? []) as CityPurchaseInvite[])
+    setParcelInvites((pInvites ?? []) as ParcelInvite[])
   }
 
   useEffect(() => {
@@ -76,7 +80,7 @@ export default function MyVehicleRequestsPage() {
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!vehicleId) return null
 
-  const nothingIncoming = dispatchInvites.length === 0 && cityPurchaseInvites.length === 0
+  const nothingIncoming = dispatchInvites.length === 0 && cityPurchaseInvites.length === 0 && parcelInvites.length === 0
 
   return (
     <div className="flex flex-col gap-3">
@@ -112,6 +116,21 @@ export default function MyVehicleRequestsPage() {
               <Link key={r.request_id} href={`/portal/marketplace/city-purchase/${r.request_id}`} className="block bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
                 <p className="font-sans text-[13px] font-semibold text-[#1e293b]">{r.item}</p>
                 <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{isUrdu && r.city_name_ur ? r.city_name_ur : r.city_name}{r.pickup_label ? ` · ${r.pickup_label}` : ''}</p>
+                <p className="font-sans text-[12px] text-[#166534] font-semibold mt-1">{t('vp.tapToRespondHint')}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {parcelInvites.length > 0 && (
+        <div>
+          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5"><Package size={13} /> {t('vp.incomingParcelDeliveriesHeading')}</p>
+          <div className="flex flex-col gap-2">
+            {parcelInvites.map((p) => (
+              <Link key={p.delivery_id} href={`/portal/marketplace/parcel/${p.delivery_id}`} className="block bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
+                <p className="font-sans text-[13px] font-semibold text-[#1e293b]">{p.description}</p>
+                <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{isUrdu && p.city_name_ur ? p.city_name_ur : p.city_name}{p.pickup_label ? ` · ${p.pickup_label}` : ''}</p>
                 <p className="font-sans text-[12px] text-[#166534] font-semibold mt-1">{t('vp.tapToRespondHint')}</p>
               </Link>
             ))}
