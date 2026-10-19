@@ -11,10 +11,14 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import type { Map as LeafletMapType, Marker } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-// `emoji` is additive and optional — every existing caller (route pins,
-// two-party trip tracking) keeps rendering the plain colored dot exactly
-// as before; only a pin that opts in with `emoji` gets the bigger
-// vehicle-style marker (used by the nearby-open-trips live map).
+// `emoji` is additive and optional — a pin with no emoji keeps
+// rendering the plain colored dot exactly as before. A pin WITH an
+// emoji now matches the original design source's own two marker shapes
+// (.design_ref/app_source.jsx's pin()/veh() helpers) exactly: a fixed
+// point (pickup, destination, shop, adda) renders as a colored teardrop
+// with the emoji upright inside; `isVehicle: true` (a moving driver/
+// vehicle marker) renders as veh()'s white circle with a green border
+// instead, anchored at its center rather than its bottom point.
 //
 // `popupHtml`, if set, replaces the plain-text `label` popup with raw
 // HTML — used for the adda pins on the Going Home map to show a real
@@ -23,7 +27,7 @@ import 'leaflet/dist/leaflet.css'
 // content on purpose: Leaflet manages this DOM itself outside React's
 // tree, and a plain <a href="..."> inside it navigates via the browser
 // natively — no click-handler wiring back into React needed at all.
-export interface MapPin { lat: number; lng: number; label?: string; popupHtml?: string; color?: string; emoji?: string }
+export interface MapPin { lat: number; lng: number; label?: string; popupHtml?: string; color?: string; emoji?: string; isVehicle?: boolean }
 
 export interface LeafletMapHandle {
   // Pan/zoom to a pin by its index in the same `pins` array the caller
@@ -64,11 +68,26 @@ interface Props {
 // own CSS, which breaks under a bundler unless repointed — the standard,
 // documented workaround is to point straight at the same version's
 // images on a CDN instead of trying to resolve them through webpack.
-function emojiIcon(L: typeof import('leaflet'), emoji: string, color?: string) {
+// Matches .design_ref/app_source.jsx's pin(e, c) exactly: a teardrop
+// (classic Google-Maps-style map pin) for a fixed point, anchored at
+// its bottom tip so it "points at" the real coordinate.
+function teardropIcon(L: typeof import('leaflet'), emoji: string, color?: string) {
   return L.divIcon({
     className: '',
-    html: `<div style="width:34px;height:34px;border-radius:50%;background:${color ?? '#16a34a'};border:3px solid white;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1">${emoji}</div>`,
-    iconSize: [34, 34], iconAnchor: [17, 17],
+    html: `<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color ?? '#166534'};border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);font-size:13px;line-height:1">${emoji}</span></div>`,
+    iconSize: [30, 30], iconAnchor: [15, 30],
+  })
+}
+
+// Matches .design_ref/app_source.jsx's veh(e) exactly: a plain white
+// circle with a green border for a moving driver/vehicle marker,
+// anchored at its own center (not a bottom point) since it isn't
+// "pointing at" a fixed spot the way a pin does.
+function vehicleIcon(L: typeof import('leaflet'), emoji: string) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:30px;height:30px;border-radius:50%;background:#fff;border:2px solid #166534;box-shadow:0 2px 6px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1">${emoji}</div>`,
+    iconSize: [30, 30], iconAnchor: [15, 15],
   })
 }
 
@@ -124,7 +143,7 @@ const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pin
 
       if (pins.length === 0) { map.setView(center ?? [30.3753, 69.3451], center ? zoom : 5); return } // Pakistan-wide fallback, or a given center
       pins.forEach((p) => {
-        const marker = L.marker([p.lat, p.lng], { icon: p.emoji ? emojiIcon(L, p.emoji, p.color) : coloredIcon(L, p.color) }).addTo(map)
+        const marker = L.marker([p.lat, p.lng], { icon: p.emoji ? (p.isVehicle ? vehicleIcon(L, p.emoji) : teardropIcon(L, p.emoji, p.color)) : coloredIcon(L, p.color) }).addTo(map)
         if (p.popupHtml) marker.bindPopup(p.popupHtml, { minWidth: 180 })
         else if (p.label) marker.bindPopup(p.label)
         markersRef.current.push(marker)

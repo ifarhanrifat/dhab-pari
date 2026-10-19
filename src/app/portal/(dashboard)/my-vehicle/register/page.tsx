@@ -11,6 +11,12 @@
 // rates for whatever was requested, and only then does a real vehicle
 // row get created (admin_approve_vehicle_registration).
 //
+// 2026-10-19: free-text "vehicle type" replaced with a real category
+// picker (vehicle_categories, 707) — each category carries its own
+// rate+commission card, shown here as a live preview the moment one is
+// picked, and a searchable make/model combobox (vehicle_models, 708)
+// with an inline "add new" path for a model that isn't listed yet.
+//
 // Phase 5: re-skinned to the new Mobility design. This page renders
 // standalone (the my-vehicle layout's own guard skips its chrome here —
 // there's no vehicle yet to drive that chrome), so it keeps its own
@@ -19,7 +25,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Car, Clock, XCircle, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Car, Clock, XCircle, CheckCircle2, Search, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -30,16 +36,20 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 
 interface RegStatus { id: string; status: 'pending' | 'approved' | 'rejected'; rejection_reason: string | null; created_at: string }
 interface ServiceClass { id: string; name: string; name_ur: string | null; category: string }
+interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; per_km_pkr: number; intercity_commission_pct: number }
+interface VehicleModel { id: string; make: string; model: string }
 
 const emptyForm = {
   owner_name: '', cnic_number: '', father_husband_name: '', address: '',
-  vehicle_type: '', vehicle_number: '', model: '', color: '', total_seats: 4,
+  category_id: '', vehicle_number: '', model: '', color: '', total_seats: 4,
   owner_id_card_url: '', license_url: '', vehicle_doc_url: '', driver_photo_url: '',
   wants_delivers: false, wants_hourly: false, wants_shadi: false, wants_out_of_city: false, wants_night_booking: false,
   wants_service_class_ids: [] as string[],
 }
 
 const inputCls = 'w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13.5px] bg-white'
+
+function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
 export default function VehicleRegisterPage() {
   const { t, isUrdu } = useLocale()
@@ -51,20 +61,55 @@ export default function VehicleRegisterPage() {
   const [form, setForm] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
   const [serviceClasses, setServiceClasses] = useState<ServiceClass[]>([])
+  const [categories, setCategories] = useState<VehicleCategory[]>([])
+  const [modelQuery, setModelQuery] = useState('')
+  const [modelResults, setModelResults] = useState<VehicleModel[]>([])
+  const [showAddModel, setShowAddModel] = useState(false)
+  const [newMake, setNewMake] = useState('')
+  const [newModel, setNewModel] = useState('')
+  const [addingModel, setAddingModel] = useState(false)
 
   useEffect(() => {
     if (!user) return
     supabase.rpc('my_vehicle_registration_status').then(({ data }) => setStatus(data ?? null))
     supabase.from('service_classes').select('id, name, name_ur, category').eq('is_active', true).order('display_order').then(({ data }) => setServiceClasses(data ?? []))
+    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, per_km_pkr, intercity_commission_pct').eq('is_active', true).order('display_order').then(({ data }) => setCategories(data ?? []))
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      if (!modelQuery.trim()) { setModelResults([]); return }
+      supabase.rpc('vehicle_models_search', { p_query: modelQuery, p_category_id: form.category_id || null }).then(({ data }) => setModelResults((data ?? []) as VehicleModel[]))
+    }, 250)
+    return () => clearTimeout(handle)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelQuery, form.category_id])
 
   const toggleServiceClass = (id: string) => {
     setForm((f) => ({ ...f, wants_service_class_ids: f.wants_service_class_ids.includes(id) ? f.wants_service_class_ids.filter((x) => x !== id) : [...f.wants_service_class_ids, id] }))
   }
 
+  const pickModel = (m: VehicleModel) => {
+    setForm({ ...form, model: `${m.make} ${m.model}` })
+    setModelQuery(''); setModelResults([])
+  }
+
+  const addNewModel = async () => {
+    if (!newMake.trim() || !newModel.trim()) return
+    setAddingModel(true)
+    const { error } = await supabase.rpc('add_vehicle_model', { p_make: newMake.trim(), p_model: newModel.trim(), p_category_id: form.category_id || null })
+    setAddingModel(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('vr.modelAddedToast'))
+    setForm({ ...form, model: `${newMake.trim()} ${newModel.trim()}` })
+    setNewMake(''); setNewModel(''); setShowAddModel(false)
+  }
+
+  const selectedCategory = categories.find((c) => c.id === form.category_id) ?? null
+
   const submit = async () => {
-    if (!form.owner_name.trim() || !form.cnic_number.trim() || !form.address.trim() || !form.vehicle_type.trim()) {
-      toast.error(t('vr.requiredFieldsError')); return
+    if (!form.owner_name.trim() || !form.cnic_number.trim() || !form.address.trim() || !form.category_id) {
+      toast.error(form.category_id ? t('vr.requiredFieldsError') : t('vr.categoryRequiredError')); return
     }
     if (!form.owner_id_card_url || !form.license_url || !form.vehicle_doc_url || !form.driver_photo_url) {
       toast.error(t('vr.allDocumentsRequiredError')); return
@@ -72,10 +117,10 @@ export default function VehicleRegisterPage() {
     setSubmitting(true)
     const { error } = await supabase.rpc('submit_vehicle_registration', {
       p_owner_name: form.owner_name, p_cnic_number: form.cnic_number, p_father_husband_name: form.father_husband_name || null, p_address: form.address,
-      p_vehicle_type: form.vehicle_type, p_vehicle_number: form.vehicle_number || null, p_model: form.model || null, p_color: form.color || null, p_total_seats: form.total_seats,
+      p_vehicle_type: selectedCategory?.name ?? '', p_vehicle_number: form.vehicle_number || null, p_model: form.model || null, p_color: form.color || null, p_total_seats: form.total_seats,
       p_owner_id_card_url: form.owner_id_card_url, p_license_url: form.license_url, p_vehicle_doc_url: form.vehicle_doc_url, p_driver_photo_url: form.driver_photo_url,
       p_wants_delivers: form.wants_delivers, p_wants_hourly: form.wants_hourly, p_wants_shadi: form.wants_shadi, p_wants_out_of_city: form.wants_out_of_city, p_wants_night_booking: form.wants_night_booking,
-      p_wants_service_class_ids: form.wants_service_class_ids,
+      p_wants_service_class_ids: form.wants_service_class_ids, p_category_id: form.category_id,
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -119,20 +164,78 @@ export default function VehicleRegisterPage() {
         <input value={form.owner_name} onChange={(e) => setForm({ ...form, owner_name: e.target.value })} placeholder={t('vr.ownerNamePlaceholder')} className={inputCls} />
         <input value={form.cnic_number} onChange={(e) => setForm({ ...form, cnic_number: e.target.value })} placeholder={t('vr.cnicPlaceholder')} className={inputCls} />
         <input value={form.father_husband_name} onChange={(e) => setForm({ ...form, father_husband_name: e.target.value })} placeholder={t('vr.fatherHusbandPlaceholder')} className={inputCls} />
-        <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder={t('vr.addressPlaceholder')} rows={2} className={`${inputCls} resize-none`} />
+        <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder={t('vr.addressPlaceholder')} rows={3} className={`${inputCls} resize-none leading-relaxed`} />
       </div>
+
+      <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.categoryPickerLabel')}</p>
+      <div className="grid grid-cols-4 gap-2 mb-5">
+        {categories.map((c) => {
+          const on = form.category_id === c.id
+          return (
+            <button key={c.id} type="button" onClick={() => setForm({ ...form, category_id: c.id })}
+              className="flex flex-col items-center gap-1 py-3 rounded-2xl border-2 cursor-pointer transition-colors"
+              style={{ borderColor: on ? '#166534' : '#e5e2d0', background: on ? '#F0FDF4' : '#fff' }}>
+              <span className="text-[24px]">{c.emoji}</span>
+              <span className="font-sans text-[10.5px] font-semibold text-[#1e293b] text-center leading-tight">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {selectedCategory && (
+        <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-2xl p-3.5 mb-5">
+          <p className="font-sans text-[11.5px] font-bold text-[#166534] uppercase tracking-[0.05em] mb-1.5">{t('vr.rateCardHeading')}</p>
+          <div className="flex items-center justify-between font-sans text-[13px]">
+            <span className="text-[#64748b]">{t('vr.rateCardPerKmLabel')}</span>
+            <span className="font-bold text-[#1e293b] ltr-num">₨{fmt(selectedCategory.per_km_pkr)}</span>
+          </div>
+          <div className="flex items-center justify-between font-sans text-[13px] mt-1">
+            <span className="text-[#64748b]">{t('vr.rateCardCommissionLabel')}</span>
+            <span className="font-bold text-[#1e293b] ltr-num">{selectedCategory.intercity_commission_pct}%</span>
+          </div>
+          <p className="font-sans text-[11px] text-[#64748b] mt-2">{t('vr.rateCardHint')}</p>
+        </div>
+      )}
 
       <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.vehicleInfoHeading')}</p>
       <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4 mb-5 flex flex-col gap-2.5">
-        <input value={form.vehicle_type} onChange={(e) => setForm({ ...form, vehicle_type: e.target.value })} placeholder={t('vr.vehicleTypePlaceholder')} className={inputCls} />
+        <div>
+          <div className="relative">
+            <Search size={14} className="absolute top-1/2 -translate-y-1/2 start-3 text-[#94a3b8]" />
+            <input value={form.model || modelQuery} onChange={(e) => { setModelQuery(e.target.value); setForm({ ...form, model: '' }) }} placeholder={t('vr.modelSearchPlaceholder')} className={`${inputCls} ps-9`} />
+          </div>
+          {modelResults.length > 0 && !form.model && (
+            <div className="border border-[#e5e2d0] rounded-xl mt-1.5 overflow-hidden">
+              {modelResults.map((m) => (
+                <button key={m.id} type="button" onClick={() => pickModel(m)} className="w-full text-start px-3 py-2 font-sans text-[13px] cursor-pointer hover:bg-[#F9F9F6] border-b border-[#f1f5f9] last:border-0">
+                  {m.make} {m.model}
+                </button>
+              ))}
+            </div>
+          )}
+          {modelQuery.trim() && modelResults.length === 0 && !form.model && (
+            <div className="mt-1.5">
+              {!showAddModel ? (
+                <button type="button" onClick={() => { setShowAddModel(true); setNewModel(modelQuery) }} className="flex items-center gap-1 font-sans text-[12px] font-semibold text-[#166534] cursor-pointer">
+                  <Plus size={12} /> {t('vr.modelNotListedHint')} {t('vr.addModelBtn')}
+                </button>
+              ) : (
+                <div className="flex flex-col gap-1.5 border border-[#e5e2d0] rounded-xl p-2.5">
+                  <input value={newMake} onChange={(e) => setNewMake(e.target.value)} placeholder={t('vr.newMakePlaceholder')} className={inputCls} />
+                  <input value={newModel} onChange={(e) => setNewModel(e.target.value)} placeholder={t('vr.newModelPlaceholder')} className={inputCls} />
+                  <button type="button" onClick={addNewModel} disabled={addingModel} className="w-full py-2 rounded-xl bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">
+                    {addingModel ? t('action.saving') : t('vr.addModelBtn')}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-2.5">
-          <input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder={t('vr.modelPlaceholder')} className={inputCls} />
           <input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder={t('vr.colorPlaceholder')} className={inputCls} />
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
           <input value={form.vehicle_number} onChange={(e) => setForm({ ...form, vehicle_number: e.target.value })} placeholder={t('vr.vehicleNumberPlaceholder')} className={inputCls} />
-          <input type="number" min={1} value={form.total_seats || ''} onChange={(e) => setForm({ ...form, total_seats: +e.target.value })} placeholder={t('vr.totalSeatsPlaceholder')} className={inputCls} />
         </div>
+        <input type="number" min={1} value={form.total_seats || ''} onChange={(e) => setForm({ ...form, total_seats: +e.target.value })} placeholder={t('vr.totalSeatsPlaceholder')} className={inputCls} />
       </div>
 
       <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.documentsHeading')}</p>
@@ -145,7 +248,7 @@ export default function VehicleRegisterPage() {
 
       <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.servicesHeading')}</p>
       <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4 mb-6 flex flex-col gap-2.5">
-        <p className="font-sans text-[11.5px] text-[#64748b] mb-1">{t('vr.servicesHint')}</p>
+        <p className="font-sans text-[11.5px] text-[#64748b] mb-1 leading-relaxed">{t('vr.servicesHint')}</p>
         {([
           ['wants_delivers', 'vr.wantsDeliversLabel'],
           ['wants_hourly', 'vr.wantsHourlyLabel'],
@@ -164,7 +267,7 @@ export default function VehicleRegisterPage() {
         <>
           <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.serviceClassesHeading')}</p>
           <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4 mb-6">
-            <p className="font-sans text-[11.5px] text-[#64748b] mb-2.5">{t('vr.serviceClassesHint')}</p>
+            <p className="font-sans text-[11.5px] text-[#64748b] mb-2.5 leading-relaxed">{t('vr.serviceClassesHint')}</p>
             <div className="flex flex-wrap gap-1.5">
               {serviceClasses.map((sc) => {
                 const on = form.wants_service_class_ids.includes(sc.id)

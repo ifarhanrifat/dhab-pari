@@ -667,8 +667,8 @@ export default function ShopDetailPage() {
               </div>
               <div className="mt-3">
                 <label className="block font-sans text-[13px] font-semibold text-[#5b544f] mb-1.5">{t('mp.deliveryAddressLabel')}</label>
-                <textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2}
-                  placeholder={t('mp.deliveryAddressPlaceholder')} className="w-full border border-[#dcd8d4] p-2.5 font-sans text-[13.5px] resize-none focus:ring-0" style={{ borderColor: '#dcd8d4' }} onFocus={(e) => (e.currentTarget.style.borderColor = INK)} onBlur={(e) => (e.currentTarget.style.borderColor = '#dcd8d4')} />
+                <textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={3}
+                  placeholder={t('mp.deliveryAddressPlaceholder')} className="w-full border border-[#dcd8d4] p-2.5 font-sans text-[13.5px] resize-none leading-relaxed focus:ring-0" style={{ borderColor: '#dcd8d4' }} onFocus={(e) => (e.currentTarget.style.borderColor = INK)} onBlur={(e) => (e.currentTarget.style.borderColor = '#dcd8d4')} />
                 {user?.mobile && <p className="font-sans text-[11.5px] text-[#7a736d] mt-1.5">{t('mp.deliveryContactNote')} <span className="font-semibold ltr-num">{user.mobile}</span></p>}
               </div>
             </>

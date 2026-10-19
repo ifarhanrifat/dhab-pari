@@ -129,7 +129,7 @@ export default function ParcelDeliveryPage() {
           <option value="">{t('vp.pickCityOption')}</option>
           {cities.map((c) => <option key={c.id} value={c.id}>{isUrdu && c.name_ur ? c.name_ur : c.name}</option>)}
         </select>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('vp.parcelDescriptionPlaceholder')} rows={2} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] resize-none" />
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('vp.parcelDescriptionPlaceholder')} rows={3} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] resize-none leading-relaxed" />
         <div className="grid grid-cols-2 gap-2">
           <input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder={t('vp.recipientNamePlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
           <input value={recipientMobile} onChange={(e) => setRecipientMobile(e.target.value)} placeholder={t('vp.recipientMobilePlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />

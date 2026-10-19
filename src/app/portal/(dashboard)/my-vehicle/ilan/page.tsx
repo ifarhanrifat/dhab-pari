@@ -170,8 +170,8 @@ export default function MyVehicleIlanPage() {
 
           <input value={titleUr} onChange={(e) => setTitleUr(e.target.value)} placeholder={t('il.titleUrPlaceholder')} dir="rtl" className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
           <input value={titleEn} onChange={(e) => setTitleEn(e.target.value)} placeholder={t('il.titleEnPlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-          <textarea value={bodyUr} onChange={(e) => setBodyUr(e.target.value)} placeholder={t('il.bodyUrPlaceholder')} dir="rtl" rows={2} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] resize-none" />
-          <textarea value={bodyEn} onChange={(e) => setBodyEn(e.target.value)} placeholder={t('il.bodyEnPlaceholder')} rows={2} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] resize-none" />
+          <textarea value={bodyUr} onChange={(e) => setBodyUr(e.target.value)} placeholder={t('il.bodyUrPlaceholder')} dir="rtl" rows={3} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] resize-none leading-relaxed" />
+          <textarea value={bodyEn} onChange={(e) => setBodyEn(e.target.value)} placeholder={t('il.bodyEnPlaceholder')} rows={3} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] resize-none leading-relaxed" />
           <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder={t('il.contactPlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
 
           <div className="grid grid-cols-2 gap-2">

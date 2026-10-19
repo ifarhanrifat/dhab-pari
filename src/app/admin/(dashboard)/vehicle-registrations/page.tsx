@@ -25,6 +25,7 @@ interface Request {
   wants_service_class_ids: string[]
   status: 'pending' | 'approved' | 'rejected'; is_village_resident: boolean | null; rejection_reason: string | null
   created_at: string; reviewed_at: string | null; submitter_name: string; submitter_mobile: string | null
+  category_id: string | null; category_name: string | null; category_name_ur: string | null; category_emoji: string | null; category_per_km_pkr: number | null
 }
 interface ServiceClass { id: string; name: string; name_ur: string | null }
 
@@ -66,7 +67,7 @@ export default function AdminVehicleRegistrationsPage() {
 
   const expand = async (r: Request) => {
     if (expandedId === r.id) { setExpandedId(null); return }
-    setExpandedId(r.id); setIsVillageResident(true); setPerKm(''); setHourlyRate(''); setHourlyKm(''); setHourlyOverage(''); setShadiRate(''); setRejectingId(null)
+    setExpandedId(r.id); setIsVillageResident(true); setPerKm(r.wants_delivers && r.category_per_km_pkr ? String(r.category_per_km_pkr) : ''); setHourlyRate(''); setHourlyKm(''); setHourlyOverage(''); setShadiRate(''); setRejectingId(null)
     setConfirmedClassIds(r.wants_service_class_ids ?? [])
     const urls: Record<string, string> = {}
     await Promise.all(DOC_FIELDS.map(async ([which]) => {
@@ -88,7 +89,7 @@ export default function AdminVehicleRegistrationsPage() {
       p_hourly_included_km: r.wants_hourly ? Number(hourlyKm) : null,
       p_hourly_overage_per_km_pkr: r.wants_hourly ? Number(hourlyOverage) : null,
       p_shadi_full_day_rate_pkr: r.wants_shadi ? Number(shadiRate) : null,
-      p_service_class_ids: confirmedClassIds,
+      p_service_class_ids: confirmedClassIds, p_category_id: r.category_id,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -134,7 +135,7 @@ export default function AdminVehicleRegistrationsPage() {
             <button onClick={() => expand(r)} className="w-full text-start cursor-pointer">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
-                  <p className="font-sans text-[14px] font-bold text-dp-on-surface">{r.owner_name} <span className="font-normal text-dp-on-surface-variant">· {r.vehicle_type}{r.vehicle_number ? ` · ${r.vehicle_number}` : ''}</span></p>
+                  <p className="font-sans text-[14px] font-bold text-dp-on-surface">{r.owner_name} <span className="font-normal text-dp-on-surface-variant">· {r.category_emoji ? `${r.category_emoji} ` : ''}{isUrdu && r.category_name_ur ? r.category_name_ur : (r.category_name ?? r.vehicle_type)}{r.vehicle_number ? ` · ${r.vehicle_number}` : ''}</span></p>
                   <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{t('vreg.submittedByLabel')}: {r.submitter_name}{r.submitter_mobile ? ` · ${r.submitter_mobile}` : ''}</p>
                   <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{new Date(r.created_at).toLocaleDateString('en-GB')}</p>
                 </div>

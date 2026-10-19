@@ -127,7 +127,7 @@ export default function CityPurchasePage() {
           <option value="">{t('vp.pickCityOption')}</option>
           {cities.map((c) => <option key={c.id} value={c.id}>{isUrdu && c.name_ur ? c.name_ur : c.name}</option>)}
         </select>
-        <textarea value={item} onChange={(e) => setItem(e.target.value)} placeholder={t('vp.cityPurchaseItemPlaceholder')} rows={2} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] resize-none" />
+        <textarea value={item} onChange={(e) => setItem(e.target.value)} placeholder={t('vp.cityPurchaseItemPlaceholder')} rows={3} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] resize-none leading-relaxed" />
         <DonationReceiptUpload bucket="city_purchase_attachments" label={t('vp.attachItemPhotoLabel')} onUpload={setAttachmentPath} />
         <input value={pickupLabel} onChange={(e) => setPickupLabel(e.target.value)} placeholder={t('vp.pickupLabelPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
         {cityId && (

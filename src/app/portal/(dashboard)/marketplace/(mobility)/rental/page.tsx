@@ -328,8 +328,8 @@ export default function RentalPage() {
           )}
 
           <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.notesLabel')}</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t('vp.rentalNotesPlaceholder')}
-            className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13px] resize-none mb-3" />
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder={t('vp.rentalNotesPlaceholder')}
+            className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13px] resize-none leading-relaxed mb-3" />
 
           <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('mb.paymentMethodsHeading')}</label>
           <div className="flex flex-wrap gap-1.5 mb-3">

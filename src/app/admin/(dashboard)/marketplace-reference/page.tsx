@@ -25,11 +25,16 @@ interface ServiceClass {
 }
 interface Village { id: string; name: string; name_ur: string | null; delivery_fee_pkr: number; is_home_village: boolean; is_active: boolean; display_order: number }
 interface FareBand { flow: 'trip_share' | 'city_fetch' | 'route'; base_pkr: number; per_km_pkr: number; spread: number }
+interface VehicleCategory {
+  id: string; key: string; name: string; name_ur: string | null; emoji: string
+  base_fare_pkr: number; per_km_pkr: number; intercity_commission_pct: number; out_of_city_commission_pct: number; is_active: boolean
+}
 
 const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, display_order: 0 }
 const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', base_fare_pkr: 0, per_km_pkr: 0, display_order: 0, delivery_eligible: true, ride_eligible: true, home_city_delivery_eligible: true, outstation_delivery_eligible: true }
 const emptyVillage = { name: '', name_ur: '', delivery_fee_pkr: 0, is_home_village: false, display_order: 0 }
 const emptyFareBand = { base_pkr: 0, per_km_pkr: 0, spread: 0.28 }
+const emptyVehicleCategory = { name: '', name_ur: '', emoji: '', base_fare_pkr: 0, per_km_pkr: 0, intercity_commission_pct: 10, out_of_city_commission_pct: 15 }
 
 function fmt(n: number) { return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 function flowLabelKey(flow: 'trip_share' | 'city_fetch' | 'route') {
@@ -41,11 +46,12 @@ export default function MarketplaceReferencePage() {
   const access = useSystemAccess()
   const supabase = createClient()
 
-  const [tab, setTab] = useState<'cities' | 'services' | 'villages' | 'fareBands'>('cities')
+  const [tab, setTab] = useState<'cities' | 'services' | 'villages' | 'fareBands' | 'vehicleCategories'>('cities')
   const [cities, setCities] = useState<City[]>([])
   const [services, setServices] = useState<ServiceClass[]>([])
   const [villages, setVillages] = useState<Village[]>([])
   const [fareBands, setFareBands] = useState<FareBand[]>([])
+  const [vehicleCategories, setVehicleCategories] = useState<VehicleCategory[]>([])
   const [loading, setLoading] = useState(true)
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -54,17 +60,20 @@ export default function MarketplaceReferencePage() {
   const [serviceForm, setServiceForm] = useState(emptyServiceClass)
   const [villageForm, setVillageForm] = useState(emptyVillage)
   const [fareBandForm, setFareBandForm] = useState(emptyFareBand)
+  const [vehicleCategoryForm, setVehicleCategoryForm] = useState(emptyVehicleCategory)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const load = async () => {
-    const [{ data: c }, { data: s }, { data: v }, { data: fb }] = await Promise.all([
+    const [{ data: c }, { data: s }, { data: v }, { data: fb }, { data: vc }] = await Promise.all([
       supabase.from('cities').select('*').order('display_order'),
       supabase.from('service_classes').select('*').order('display_order'),
       supabase.from('villages').select('*').order('display_order'),
       supabase.from('fare_bands').select('*').order('flow'),
+      supabase.from('vehicle_categories').select('*').order('display_order'),
     ])
     setCities((c ?? []) as City[]); setServices((s ?? []) as ServiceClass[]); setVillages((v ?? []) as Village[]); setFareBands((fb ?? []) as FareBand[])
+    setVehicleCategories((vc ?? []) as VehicleCategory[])
     setLoading(false)
   }
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -80,6 +89,11 @@ export default function MarketplaceReferencePage() {
   const openEditService = (s: ServiceClass) => { setEditingId(s.id); setServiceForm({ ...s, name_ur: s.name_ur ?? '', capacity_label: s.capacity_label ?? '', capacity_label_ur: s.capacity_label_ur ?? '', note: s.note ?? '', note_ur: s.note_ur ?? '' }); setShowForm(true) }
   const openEditVillage = (v: Village) => { setEditingId(v.id); setVillageForm({ ...v, name_ur: v.name_ur ?? '' }); setShowForm(true) }
   const openEditFareBand = (fb: FareBand) => { setEditingFlow(fb.flow); setFareBandForm({ base_pkr: fb.base_pkr, per_km_pkr: fb.per_km_pkr, spread: fb.spread }); setShowForm(true) }
+  const openEditVehicleCategory = (vc: VehicleCategory) => {
+    setEditingId(vc.id)
+    setVehicleCategoryForm({ name: vc.name, name_ur: vc.name_ur ?? '', emoji: vc.emoji, base_fare_pkr: vc.base_fare_pkr, per_km_pkr: vc.per_km_pkr, intercity_commission_pct: vc.intercity_commission_pct, out_of_city_commission_pct: vc.out_of_city_commission_pct })
+    setShowForm(true)
+  }
 
   const save = async () => {
     setSaving(true)
@@ -87,6 +101,7 @@ export default function MarketplaceReferencePage() {
       tab === 'cities' ? (editingId ? await supabase.from('cities').update(cityForm).eq('id', editingId) : await supabase.from('cities').insert(cityForm))
       : tab === 'services' ? (editingId ? await supabase.from('service_classes').update(serviceForm).eq('id', editingId) : await supabase.from('service_classes').insert(serviceForm))
       : tab === 'villages' ? (editingId ? await supabase.from('villages').update(villageForm).eq('id', editingId) : await supabase.from('villages').insert(villageForm))
+      : tab === 'vehicleCategories' ? await supabase.from('vehicle_categories').update(vehicleCategoryForm).eq('id', editingId)
       : await supabase.from('fare_bands').update(fareBandForm).eq('flow', editingFlow)
     setSaving(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -117,9 +132,10 @@ export default function MarketplaceReferencePage() {
         <button onClick={() => { setTab('services'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'services' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Truck size={14} /> {t('mr.servicesTab')}</button>
         <button onClick={() => { setTab('villages'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'villages' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Home size={14} /> {t('mr.villagesTab')}</button>
         <button onClick={() => { setTab('fareBands'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'fareBands' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Gauge size={14} /> {t('mr.fareBandsTab')}</button>
+        <button onClick={() => { setTab('vehicleCategories'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'vehicleCategories' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Truck size={14} /> {t('mr.vehicleCategoriesTab')}</button>
       </div>
 
-      {tab !== 'fareBands' && (
+      {tab !== 'fareBands' && tab !== 'vehicleCategories' && (
         <button onClick={openNew} className="flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all mb-4"><Plus size={14} /> {t('mr.addNewBtn')}</button>
       )}
 
@@ -193,10 +209,25 @@ export default function MarketplaceReferencePage() {
         </div>
       )}
 
+      {tab === 'vehicleCategories' && (
+        <div className="space-y-2">
+          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2">{t('mr.vehicleCategoriesHint')}</p>
+          {vehicleCategories.map((vc) => (
+            <div key={vc.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex items-center justify-between gap-3">
+              <div>
+                <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{vc.emoji} {isUrdu && vc.name_ur ? vc.name_ur : vc.name}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{fmt(vc.base_fare_pkr)} base + {fmt(vc.per_km_pkr)}/km · {vc.intercity_commission_pct}% / {vc.out_of_city_commission_pct}%</p>
+              </div>
+              <button onClick={() => openEditVehicleCategory(vc)} className="p-2 rounded text-dp-secondary hover:bg-dp-surface-container cursor-pointer"><Pencil size={14} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{tab === 'fareBands' ? (editingFlow ? t(flowLabelKey(editingFlow)) : '') : editingId ? t('mr.editTitle') : t('mr.addTitle')}</h2>
+            <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{tab === 'fareBands' ? (editingFlow ? t(flowLabelKey(editingFlow)) : '') : tab === 'vehicleCategories' ? vehicleCategoryForm.name : editingId ? t('mr.editTitle') : t('mr.addTitle')}</h2>
 
             {tab === 'cities' && (
               <div className="space-y-2.5">
@@ -249,6 +280,25 @@ export default function MarketplaceReferencePage() {
                   <input type="number" value={fareBandForm.per_km_pkr || ''} onChange={(e) => setFareBandForm({ ...fareBandForm, per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" />
                 </div>
                 <input type="number" step="0.01" min="0.01" max="0.99" value={fareBandForm.spread || ''} onChange={(e) => setFareBandForm({ ...fareBandForm, spread: +e.target.value })} placeholder={t('mr.spreadPlaceholder')} className="input-field" />
+              </div>
+            )}
+
+            {tab === 'vehicleCategories' && (
+              <div className="space-y-2.5">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <input value={vehicleCategoryForm.name} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, name: e.target.value })} placeholder={t('mr.namePlaceholder')} className="input-field" />
+                  <input value={vehicleCategoryForm.name_ur} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" dir="rtl" />
+                </div>
+                <input value={vehicleCategoryForm.emoji} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, emoji: e.target.value })} placeholder={t('mr.emojiPlaceholder')} className="input-field" />
+                <div className="grid grid-cols-2 gap-2.5">
+                  <input type="number" value={vehicleCategoryForm.base_fare_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, base_fare_pkr: +e.target.value })} placeholder={t('mr.basePkrPlaceholder')} className="input-field" />
+                  <input type="number" value={vehicleCategoryForm.per_km_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" />
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <input type="number" value={vehicleCategoryForm.intercity_commission_pct || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, intercity_commission_pct: +e.target.value })} placeholder={t('mr.intercityCommissionPlaceholder')} className="input-field" />
+                  <input type="number" value={vehicleCategoryForm.out_of_city_commission_pct || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_commission_pct: +e.target.value })} placeholder={t('mr.outOfCityCommissionPlaceholder')} className="input-field" />
+                </div>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.vehicleCategoryEditHint')}</p>
               </div>
             )}
 
