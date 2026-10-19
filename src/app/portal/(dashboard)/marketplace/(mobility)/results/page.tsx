@@ -27,7 +27,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { ArrowLeft, Bus, Users, Car, Clock, Star, Wrench, Tractor, Truck, Gem } from 'lucide-react'
+import { ArrowLeft, Bus, Users, Car, Clock, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -59,13 +59,17 @@ function fmtTime(t: string | null, isUrdu: boolean) {
   return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`
 }
 
+// Phase 6: emoji converged onto the mockup's own service-belt taxonomy
+// (💍 Wedding Fleet, 🚗 Car Rental, 🏗️ Machinery, 🚜 Tractor & Farm,
+// 🚚 Loader — exact matches; hourly has no belt equivalent, 🕒 picked
+// to match the Lucide Clock it replaces).
 const CATEGORY_GRID = [
-  { href: '/portal/marketplace/hourly', icon: Clock, titleKey: 'vp.hourlyPageTitle', bg: '#e0f2fe', fg: '#0369a1' },
-  { href: '/portal/marketplace/shadi', icon: Gem, titleKey: 'vp.shadiPageTitle', bg: '#fce7f3', fg: '#be185d' },
-  { href: '/portal/marketplace/rental', icon: Car, titleKey: 'vp.rentalPageTitle', bg: '#f3e8ff', fg: '#6d28d9' },
-  { href: '/portal/marketplace/machinery', icon: Wrench, titleKey: 'vp.machineryPageTitle', bg: '#fef3c7', fg: '#92400e' },
-  { href: '/portal/marketplace/tractor', icon: Tractor, titleKey: 'vp.tractorPageTitle', bg: '#dcfce7', fg: '#166534' },
-  { href: '/portal/marketplace/loader', icon: Truck, titleKey: 'vp.loaderPageTitle', bg: '#fee2e2', fg: '#b91c1c' },
+  { href: '/portal/marketplace/hourly', emoji: '🕒', titleKey: 'vp.hourlyPageTitle', bg: '#e0f2fe', fg: '#0369a1' },
+  { href: '/portal/marketplace/shadi', emoji: '💍', titleKey: 'vp.shadiPageTitle', bg: '#fce7f3', fg: '#be185d' },
+  { href: '/portal/marketplace/rental', emoji: '🚗', titleKey: 'vp.rentalPageTitle', bg: '#f3e8ff', fg: '#6d28d9' },
+  { href: '/portal/marketplace/machinery', emoji: '🏗️', titleKey: 'vp.machineryPageTitle', bg: '#fef3c7', fg: '#92400e' },
+  { href: '/portal/marketplace/tractor', emoji: '🚜', titleKey: 'vp.tractorPageTitle', bg: '#dcfce7', fg: '#166534' },
+  { href: '/portal/marketplace/loader', emoji: '🚚', titleKey: 'vp.loaderPageTitle', bg: '#fee2e2', fg: '#b91c1c' },
 ] as const
 
 export default function ResultsPage() {
@@ -200,9 +204,9 @@ function ResultsPageInner() {
           <div className="flex flex-col gap-2">
             <p className="text-[12.5px] font-extrabold text-[#1e293b]">{t('mb.categoryBrowseHeading')}</p>
             <div className="grid grid-cols-3 gap-2">
-              {CATEGORY_GRID.map(({ href, icon: Icon, titleKey, bg, fg }) => (
+              {CATEGORY_GRID.map(({ href, emoji, titleKey, bg }) => (
                 <Link key={href} href={href} className="flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-[#e5e2d0] bg-white text-center">
-                  <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: bg }}><Icon size={17} style={{ color: fg }} /></span>
+                  <span className="w-9 h-9 rounded-xl flex items-center justify-center text-[17px]" style={{ background: bg }}>{emoji}</span>
                   <span className="text-[10.5px] font-bold text-[#1e293b] leading-tight">{t(titleKey)}</span>
                 </Link>
               ))}

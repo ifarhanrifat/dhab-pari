@@ -16,11 +16,12 @@
 
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { LayoutGrid, ShoppingCart, Package, Tags, Users, BarChart3 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
-const ACCENT = '#ec3013'
-
+// Phase 6: converged off the old v2-handoff black/red scheme onto the
+// mockup's own palette (white bg, dp2 green active) and emoji icons —
+// same 6 tabs/routes/query-param handling untouched, pure visual
+// convergence of this one shared component.
 export function ShopBottomNav() {
   const { t } = useLocale()
   const pathname = usePathname()
@@ -36,26 +37,23 @@ export function ShopBottomNav() {
   // doesn't fit a phone width) but now render this same component too,
   // so leaving one still lands on a working nav, not a bare back-arrow.
   const tabs = [
-    { key: 'dashboard', href: '/portal/my-shop', icon: LayoutGrid, label: t('sk.navDashboard'), active: isMyShopBase && !view },
-    { key: 'counter', href: '/portal/my-shop/sell', icon: ShoppingCart, label: t('sk.navCounter'), active: pathname === '/portal/my-shop/sell' },
-    { key: 'customers', href: '/portal/my-shop/customers', icon: Users, label: t('sk.navCustomers'), active: pathname === '/portal/my-shop/customers' },
-    { key: 'stock', href: '/portal/my-shop?view=stock', icon: Package, label: t('sk.navStock'), active: isMyShopBase && view === 'stock' },
-    { key: 'catalog', href: '/portal/my-shop?view=catalog', icon: Tags, label: t('sk.navCatalog'), active: isMyShopBase && view === 'catalog' },
-    { key: 'reports', href: '/portal/my-shop/reports', icon: BarChart3, label: t('sk.navReports'), active: pathname === '/portal/my-shop/reports' },
+    { key: 'dashboard', href: '/portal/my-shop', emoji: '🏠', label: t('sk.navDashboard'), active: isMyShopBase && !view },
+    { key: 'counter', href: '/portal/my-shop/sell', emoji: '🛒', label: t('sk.navCounter'), active: pathname === '/portal/my-shop/sell' },
+    { key: 'customers', href: '/portal/my-shop/customers', emoji: '👥', label: t('sk.navCustomers'), active: pathname === '/portal/my-shop/customers' },
+    { key: 'stock', href: '/portal/my-shop?view=stock', emoji: '📦', label: t('sk.navStock'), active: isMyShopBase && view === 'stock' },
+    { key: 'catalog', href: '/portal/my-shop?view=catalog', emoji: '🏷️', label: t('sk.navCatalog'), active: isMyShopBase && view === 'catalog' },
+    { key: 'reports', href: '/portal/my-shop/reports', emoji: '📈', label: t('sk.navReports'), active: pathname === '/portal/my-shop/reports' },
   ]
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40">
-      <div className="max-w-md mx-auto grid grid-cols-6 bg-[#201e1d] border-t-2" style={{ borderTopColor: ACCENT }}>
-        {tabs.map((tab) => {
-          const Icon = tab.icon
-          return (
-            <Link key={tab.key} href={tab.href} className="flex flex-col items-center gap-1 py-2.5 cursor-pointer" style={{ color: tab.active ? ACCENT : '#f3f2f2' }}>
-              <Icon size={18} />
-              <span className="font-sans text-[10px]">{tab.label}</span>
-            </Link>
-          )
-        })}
+      <div className="max-w-md mx-auto grid grid-cols-6 bg-white border-t border-dp2-card-border">
+        {tabs.map((tab) => (
+          <Link key={tab.key} href={tab.href} className="flex flex-col items-center gap-0.5 py-2.5 cursor-pointer" style={{ color: tab.active ? '#005A36' : '#94a3b8' }}>
+            <span className="text-[16px] leading-none">{tab.emoji}</span>
+            <span className="font-sans text-[8.5px]" style={{ fontWeight: tab.active ? 700 : 500 }}>{tab.label}</span>
+          </Link>
+        ))}
       </div>
     </nav>
   )

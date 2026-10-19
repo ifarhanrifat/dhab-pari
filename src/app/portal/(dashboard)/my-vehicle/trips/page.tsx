@@ -21,6 +21,7 @@ import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicker'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { FairPriceHint } from '@/components/mobility/FairPriceHint'
+import { StatusPill } from '@/components/ui/StatusPill'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -276,7 +277,7 @@ export default function MyVehicleTripsPage() {
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${tr.trip_type === 'return' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>{tr.trip_type === 'return' ? t('cm.tripTypeReturn') : t('cm.tripTypeOneway')}</span>
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${tr.status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-[#F9F9F6] text-[#64748b]'}`}>{tr.status === 'open' ? t('mk.active') : t('mk.inactive')}</span>
+                    <StatusPill tone={tr.status === 'open' ? 'accepted' : 'completed'} label={tr.status === 'open' ? t('mk.active') : t('mk.inactive')} className="uppercase" />
                   </div>
                 </div>
                 {(fareOffersByTrip[tr.id] ?? []).map((fo) => (

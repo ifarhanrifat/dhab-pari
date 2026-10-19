@@ -29,6 +29,7 @@ import { ShareBookingButton } from '@/components/portal/ShareBookingButton'
 import { CallButton } from '@/components/portal/CallButton'
 import { ChatButton } from '@/components/portal/ChatButton'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
+import { StatusPill } from '@/components/ui/StatusPill'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -145,7 +146,7 @@ export default function ShadiEventDetailPage() {
       <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3 mb-2">
           <p className="font-extrabold text-[18px] text-[#005A36] flex items-center gap-1.5"><CalendarDays size={16} /> {new Date(event.event_date).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-          <span className="text-[10.5px] font-bold px-2 py-1 rounded-full" style={{ background: event.status === 'confirmed' ? '#dcfce7' : event.status === 'cancelled' ? '#f1f5f9' : '#fef3c7', color: event.status === 'confirmed' ? '#166534' : event.status === 'cancelled' ? '#64748b' : '#92400e' }}>{t(`vp.shadiStatus.${event.status}`)}</span>
+          <StatusPill tone={event.status === 'confirmed' ? 'accepted' : event.status === 'cancelled' ? 'completed' : 'requested'} label={t(`vp.shadiStatus.${event.status}`)} />
         </div>
         <p className="text-[13px] text-[#64748b] flex items-start gap-1.5 mb-1"><MapPin size={12} className="shrink-0 mt-0.5" /> {event.venue_address}</p>
         <p className="text-[12.5px] text-[#64748b] flex items-center gap-1.5 mb-1 ltr-num"><Ruler size={12} /> {fmt(event.distance_km)}km</p>

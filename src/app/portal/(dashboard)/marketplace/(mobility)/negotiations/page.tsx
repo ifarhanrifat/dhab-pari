@@ -11,6 +11,8 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { StatusPill } from '@/components/ui/StatusPill'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 interface ThreadRow {
   id: string; kind: string; status: string; item: string | null; agreed_amount_pkr: number | null
@@ -39,9 +41,7 @@ export default function NegotiationsInboxPage() {
         <p className="text-[12.5px] text-[#64748b] mt-0.5">{t('vp.myConversationsSubtitle')}</p>
       </div>
 
-      {threads.length === 0 && (
-        <div className="border-2 border-dashed border-[#e5e2d0] rounded-2xl p-6 text-center text-[13px] text-[#94a3b8]">{t('vp.noConversationsYet')}</div>
-      )}
+      {threads.length === 0 && <EmptyState emoji="💬" message={t('vp.noConversationsYet')} />}
 
       {threads.map((th) => {
         const KindIcon = kindIcon[th.kind as keyof typeof kindIcon] ?? Package
@@ -54,9 +54,9 @@ export default function NegotiationsInboxPage() {
             </div>
             {th.kind !== 'booking' && (
               <div className="shrink-0">
-                {th.status === 'agreed' && <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-[#dcfce7] text-[#166534]"><CheckCircle2 size={10} /> {t('vp.agreedStatusLabel')}</span>}
-                {th.status === 'open' && <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-[#fef3c7] text-[#92400e]"><Clock size={10} /> {t('vp.openStatusLabel')}</span>}
-                {(th.status === 'declined' || th.status === 'cancelled') && <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-[#f1f5f9] text-[#64748b]"><XCircle size={10} /> {t('vp.closedStatusLabel')}</span>}
+                {th.status === 'agreed' && <StatusPill tone="accepted" icon={<CheckCircle2 size={10} />} label={t('vp.agreedStatusLabel')} />}
+                {th.status === 'open' && <StatusPill tone="requested" icon={<Clock size={10} />} label={t('vp.openStatusLabel')} />}
+                {(th.status === 'declined' || th.status === 'cancelled') && <StatusPill tone="completed" icon={<XCircle size={10} />} label={t('vp.closedStatusLabel')} />}
               </div>
             )}
           </Link>
