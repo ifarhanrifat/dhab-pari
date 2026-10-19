@@ -88,6 +88,15 @@ export default function MobilityAccountPage() {
         <ChevronRight size={16} className={`text-[#64748b] ${isUrdu ? 'rotate-180' : ''}`} />
       </Link>
 
+      {/* Phase 6: a real escape hatch out of the mobility section —
+          before this, donations/water/academy/complaints/etc were only
+          reachable via the sidebar's hamburger toggle (still present,
+          but easy to miss since nothing in this screen pointed at it). */}
+      <Link href="/portal/account" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center justify-between gap-2">
+        <span className="text-[13.5px] font-bold text-[#1e293b]">👤 {t('mb.morePortalLink')}</span>
+        <ChevronRight size={16} className={`text-[#64748b] ${isUrdu ? 'rotate-180' : ''}`} />
+      </Link>
+
       <button onClick={handleLogout} className="flex items-center justify-center gap-2 bg-white border border-[#fecaca] text-[#b91c1c] rounded-2xl py-3 font-bold text-[13.5px] cursor-pointer">
         <LogOut size={15} /> {t('nav.logout')}
       </button>

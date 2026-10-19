@@ -685,6 +685,12 @@ function MyShopPageInner() {
               <Link href="/portal/my-shop/staff" className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
                 <UserPlus size={12} /> {t('sk.staffBtn')}
               </Link>
+              {/* Phase 6: escape hatch — this section has no logout/
+                  profile/donations link anywhere else, only the
+                  sidebar's hamburger toggle (easy to miss). */}
+              <Link href="/portal/account" className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+                👤 {t('nav.tabAccount')}
+              </Link>
               <button onClick={() => setShowDeals(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
                 <Tag size={12} /> {t('sk.dealsBtn')}
               </button>

@@ -228,6 +228,15 @@ export default function MyVehicleVehiclePage() {
           <span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('mv.tab.ilan')}</span>
           <ChevronRight size={16} className={`text-[#94a3b8] ${isUrdu ? 'rotate-180' : ''}`} />
         </Link>
+        {/* Phase 6: a real escape hatch — before this, a driver's only way
+            back to donations/water/academy/profile/logout was the
+            sidebar's hamburger toggle, easy to miss since nothing in this
+            section pointed at it. */}
+        <Link href="/portal/account" className="flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl p-3">
+          <span className="shrink-0 w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center text-[15px]">👤</span>
+          <span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('mb.morePortalLink')}</span>
+          <ChevronRight size={16} className={`text-[#94a3b8] ${isUrdu ? 'rotate-180' : ''}`} />
+        </Link>
       </div>
     </div>
   )
