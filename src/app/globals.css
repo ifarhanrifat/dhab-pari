@@ -143,6 +143,29 @@
   --color-dp2-surface: #F9F9F6;
   --color-dp2-card-border: #e5e2d0;
 
+  /* --- Phase 6, 2026-10-20: portal native-app redesign tokens ---
+     Text ladder + status-pill pairs, all exact hex already in live use
+     scattered across negotiations/chat/trips/shadi/results screens —
+     naming them here just lets those screens (and new ones) reference
+     a token instead of repeating the same literal hex everywhere. */
+  --color-dp2-text-ink: #1e293b;
+  --color-dp2-text-strong: #334155;
+  --color-dp2-text-muted: #64748b;
+  --color-dp2-text-faint: #94a3b8;
+  --color-dp2-ink: #0f172a;
+  --color-dp2-surface-alt: #f2f1e8;
+  --color-dp2-tint-green-50: #f0fdf4;
+  --color-dp2-tint-green-100: #dcfce7;
+  --color-dp2-tint-green-200: #bbf7d0;
+
+  --color-dp2-status-requested-bg: #fef3c7;  --color-dp2-status-requested-fg: #92400e;
+  --color-dp2-status-quoted-bg: #dbeafe;     --color-dp2-status-quoted-fg: #1e40af;
+  --color-dp2-status-countered-bg: #ffedd5;  --color-dp2-status-countered-fg: #c2410c;
+  --color-dp2-status-accepted-bg: #dcfce7;   --color-dp2-status-accepted-fg: #166534;
+  --color-dp2-status-progress-bg: #e0f2fe;   --color-dp2-status-progress-fg: #0369a1;
+  --color-dp2-status-completed-bg: #f1f5f9;  --color-dp2-status-completed-fg: #475569;
+  --color-dp2-status-cancelled-bg: #fee2e2;  --color-dp2-status-cancelled-fg: #b91c1c;
+
   --radius-sm: 0.125rem;
   --radius-md: 0.25rem;
   --radius-lg: 0.5rem;
@@ -318,6 +341,36 @@
 /* --- Hide scrollbar utility --- */
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* --- Phase 6, 2026-10-20: portal-only native-app primitives ---
+   Scoped under .portal-shell (the new dashboard shell's own root class)
+   rather than applied globally or folded into .input-field/.dp-toaster-
+   center, both of which are confirmed shared with admin (.input-field's
+   own comment calls it "Admin shared input style"; the Toaster is one
+   single root instance used everywhere per its own comment above) —
+   admin is explicitly out of scope for this phase, so a new, portal-only
+   class is used instead of mutating something admin also renders with. */
+.portal-shell, .portal-shell * {
+  -webkit-tap-highlight-color: transparent;
+}
+.portal-shell *::-webkit-scrollbar { display: none; }
+.portal-shell * { -ms-overflow-style: none; scrollbar-width: none; }
+
+.dp2-input {
+  @apply w-full border border-[#e2e8f0] rounded-xl px-3 py-2.5 font-sans text-[13.5px] bg-white text-dp2-text-ink transition-colors;
+}
+.dp2-input:focus {
+  border-color: var(--color-dp2-primary-dark);
+  outline: none;
+}
+.dp2-gradient-hero {
+  background: linear-gradient(to right, var(--color-dp2-primary), var(--color-dp2-primary-dark));
+  border: 1px solid rgba(212, 175, 55, .2);
+}
+.dp2-empty-state {
+  border: 1.5px dashed var(--color-dp2-card-border);
+  border-radius: 16px;
+}
 
 /* --- Zebra table striping --- */
 .zebra-table tr:nth-child(even) {
