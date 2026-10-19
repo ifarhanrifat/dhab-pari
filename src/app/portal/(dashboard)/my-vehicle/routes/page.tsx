@@ -20,12 +20,13 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { FairPriceHint } from '@/components/mobility/FairPriceHint'
 
 const DAYS = [0, 1, 2, 3, 4, 5, 6]
 const emptyRouteForm = {
   origin: '', origin_ur: '', destination: '', destination_ur: '',
   classification: 'intercity', fare_mode: 'fixed', total_fare_pkr: '' as string | number,
-  departure_time: '', days_of_week: [] as number[],
+  departure_time: '', days_of_week: [] as number[], distance_km: '' as string,
 }
 
 interface Booking {
@@ -123,8 +124,12 @@ export default function MyVehicleRoutesPage() {
   const postRoute = async () => {
     if (!vehicleId || !form.origin.trim() || !form.destination.trim()) { toast.error(t('mk.nameRequired')); return }
     if (form.days_of_week.length === 0) { toast.error(t('mv.pickAtLeastOneDayError')); return }
-    const totalFare = Number(form.total_fare_pkr)
-    if (!totalFare || totalFare <= 0) { toast.error(t('mv.enterTotalFareError')); return }
+    const distanceKm = form.distance_km ? Number(form.distance_km) : null
+    const totalFare = form.total_fare_pkr ? Number(form.total_fare_pkr) : null
+    // A distance lets the backend compute the fair fare on its own
+    // (and reject anything typed above it) — only require a manually
+    // typed total fare when no distance is given at all.
+    if (!distanceKm && (!totalFare || totalFare <= 0)) { toast.error(t('mv.enterTotalFareError')); return }
     setPosting(true)
     const { data, error } = await supabase.rpc('create_vehicle_route_self', {
       p_vehicle_id: vehicleId,
@@ -132,6 +137,7 @@ export default function MyVehicleRoutesPage() {
       p_destination: form.destination, p_destination_ur: form.destination_ur || null,
       p_classification: form.classification, p_fare_mode: form.fare_mode, p_total_fare_pkr: totalFare,
       p_departure_time: form.departure_time || null, p_days_of_week: form.days_of_week,
+      p_distance_km: distanceKm,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -189,7 +195,12 @@ export default function MyVehicleRoutesPage() {
               <option value="flex">{t('mv.fareMode.flex')}</option>
             </select>
           </div>
+          <div>
+            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.distanceKmOptionalLabel')}</label>
+            <input type="number" value={form.distance_km} onChange={(e) => setForm((f) => ({ ...f, distance_km: e.target.value }))} placeholder={t('cm.distanceKmPlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+          </div>
           <input type="number" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+          <FairPriceHint flow="route" distanceKm={form.distance_km ? Number(form.distance_km) : null} />
           <div>
             <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
             <input type="time" value={form.departure_time} onChange={(e) => setForm((f) => ({ ...f, departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />

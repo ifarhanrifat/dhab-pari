@@ -24,7 +24,7 @@ interface ServiceClass {
   delivery_eligible: boolean; ride_eligible: boolean
 }
 interface Village { id: string; name: string; name_ur: string | null; delivery_fee_pkr: number; is_home_village: boolean; is_active: boolean; display_order: number }
-interface FareBand { flow: 'trip_share' | 'city_fetch'; base_pkr: number; per_km_pkr: number; spread: number }
+interface FareBand { flow: 'trip_share' | 'city_fetch' | 'route'; base_pkr: number; per_km_pkr: number; spread: number }
 
 const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, display_order: 0 }
 const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', base_fare_pkr: 0, per_km_pkr: 0, display_order: 0, delivery_eligible: true, ride_eligible: true }
@@ -32,6 +32,9 @@ const emptyVillage = { name: '', name_ur: '', delivery_fee_pkr: 0, is_home_villa
 const emptyFareBand = { base_pkr: 0, per_km_pkr: 0, spread: 0.28 }
 
 function fmt(n: number) { return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
+function flowLabelKey(flow: 'trip_share' | 'city_fetch' | 'route') {
+  return flow === 'trip_share' ? 'mr.flowTripShare' : flow === 'route' ? 'mr.flowRoute' : 'mr.flowCityFetch'
+}
 
 export default function MarketplaceReferencePage() {
   const { t, isUrdu } = useLocale()
@@ -46,7 +49,7 @@ export default function MarketplaceReferencePage() {
   const [loading, setLoading] = useState(true)
 
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editingFlow, setEditingFlow] = useState<'trip_share' | 'city_fetch' | null>(null)
+  const [editingFlow, setEditingFlow] = useState<'trip_share' | 'city_fetch' | 'route' | null>(null)
   const [cityForm, setCityForm] = useState(emptyCity)
   const [serviceForm, setServiceForm] = useState(emptyServiceClass)
   const [villageForm, setVillageForm] = useState(emptyVillage)
@@ -181,7 +184,7 @@ export default function MarketplaceReferencePage() {
           {fareBands.map((fb) => (
             <div key={fb.flow} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex items-center justify-between gap-3">
               <div>
-                <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{fb.flow === 'trip_share' ? t('mr.flowTripShare') : t('mr.flowCityFetch')}</p>
+                <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{t(flowLabelKey(fb.flow))}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{fmt(fb.base_pkr)} base + {fmt(fb.per_km_pkr)}/km · ±{Math.round(fb.spread * 100)}%</p>
               </div>
               <button onClick={() => openEditFareBand(fb)} className="p-2 rounded text-dp-secondary hover:bg-dp-surface-container cursor-pointer"><Pencil size={14} /></button>
@@ -193,7 +196,7 @@ export default function MarketplaceReferencePage() {
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{tab === 'fareBands' ? (editingFlow === 'trip_share' ? t('mr.flowTripShare') : t('mr.flowCityFetch')) : editingId ? t('mr.editTitle') : t('mr.addTitle')}</h2>
+            <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{tab === 'fareBands' ? (editingFlow ? t(flowLabelKey(editingFlow)) : '') : editingId ? t('mr.editTitle') : t('mr.addTitle')}</h2>
 
             {tab === 'cities' && (
               <div className="space-y-2.5">

@@ -45,10 +45,11 @@ type Kind = 'machinery' | 'tractor' | 'loader'
 interface TractorService { service_key: string; name_en: string; name_ur: string; rate_pkr: number; unit: string }
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; color: string | null; model: string | null
-  machinery_hourly_rate_pkr: number | null; machinery_min_hours: number | null; machinery_mobilization_fee_pkr: number | null
+  machinery_hourly_rate_pkr: number | null; machinery_hourly_rate_min_pkr: number | null; machinery_min_hours: number | null; machinery_mobilization_fee_pkr: number | null
   loader_trip_rate_pkr: number | null; tractor_services: TractorService[] | null; cover_url: string | null; avg_rating: number | null
   shared_from_other_village: boolean; owner_village_name: string | null
 }
+interface RateOffer { id: string; proposed_rate_pkr: number; counter_rate_pkr: number | null; status: string }
 interface Booking {
   id: string; kind: Kind; service_key: string | null; site_address: string; site_lat: number | null; site_lng: number | null; material: string | null
   requested_hours: number | null; status: string; rate_pkr: number; mobilization_fee_pkr: number
@@ -97,6 +98,9 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
   const [notes, setNotes] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [requesting, setRequesting] = useState(false)
+  const [rateOffer, setRateOffer] = useState<RateOffer | null>(null)
+  const [proposeRate, setProposeRate] = useState('')
+  const [proposing, setProposing] = useState(false)
 
   const loadVehicles = () => supabase.rpc('equipment_bookable_vehicles', { p_kind: kind }).then(({ data }) => setVehicles((data ?? []) as Vehicle[]))
   const loadBookings = () => supabase.rpc('my_equipment_bookings').then(({ data }) => setBookings(((data ?? []) as Booking[]).filter((b) => b.kind === kind)))
@@ -123,6 +127,34 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
     setSiteLoc(null)
     setNotes('')
     setPaymentMethod('cash')
+    setRateOffer(null)
+    setProposeRate('')
+    if (kind === 'machinery') {
+      supabase.rpc('my_proposed_machinery_rate', { p_vehicle_id: v.id }).then(({ data }) => setRateOffer((data as RateOffer | null) ?? null))
+    }
+  }
+
+  const hasNegotiableBand = kind === 'machinery' && openVehicle?.machinery_hourly_rate_min_pkr != null && openVehicle.machinery_hourly_rate_pkr != null && openVehicle.machinery_hourly_rate_min_pkr < openVehicle.machinery_hourly_rate_pkr
+
+  const sendProposal = async () => {
+    if (!openVehicle) return
+    const rate = Number(proposeRate)
+    if (!rate || rate <= 0) { toast.error(t('vp.siteAddressRequired')); return }
+    setProposing(true)
+    const { error } = await supabase.rpc('propose_machinery_rate', { p_vehicle_id: openVehicle.id, p_proposed_rate_pkr: rate })
+    setProposing(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('vp.equipmentRequestSentToast'))
+    supabase.rpc('my_proposed_machinery_rate', { p_vehicle_id: openVehicle.id }).then(({ data }) => setRateOffer((data as RateOffer | null) ?? null))
+  }
+
+  const acceptCounter = async () => {
+    if (!rateOffer) return
+    setProposing(true)
+    const { error } = await supabase.rpc('accept_machinery_rate_counter', { p_offer_id: rateOffer.id })
+    setProposing(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    setRateOffer({ ...rateOffer, status: 'accepted' })
   }
 
   const bookAgain = (vehicleId: string) => {
@@ -132,7 +164,8 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
   }
 
   const selectedService = openVehicle?.tractor_services?.find((s) => s.service_key === serviceKey) ?? null
-  const unitRate = kind === 'tractor' ? (selectedService?.rate_pkr ?? 0) : (kind === 'machinery' ? (openVehicle?.machinery_hourly_rate_pkr ?? 0) : (openVehicle?.loader_trip_rate_pkr ?? 0))
+  const acceptedRate = rateOffer?.status === 'accepted' ? (rateOffer.counter_rate_pkr ?? rateOffer.proposed_rate_pkr) : null
+  const unitRate = kind === 'tractor' ? (selectedService?.rate_pkr ?? 0) : (kind === 'machinery' ? (acceptedRate ?? openVehicle?.machinery_hourly_rate_pkr ?? 0) : (openVehicle?.loader_trip_rate_pkr ?? 0))
   const mobilization = kind === 'machinery' ? (openVehicle?.machinery_mobilization_fee_pkr ?? 0) : 0
   const estimatedTotal = kind === 'loader' ? unitRate : unitRate * hours + mobilization
 
@@ -148,6 +181,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
       p_material: kind === 'loader' ? material : null,
       p_site_lat: siteLoc.lat, p_site_lng: siteLoc.lng,
       p_notes: notes.trim() || null, p_payment_method: paymentMethod,
+      p_accepted_offer_id: acceptedRate != null ? rateOffer!.id : null,
     })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -363,6 +397,36 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
                 <button onClick={() => setHours((h) => h + 1)} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">+</button>
               </div>
             </>
+          )}
+
+          {hasNegotiableBand && (
+            <div className="border-2 border-[#e5e2d0] rounded-xl p-3 mb-3">
+              {!rateOffer && (
+                <>
+                  <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.proposeRateLabel')}</label>
+                  <p className="text-[11px] text-[#64748b] mb-1.5">{t('vp.proposeRateHint').replace('{min}', fmt(openVehicle.machinery_hourly_rate_min_pkr ?? 0)).replace('{max}', fmt(openVehicle.machinery_hourly_rate_pkr ?? 0))}</p>
+                  <div className="flex items-center gap-2">
+                    <input type="number" value={proposeRate} onChange={(e) => setProposeRate(e.target.value)} placeholder="0" className="flex-1 border border-[#e5e2d0] rounded-xl p-2 font-sans text-[13px]" />
+                    <button onClick={sendProposal} disabled={proposing} className="px-3 py-2 rounded-xl bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">{t('vp.proposeRateBtn')}</button>
+                  </div>
+                </>
+              )}
+              {rateOffer?.status === 'pending' && (
+                <p className="font-sans text-[12.5px] text-amber-700 ltr-num">{t('vp.yourOfferPendingLabel').replace('{price}', fmt(rateOffer.proposed_rate_pkr))}</p>
+              )}
+              {rateOffer?.status === 'countered' && (
+                <>
+                  <p className="font-sans text-[12.5px] text-amber-700 ltr-num mb-2">{t('vp.ownerCounteredLabel').replace('{price}', fmt(rateOffer.counter_rate_pkr ?? 0))}</p>
+                  <button onClick={acceptCounter} disabled={proposing} className="w-full py-2 rounded-xl bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">{t('vp.acceptCounterBtn')}</button>
+                </>
+              )}
+              {rateOffer?.status === 'accepted' && (
+                <p className="font-sans text-[12.5px] text-emerald-700 ltr-num">{t('vp.offerAcceptedLabel').replace('{price}', fmt(acceptedRate ?? 0))}</p>
+              )}
+              {rateOffer?.status === 'rejected' && (
+                <p className="font-sans text-[12.5px] text-[#b91c1c]">{t('vp.offerRejectedLabel')}</p>
+              )}
+            </div>
           )}
 
           <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.siteAddressLabel')}</label>

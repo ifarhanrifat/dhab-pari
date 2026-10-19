@@ -20,6 +20,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicker'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
+import { FairPriceHint } from '@/components/mobility/FairPriceHint'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -426,6 +427,7 @@ export default function MyVehicleTripsPage() {
               <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('cm.distanceKmOptionalLabel')}</label>
               <input type="number" value={tripForm.distance_km} onChange={(e) => setTripForm({ ...tripForm, distance_km: e.target.value })} className={inputCls} placeholder={t('cm.distanceKmPlaceholder')} />
               <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('cm.distanceKmHint')}</p>
+              <FairPriceHint flow="trip_share" distanceKm={tripForm.distance_km ? Number(tripForm.distance_km) : null} />
             </div>
             <div>
               <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('cm.destPinLabel')}</label>
