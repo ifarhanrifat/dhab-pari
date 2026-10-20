@@ -29,7 +29,24 @@ interface PaidIlan {
   contact_mobile: string | null
   vehicle_route_id: string | null
   vehicle_trip_offer_id: string | null
-  vehicle_trip_offers: { destination: string } | { destination: string }[] | null
+  vehicle_trip_offers: { destination: string; status: string } | { destination: string; status: string }[] | null
+  vehicle_routes: { is_active: boolean } | { is_active: boolean }[] | null
+}
+
+function ilanSourceStillLive(ci: PaidIlan): boolean {
+  // Real bug found live, 2026-10-20: a cancelled/closed ride's ad kept
+  // showing indefinitely — some trip/route-closing code paths update
+  // vehicle_trip_offers/vehicle_routes directly without also pausing
+  // the commercial_ilan that advertised it (only the two explicit
+  // "close" RPCs do that sync; several older raw-UPDATE paths don't).
+  // Rather than chase down and patch every such path, the belt now
+  // checks the real source's own current status itself at display
+  // time — correct regardless of which path closed it, present or future.
+  const tripOffer = Array.isArray(ci.vehicle_trip_offers) ? ci.vehicle_trip_offers[0] : ci.vehicle_trip_offers
+  const route = Array.isArray(ci.vehicle_routes) ? ci.vehicle_routes[0] : ci.vehicle_routes
+  if (ci.vehicle_trip_offer_id && tripOffer && tripOffer.status !== 'open') return false
+  if (ci.vehicle_route_id && route && !route.is_active) return false
+  return true
 }
 
 // Real ask, 2026-10-17: "can a click on those news and alerts and
@@ -201,14 +218,14 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
     // let the request through.
     const { data: ci } = await supabase
       .from('commercial_ilans')
-      .select('id, title_ur, body_ur, contact_mobile, vehicle_route_id, vehicle_trip_offer_id, vehicle_trip_offers(destination)')
+      .select('id, title_ur, body_ur, contact_mobile, vehicle_route_id, vehicle_trip_offer_id, vehicle_trip_offers(destination, status), vehicle_routes(is_active)')
       .in('placement', ['ticker', 'auto_trip'])
       .eq('status', 'approved')
       .eq('is_paused', false)
       .lte('starts_at', new Date().toISOString())
       .gt('ends_at', new Date().toISOString())
       .order('created_at', { ascending: false })
-    setPaidIlans((ci ?? []) as PaidIlan[])
+    setPaidIlans(((ci ?? []) as PaidIlan[]).filter(ilanSourceStillLive))
 
     // Real ask, 2026-10-01: the calm belt now runs on every surface, not
     // just the public site — portal and admin get it too. Appeal-sourced

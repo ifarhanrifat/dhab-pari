@@ -32,10 +32,18 @@ export function IlanBanner() {
     if (dismissed) { setShow(false); return }
 
     const supabase = createClient()
+    // Real gap found live, 2026-10-20: this had no status/is_paused/
+    // date-range filter at all — a pending or rejected banner ilan (or
+    // one whose own run already ended) could show here, unlike every
+    // other ilan placement in this app, which all check these fields.
     supabase
       .from('commercial_ilans')
       .select('id, title_ur, title_en, body_ur, body_en, contact_mobile')
       .eq('placement', 'banner')
+      .eq('status', 'approved')
+      .eq('is_paused', false)
+      .lte('starts_at', new Date().toISOString())
+      .gt('ends_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
