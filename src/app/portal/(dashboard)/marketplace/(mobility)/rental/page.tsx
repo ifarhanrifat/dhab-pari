@@ -237,20 +237,37 @@ export default function RentalPage() {
               </button>
             </div>
 
-            <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.rentalFromLabel')}</label>
-            <button onClick={() => setShowPicker('from')} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
-              <MapPin size={15} className="text-[#166534] shrink-0" />
-              <span className={`text-[13.5px] truncate ${fromLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{fromLoc ? fromLoc.label : t('vp.rentalFromPlaceholder')}</span>
-            </button>
+            {/* Real complaint: opening the map as a second popup over
+                this page "is wrong" — it now expands right here, in the
+                same card, instead of stacking another sheet on top. */}
+            {showPicker ? (
+              <div className="mb-3">
+                <LocationPickerSheet
+                  title={showPicker === 'from' ? t('vp.rentalFromLabel') : t('vp.rentalToLabel')}
+                  initial={showPicker === 'from' ? fromLoc : toLoc}
+                  inline
+                  onClose={() => setShowPicker(null)}
+                  onConfirm={(loc) => { if (showPicker === 'from') setFromLoc(loc); else setToLoc(loc); setShowPicker(null) }}
+                />
+              </div>
+            ) : (
+              <>
+                <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.rentalFromLabel')}</label>
+                <button onClick={() => setShowPicker('from')} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
+                  <MapPin size={15} className="text-[#166534] shrink-0" />
+                  <span className={`text-[13.5px] truncate ${fromLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{fromLoc ? fromLoc.label : t('vp.rentalFromPlaceholder')}</span>
+                </button>
 
-            <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.rentalToLabel')}</label>
-            <button onClick={() => setShowPicker('to')} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
-              <MapPin size={15} className="text-[#b91c1c] shrink-0" />
-              <span className={`text-[13.5px] truncate ${toLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{toLoc ? toLoc.label : t('vp.rentalToPlaceholder')}</span>
-            </button>
+                <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.rentalToLabel')}</label>
+                <button onClick={() => setShowPicker('to')} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
+                  <MapPin size={15} className="text-[#b91c1c] shrink-0" />
+                  <span className={`text-[13.5px] truncate ${toLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{toLoc ? toLoc.label : t('vp.rentalToPlaceholder')}</span>
+                </button>
 
-            {haveRoute && (
-              <LeafletMap pins={[{ lat: fromLoc!.lat, lng: fromLoc!.lng, color: '#166534' }, { lat: toLoc!.lat, lng: toLoc!.lng, color: '#b91c1c' }]} height={130} className="rounded-xl mb-3" />
+                {haveRoute && (
+                  <LeafletMap pins={[{ lat: fromLoc!.lat, lng: fromLoc!.lng, color: '#166534' }, { lat: toLoc!.lat, lng: toLoc!.lng, color: '#b91c1c' }]} height={130} className="rounded-xl mb-3" />
+                )}
+              </>
             )}
 
             {tripType === 'return' && (
@@ -410,14 +427,6 @@ export default function RentalPage() {
         </MobilityBottomSheet>
       )}
 
-      {showPicker && (
-        <LocationPickerSheet
-          title={showPicker === 'from' ? t('vp.rentalFromLabel') : t('vp.rentalToLabel')}
-          initial={showPicker === 'from' ? fromLoc : toLoc}
-          onClose={() => setShowPicker(null)}
-          onConfirm={(loc) => { if (showPicker === 'from') setFromLoc(loc); else setToLoc(loc); setShowPicker(null) }}
-        />
-      )}
     </div>
   )
 }

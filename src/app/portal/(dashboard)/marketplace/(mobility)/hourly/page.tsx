@@ -308,12 +308,26 @@ export default function HourlyRentalPage() {
             <button onClick={() => setHours((h) => h + 1)} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">+</button>
           </div>
 
-          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.pickupAddressLabel')}</label>
-          {pickupLoc && <LeafletMap pins={[{ lat: pickupLoc.lat, lng: pickupLoc.lng, color: '#166534' }]} height={140} className="rounded-xl mb-2" />}
-          <button onClick={() => setShowPicker(true)} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
-            <MapPin size={15} className="text-[#166534] shrink-0" />
-            <span className={`text-[13.5px] truncate ${pickupLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{pickupLoc ? pickupLoc.label : t('vp.pickupAddressPlaceholder')}</span>
-          </button>
+          {showPicker ? (
+            <div className="mb-3">
+              <LocationPickerSheet
+                title={t('vp.pickupAddressLabel')}
+                initial={pickupLoc}
+                inline
+                onClose={() => setShowPicker(false)}
+                onConfirm={(loc) => { setPickupLoc(loc); setShowPicker(false) }}
+              />
+            </div>
+          ) : (
+            <>
+              <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.pickupAddressLabel')}</label>
+              {pickupLoc && <LeafletMap pins={[{ lat: pickupLoc.lat, lng: pickupLoc.lng, color: '#166534' }]} height={140} className="rounded-xl mb-2" />}
+              <button onClick={() => setShowPicker(true)} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
+                <MapPin size={15} className="text-[#166534] shrink-0" />
+                <span className={`text-[13.5px] truncate ${pickupLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{pickupLoc ? pickupLoc.label : t('vp.pickupAddressPlaceholder')}</span>
+              </button>
+            </>
+          )}
 
           <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.notesLabel')}</label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder={t('vp.hourlyNotesPlaceholder')}
@@ -348,14 +362,6 @@ export default function HourlyRentalPage() {
         </MobilityBottomSheet>
       )}
 
-      {showPicker && (
-        <LocationPickerSheet
-          title={t('vp.pickupAddressLabel')}
-          initial={pickupLoc}
-          onClose={() => setShowPicker(false)}
-          onConfirm={(loc) => { setPickupLoc(loc); setShowPicker(false) }}
-        />
-      )}
     </div>
   )
 }

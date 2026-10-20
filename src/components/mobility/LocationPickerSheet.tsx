@@ -18,10 +18,32 @@
 // label automatically) — the label field stays a plain, editable input
 // either way, exactly as asked ("it can be editable so people can
 // choose this manually"), never locked to what geocoding returned.
+//
+// Real complaint, same day: "the popup of the map again when user click
+// on the start point or destination is wrong... make this request page
+// big enough to display the map on that too." Opening this as ANOTHER
+// sheet stacked over the page the rider was already filling in (one
+// popup launching another) read as broken, not modern. `inline` renders
+// the exact same search/map/GPS/label UI directly in the page's own
+// flow instead — no scrim, no fixed overlay, just expands the page in
+// place where the From/To button was. The sheet variant stays available
+// for anything that genuinely wants a modal (none of this session's
+// callers do any more, but the component still supports it).
+//
+// Real gap found live, 2026-10-20: "the map search is not working, not
+// finding any city or place." Confirmed directly — nominatim.openstreetmap.org
+// now hard-blocks this app's requests outright (403 "Access denied",
+// reproducible from a plain curl, same result with every User-Agent/
+// Referer tried — this is their own anti-abuse policy rejecting the
+// traffic, not a quota or a code bug). Switched both search and reverse-
+// geocode to Photon (photon.komoot.io, komoot's free OSM-based geocoder,
+// no API key, confirmed CORS-open and working live) — same free, no-
+// billing OSM ecosystem as the map tiles and OSRM routing, just a
+// provider that actually answers.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
-import { Target, Loader2, Search } from 'lucide-react'
+import { Target, Loader2, Search, ArrowLeft } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { getCurrentPositionOnce, classifyLocationError, type LocationErrorReason } from '@/hooks/useLiveLocation'
@@ -35,34 +57,43 @@ interface Props {
   defaultCenter?: [number, number]
   onConfirm: (loc: PickedLocation) => void
   onClose: () => void
+  /** Render directly in the page's own flow instead of as a popup sheet. */
+  inline?: boolean
 }
 
 interface SearchResult { lat: number; lng: number; displayName: string }
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
-// Nominatim (OpenStreetMap's free geocoder, same no-API-key/no-billing
-// ecosystem the map tiles and OSRM routing already use elsewhere in
-// this app) — a descriptive User-Agent header is its own usage policy's
-// one real requirement.
-async function nominatimSearch(query: string): Promise<SearchResult[]> {
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=6&countrycodes=pk`, {
-    headers: { 'Accept-Language': 'en,ur' },
-  })
-  if (!res.ok) return []
-  const data = (await res.json()) as Array<{ lat: string; lon: string; display_name: string }>
-  return data.map((d) => ({ lat: parseFloat(d.lat), lng: parseFloat(d.lon), displayName: d.display_name }))
-}
-async function nominatimReverse(lat: number, lng: number): Promise<string | null> {
-  const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16`, {
-    headers: { 'Accept-Language': 'en,ur' },
-  })
-  if (!res.ok) return null
-  const data = (await res.json()) as { display_name?: string }
-  return data.display_name ?? null
+// Pakistan's bounding box — this app never needs a result outside it,
+// and Photon's `bbox` param (unlike Nominatim's `countrycodes`) treats
+// it as a hard filter, which is exactly the scoping `countrycodes=pk`
+// used to give us.
+const PK_BBOX = '60.5,23.0,77.5,37.5'
+
+interface PhotonProps { name?: string; street?: string; city?: string; county?: string; state?: string }
+interface PhotonFeature { geometry: { coordinates: [number, number] }; properties: PhotonProps }
+function photonLabel(p: PhotonProps): string {
+  return [p.name, p.street, p.city, p.county, p.state].filter(Boolean).join(', ')
 }
 
-export function LocationPickerSheet({ title, initial, defaultCenter, onConfirm, onClose }: Props) {
+async function geocodeSearch(query: string): Promise<SearchResult[]> {
+  const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6&lang=en&bbox=${PK_BBOX}`)
+  if (!res.ok) return []
+  const data = (await res.json()) as { features: PhotonFeature[] }
+  return data.features
+    .map((f) => ({ lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], displayName: photonLabel(f.properties) }))
+    .filter((r) => r.displayName)
+}
+async function geocodeReverse(lat: number, lng: number): Promise<string | null> {
+  const res = await fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}&lang=en`)
+  if (!res.ok) return null
+  const data = (await res.json()) as { features: PhotonFeature[] }
+  const label = data.features[0] ? photonLabel(data.features[0].properties) : ''
+  return label || null
+}
+
+function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose, inline }: Props) {
   const { t } = useLocale()
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(initial ? { lat: initial.lat, lng: initial.lng } : null)
   const [label, setLabel] = useState(initial?.label ?? '')
@@ -79,7 +110,7 @@ export function LocationPickerSheet({ title, initial, defaultCenter, onConfirm, 
     if (q.length < 3) { setResults([]); return }
     setSearching(true)
     const handle = setTimeout(() => {
-      nominatimSearch(q).then(setResults).catch(() => setResults([])).finally(() => setSearching(false))
+      geocodeSearch(q).then(setResults).catch(() => setResults([])).finally(() => setSearching(false))
     }, 400)
     return () => clearTimeout(handle)
   }, [query])
@@ -88,7 +119,7 @@ export function LocationPickerSheet({ title, initial, defaultCenter, onConfirm, 
     setPin({ lat, lng })
     labelEditedRef.current = false
     setReverseLookingUp(true)
-    nominatimReverse(lat, lng).then((name) => {
+    geocodeReverse(lat, lng).then((name) => {
       if (name && !labelEditedRef.current) setLabel(name)
     }).finally(() => setReverseLookingUp(false))
   }
@@ -116,50 +147,68 @@ export function LocationPickerSheet({ title, initial, defaultCenter, onConfirm, 
 
   const canConfirm = !!pin && label.trim().length > 0
 
+  const body = (
+    <div className="flex flex-col gap-2.5">
+      {inline && (
+        <button onClick={onClose} className="flex items-center gap-1.5 font-sans text-[13px] font-semibold text-[#166534] cursor-pointer w-fit -mt-1 mb-1">
+          <ArrowLeft size={14} /> {title}
+        </button>
+      )}
+      <div className="relative">
+        <Search size={14} className="absolute top-1/2 -translate-y-1/2 start-3 text-[#94a3b8]" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('mb.searchLocationPlaceholder')} className="dp2-input ps-9" />
+        {searching && <Loader2 size={13} className="absolute top-1/2 -translate-y-1/2 end-3 text-[#94a3b8] animate-spin" />}
+        {results.length > 0 && (
+          <div className="absolute z-10 top-full mt-1 inset-x-0 border border-[#e5e2d0] rounded-xl overflow-hidden bg-white shadow-lg max-h-[180px] overflow-y-auto">
+            {results.map((r, i) => (
+              <button key={i} type="button" onClick={() => pickSearchResult(r)} className="w-full text-start px-3 py-2 font-sans text-[12.5px] cursor-pointer hover:bg-[#F9F9F6] border-b border-[#f1f5f9] last:border-0">
+                {r.displayName}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <LeafletMap
+        pins={pin ? [{ lat: pin.lat, lng: pin.lng, color: '#166534' }] : []}
+        center={defaultCenter}
+        height={inline ? 280 : 240}
+        zoom={14}
+        className="rounded-xl border border-[#e5e2d0]"
+        onMapClick={(lat, lng) => setPinAndReverseGeocode(lat, lng)}
+      />
+      <button onClick={useGps} disabled={locating} className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#e5e2d0] text-[#166534] font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-50">
+        {locating ? <Loader2 size={13} className="animate-spin" /> : <Target size={13} />} {t('mb.useMyLocationBtn')}
+      </button>
+      <p className="font-sans text-[11.5px] text-[#64748b] text-center -mt-1">{t('mb.tapMapToPinHint')}</p>
+      <div>
+        <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mb.locationLabelField')}</label>
+        <div className="relative">
+          <input value={label} onChange={(e) => { labelEditedRef.current = true; setLabel(e.target.value) }} placeholder={t('mb.locationLabelPlaceholder')} className="dp2-input" />
+          {reverseLookingUp && <Loader2 size={13} className="absolute top-1/2 -translate-y-1/2 end-3 text-[#94a3b8] animate-spin" />}
+        </div>
+      </div>
+      <button onClick={() => pin && onConfirm({ lat: pin.lat, lng: pin.lng, label: label.trim() })} disabled={!canConfirm}
+        className="w-full bg-[#166534] text-white rounded-xl py-3 font-sans font-semibold text-[14px] cursor-pointer disabled:opacity-40">
+        {t('mb.confirmLocationBtn')}
+      </button>
+    </div>
+  )
+
+  let shell: ReactNode
+  if (inline) {
+    shell = <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">{body}</div>
+  } else {
+    shell = <MobilityBottomSheet title={title} onClose={onClose}>{body}</MobilityBottomSheet>
+  }
+
   return (
     <>
-      <MobilityBottomSheet title={title} onClose={onClose}>
-        <div className="flex flex-col gap-2.5">
-          <div className="relative">
-            <Search size={14} className="absolute top-1/2 -translate-y-1/2 start-3 text-[#94a3b8]" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('mb.searchLocationPlaceholder')} className="dp2-input ps-9" />
-            {searching && <Loader2 size={13} className="absolute top-1/2 -translate-y-1/2 end-3 text-[#94a3b8] animate-spin" />}
-            {results.length > 0 && (
-              <div className="absolute z-10 top-full mt-1 inset-x-0 border border-[#e5e2d0] rounded-xl overflow-hidden bg-white shadow-lg max-h-[180px] overflow-y-auto">
-                {results.map((r, i) => (
-                  <button key={i} type="button" onClick={() => pickSearchResult(r)} className="w-full text-start px-3 py-2 font-sans text-[12.5px] cursor-pointer hover:bg-[#F9F9F6] border-b border-[#f1f5f9] last:border-0">
-                    {r.displayName}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <LeafletMap
-            pins={pin ? [{ lat: pin.lat, lng: pin.lng, color: '#166534' }] : []}
-            center={defaultCenter}
-            height={240}
-            zoom={14}
-            className="rounded-xl border border-[#e5e2d0]"
-            onMapClick={(lat, lng) => setPinAndReverseGeocode(lat, lng)}
-          />
-          <button onClick={useGps} disabled={locating} className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#e5e2d0] text-[#166534] font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-50">
-            {locating ? <Loader2 size={13} className="animate-spin" /> : <Target size={13} />} {t('mb.useMyLocationBtn')}
-          </button>
-          <p className="font-sans text-[11.5px] text-[#64748b] text-center -mt-1">{t('mb.tapMapToPinHint')}</p>
-          <div>
-            <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mb.locationLabelField')}</label>
-            <div className="relative">
-              <input value={label} onChange={(e) => { labelEditedRef.current = true; setLabel(e.target.value) }} placeholder={t('mb.locationLabelPlaceholder')} className="dp2-input" />
-              {reverseLookingUp && <Loader2 size={13} className="absolute top-1/2 -translate-y-1/2 end-3 text-[#94a3b8] animate-spin" />}
-            </div>
-          </div>
-          <button onClick={() => pin && onConfirm({ lat: pin.lat, lng: pin.lng, label: label.trim() })} disabled={!canConfirm}
-            className="w-full bg-[#166534] text-white rounded-xl py-3 font-sans font-semibold text-[14px] cursor-pointer disabled:opacity-40">
-            {t('mb.confirmLocationBtn')}
-          </button>
-        </div>
-      </MobilityBottomSheet>
+      {shell}
       {locationModalReason && <LocationSettingsModal reason={locationModalReason} onClose={() => setLocationModalReason(null)} />}
     </>
   )
+}
+
+export function LocationPickerSheet(props: Props) {
+  return <LocationPickerBody {...props} />
 }

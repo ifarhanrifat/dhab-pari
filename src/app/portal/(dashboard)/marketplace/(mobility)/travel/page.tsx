@@ -147,40 +147,63 @@ export default function MobilityHomePage() {
 
       {pins.length > 0 && <LeafletMap pins={pins} height={190} className="rounded-2xl" />}
 
-      {/* Search card */}
+      {/* Search card — real complaint: a map popup opening on top of this
+          card "is wrong"; it now expands inline in the same card. */}
       <div className="bg-white rounded-2xl shadow-[0_-6px_20px_rgba(0,0,0,.08)] p-3.5 flex flex-col gap-2.5">
-        <p className="font-bold text-[15px] text-[#005A36]">{t('mb.whereToHeading')}</p>
-        <div className="flex flex-col border border-[#e5e2d0] rounded-2xl overflow-hidden">
-          <button onClick={() => setShowOriginPicker(true)} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer text-start">
-            <span className="shrink-0 w-2.5 h-2.5 rounded-full border-2 border-[#166534]" />
-            <span className="flex-1 min-w-0 text-[13px] font-semibold text-[#334155] truncate">{origin?.name ?? t('mb.fromPlaceholder')}</span>
-          </button>
-          <div className="h-px bg-[#f1f5f9] ms-8" />
-          <button onClick={() => setShowDestPicker(true)} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer text-start">
-            <span className="shrink-0 w-2.5 h-2.5 rounded-sm bg-[#D4AF37]" />
-            <span className={`flex-1 min-w-0 text-[13px] truncate ${(toCity || destPin) ? 'font-bold text-[#1e293b]' : 'text-[#94a3b8]'}`}>{destPin ? destPin.label : toCity ? (isUrdu && toCity.name_ur ? toCity.name_ur : toCity.name) : t('mb.toPlaceholder')}</span>
-            <Search size={13} className="shrink-0 text-[#94a3b8]" />
-          </button>
-        </div>
+        {showOriginPicker ? (
+          <LocationPickerSheet
+            title={t('mb.fromPlaceholder')}
+            initial={origin ? { lat: origin.lat, lng: origin.lng, label: origin.name } : null}
+            defaultCenter={origin ? [origin.lat, origin.lng] : undefined}
+            inline
+            onClose={() => setShowOriginPicker(false)}
+            onConfirm={(loc) => { setOrigin({ lat: loc.lat, lng: loc.lng, name: loc.label, id: 'custom' }); setShowOriginPicker(false) }}
+          />
+        ) : showDestPicker ? (
+          <LocationPickerSheet
+            title={t('mb.toPlaceholder')}
+            initial={destPin}
+            defaultCenter={origin ? [origin.lat, origin.lng] : undefined}
+            inline
+            onClose={() => setShowDestPicker(false)}
+            onConfirm={confirmDestPin}
+          />
+        ) : (
+          <>
+            <p className="font-bold text-[15px] text-[#005A36]">{t('mb.whereToHeading')}</p>
+            <div className="flex flex-col border border-[#e5e2d0] rounded-2xl overflow-hidden">
+              <button onClick={() => setShowOriginPicker(true)} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer text-start">
+                <span className="shrink-0 w-2.5 h-2.5 rounded-full border-2 border-[#166534]" />
+                <span className="flex-1 min-w-0 text-[13px] font-semibold text-[#334155] truncate">{origin?.name ?? t('mb.fromPlaceholder')}</span>
+              </button>
+              <div className="h-px bg-[#f1f5f9] ms-8" />
+              <button onClick={() => setShowDestPicker(true)} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer text-start">
+                <span className="shrink-0 w-2.5 h-2.5 rounded-sm bg-[#D4AF37]" />
+                <span className={`flex-1 min-w-0 text-[13px] truncate ${(toCity || destPin) ? 'font-bold text-[#1e293b]' : 'text-[#94a3b8]'}`}>{destPin ? destPin.label : toCity ? (isUrdu && toCity.name_ur ? toCity.name_ur : toCity.name) : t('mb.toPlaceholder')}</span>
+                <Search size={13} className="shrink-0 text-[#94a3b8]" />
+              </button>
+            </div>
 
-        <div className="-mx-3.5 px-3.5 overflow-x-auto">
-          <div className="flex gap-1.5 w-max">
-            {cities.map((c) => {
-              const on = toCity?.id === c.id
-              return (
-                <button key={c.id} onClick={() => { setToCity(c); setDestPin(null) }}
-                  className="shrink-0 px-2.5 py-1 rounded-full text-[9.5px] font-semibold whitespace-nowrap cursor-pointer border"
-                  style={{ background: on ? '#166534' : '#fff', color: on ? '#fff' : '#334155', borderColor: on ? '#166534' : '#e2e8f0' }}>
-                  📍 {isUrdu && c.name_ur ? c.name_ur : c.name}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+            <div className="-mx-3.5 px-3.5 overflow-x-auto">
+              <div className="flex gap-1.5 w-max">
+                {cities.map((c) => {
+                  const on = toCity?.id === c.id
+                  return (
+                    <button key={c.id} onClick={() => { setToCity(c); setDestPin(null) }}
+                      className="shrink-0 px-2.5 py-1 rounded-full text-[9.5px] font-semibold whitespace-nowrap cursor-pointer border"
+                      style={{ background: on ? '#166534' : '#fff', color: on ? '#fff' : '#334155', borderColor: on ? '#166534' : '#e2e8f0' }}>
+                      📍 {isUrdu && c.name_ur ? c.name_ur : c.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
-        <button onClick={findVehicles} disabled={!toCity} className="w-full bg-[#166534] disabled:bg-[#166534]/40 text-white rounded-xl py-2.5 font-bold text-[13px] cursor-pointer disabled:cursor-not-allowed">
-          {t('mb.findVehiclesBtn')}
-        </button>
+            <button onClick={findVehicles} disabled={!toCity} className="w-full bg-[#166534] disabled:bg-[#166534]/40 text-white rounded-xl py-2.5 font-bold text-[13px] cursor-pointer disabled:cursor-not-allowed">
+              {t('mb.findVehiclesBtn')}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Adda departure board — exact flap/seat-dots shape */}
@@ -232,24 +255,6 @@ export default function MobilityHomePage() {
         </div>
       </div>
 
-      {showOriginPicker && (
-        <LocationPickerSheet
-          title={t('mb.fromPlaceholder')}
-          initial={origin ? { lat: origin.lat, lng: origin.lng, label: origin.name } : null}
-          defaultCenter={origin ? [origin.lat, origin.lng] : undefined}
-          onClose={() => setShowOriginPicker(false)}
-          onConfirm={(loc) => { setOrigin({ lat: loc.lat, lng: loc.lng, name: loc.label, id: 'custom' }); setShowOriginPicker(false) }}
-        />
-      )}
-      {showDestPicker && (
-        <LocationPickerSheet
-          title={t('mb.toPlaceholder')}
-          initial={destPin}
-          defaultCenter={origin ? [origin.lat, origin.lng] : undefined}
-          onClose={() => setShowDestPicker(false)}
-          onConfirm={confirmDestPin}
-        />
-      )}
     </div>
   )
 }

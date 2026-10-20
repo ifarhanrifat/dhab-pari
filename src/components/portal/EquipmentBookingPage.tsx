@@ -429,12 +429,26 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
             </div>
           )}
 
-          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.siteAddressLabel')}</label>
-          {siteLoc && <LeafletMap pins={[{ lat: siteLoc.lat, lng: siteLoc.lng, color: '#166534' }]} height={140} className="rounded-xl mb-2" />}
-          <button onClick={() => setShowPicker(true)} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
-            <MapPin size={15} className="text-[#166534] shrink-0" />
-            <span className={`text-[13.5px] truncate ${siteLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{siteLoc ? siteLoc.label : t('vp.siteAddressPlaceholder')}</span>
-          </button>
+          {showPicker ? (
+            <div className="mb-3">
+              <LocationPickerSheet
+                title={t('vp.siteAddressLabel')}
+                initial={siteLoc}
+                inline
+                onClose={() => setShowPicker(false)}
+                onConfirm={(loc) => { setSiteLoc(loc); setShowPicker(false) }}
+              />
+            </div>
+          ) : (
+            <>
+              <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.siteAddressLabel')}</label>
+              {siteLoc && <LeafletMap pins={[{ lat: siteLoc.lat, lng: siteLoc.lng, color: '#166534' }]} height={140} className="rounded-xl mb-2" />}
+              <button onClick={() => setShowPicker(true)} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
+                <MapPin size={15} className="text-[#166534] shrink-0" />
+                <span className={`text-[13.5px] truncate ${siteLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{siteLoc ? siteLoc.label : t('vp.siteAddressPlaceholder')}</span>
+              </button>
+            </>
+          )}
 
           <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.notesLabel')}</label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t('vp.equipmentNotesPlaceholder')}
@@ -472,14 +486,6 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
         </MobilityBottomSheet>
       )}
 
-      {showPicker && (
-        <LocationPickerSheet
-          title={t('vp.siteAddressLabel')}
-          initial={siteLoc}
-          onClose={() => setShowPicker(false)}
-          onConfirm={(loc) => { setSiteLoc(loc); setShowPicker(false) }}
-        />
-      )}
     </div>
   )
 }

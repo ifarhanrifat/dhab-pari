@@ -196,12 +196,26 @@ export default function ShadiBookingPage() {
                 <input type="number" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} placeholder={t('vp.distanceKmPlaceholder')} className="dp2-input text-[13.5px]" />
               </div>
             </div>
-            <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.venueAddressLabel')}</label>
-            {venueLoc && <LeafletMap pins={[{ lat: venueLoc.lat, lng: venueLoc.lng, color: '#166534' }]} height={140} className="rounded-xl mb-2" />}
-            <button onClick={() => setShowPicker(true)} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
-              <MapPin size={15} className="text-[#166534] shrink-0" />
-              <span className={`text-[13.5px] truncate ${venueLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{venueLoc ? venueLoc.label : t('vp.venueAddressPlaceholder')}</span>
-            </button>
+            {showPicker ? (
+              <div className="mb-3">
+                <LocationPickerSheet
+                  title={t('vp.venueAddressLabel')}
+                  initial={venueLoc}
+                  inline
+                  onClose={() => setShowPicker(false)}
+                  onConfirm={(loc) => { setVenueLoc(loc); setShowPicker(false) }}
+                />
+              </div>
+            ) : (
+              <>
+                <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.venueAddressLabel')}</label>
+                {venueLoc && <LeafletMap pins={[{ lat: venueLoc.lat, lng: venueLoc.lng, color: '#166534' }]} height={140} className="rounded-xl mb-2" />}
+                <button onClick={() => setShowPicker(true)} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
+                  <MapPin size={15} className="text-[#166534] shrink-0" />
+                  <span className={`text-[13.5px] truncate ${venueLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{venueLoc ? venueLoc.label : t('vp.venueAddressPlaceholder')}</span>
+                </button>
+              </>
+            )}
             <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.shadiNotesLabel')}</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder={t('vp.shadiNotesPlaceholder')}
               className="dp2-input text-[13.5px] resize-none leading-relaxed" />
@@ -246,15 +260,6 @@ export default function ShadiBookingPage() {
             })}
           </div>
         )
-      )}
-
-      {showPicker && (
-        <LocationPickerSheet
-          title={t('vp.venueAddressLabel')}
-          initial={venueLoc}
-          onClose={() => setShowPicker(false)}
-          onConfirm={(loc) => { setVenueLoc(loc); setShowPicker(false) }}
-        />
       )}
 
       {openVehicle && (
