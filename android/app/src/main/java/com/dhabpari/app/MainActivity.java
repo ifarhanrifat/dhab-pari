@@ -1,6 +1,7 @@
 package com.dhabpari.app;
 
 import android.os.Bundle;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -17,6 +18,33 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(WhatsAppSharePlugin.class);
         registerPlugin(PrintPlugin.class);
         super.onCreate(savedInstanceState);
+
+        // Real bug, confirmed live, 2026-10-20: a page (the committee
+        // announcement card) went stale inside this app specifically —
+        // the same URL in a plain Chrome tab on the same device always
+        // showed the current content. The server side was already
+        // confirmed correct (the document and sw.js are both served
+        // fully uncacheable — Cache-Control: no-store / must-revalidate
+        // — and the service worker itself does no caching of its own at
+        // all), and a web-only fix (updateViaCache: 'none' on the
+        // service worker registration) didn't hold either — because that
+        // fix lives inside the very JS bundle that was itself stale, so
+        // a device already stuck could never run it to begin with. Only
+        // a full reinstall — which wipes this WebView's own storage —
+        // ever actually cleared it, which is the real tell: Android's
+        // WebView component keeps its OWN native HTTP disk cache,
+        // underneath both the Service Worker and this app's own JS, and
+        // its default cache mode (LOAD_DEFAULT) does not reliably treat
+        // this app's top-level page the way a full Chrome browser does.
+        // Forcing LOAD_NO_CACHE here means every request this WebView
+        // makes always goes to the network, full stop — a native-level
+        // guarantee that doesn't depend on any JS (service worker or
+        // otherwise) ever running correctly to take effect, so it can't
+        // be defeated by the exact failure mode that caused this bug.
+        WebView earlyWebView = getBridge() != null ? getBridge().getWebView() : null;
+        if (earlyWebView != null) {
+            earlyWebView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+        }
 
         // Real bug, confirmed live on a Pixel 4a: the ticker/header rendered
         // behind the status bar. targetSdkVersion 36 (variables.gradle)
