@@ -99,8 +99,40 @@ export function PwaProvider() {
     let updateInterval: ReturnType<typeof setInterval> | undefined
 
     // Registered after load so it never competes with the first paint.
+    //
+    // Real ask, 2026-10-20: "after reinstalling the app it's now shown
+    // the committee message... this bug should be cleared once for
+    // all." Confirmed the page itself and sw.js are both served fully
+    // uncacheable (checked live: `Cache-Control: no-store` on the page,
+    // `max-age=0, must-revalidate` on sw.js) — so a reinstall fixing it
+    // when nothing else did means something below the Fetch API was
+    // holding a stale copy of sw.js itself: a device's underlying
+    // WebView/browser disk cache serving an old sw.js to the update
+    // check, which then (correctly, given what it was shown) decided
+    // "no update" and kept running the old worker forever — the
+    // 5-minute reg.update() loop below was comparing against stale
+    // bytes the whole time, never actually a no-op.
+    // `updateViaCache: 'none'` is the spec-level fix for exactly this:
+    // it tells the browser to never use ANY http cache (not the
+    // Service Worker's own, a layer below that) when fetching sw.js to
+    // check for a new version — the only thing that provably prevents
+    // this specific failure mode from ever recurring, rather than
+    // another workaround that could be defeated the same way again.
+    let activeReg: ServiceWorkerRegistration | null = null
+    // The 5-minute interval above only matters if the app actually
+    // stays open and foregrounded that long — Android suspends JS
+    // timers in a backgrounded WebView, so for the far more common
+    // case (open the app, glance at it, close it) that timer may never
+    // fire even once in a whole session. Checking on every re-foreground
+    // targets the exact moment a real person reopens the app instead.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') activeReg?.update().catch(() => {})
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     const onLoad = () => {
-      navigator.serviceWorker.register('/sw.js').then((reg) => {
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then((reg) => {
+        activeReg = reg
         reg.update().catch(() => {})
         updateInterval = setInterval(() => reg.update().catch(() => {}), 5 * 60 * 1000)
       }).catch(() => {})
@@ -109,6 +141,7 @@ export function PwaProvider() {
     else window.addEventListener('load', onLoad)
     return () => {
       window.removeEventListener('load', onLoad)
+      document.removeEventListener('visibilitychange', onVisible)
       if (updateInterval) clearInterval(updateInterval)
     }
   }, [])
