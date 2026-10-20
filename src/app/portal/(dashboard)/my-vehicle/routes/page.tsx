@@ -24,7 +24,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { FairPriceHint } from '@/components/mobility/FairPriceHint'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
-import { fetchRoadRouteAlternatives, type RoadRouteAlternative } from '@/lib/roadRoute'
+import { fetchRoadRouteAlternatives, fetchMultiWaypointRoute, type RoadRouteAlternative } from '@/lib/roadRoute'
 import { RouteStopsEditor } from '@/components/mobility/RouteStopsEditor'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
 
@@ -67,6 +67,7 @@ export default function MyVehicleRoutesPage() {
 
   const [vehicleId, setVehicleId] = useState<string | null>(null)
   const [commissionMode, setCommissionMode] = useState<string | null>(null)
+  const [totalSeats, setTotalSeats] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [routes, setRoutes] = useState<Route[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -86,12 +87,23 @@ export default function MyVehicleRoutesPage() {
   const [destPoint, setDestPoint] = useState<PickedLocation | null>(null)
   const [showOriginPicker, setShowOriginPicker] = useState(false)
   const [showDestPicker, setShowDestPicker] = useState(false)
+  // Real ask, 2026-10-20: a driver who already knows the villages his
+  // van passes through should search each one by name (search already
+  // resolves a real coordinate) and have the actual route drawn
+  // through all of them in order — rather than OSRM picking whatever
+  // "shortest path" it wants between just the two endpoints, which may
+  // not match the real road the van takes at all.
+  const [viaStops, setViaStops] = useState<PickedLocation[]>([])
+  const [showViaPicker, setShowViaPicker] = useState(false)
   // Real roads to a city aren't all the one obvious line a flat map
   // shows — OSRM can return several genuinely distinct driven paths
   // between the same two points; the driver picks which one he
-  // actually drives rather than the system guessing.
+  // actually drives rather than the system guessing. Only meaningful
+  // with no via-stops — once specific villages are pinned, there's
+  // only one real path threading all of them.
   const [pathOptions, setPathOptions] = useState<RoadRouteAlternative[]>([])
   const [chosenPathIdx, setChosenPathIdx] = useState(0)
+  const [multiWaypointPath, setMultiWaypointPath] = useState<{ distanceKm: number; durationMin: number; path: { lat: number; lng: number }[] } | null>(null)
   const [routeLoading, setRouteLoading] = useState(false)
   const [stopsRouteId, setStopsRouteId] = useState<string | null>(null)
   const [pendingIlanRoute, setPendingIlanRoute] = useState<{ origin: string; destination: string } | null>(null)
@@ -125,8 +137,8 @@ export default function MyVehicleRoutesPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, commission_mode').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
-      if (data) { setVehicleId(data.id); setCommissionMode(data.commission_mode); await reload(data.id) }
+    supabase.from('vehicles').select('id, commission_mode, total_seats').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
+      if (data) { setVehicleId(data.id); setCommissionMode(data.commission_mode); setTotalSeats(data.total_seats); await reload(data.id) }
       setLoading(false)
     })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -178,20 +190,33 @@ export default function MyVehicleRoutesPage() {
   }
 
   useEffect(() => {
-    if (!originPoint || !destPoint) { setPathOptions([]); return }
+    if (!originPoint || !destPoint) { setPathOptions([]); setMultiWaypointPath(null); return }
     setRouteLoading(true)
     let cancelled = false
-    fetchRoadRouteAlternatives({ lat: originPoint.lat, lng: originPoint.lng }, { lat: destPoint.lat, lng: destPoint.lng }).then((options) => {
-      if (cancelled) return
-      setPathOptions(options)
-      setChosenPathIdx(0)
-      setForm((f) => ({ ...f, distance_km: String(Math.round(options[0].distanceKm)) }))
-      setRouteLoading(false)
-    })
-    return () => { cancelled = true }
-  }, [originPoint?.lat, originPoint?.lng, destPoint?.lat, destPoint?.lng])
 
-  const chosenPath = pathOptions[chosenPathIdx] ?? null
+    if (viaStops.length > 0) {
+      setPathOptions([])
+      const points = [originPoint, ...viaStops, destPoint].map((p) => ({ lat: p.lat, lng: p.lng }))
+      fetchMultiWaypointRoute(points).then((r) => {
+        if (cancelled) return
+        setMultiWaypointPath(r)
+        if (r) setForm((f) => ({ ...f, distance_km: String(Math.round(r.distanceKm)) }))
+        setRouteLoading(false)
+      })
+    } else {
+      setMultiWaypointPath(null)
+      fetchRoadRouteAlternatives({ lat: originPoint.lat, lng: originPoint.lng }, { lat: destPoint.lat, lng: destPoint.lng }).then((options) => {
+        if (cancelled) return
+        setPathOptions(options)
+        setChosenPathIdx(0)
+        setForm((f) => ({ ...f, distance_km: String(Math.round(options[0].distanceKm)) }))
+        setRouteLoading(false)
+      })
+    }
+    return () => { cancelled = true }
+  }, [originPoint?.lat, originPoint?.lng, destPoint?.lat, destPoint?.lng, viaStops])
+
+  const chosenPath = viaStops.length > 0 ? multiWaypointPath : (pathOptions[chosenPathIdx] ?? null)
   const pickPathOption = (i: number) => {
     setChosenPathIdx(i)
     setForm((f) => ({ ...f, distance_km: String(Math.round(pathOptions[i].distanceKm)) }))
@@ -226,23 +251,42 @@ export default function MyVehicleRoutesPage() {
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+
+    const routeId = data as string
+
+    // Each named via-stop the driver searched and pinned becomes a
+    // real stop, in order, with its own real searched label — no
+    // Photon guessing needed here, the driver already told us exactly
+    // what each one is.
+    for (let i = 0; i < viaStops.length; i++) {
+      const v = viaStops[i]
+      await supabase.rpc('create_route_stop', {
+        p_route_id: routeId, p_label: v.label, p_label_ur: v.label, p_lat: v.lat, p_lng: v.lng, p_village_id: null, p_stop_order: i + 1,
+      })
+    }
+
     toast.success(t('mv.routePosted'))
     setShowForm(false)
-    const routeId = data as string
     setPendingIlanRoute({ origin: form.origin, destination: form.destination })
     setForm(emptyRouteForm)
     setOriginPoint(null)
     setDestPoint(null)
+    setViaStops([])
     setPathOptions([])
     setChosenPathIdx(0)
+    setMultiWaypointPath(null)
     if (vehicleId) reload(vehicleId)
     // Real ask, 2026-10-20: "i cant see manage stops feature anywhere
     // while setting the weekly route" — it was a card action the
     // driver had to go find afterward. Opening it immediately, right
     // where creation just finished, is what actually makes it
-    // discoverable; closing it (stops are optional) is what then
-    // offers to advertise the ride, same prompt as before.
-    setStopsRouteId(routeId)
+    // discoverable — skipped when stops were already pinned above,
+    // since there's nothing left to add; the driver can still reopen
+    // it later from the route card to add more.
+    if (viaStops.length === 0) setStopsRouteId(routeId)
+    else if (confirm(t('mv.advertiseThisRidePrompt'))) {
+      router.push(`/portal/my-vehicle/ilan?route=${routeId}&origin=${encodeURIComponent(form.origin)}&destination=${encodeURIComponent(form.destination)}`)
+    }
   }
 
   const cancelConfirmedBooking = async (id: string) => {
@@ -302,6 +346,14 @@ export default function MyVehicleRoutesPage() {
               onClose={() => setShowDestPicker(false)}
               onConfirm={(loc) => { setDestPoint(loc); setShowDestPicker(false) }}
             />
+          ) : showViaPicker ? (
+            <LocationPickerSheet
+              title={t('mv.addViaStopBtn')}
+              defaultCenter={originPoint ? [originPoint.lat, originPoint.lng] : undefined}
+              inline
+              onClose={() => setShowViaPicker(false)}
+              onConfirm={(loc) => { setViaStops((rows) => [...rows, loc]); setShowViaPicker(false) }}
+            />
           ) : (
             <>
               <div className="grid grid-cols-2 gap-2">
@@ -315,9 +367,38 @@ export default function MyVehicleRoutesPage() {
                 </button>
               </div>
               <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('mv.routeMapPointsHint')}</p>
+
+              {/* Real ask, 2026-10-20: search each village by name (the
+                  search already resolves a real coordinate, confirmed
+                  working) and route through all of them in order —
+                  rather than letting OSRM guess a path between just
+                  origin/destination that may not match the real road
+                  the van takes through its known villages. */}
+              <div>
+                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.viaStopsLabel')}</label>
+                {viaStops.length > 0 && (
+                  <div className="flex flex-col gap-1 mb-1.5">
+                    {viaStops.map((v, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded-lg bg-[#f0fdf4] px-2.5 py-1.5">
+                        <span className="shrink-0 w-5 h-5 rounded-full bg-[#166534] text-white text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
+                        <span className="flex-1 min-w-0 font-sans text-[12px] font-semibold text-[#166534] truncate">{v.label}</span>
+                        <button type="button" onClick={() => setViaStops((rows) => rows.filter((_, idx) => idx !== i))} className="shrink-0 font-sans text-[11px] font-bold text-[#b91c1c] cursor-pointer">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={() => setShowViaPicker(true)} className="flex items-center justify-center gap-1.5 w-full border border-[#e5e2d0] rounded-lg py-2 font-sans text-[12px] font-semibold text-[#166534] cursor-pointer">
+                  <Plus size={13} /> {t('mv.addViaStopBtn')}
+                </button>
+              </div>
+
               {originPoint && destPoint && (
                 <LeafletMap
-                  pins={[{ lat: originPoint.lat, lng: originPoint.lng, color: '#166534' }, { lat: destPoint.lat, lng: destPoint.lng, color: '#D4AF37' }]}
+                  pins={[
+                    { lat: originPoint.lat, lng: originPoint.lng, color: '#166534' },
+                    ...viaStops.map((v) => ({ lat: v.lat, lng: v.lng, color: '#166534', emoji: '📍' })),
+                    { lat: destPoint.lat, lng: destPoint.lng, color: '#D4AF37' },
+                  ]}
                   route={chosenPath?.path}
                   height={140} className="rounded-xl"
                 />
@@ -325,7 +406,7 @@ export default function MyVehicleRoutesPage() {
               {originPoint && destPoint && routeLoading && (
                 <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('action.loading')}</p>
               )}
-              {originPoint && destPoint && pathOptions.length > 1 && (
+              {originPoint && destPoint && viaStops.length === 0 && pathOptions.length > 1 && (
                 <div>
                   <p className="font-sans text-[11px] font-bold text-[#005A36]">{t('mv.routePathOptionsHeading')}</p>
                   <p className="font-sans text-[10px] text-[#64748b] mb-1.5">{t('mv.routePathOptionsHint')}</p>
@@ -351,6 +432,9 @@ export default function MyVehicleRoutesPage() {
             </>
           )}
           <input type="number" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+          {totalSeats != null && (
+            <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('mv.yourVehicleSeatsNote').replace('{n}', String(totalSeats))}</p>
+          )}
           <FairPriceHint flow="route" distanceKm={form.distance_km ? Number(form.distance_km) : null} />
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -504,6 +588,7 @@ export default function MyVehicleRoutesPage() {
             routePath={r?.route_path ?? null}
             departureTime={r?.departure_time ?? null}
             durationMin={r?.route_duration_min ?? null}
+            returnDepartureTime={r?.return_departure_time ?? null}
             onClose={() => {
               setStopsRouteId(null)
               if (pendingIlanRoute) {

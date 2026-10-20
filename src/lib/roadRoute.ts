@@ -70,6 +70,41 @@ export async function fetchRoadRouteAlternatives(a: LatLng, b: LatLng): Promise<
   return [{ distanceKm: haversineKm(a, b) * 1.3, durationMin: (haversineKm(a, b) * 1.3 / 40) * 60, path: [a, b] }]
 }
 
+export interface MultiWaypointRoute { distanceKm: number; durationMin: number; path: LatLng[] }
+
+// Real ask, 2026-10-20: a driver who already knows exactly which
+// villages his van passes through should be able to search each one by
+// name (search already resolves a real coordinate — confirmed working)
+// and have the route actually routed through all of them in order,
+// instead of letting OSRM pick whatever "shortest path" it wants
+// between just the two endpoints, which may not match the real road
+// the van takes at all. OSRM's own multi-coordinate routing already
+// does exactly this — and snaps every point to the nearest real road
+// itself, so a village search landing in the middle of a village never
+// forces the route to literally drive through its interior; nothing
+// extra needs to be built for that part.
+export async function fetchMultiWaypointRoute(points: LatLng[]): Promise<MultiWaypointRoute | null> {
+  if (points.length < 2) return null
+  try {
+    const coords = points.map((p) => `${p.lng},${p.lat}`).join(';')
+    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`)
+    if (res.ok) {
+      const data = (await res.json()) as { routes?: Array<{ distance: number; duration: number; geometry: { coordinates: [number, number][] } }> }
+      const route = data.routes?.[0]
+      if (route) {
+        return {
+          distanceKm: route.distance / 1000,
+          durationMin: route.duration / 60,
+          path: route.geometry.coordinates.map(([lng, lat]) => ({ lat, lng })),
+        }
+      }
+    }
+  } catch {
+    // OSRM unreachable — the caller falls back to treating this as a failed fetch.
+  }
+  return null
+}
+
 // Shared by the rider's stop board, the driver's own stop editor, and
 // the "find a ride near a stop" discovery list — approximate only,
 // interpolated proportionally along a chosen road path by each point's
@@ -85,6 +120,24 @@ export function estimateArrivalTime(path: LatLng[], durationMin: number | null, 
   path.forEach((p, i) => { const d = haversineKm(p, point); if (d < bestDist) { bestDist = d; bestIdx = i } })
   const [h, m] = departureTime.split(':').map(Number)
   const totalMin = h * 60 + m + (cum[bestIdx] / total) * durationMin
+  const hh = Math.floor(totalMin / 60) % 24, mm = Math.round(totalMin % 60)
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+}
+
+// Same proportional estimate, run from the destination end instead —
+// a fixed daily route (school/teacher van) genuinely runs both ways
+// each day it operates, so every stop has its own return time too, not
+// just an outbound one.
+export function estimateReturnArrivalTime(path: LatLng[], durationMin: number | null, returnDepartureTime: string | null, point: LatLng): string | null {
+  if (path.length < 2 || !durationMin || !returnDepartureTime) return null
+  const cum: number[] = [0]
+  for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + haversineKm(path[i - 1], path[i]))
+  const total = cum[cum.length - 1] || 1
+  let bestIdx = 0, bestDist = Infinity
+  path.forEach((p, i) => { const d = haversineKm(p, point); if (d < bestDist) { bestDist = d; bestIdx = i } })
+  const fractionFromDestination = 1 - cum[bestIdx] / total
+  const [h, m] = returnDepartureTime.split(':').map(Number)
+  const totalMin = h * 60 + m + fractionFromDestination * durationMin
   const hh = Math.floor(totalMin / 60) % 24, mm = Math.round(totalMin % 60)
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
 }

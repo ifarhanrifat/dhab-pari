@@ -31,7 +31,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LocationPickerSheet, type PickedLocation, geocodeReverse } from '@/components/mobility/LocationPickerSheet'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { haversineKm, estimateArrivalTime } from '@/lib/roadRoute'
+import { haversineKm, estimateArrivalTime, estimateReturnArrivalTime } from '@/lib/roadRoute'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -41,8 +41,8 @@ interface Suggestion { key: string; label: string; lat: number; lng: number; vil
 
 const DEDUPE_KM = 0.6
 
-export function RouteStopsEditor({ routeId, routePath, departureTime, durationMin, onClose }: {
-  routeId: string; routePath: { lat: number; lng: number }[] | null; departureTime?: string | null; durationMin?: number | null; onClose: () => void
+export function RouteStopsEditor({ routeId, routePath, departureTime, durationMin, returnDepartureTime, onClose }: {
+  routeId: string; routePath: { lat: number; lng: number }[] | null; departureTime?: string | null; durationMin?: number | null; returnDepartureTime?: string | null; onClose: () => void
 }) {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
@@ -136,6 +136,7 @@ export function RouteStopsEditor({ routeId, routePath, departureTime, durationMi
   }
 
   const etaFor = (p: { lat: number; lng: number }) => routePath ? estimateArrivalTime(routePath, durationMin ?? null, departureTime ?? null, p) : null
+  const returnEtaFor = (p: { lat: number; lng: number }) => routePath ? estimateReturnArrivalTime(routePath, durationMin ?? null, returnDepartureTime ?? null, p) : null
 
   return (
     <MobilityBottomSheet title={t('mv.manageStopsHeading')} onClose={onClose}>
@@ -159,11 +160,15 @@ export function RouteStopsEditor({ routeId, routePath, departureTime, durationMi
             <div className="flex flex-col gap-1.5">
               {stops.map((s, i) => {
                 const eta = etaFor(s)
+                const returnEta = returnEtaFor(s)
                 return (
                   <div key={s.id} className="flex items-center gap-2 rounded-lg bg-[#f0fdf4] px-2.5 py-1.5">
                     <span className="shrink-0 w-5 h-5 rounded-full bg-[#166534] text-white text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
                     <span className="flex-1 min-w-0 font-sans text-[12px] font-semibold text-[#166534] truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</span>
-                    {eta && <span className="shrink-0 font-sans text-[10.5px] font-bold text-[#64748b] ltr-num">{t('mp.approxTimePrefix')} {eta}</span>}
+                    <span className="shrink-0 flex flex-col items-end font-sans text-[10px] font-bold text-[#64748b] ltr-num">
+                      {eta && <span>🕒 {eta}</span>}
+                      {returnEta && <span>↩️ {returnEta}</span>}
+                    </span>
                   </div>
                 )
               })}

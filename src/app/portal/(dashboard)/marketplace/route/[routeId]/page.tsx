@@ -19,7 +19,7 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
-import { estimateArrivalTime } from '@/lib/roadRoute'
+import { estimateArrivalTime, estimateReturnArrivalTime } from '@/lib/roadRoute'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -39,6 +39,14 @@ function computeStopEtas(path: { lat: number; lng: number }[], durationMin: numb
   const result: Record<string, string> = {}
   for (const s of stops) {
     const t = estimateArrivalTime(path, durationMin, departureTime, { lat: s.lat, lng: s.lng })
+    if (t) result[s.id] = t
+  }
+  return result
+}
+function computeReturnStopEtas(path: { lat: number; lng: number }[], durationMin: number | null, returnDepartureTime: string | null, stops: Stop[]): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const s of stops) {
+    const t = estimateReturnArrivalTime(path, durationMin, returnDepartureTime, { lat: s.lat, lng: s.lng })
     if (t) result[s.id] = t
   }
   return result
@@ -175,6 +183,7 @@ export default function RouteDetailPage() {
 
       {stops.length > 0 && (() => {
         const etas = computeStopEtas(route.route_path ?? [], route.route_duration_min, route.departure_time, stops)
+        const returnEtas = computeReturnStopEtas(route.route_path ?? [], route.route_duration_min, route.return_departure_time, stops)
         return (
           <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-4">
             <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{t('mp.routeStopsHeading')}</p>
@@ -183,7 +192,10 @@ export default function RouteDetailPage() {
                 <div key={s.id} className="flex items-center gap-2.5">
                   <span className="shrink-0 w-5 h-5 rounded-full bg-dp-secondary-container text-dp-secondary text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
                   <span className="flex-1 min-w-0 font-sans text-[13px] text-dp-on-surface truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</span>
-                  {etas[s.id] && <span className="shrink-0 font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{t('mp.approxTimePrefix')} {etas[s.id]}</span>}
+                  <span className="shrink-0 flex flex-col items-end font-sans text-[11px] text-dp-on-surface-variant ltr-num">
+                    {etas[s.id] && <span>🕒 {etas[s.id]}</span>}
+                    {returnEtas[s.id] && <span>↩️ {returnEtas[s.id]}</span>}
+                  </span>
                 </div>
               ))}
             </div>
