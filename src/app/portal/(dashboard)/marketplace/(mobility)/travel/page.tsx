@@ -38,7 +38,7 @@ const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr
 interface City { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null }
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
-  classification: string; fare_per_seat_pkr: number
+  classification: string; fare_per_seat_pkr: number; is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
 }
 interface AddaBoardEntry {
   entry_id: string; status: string; position: number
@@ -93,7 +93,7 @@ export default function MobilityHomePage() {
       }
       setLoading(false)
     })
-    supabase.from('vehicle_routes').select('id, vehicle_id, origin, origin_ur, destination, destination_ur, classification, fare_per_seat_pkr').eq('is_active', true).order('origin')
+    supabase.from('vehicle_routes').select('id, vehicle_id, origin, origin_ur, destination, destination_ur, classification, fare_per_seat_pkr, is_monthly_fixed, monthly_reference_fee_pkr').eq('is_active', true).order('origin')
       .then(({ data }) => setRoutes(data ?? []))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -255,7 +255,11 @@ export default function MobilityHomePage() {
           {routes.map((r) => (
             <Link key={r.id} href={`/portal/marketplace/route/${r.id}`} className="bg-white border border-[#e5e2d0] rounded-xl p-3">
               <p className="text-[13px] font-semibold text-[#1e293b]">{isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
-              <p className="text-[13px] font-bold text-[#005A36] mt-1">{fmt(r.fare_per_seat_pkr)} <span className="font-normal text-[#64748b] text-[11px]">{t('mk.perSeat')}</span></p>
+              {r.is_monthly_fixed ? (
+                <p className="text-[12px] font-bold text-amber-700 mt-1">✅ {t('mv.monthlyFixedBadge')} · {fmt(r.monthly_reference_fee_pkr ?? 0)}</p>
+              ) : (
+                <p className="text-[13px] font-bold text-[#005A36] mt-1">{fmt(r.fare_per_seat_pkr)} <span className="font-normal text-[#64748b] text-[11px]">{t('mk.perSeat')}</span></p>
+              )}
             </Link>
           ))}
         </div>

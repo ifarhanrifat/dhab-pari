@@ -28,9 +28,12 @@ interface Route {
   classification: string; fare_mode: string; total_fare_pkr: number | null; fare_per_seat_pkr: number; departure_time: string | null; return_departure_time: string | null; days_of_week: number[]
   origin_lat: number | null; origin_lng: number | null; destination_lat: number | null; destination_lng: number | null
   route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
+  is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
 }
 interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string }
 interface Stop { id: string; label: string; label_ur: string | null; lat: number; lng: number; stop_order: number }
+interface MonthlySubscription { id: string; status: string; monthly_fee_pkr: number; queue_position: number | null; scheduled_cancellation_at: string | null }
+interface MonthlyDetail { is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null; seats_total: number; active_count: number; my_subscription: MonthlySubscription | null }
 
 // Approximate only — interpolated proportionally along the driver's
 // own chosen road path using its real OSRM duration, not a live ETA.
@@ -81,6 +84,10 @@ export default function RouteDetailPage() {
   const [bookable, setBookable] = useState(true)
   const [stops, setStops] = useState<Stop[]>([])
   const [showGroup, setShowGroup] = useState(false)
+  const [monthlyDetail, setMonthlyDetail] = useState<MonthlyDetail | null>(null)
+  const [selectedBoardStopId, setSelectedBoardStopId] = useState<string | null>(null)
+  const [applying, setApplying] = useState(false)
+  const [leavingSeat, setLeavingSeat] = useState(false)
 
   useEffect(() => {
     supabase.from('vehicle_routes').select('*').eq('id', params.routeId).single().then(async ({ data: r }) => {
@@ -94,6 +101,10 @@ export default function RouteDetailPage() {
         setVehicle(v)
         setBookable(bk !== false)
         setStops(st ?? [])
+        if (r.is_monthly_fixed) {
+          const { data: md } = await supabase.rpc('route_monthly_detail', { p_route_id: r.id })
+          setMonthlyDetail(md as MonthlyDetail | null)
+        }
       }
       setLoading(false)
     })
@@ -139,6 +150,32 @@ export default function RouteDetailPage() {
     router.push('/portal/marketplace')
   }
 
+  const reloadMonthlyDetail = async () => {
+    if (!route) return
+    const { data: md } = await supabase.rpc('route_monthly_detail', { p_route_id: route.id })
+    setMonthlyDetail(md as MonthlyDetail | null)
+  }
+
+  const applyForSeat = async () => {
+    if (!route || !selectedBoardStopId) { toast.error(t('mv.pickBoardStopLabel')); return }
+    setApplying(true)
+    const { error } = await supabase.rpc('apply_for_monthly_seat', { p_route_id: route.id, p_board_stop_id: selectedBoardStopId })
+    setApplying(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.monthlyAppliedToast'))
+    reloadMonthlyDetail()
+  }
+
+  const leaveSeat = async () => {
+    if (!monthlyDetail?.my_subscription) return
+    setLeavingSeat(true)
+    const { error } = await supabase.rpc('leave_monthly_seat', { p_subscription_id: monthlyDetail.my_subscription.id })
+    setLeavingSeat(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.leftMonthlySeatToast'))
+    reloadMonthlyDetail()
+  }
+
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
   if (!route) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('mp.routeNotFound')}</div>
@@ -159,7 +196,11 @@ export default function RouteDetailPage() {
         {' · '}
         {route.days_of_week.length === 7 ? t('mk.everyDay') : route.days_of_week.map((d) => t(DAY_KEYS[d])).join('، ')}
       </p>
-      {isFlex ? (
+      {route.is_monthly_fixed ? (
+        <p className="font-heading text-[18px] font-bold text-amber-700 mt-2 flex items-center gap-1.5">
+          ✅ {t('mv.monthlyFixedBadge')} · {fmt(route.monthly_reference_fee_pkr ?? 0)} <span className="font-sans font-normal text-dp-on-surface-variant text-[13px]">{t('mv.monthlyReferenceFeeLabel')}</span>
+        </p>
+      ) : isFlex ? (
         <div className="mt-2">
           <p className="font-heading text-[20px] font-bold text-dp-secondary">{fmt(minPerSeatIfFull)}–{fmt(route.total_fare_pkr ?? 0)} <span className="font-sans font-normal text-dp-on-surface-variant text-[13px]">{t('mp.flexPerSeatRangeSuffix')}</span></p>
           <p className="font-sans text-[12px] text-dp-on-surface-variant bg-dp-secondary-container/30 rounded-lg px-3 py-2 mt-1.5">{t('mp.flexModeExplain')}</p>
@@ -208,14 +249,48 @@ export default function RouteDetailPage() {
       </button>
       {showGroup && <RouteGroupPanel routeId={route.id} onClose={() => setShowGroup(false)} />}
 
-      {!bookable && (
+      {route.is_monthly_fixed && monthlyDetail && (
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-4">
+          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{t('mv.monthlyFixedBadge')} · {monthlyDetail.active_count}/{monthlyDetail.seats_total}</p>
+          {monthlyDetail.my_subscription ? (
+            <div className="flex flex-col gap-2">
+              {monthlyDetail.my_subscription.status === 'waitlisted' ? (
+                <p className="font-sans text-[13px] font-semibold text-amber-700">{t('mv.waitlistPositionLabel').replace('{n}', String(monthlyDetail.my_subscription.queue_position ?? '?'))}</p>
+              ) : monthlyDetail.my_subscription.status === 'pending_cancellation' ? (
+                <p className="font-sans text-[13px] font-semibold text-amber-700">{t('mv.monthlyPendingCancellationStatusLabel').replace('{date}', monthlyDetail.my_subscription.scheduled_cancellation_at ? new Date(monthlyDetail.my_subscription.scheduled_cancellation_at).toLocaleDateString() : '')}</p>
+              ) : (
+                <p className="font-sans text-[13px] font-semibold text-emerald-700">✅ {t('mv.monthlyActiveStatusLabel')}</p>
+              )}
+              <p className="font-sans text-[13px] text-dp-on-surface">{t('mv.yourMonthlyFeeLabel')}: <span className="font-bold ltr-num">₨{fmt(monthlyDetail.my_subscription.monthly_fee_pkr)}</span></p>
+              {monthlyDetail.my_subscription.status !== 'pending_cancellation' && (
+                <button onClick={leaveSeat} disabled={leavingSeat} className="w-full border border-dp-error text-dp-error rounded-lg py-2 font-sans text-[13px] font-semibold cursor-pointer disabled:opacity-50">
+                  {leavingSeat ? t('action.saving') : t('mv.leaveMonthlySeatBtn')}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant">{t('mv.pickBoardStopLabel')}</label>
+              <select value={selectedBoardStopId ?? ''} onChange={(e) => setSelectedBoardStopId(e.target.value || null)} className="input-field">
+                <option value="">—</option>
+                {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
+              </select>
+              <button onClick={applyForSeat} disabled={applying || !selectedBoardStopId} className="w-full bg-dp-secondary text-white rounded-lg py-2.5 font-sans font-semibold cursor-pointer disabled:opacity-50">
+                {applying ? t('mp.placingBooking') : t('mv.applyMonthlySeatBtn')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!route.is_monthly_fixed && !bookable && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 mt-4">
           <p className="font-sans text-[13px] text-amber-900">{t('cm.notBookableExplain')}</p>
           {vehicle?.owner_mobile && <p className="font-sans text-[13px] font-semibold text-amber-900 mt-1 ltr-num">{vehicle.owner_mobile}</p>}
         </div>
       )}
 
-      {bookable && (
+      {!route.is_monthly_fixed && bookable && (
       <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-5">
         <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('mp.travelDateLabel')}</label>
         <input type="date" min={todayStr()} value={travelDate} onChange={(e) => setTravelDate(e.target.value)} className="input-field" />

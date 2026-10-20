@@ -26,6 +26,7 @@ import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/
 import { fetchRoadRouteAlternatives, fetchMultiWaypointRoute, type RoadRouteAlternative } from '@/lib/roadRoute'
 import { RouteStopsEditor } from '@/components/mobility/RouteStopsEditor'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
+import { RouteMonthlySubscribersPanel } from '@/components/mobility/RouteMonthlySubscribersPanel'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -40,6 +41,7 @@ const emptyRouteForm = {
   origin: '', destination: '',
   classification: 'intercity', fare_mode: 'fixed', total_fare_pkr: '' as string | number,
   departure_time: '', return_departure_time: '', days_of_week: [] as number[], distance_km: '' as string,
+  is_monthly_fixed: false, monthly_reference_fee_pkr: '' as string | number,
 }
 
 interface Booking {
@@ -51,6 +53,7 @@ interface Route {
   fare_mode: string; fare_per_seat_pkr: number; total_fare_pkr: number | null; is_active: boolean
   departure_time: string | null; return_departure_time: string | null; days_of_week: number[]
   route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
+  is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
 }
 interface RouteIlan { id: string; vehicle_route_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 
@@ -112,10 +115,12 @@ export default function MyVehicleRoutesPage() {
   const [savingSchedule, setSavingSchedule] = useState(false)
   const [stopCounts, setStopCounts] = useState<Record<string, number>>({})
   const [nextRunSeats, setNextRunSeats] = useState<Record<string, number>>({})
+  const [monthlyActiveCounts, setMonthlyActiveCounts] = useState<Record<string, number>>({})
+  const [monthlyRidersRouteId, setMonthlyRidersRouteId] = useState<string | null>(null)
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
-      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min')
+      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
@@ -143,7 +148,7 @@ export default function MyVehicleRoutesPage() {
       for (const row of stopRows ?? []) counts[row.route_id] = (counts[row.route_id] ?? 0) + 1
       setStopCounts(counts)
 
-      const activeRoutes = (rts as Route[]).filter((r) => r.is_active)
+      const activeRoutes = (rts as Route[]).filter((r) => r.is_active && !r.is_monthly_fixed)
       const seatEntries = await Promise.all(activeRoutes.map(async (r) => {
         const today = new Date()
         let nextDate: string | null = null
@@ -156,7 +161,15 @@ export default function MyVehicleRoutesPage() {
         return [r.id, seats as number | null] as const
       }))
       setNextRunSeats(Object.fromEntries(seatEntries.filter((e): e is [string, number] => e[1] != null)))
-    } else { setIlansByRoute({}); setStopCounts({}); setNextRunSeats({}) }
+
+      const monthlyFixedRoutes = (rts as Route[]).filter((r) => r.is_active && r.is_monthly_fixed)
+      if (monthlyFixedRoutes.length > 0) {
+        const { data: subRows } = await supabase.from('route_subscriptions').select('route_id').eq('status', 'active').in('route_id', monthlyFixedRoutes.map((r) => r.id))
+        const activeCounts: Record<string, number> = {}
+        for (const row of subRows ?? []) activeCounts[row.route_id] = (activeCounts[row.route_id] ?? 0) + 1
+        setMonthlyActiveCounts(activeCounts)
+      } else setMonthlyActiveCounts({})
+    } else { setIlansByRoute({}); setStopCounts({}); setNextRunSeats({}); setMonthlyActiveCounts({}) }
   }
 
   useEffect(() => {
@@ -270,10 +283,15 @@ export default function MyVehicleRoutesPage() {
     if (form.days_of_week.length === 0) { toast.error(t('mv.pickAtLeastOneDayError')); return }
     const distanceKm = form.distance_km ? Number(form.distance_km) : null
     const totalFare = form.total_fare_pkr ? Number(form.total_fare_pkr) : null
-    // A distance lets the backend compute the fair fare on its own
-    // (and reject anything typed above it) — only require a manually
-    // typed total fare when no distance is given at all.
-    if (!distanceKm && (!totalFare || totalFare <= 0)) { toast.error(t('mv.enterTotalFareError')); return }
+    const monthlyFee = form.monthly_reference_fee_pkr ? Number(form.monthly_reference_fee_pkr) : null
+    if (form.is_monthly_fixed) {
+      if (!monthlyFee || monthlyFee <= 0) { toast.error(t('mv.enterMonthlyFeeError')); return }
+    } else if (!distanceKm && (!totalFare || totalFare <= 0)) {
+      // A distance lets the backend compute the fair fare on its own
+      // (and reject anything typed above it) — only require a manually
+      // typed total fare when no distance is given at all.
+      toast.error(t('mv.enterTotalFareError')); return
+    }
     setPosting(true)
     // Urdu is now the only name collected (real ask: "there is no need
     // for [English]... destination and starting point will be in
@@ -291,6 +309,7 @@ export default function MyVehicleRoutesPage() {
       p_origin_lat: originPoint?.lat ?? null, p_origin_lng: originPoint?.lng ?? null,
       p_destination_lat: destPoint?.lat ?? null, p_destination_lng: destPoint?.lng ?? null,
       p_route_path: chosenPath ? chosenPath.path : null, p_route_duration_min: chosenPath ? chosenPath.durationMin : null,
+      p_is_monthly_fixed: form.is_monthly_fixed, p_monthly_reference_fee_pkr: monthlyFee,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -367,11 +386,28 @@ export default function MyVehicleRoutesPage() {
               <option value="intercity">{t('mv.classification.intercity')}</option>
               <option value="out_of_city">{t('mv.classification.out_of_city')}</option>
             </select>
-            <select value={form.fare_mode} onChange={(e) => setForm((f) => ({ ...f, fare_mode: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+            <select value={form.fare_mode} onChange={(e) => setForm((f) => ({ ...f, fare_mode: e.target.value }))} disabled={form.is_monthly_fixed} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] disabled:opacity-40">
               <option value="fixed">{t('mv.fareMode.fixed')}</option>
               <option value="flex">{t('mv.fareMode.flex')}</option>
             </select>
           </div>
+
+          {/* Real ask, 2026-10-20: "these vehicles can be monthly
+              fixed... fix lumpsum charges per month... whether they
+              travel or no travel, they must need to pay" — a second
+              model alongside the normal per-date open booking above,
+              for a school/teacher van with the same riders every day. */}
+          <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] font-semibold text-[#1e293b] cursor-pointer">
+            <input type="checkbox" checked={form.is_monthly_fixed} onChange={(e) => setForm((f) => ({ ...f, is_monthly_fixed: e.target.checked }))} />
+            {t('mv.monthlyFixedToggleLabel')}
+          </label>
+          {form.is_monthly_fixed && (
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.monthlyReferenceFeeLabel')}</label>
+              <input type="number" value={form.monthly_reference_fee_pkr} onChange={(e) => setForm((f) => ({ ...f, monthly_reference_fee_pkr: e.target.value }))} placeholder={t('mv.monthlyReferenceFeePlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+              <p className="font-sans text-[10.5px] text-[#64748b] mt-1">{t('mv.monthlyReferenceFeeHint')}</p>
+            </div>
+          )}
           {showOriginPicker ? (
             <LocationPickerSheet
               title={t('mv.pickOriginOnMapBtn')}
@@ -474,11 +510,13 @@ export default function MyVehicleRoutesPage() {
               </div>
             </>
           )}
+          {!form.is_monthly_fixed && (
           <input type="number" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+          )}
           {totalSeats != null && (
             <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('mv.yourVehicleSeatsNote').replace('{n}', String(totalSeats))}</p>
           )}
-          {routeFairPerSeat != null && (
+          {!form.is_monthly_fixed && routeFairPerSeat != null && (
             <p className="font-sans text-[11.5px] text-[#166534] bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg px-2.5 py-1.5">
               {t('mv.routeFairPriceHint').replace('{perSeat}', fmt(Math.round(routeFairPerSeat))).replace('{total}', fmt(Math.round(routeFairPerSeat * (totalSeats ?? 1)))).replace('{n}', String(totalSeats ?? 1))}
             </p>
@@ -525,7 +563,9 @@ export default function MyVehicleRoutesPage() {
                   <div className="min-w-0">
                     <p className="font-sans text-[13.5px] font-semibold text-[#1e293b] truncate flex items-center gap-1"><Signpost size={12} className="shrink-0 text-[#166534]" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
                     <p className="font-sans text-[12px] text-[#64748b] mt-0.5">
-                      {r.fare_mode === 'flex' ? `${t('mp.flexModeLabel')} · ${fmt(r.total_fare_pkr ?? 0)} ${t('mp.totalSuffix')}` : `${fmt(r.fare_per_seat_pkr)} ${t('mk.perSeat')}`}
+                      {r.is_monthly_fixed
+                        ? `${t('mv.monthlyReferenceFeeLabel')}: ${fmt(r.monthly_reference_fee_pkr ?? 0)}`
+                        : r.fare_mode === 'flex' ? `${t('mp.flexModeLabel')} · ${fmt(r.total_fare_pkr ?? 0)} ${t('mp.totalSuffix')}` : `${fmt(r.fare_per_seat_pkr)} ${t('mk.perSeat')}`}
                       {!r.is_active && ` · ${t('mp.routeClosedLabel')}`}
                     </p>
                     {(r.departure_time || r.return_departure_time) && (
@@ -541,7 +581,11 @@ export default function MyVehicleRoutesPage() {
                             📍 {stopCounts[r.id]} {t('mp.routeStopsHeading')}
                           </span>
                         )}
-                        {nextRunSeats[r.id] != null && (
+                        {r.is_monthly_fixed ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-50 font-sans text-[10px] font-bold text-amber-700">
+                            ✅ {t('mv.monthlyFixedBadge')} · {t('mv.seatsOfTotal').replace('{active}', String(monthlyActiveCounts[r.id] ?? 0)).replace('{total}', String(totalSeats ?? '?'))}
+                          </span>
+                        ) : nextRunSeats[r.id] != null && (
                           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full font-sans text-[10px] font-bold ${nextRunSeats[r.id] > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-[#b91c1c]'}`}>
                             {nextRunSeats[r.id] > 0 ? `🪑 ${nextRunSeats[r.id]} ${t('mv.seatsLeftSuffix')}` : t('mp.fullyBookedError')}
                           </span>
@@ -591,6 +635,12 @@ export default function MyVehicleRoutesPage() {
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#166534]">
                       <Users size={11} /> {t('mv.routeGroupBtn')}
                     </button>
+                    {r.is_monthly_fixed && (
+                      <button onClick={() => setMonthlyRidersRouteId(r.id)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-amber-200 text-amber-700 bg-amber-50">
+                        <Users size={11} /> {t('mv.manageRidersBtn')}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -665,6 +715,9 @@ export default function MyVehicleRoutesPage() {
       })()}
       {groupRouteId && (
         <RouteGroupPanel routeId={groupRouteId} onClose={() => setGroupRouteId(null)} />
+      )}
+      {monthlyRidersRouteId && (
+        <RouteMonthlySubscribersPanel routeId={monthlyRidersRouteId} onClose={() => { setMonthlyRidersRouteId(null); if (vehicleId) reload(vehicleId) }} />
       )}
       {editSchedule && (
         <MobilityBottomSheet title={t('mv.editScheduleHeading')} onClose={() => setEditSchedule(null)}>
