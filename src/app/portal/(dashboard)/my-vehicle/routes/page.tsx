@@ -31,10 +31,16 @@ import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 const DAYS = [0, 1, 2, 3, 4, 5, 6]
+// Real ask, 2026-10-20: "remove the set of destination in english,
+// there is no need for that, destination and starting point will be
+// in urdu" — one name per end now, always Urdu, sent as both
+// p_origin/p_origin_ur (and destination's equivalent) so every display
+// path (Urdu or not) shows the same real name instead of an English
+// one that was never wanted.
 const emptyRouteForm = {
-  origin: '', origin_ur: '', destination: '', destination_ur: '',
+  origin: '', destination: '',
   classification: 'intercity', fare_mode: 'fixed', total_fare_pkr: '' as string | number,
-  departure_time: '', days_of_week: [] as number[], distance_km: '' as string,
+  departure_time: '', return_departure_time: '', days_of_week: [] as number[], distance_km: '' as string,
 }
 
 interface Booking {
@@ -44,7 +50,8 @@ interface Booking {
 interface Route {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_mode: string; fare_per_seat_pkr: number; total_fare_pkr: number | null; is_active: boolean
-  departure_time: string | null; days_of_week: number[]; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
+  departure_time: string | null; return_departure_time: string | null; days_of_week: number[]
+  route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
 }
 interface RouteIlan { id: string; vehicle_route_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 
@@ -87,13 +94,14 @@ export default function MyVehicleRoutesPage() {
   const [chosenPathIdx, setChosenPathIdx] = useState(0)
   const [routeLoading, setRouteLoading] = useState(false)
   const [stopsRouteId, setStopsRouteId] = useState<string | null>(null)
+  const [pendingIlanRoute, setPendingIlanRoute] = useState<{ origin: string; destination: string } | null>(null)
   const [groupRouteId, setGroupRouteId] = useState<string | null>(null)
-  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; days_of_week: number[] } | null>(null)
+  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[] } | null>(null)
   const [savingSchedule, setSavingSchedule] = useState(false)
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
-      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, days_of_week, route_path, route_duration_min')
+      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
@@ -146,6 +154,7 @@ export default function MyVehicleRoutesPage() {
     setSavingSchedule(true)
     const { error } = await supabase.rpc('update_vehicle_route_schedule', {
       p_route_id: editSchedule.id, p_departure_time: editSchedule.departure_time || null, p_days_of_week: editSchedule.days_of_week,
+      p_return_departure_time: editSchedule.return_departure_time || null,
     })
     setSavingSchedule(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -198,12 +207,18 @@ export default function MyVehicleRoutesPage() {
     // typed total fare when no distance is given at all.
     if (!distanceKm && (!totalFare || totalFare <= 0)) { toast.error(t('mv.enterTotalFareError')); return }
     setPosting(true)
+    // Urdu is now the only name collected (real ask: "there is no need
+    // for [English]... destination and starting point will be in
+    // urdu") — sent as both the plain and _ur fields so every existing
+    // display path (which falls back to the plain field when not in
+    // Urdu mode) still shows this same real name instead of defaulting
+    // to blank or some other language.
     const { data, error } = await supabase.rpc('create_vehicle_route_self', {
       p_vehicle_id: vehicleId,
-      p_origin: form.origin, p_origin_ur: form.origin_ur || null,
-      p_destination: form.destination, p_destination_ur: form.destination_ur || null,
+      p_origin: form.origin, p_origin_ur: form.origin || null,
+      p_destination: form.destination, p_destination_ur: form.destination || null,
       p_classification: form.classification, p_fare_mode: form.fare_mode, p_total_fare_pkr: totalFare,
-      p_departure_time: form.departure_time || null, p_days_of_week: form.days_of_week,
+      p_departure_time: form.departure_time || null, p_return_departure_time: form.return_departure_time || null, p_days_of_week: form.days_of_week,
       p_distance_km: distanceKm,
       p_origin_lat: originPoint?.lat ?? null, p_origin_lng: originPoint?.lng ?? null,
       p_destination_lat: destPoint?.lat ?? null, p_destination_lng: destPoint?.lng ?? null,
@@ -214,17 +229,20 @@ export default function MyVehicleRoutesPage() {
     toast.success(t('mv.routePosted'))
     setShowForm(false)
     const routeId = data as string
-    const originLabel = form.origin
-    const destinationLabel = form.destination
+    setPendingIlanRoute({ origin: form.origin, destination: form.destination })
     setForm(emptyRouteForm)
     setOriginPoint(null)
     setDestPoint(null)
     setPathOptions([])
     setChosenPathIdx(0)
     if (vehicleId) reload(vehicleId)
-    if (confirm(t('mv.advertiseThisRidePrompt'))) {
-      router.push(`/portal/my-vehicle/ilan?route=${routeId}&origin=${encodeURIComponent(originLabel)}&destination=${encodeURIComponent(destinationLabel)}`)
-    }
+    // Real ask, 2026-10-20: "i cant see manage stops feature anywhere
+    // while setting the weekly route" — it was a card action the
+    // driver had to go find afterward. Opening it immediately, right
+    // where creation just finished, is what actually makes it
+    // discoverable; closing it (stops are optional) is what then
+    // offers to advertise the ride, same prompt as before.
+    setStopsRouteId(routeId)
   }
 
   const cancelConfirmedBooking = async (id: string) => {
@@ -254,10 +272,8 @@ export default function MyVehicleRoutesPage() {
         <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5 flex flex-col gap-2.5">
           <p className="font-sans text-[13px] font-bold text-[#1e293b]">{t('mv.postRouteHeading')}</p>
           <div className="grid grid-cols-2 gap-2">
-            <input value={form.origin} onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))} placeholder={t('mv.originPlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-            <input value={form.origin_ur} onChange={(e) => setForm((f) => ({ ...f, origin_ur: e.target.value }))} placeholder={t('mv.originUrPlaceholder')} dir="rtl" className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-            <input value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} placeholder={t('mv.destinationPlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-            <input value={form.destination_ur} onChange={(e) => setForm((f) => ({ ...f, destination_ur: e.target.value }))} placeholder={t('mv.destinationUrPlaceholder')} dir="rtl" className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            <input value={form.origin} onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))} placeholder={t('mv.originUrPlaceholder')} dir="rtl" className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            <input value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} placeholder={t('mv.destinationUrPlaceholder')} dir="rtl" className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <select value={form.classification} onChange={(e) => setForm((f) => ({ ...f, classification: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
@@ -336,9 +352,15 @@ export default function MyVehicleRoutesPage() {
           )}
           <input type="number" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
           <FairPriceHint flow="route" distanceKm={form.distance_km ? Number(form.distance_km) : null} />
-          <div>
-            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
-            <input type="time" value={form.departure_time} onChange={(e) => setForm((f) => ({ ...f, departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
+              <input type="time" value={form.departure_time} onChange={(e) => setForm((f) => ({ ...f, departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+            </div>
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
+              <input type="time" value={form.return_departure_time} onChange={(e) => setForm((f) => ({ ...f, return_departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+            </div>
           </div>
           <div>
             <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>
@@ -375,6 +397,12 @@ export default function MyVehicleRoutesPage() {
                       {r.fare_mode === 'flex' ? `${t('mp.flexModeLabel')} · ${fmt(r.total_fare_pkr ?? 0)} ${t('mp.totalSuffix')}` : `${fmt(r.fare_per_seat_pkr)} ${t('mk.perSeat')}`}
                       {!r.is_active && ` · ${t('mp.routeClosedLabel')}`}
                     </p>
+                    {(r.departure_time || r.return_departure_time) && (
+                      <p className="font-sans text-[11px] text-[#64748b] mt-0.5 ltr-num">
+                        {r.departure_time && `🕒 ${r.departure_time.slice(0, 5)}`}
+                        {r.return_departure_time && ` · ↩️ ${r.return_departure_time.slice(0, 5)}`}
+                      </p>
+                    )}
                   </div>
                   {r.is_active && (
                     <button onClick={() => closeRoute(r.id)} disabled={closingRouteId === r.id} className="shrink-0 px-2.5 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">
@@ -406,7 +434,7 @@ export default function MyVehicleRoutesPage() {
                 )}
                 {r.is_active && (
                   <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[#f1f5f9]">
-                    <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', days_of_week: r.days_of_week ?? [] })}
+                    <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [] })}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
                       <Pencil size={11} /> {t('mv.editScheduleBtn')}
                     </button>
@@ -469,13 +497,23 @@ export default function MyVehicleRoutesPage() {
 
       {stopsRouteId && (() => {
         const r = routes.find((rt) => rt.id === stopsRouteId)
+        const closingRouteId = stopsRouteId
         return (
           <RouteStopsEditor
             routeId={stopsRouteId}
             routePath={r?.route_path ?? null}
             departureTime={r?.departure_time ?? null}
             durationMin={r?.route_duration_min ?? null}
-            onClose={() => setStopsRouteId(null)}
+            onClose={() => {
+              setStopsRouteId(null)
+              if (pendingIlanRoute) {
+                const { origin, destination } = pendingIlanRoute
+                setPendingIlanRoute(null)
+                if (confirm(t('mv.advertiseThisRidePrompt'))) {
+                  router.push(`/portal/my-vehicle/ilan?route=${closingRouteId}&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`)
+                }
+              }
+            }}
           />
         )
       })()}
@@ -488,6 +526,10 @@ export default function MyVehicleRoutesPage() {
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
               <input type="time" value={editSchedule.departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+            </div>
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
+              <input type="time" value={editSchedule.return_departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, return_departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
             </div>
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>

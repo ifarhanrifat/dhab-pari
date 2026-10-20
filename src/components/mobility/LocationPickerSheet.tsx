@@ -159,7 +159,7 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('mb.searchLocationPlaceholder')} className="dp2-input ps-9" />
         {searching && <Loader2 size={13} className="absolute top-1/2 -translate-y-1/2 end-3 text-[#94a3b8] animate-spin" />}
         {results.length > 0 && (
-          <div className="absolute z-10 top-full mt-1 inset-x-0 border border-[#e5e2d0] rounded-xl overflow-hidden bg-white shadow-lg max-h-[180px] overflow-y-auto">
+          <div className="absolute z-20 top-full mt-1 inset-x-0 border border-[#e5e2d0] rounded-xl overflow-hidden bg-white shadow-lg max-h-[180px] overflow-y-auto">
             {results.map((r, i) => (
               <button key={i} type="button" onClick={() => pickSearchResult(r)} className="w-full text-start px-3 py-2 font-sans text-[12.5px] cursor-pointer hover:bg-[#F9F9F6] border-b border-[#f1f5f9] last:border-0">
                 {r.displayName}
@@ -168,12 +168,20 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
           </div>
         )}
       </div>
+      {/* Real bug found live, 2026-10-20: the search results dropdown
+          above was rendering UNDER the map — Leaflet's own internal
+          panes/controls carry high z-index values (400-1000+) that
+          otherwise escape into the page's own stacking order. `isolate`
+          traps all of that inside its own local stacking context
+          capped at the map's own z-index (0 here), so anything outside
+          it — like the dropdown above — always renders on top,
+          regardless of whatever z-index Leaflet sets internally. */}
       <LeafletMap
         pins={pin ? [{ lat: pin.lat, lng: pin.lng, color: '#166534' }] : []}
         center={defaultCenter}
         height={inline ? 280 : 240}
         zoom={14}
-        className="rounded-xl border border-[#e5e2d0]"
+        className="rounded-xl border border-[#e5e2d0] isolate"
         onMapClick={(lat, lng) => setPinAndReverseGeocode(lat, lng)}
       />
       <button onClick={useGps} disabled={locating} className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#e5e2d0] text-[#166534] font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-50">

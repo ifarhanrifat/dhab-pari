@@ -25,7 +25,7 @@ const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr
 
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
-  classification: string; fare_mode: string; total_fare_pkr: number | null; fare_per_seat_pkr: number; departure_time: string | null; days_of_week: number[]
+  classification: string; fare_mode: string; total_fare_pkr: number | null; fare_per_seat_pkr: number; departure_time: string | null; return_departure_time: string | null; days_of_week: number[]
   origin_lat: number | null; origin_lng: number | null; destination_lat: number | null; destination_lng: number | null
   route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
 }
@@ -145,8 +145,9 @@ export default function RouteDetailPage() {
         <MapPin size={19} className="text-dp-secondary shrink-0" /> {isUrdu && route.origin_ur ? route.origin_ur : route.origin} → {isUrdu && route.destination_ur ? route.destination_ur : route.destination}
       </h1>
       {vehicle && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 flex items-center gap-1"><Bus size={13} /> {vehicle.owner_name} · {vehicle.vehicle_type}</p>}
-      <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">
-        {route.departure_time ? route.departure_time.slice(0, 5) : t('mk.noFixedTime')}
+      <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 ltr-num">
+        🕒 {route.departure_time ? route.departure_time.slice(0, 5) : t('mk.noFixedTime')}
+        {route.return_departure_time && ` · ↩️ ${route.return_departure_time.slice(0, 5)}`}
         {' · '}
         {route.days_of_week.length === 7 ? t('mk.everyDay') : route.days_of_week.map((d) => t(DAY_KEYS[d])).join('، ')}
       </p>
