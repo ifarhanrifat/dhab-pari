@@ -32,9 +32,17 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { BookingQuickViewSheet, type QuickViewKind } from '@/components/mobility/BookingQuickViewSheet'
 
 type Kind = 'trip' | 'hourly' | 'equipment' | 'ride' | 'shadi' | 'cityPurchase'
-interface BookingRow { id: string; kind: Kind; title: string; subtitle: string; amount: number | null; status: 'pending' | 'confirmed' | 'declined' | 'cancelled' | 'completed'; date: string; href: string | null }
+interface BookingRow { id: string; rawId: string; kind: Kind; title: string; subtitle: string; amount: number | null; status: 'pending' | 'confirmed' | 'declined' | 'cancelled' | 'completed'; date: string; href: string | null }
+// Real ask: hourly/equipment/ride rows used to send the rider to a
+// generic, unscoped browse page instead of their own booking — these 3
+// now pop up that one booking's own status/actions instead (see
+// BookingQuickViewSheet). trip/shadi/cityPurchase go to real, rich
+// detail pages and keep navigating there, deliberately.
+const QUICK_VIEW_KINDS = new Set<Kind>(['hourly', 'equipment', 'ride'])
+function isQuickViewKind(k: Kind): k is QuickViewKind { return QUICK_VIEW_KINDS.has(k) }
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 const STATUS_STYLE: Record<BookingRow['status'], { bg: string; fg: string }> = {
@@ -62,6 +70,7 @@ export default function TripsPage() {
 
   const [rows, setRows] = useState<BookingRow[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const [openRow, setOpenRow] = useState<BookingRow | null>(null)
 
   const reloadMine = async () => {
     const [tripShare, hourly, equipment, ride, shadi, cityPurchase] = await Promise.all([
@@ -76,23 +85,23 @@ export default function TripsPage() {
 
     const out: BookingRow[] = []
     for (const b of (tripShare.data ?? []) as Array<{ id: string; status: string; total_amount_pkr: number; created_at: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; travel_date: string }>) {
-      out.push({ id: `trip-${b.id}`, kind: 'trip', title: t('vp.sharedRideHeading'), subtitle: `${isUrdu && b.origin_ur ? b.origin_ur : b.origin} → ${isUrdu && b.destination_ur ? b.destination_ur : b.destination}`, amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: `/portal/marketplace/trip/${b.id}` })
+      out.push({ id: `trip-${b.id}`, rawId: b.id, kind: 'trip', title: t('vp.sharedRideHeading'), subtitle: `${isUrdu && b.origin_ur ? b.origin_ur : b.origin} → ${isUrdu && b.destination_ur ? b.destination_ur : b.destination}`, amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: `/portal/marketplace/trip/${b.id}` })
     }
     for (const b of (hourly.data ?? []) as Array<{ id: string; model: string | null; vehicle_type: string; total_amount_pkr: number | null; base_amount_pkr: number; status: string; requested_at: string }>) {
-      out.push({ id: `hourly-${b.id}`, kind: 'hourly', title: t('vp.hourlyPageTitle'), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.base_amount_pkr, status: mapStatus(b.status), date: b.requested_at, href: '/portal/marketplace/hourly' })
+      out.push({ id: `hourly-${b.id}`, rawId: b.id, kind: 'hourly', title: t('vp.hourlyPageTitle'), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.base_amount_pkr, status: mapStatus(b.status), date: b.requested_at, href: '/portal/marketplace/hourly' })
     }
     for (const b of (equipment.data ?? []) as Array<{ id: string; kind: string; model: string | null; vehicle_type: string; total_amount_pkr: number | null; rate_pkr: number; status: string; requested_at: string }>) {
-      out.push({ id: `equip-${b.id}`, kind: 'equipment', title: t(`vp.${b.kind}PageTitle`), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.rate_pkr, status: mapStatus(b.status), date: b.requested_at, href: `/portal/marketplace/${b.kind}` })
+      out.push({ id: `equip-${b.id}`, rawId: b.id, kind: 'equipment', title: t(`vp.${b.kind}PageTitle`), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.rate_pkr, status: mapStatus(b.status), date: b.requested_at, href: `/portal/marketplace/${b.kind}` })
     }
     for (const b of (ride.data ?? []) as unknown as Array<{ id: string; status: string; total_amount_pkr: number; travel_date: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }>) {
       const vr = b.vehicle_routes
-      out.push({ id: `ride-${b.id}`, kind: 'ride', title: t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: '/portal/marketplace' })
+      out.push({ id: `ride-${b.id}`, rawId: b.id, kind: 'ride', title: t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: '/portal/marketplace' })
     }
     for (const e of (shadi.data ?? []) as Array<{ id: string; event_date: string; venue_address: string; status: string; advance_amount_pkr: number | null; created_at: string }>) {
-      out.push({ id: `shadi-${e.id}`, kind: 'shadi', title: t('vp.shadiPageTitle'), subtitle: e.venue_address, amount: e.advance_amount_pkr, status: mapStatus(e.status), date: e.event_date || e.created_at, href: `/portal/marketplace/shadi/${e.id}` })
+      out.push({ id: `shadi-${e.id}`, rawId: e.id, kind: 'shadi', title: t('vp.shadiPageTitle'), subtitle: e.venue_address, amount: e.advance_amount_pkr, status: mapStatus(e.status), date: e.event_date || e.created_at, href: `/portal/marketplace/shadi/${e.id}` })
     }
     for (const r of (cityPurchase.data ?? []) as Array<{ id: string; item: string; status: string; total_fare_pkr: number | null; created_at: string; city_name: string; city_name_ur: string | null }>) {
-      out.push({ id: `cp-${r.id}`, kind: 'cityPurchase', title: t('vp.cityPurchasePageTitle'), subtitle: `${r.item} · ${isUrdu && r.city_name_ur ? r.city_name_ur : r.city_name}`, amount: r.total_fare_pkr, status: mapStatus(r.status), date: r.created_at, href: `/portal/marketplace/city-purchase/${r.id}` })
+      out.push({ id: `cp-${r.id}`, rawId: r.id, kind: 'cityPurchase', title: t('vp.cityPurchasePageTitle'), subtitle: `${r.item} · ${isUrdu && r.city_name_ur ? r.city_name_ur : r.city_name}`, amount: r.total_fare_pkr, status: mapStatus(r.status), date: r.created_at, href: `/portal/marketplace/city-purchase/${r.id}` })
     }
 
     out.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
@@ -128,6 +137,11 @@ export default function TripsPage() {
               </div>
             </>
           )
+          if (isQuickViewKind(r.kind)) {
+            return (
+              <button key={r.id} onClick={() => setOpenRow(r)} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center justify-between gap-3 text-start cursor-pointer hover:border-[#166534]">{content}</button>
+            )
+          }
           return r.href ? (
             <Link key={r.id} href={r.href} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer hover:border-[#166534]">{content}</Link>
           ) : (
@@ -135,6 +149,15 @@ export default function TripsPage() {
           )
         })}
       </div>
+
+      {openRow && isQuickViewKind(openRow.kind) && (
+        <BookingQuickViewSheet
+          kind={openRow.kind}
+          rawId={openRow.rawId}
+          onClose={() => setOpenRow(null)}
+          onChanged={reloadMine}
+        />
+      )}
     </div>
   )
 }

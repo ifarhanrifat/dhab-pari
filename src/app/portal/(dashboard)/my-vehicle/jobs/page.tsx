@@ -19,12 +19,20 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext'
+import { JobQuickActionSheet, type QuickActionKind } from '@/components/mobility/JobQuickActionSheet'
 
 interface Vehicle { id: string; offers_hourly: boolean; offers_shadi: boolean; offers_equipment: boolean; offers_rental: boolean; delivers: boolean }
 interface Row {
   id: string; type: 'hourly' | 'shadi' | 'equipment' | 'rental' | 'route' | 'dispatch' | 'city_purchase' | 'delivery' | 'parcel'
   title: string; subtitle: string; amount: number | null; at: string; needsAction: boolean; done: boolean; href: string
 }
+// Real ask: popping up a quick accept/decline instead of navigating away
+// only makes sense for the 5 kinds with a single-RPC accept/decline —
+// dispatch/city_purchase/parcel/delivery keep navigating (their own
+// pages already handle response inline or need a fee-entry step a quick
+// popup can't do justice to).
+const QUICK_ACTION_KINDS = new Set<Row['type']>(['hourly', 'rental', 'equipment', 'shadi', 'route'])
+function isQuickActionKind(t: Row['type']): t is QuickActionKind { return QUICK_ACTION_KINDS.has(t) }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
@@ -38,6 +46,7 @@ export default function MyVehicleJobsPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [seg, setSeg] = useState<'new' | 'active' | 'done'>('new')
+  const [openJob, setOpenJob] = useState<Row | null>(null)
 
   const reload = useCallback(async (v: Vehicle) => {
     const out: Row[] = []
@@ -144,18 +153,36 @@ export default function MyVehicleJobsPage() {
         <div className="flex flex-col gap-2">
           {list.map((r) => {
             const Icon = ICONS[r.type]
-            return (
-              <Link key={`${r.type}-${r.id}`} href={r.href} className="flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl p-3" style={r.needsAction ? { borderInlineStart: '4px solid #D4AF37' } : undefined}>
+            const content = (
+              <>
                 <span className="shrink-0 w-10 h-10 rounded-full bg-[#F9F9F6] flex items-center justify-center"><Icon size={17} className="text-[#166534]" /></span>
                 <span className="flex-1 min-w-0">
                   <span className="block font-sans text-[13.5px] font-bold text-[#1e293b] truncate">{r.title}</span>
                   <span className="block font-sans text-[12px] text-[#64748b] truncate">{r.subtitle}</span>
                 </span>
                 {r.amount != null && <span className="shrink-0 font-sans text-[13.5px] font-bold text-[#1e293b] ltr-num">{fmt(r.amount)}</span>}
+              </>
+            )
+            const rowStyle = r.needsAction ? { borderInlineStart: '4px solid #D4AF37' } : undefined
+            return isQuickActionKind(r.type) ? (
+              <button key={`${r.type}-${r.id}`} onClick={() => setOpenJob(r)} className="flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer" style={rowStyle}>
+                {content}
+              </button>
+            ) : (
+              <Link key={`${r.type}-${r.id}`} href={r.href} className="flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl p-3" style={rowStyle}>
+                {content}
               </Link>
             )
           })}
         </div>
+      )}
+
+      {openJob && isQuickActionKind(openJob.type) && (
+        <JobQuickActionSheet
+          row={{ id: openJob.id, type: openJob.type, title: openJob.title, subtitle: openJob.subtitle, amount: openJob.amount, href: openJob.href, needsAction: openJob.needsAction }}
+          onClose={() => setOpenJob(null)}
+          onDone={() => vehicle && reload(vehicle)}
+        />
       )}
     </div>
   )
