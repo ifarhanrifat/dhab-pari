@@ -32,11 +32,13 @@ interface Participant { portal_user_id: string; name: string; sharing_location: 
 interface Message { id: string; sender_portal_user_id: string; sender_name: string; is_own: boolean; body: string; created_at: string }
 interface LiveLoc { portal_user_id: string; name: string; is_own: boolean; is_owner: boolean; lat: number; lng: number; updated_at: string }
 interface StopRow { id: string; label: string; label_ur: string | null; lat: number; lng: number }
-interface ActiveRun { id: string; started_at: string }
+interface ActiveRun { id: string; started_at: string; direction: 'outbound' | 'return' }
+interface TodaysRun { id: string; direction: 'outbound' | 'return'; started_at: string; ended_at: string | null }
+interface RosterRow { subscription_id: string; name: string; present: boolean }
 interface Detail {
   is_owner: boolean; is_member: boolean; sharing_location: boolean
   owner_portal_user_id: string; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
-  active_run: ActiveRun | null; stops: StopRow[]
+  active_run: ActiveRun | null; todays_runs: TodaysRun[]; stops: StopRow[]; roster_today: RosterRow[]
   participants: Participant[]; messages: Message[]; live_locations: LiveLoc[]
 }
 
@@ -45,8 +47,11 @@ interface Detail {
 // road path's real OSRM pace (duration/distance), measuring how far
 // along that same path the driver has actually gotten. A stop whose
 // nearest path point sits behind the driver's own nearest point has
-// already been passed.
-function computeLiveEtas(path: { lat: number; lng: number }[], durationMin: number | null, driverPos: { lat: number; lng: number } | null, stops: StopRow[]): Record<string, { minutesAway: number; passed: boolean } | undefined> {
+// already been passed. On the return leg the driver travels the same
+// path in reverse — "the last stop is now its first stop" — so a stop
+// counts as ahead when its own path position is BEHIND the driver's,
+// not ahead of it.
+function computeLiveEtas(path: { lat: number; lng: number }[], durationMin: number | null, driverPos: { lat: number; lng: number } | null, stops: StopRow[], direction: 'outbound' | 'return'): Record<string, { minutesAway: number; passed: boolean } | undefined> {
   const result: Record<string, { minutesAway: number; passed: boolean } | undefined> = {}
   if (path.length < 2 || !durationMin || !driverPos) return result
   const cum: number[] = [0]
@@ -61,7 +66,7 @@ function computeLiveEtas(path: { lat: number; lng: number }[], durationMin: numb
   const driverIdx = nearestIdx(driverPos)
   for (const s of stops) {
     const stopIdx = nearestIdx({ lat: s.lat, lng: s.lng })
-    const remainingKm = cum[stopIdx] - cum[driverIdx]
+    const remainingKm = direction === 'return' ? cum[driverIdx] - cum[stopIdx] : cum[stopIdx] - cum[driverIdx]
     result[s.id] = remainingKm < 0 ? { minutesAway: 0, passed: true } : { minutesAway: Math.round(remainingKm * minPerKm), passed: false }
   }
   return result
@@ -108,11 +113,45 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
   })
 
   const [runBusy, setRunBusy] = useState(false)
-  const toggleRun = async () => {
+  const [showRoster, setShowRoster] = useState(false)
+  const [rosterChecks, setRosterChecks] = useState<Record<string, boolean>>({})
+
+  // "Now what is the procedure of starting the ride back home?" — a
+  // day's return leg is just a second run on the same route, opposite
+  // direction. Cycles outbound → return → outbound based on today's
+  // last run, so this never gets stuck after the first round trip.
+  const nextDirection: 'outbound' | 'return' = (() => {
+    const runs = detail?.todays_runs ?? []
+    if (runs.length === 0) return 'outbound'
+    return runs[runs.length - 1].direction === 'outbound' ? 'return' : 'outbound'
+  })()
+
+  const openStartFlow = () => {
+    if (nextDirection === 'outbound' && (detail?.roster_today.length ?? 0) > 0) {
+      setRosterChecks(Object.fromEntries((detail?.roster_today ?? []).map((r) => [r.subscription_id, r.present])))
+      setShowRoster(true)
+    } else {
+      startRun(nextDirection)
+    }
+  }
+
+  const startRun = async (direction: 'outbound' | 'return') => {
     setRunBusy(true)
-    const { error } = detail?.active_run
-      ? await supabase.rpc('end_route_run', { p_route_id: routeId })
-      : await supabase.rpc('start_route_run', { p_route_id: routeId })
+    if (direction === 'outbound' && (detail?.roster_today.length ?? 0) > 0) {
+      const presentIds = Object.entries(rosterChecks).filter(([, present]) => present).map(([id]) => id)
+      const { error: attErr } = await supabase.rpc('take_attendance', { p_route_id: routeId, p_run_date: new Date().toISOString().slice(0, 10), p_present_subscription_ids: presentIds })
+      if (attErr) { setRunBusy(false); toast.error(friendlyError(attErr, undefined, isUrdu)); return }
+    }
+    const { error } = await supabase.rpc('start_route_run', { p_route_id: routeId, p_direction: direction })
+    setRunBusy(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    setShowRoster(false)
+    load()
+  }
+
+  const endRun = async () => {
+    setRunBusy(true)
+    const { error } = await supabase.rpc('end_route_run', { p_route_id: routeId })
     setRunBusy(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     load()
@@ -182,24 +221,50 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
             ))}
           </div>
 
-          {detail.is_owner && (
-            <button type="button" onClick={toggleRun} disabled={runBusy}
+          {detail.is_owner && showRoster && (
+            <div className="flex flex-col gap-1.5 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
+              <p className="font-sans text-[11.5px] font-bold text-amber-900">{t('mv.takeAttendanceLabel')}</p>
+              {(detail.roster_today ?? []).map((r) => (
+                <label key={r.subscription_id} className="flex items-center gap-2 font-sans text-[12.5px] text-[#1e293b] cursor-pointer">
+                  <input type="checkbox" checked={rosterChecks[r.subscription_id] ?? true}
+                    onChange={(e) => setRosterChecks((rows) => ({ ...rows, [r.subscription_id]: e.target.checked }))} />
+                  {r.name}
+                </label>
+              ))}
+              <div className="flex gap-1.5 mt-1">
+                <button type="button" onClick={() => setShowRoster(false)} className="flex-1 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#64748b]">
+                  {t('action.cancel')}
+                </button>
+                <button type="button" onClick={() => startRun('outbound')} disabled={runBusy} className="flex-1 py-1.5 rounded-lg text-[12px] font-sans font-bold cursor-pointer bg-[#D4AF37] text-[#0f172a] disabled:opacity-50">
+                  {runBusy ? t('action.saving') : t('mv.confirmAndStartBtn')}
+                </button>
+              </div>
+            </div>
+          )}
+          {detail.is_owner && !showRoster && (
+            <button type="button" onClick={detail.active_run ? endRun : openStartFlow} disabled={runBusy}
               className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[13px] font-sans font-bold cursor-pointer disabled:opacity-50 ${detail.active_run ? 'bg-[#b91c1c] text-white' : 'bg-[#D4AF37] text-[#0f172a]'}`}>
-              {detail.active_run ? <StopCircle size={15} /> : <PlayCircle size={15} />} {detail.active_run ? t('mv.endRideBtn') : t('mv.startRideBtn')}
+              {detail.active_run ? <StopCircle size={15} /> : <PlayCircle size={15} />}
+              {detail.active_run
+                ? t('mv.endRideBtn')
+                : nextDirection === 'return' ? t('mv.startReturnTripBtn') : t('mv.startRideBtn')}
             </button>
           )}
           {detail.active_run && !detail.is_owner && (
             <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
-              <Radio size={12} className="animate-pulse" /> {t('mv.rideLiveNowLabel')}
+              <Radio size={12} className="animate-pulse" /> {detail.active_run.direction === 'return' ? t('mv.rideLiveReturnLabel') : t('mv.rideLiveNowLabel')}
             </p>
           )}
 
           {detail.active_run && detail.stops.length > 0 && (() => {
             const driverPos = detail.live_locations.find((l) => l.is_owner)
-            const etas = computeLiveEtas(detail.route_path ?? [], detail.route_duration_min, driverPos ? { lat: driverPos.lat, lng: driverPos.lng } : null, detail.stops)
+            const etas = computeLiveEtas(detail.route_path ?? [], detail.route_duration_min, driverPos ? { lat: driverPos.lat, lng: driverPos.lng } : null, detail.stops, detail.active_run.direction)
+            // "the last stop is now its first stop" — same stops, shown
+            // in the order they're actually reached on this leg.
+            const orderedStops = detail.active_run.direction === 'return' ? [...detail.stops].reverse() : detail.stops
             return (
               <div className="flex flex-col gap-1">
-                {detail.stops.map((s) => {
+                {orderedStops.map((s) => {
                   const e = etas[s.id]
                   return (
                     <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F9F9F6] px-2.5 py-1.5">
