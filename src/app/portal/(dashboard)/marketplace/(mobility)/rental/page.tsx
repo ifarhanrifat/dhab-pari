@@ -37,6 +37,7 @@ const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr
 
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
+  category_name: string | null; category_name_ur: string | null
   rental_base_pkr: number; rental_per_km_pkr: number; rental_wait_hour_pkr: number | null; cover_url: string | null
   shared_from_other_village: boolean; owner_village_name: string | null
 }
@@ -48,6 +49,7 @@ interface Booking {
   requested_at: string; started_at: string | null; ended_at: string | null
   notes: string | null; payment_method: string
   vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null; color: string | null
+  category_name: string | null; category_name_ur: string | null
 }
 
 const PAYMENT_METHODS: { key: string; emoji: string; labelKey: string }[] = [
@@ -186,7 +188,7 @@ export default function RentalPage() {
                     <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('vp.rentalBaseFareLabel')}</p>
                   </div>
                   <div className="flex-1 min-w-0 py-2.5 pe-3 border-s border-[#f1f5f9] ps-3">
-                    <p className="text-[13.5px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(v.vehicle_type, v.model)}</p>
+                    <p className="text-[13.5px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(v.vehicle_type, v.model, isUrdu && v.category_name_ur ? v.category_name_ur : v.category_name)}</p>
                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                       {v.color && <span className="text-[11px] text-[#64748b]">{v.color}</span>}
                       {v.has_ac && <span className="flex items-center gap-0.5 text-[9.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={9} /> {t('mv.hasAcLabel')}</span>}
@@ -213,7 +215,7 @@ export default function RentalPage() {
               <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[14px] font-bold text-[#1e293b]">{vehicleDisplayName(b.vehicle_type, b.model)} — {b.owner_name}</p>
+                    <p className="text-[14px] font-bold text-[#1e293b]">{vehicleDisplayName(b.vehicle_type, b.model, isUrdu && b.category_name_ur ? b.category_name_ur : b.category_name)} — {b.owner_name}</p>
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5 text-[#166534]" /> {b.from_address}</p>
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5 text-[#b91c1c]" /> {b.to_address}</p>
                     <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">{fmt(b.km)}km · {b.trip_type === 'return' ? t('vp.returnTripLabel') : t('vp.oneWayLabel')} · {fmt(b.total_amount_pkr)}</p>
@@ -259,7 +261,7 @@ export default function RentalPage() {
                     <div className="mt-1.5 flex items-center justify-between">
                       <ShareBookingButton
                         title={`${isUrdu ? site.nameUrdu : site.name} ${t('mb.portalSuffix')}`}
-                        lines={[`${vehicleDisplayName(b.vehicle_type, b.model)} — ${b.owner_name}`, `${b.from_address} → ${b.to_address}`, `${t('vp.totalLabel')}: ${fmt(b.total_amount_pkr)}`]}
+                        lines={[`${vehicleDisplayName(b.vehicle_type, b.model, isUrdu && b.category_name_ur ? b.category_name_ur : b.category_name)} — ${b.owner_name}`, `${b.from_address} → ${b.to_address}`, `${t('vp.totalLabel')}: ${fmt(b.total_amount_pkr)}`]}
                       />
                       <ReportProblemButton refType="rental_booking" refId={b.id} kindOptions={['fare_dispute', 'no_show']} />
                     </div>
@@ -285,7 +287,7 @@ export default function RentalPage() {
       )}
 
       {openVehicle && (
-        <MobilityBottomSheet title={vehicleDisplayName(openVehicle.vehicle_type, openVehicle.model)} onClose={() => setOpenVehicle(null)}>
+        <MobilityBottomSheet title={vehicleDisplayName(openVehicle.vehicle_type, openVehicle.model, isUrdu && openVehicle.category_name_ur ? openVehicle.category_name_ur : openVehicle.category_name)} onClose={() => setOpenVehicle(null)}>
           <p className="text-[12px] text-[#64748b] -mt-2 mb-3">{openVehicle.color}{openVehicle.has_ac ? ` · ${t('mv.hasAcLabel')}` : ''}</p>
 
           <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.tripTypeLabel')}</label>

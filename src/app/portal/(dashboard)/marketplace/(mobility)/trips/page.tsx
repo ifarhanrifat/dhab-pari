@@ -76,17 +76,17 @@ export default function TripsPage() {
 
     const out: BookingRow[] = []
     for (const b of (tripShare.data ?? []) as Array<{ id: string; status: string; total_amount_pkr: number; created_at: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; travel_date: string }>) {
-      out.push({ id: `trip-${b.id}`, kind: 'trip', title: t('cm.tripsPageTitle'), subtitle: `${isUrdu && b.origin_ur ? b.origin_ur : b.origin} → ${isUrdu && b.destination_ur ? b.destination_ur : b.destination}`, amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: b.status === 'confirmed' ? `/portal/marketplace/trip/${b.id}` : null })
+      out.push({ id: `trip-${b.id}`, kind: 'trip', title: t('vp.sharedRideHeading'), subtitle: `${isUrdu && b.origin_ur ? b.origin_ur : b.origin} → ${isUrdu && b.destination_ur ? b.destination_ur : b.destination}`, amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: `/portal/marketplace/trip/${b.id}` })
     }
     for (const b of (hourly.data ?? []) as Array<{ id: string; model: string | null; vehicle_type: string; total_amount_pkr: number | null; base_amount_pkr: number; status: string; requested_at: string }>) {
-      out.push({ id: `hourly-${b.id}`, kind: 'hourly', title: t('vp.hourlyPageTitle'), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.base_amount_pkr, status: mapStatus(b.status), date: b.requested_at, href: null })
+      out.push({ id: `hourly-${b.id}`, kind: 'hourly', title: t('vp.hourlyPageTitle'), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.base_amount_pkr, status: mapStatus(b.status), date: b.requested_at, href: '/portal/marketplace/hourly' })
     }
     for (const b of (equipment.data ?? []) as Array<{ id: string; kind: string; model: string | null; vehicle_type: string; total_amount_pkr: number | null; rate_pkr: number; status: string; requested_at: string }>) {
-      out.push({ id: `equip-${b.id}`, kind: 'equipment', title: t(`vp.${b.kind}PageTitle`), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.rate_pkr, status: mapStatus(b.status), date: b.requested_at, href: null })
+      out.push({ id: `equip-${b.id}`, kind: 'equipment', title: t(`vp.${b.kind}PageTitle`), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.rate_pkr, status: mapStatus(b.status), date: b.requested_at, href: `/portal/marketplace/${b.kind}` })
     }
     for (const b of (ride.data ?? []) as unknown as Array<{ id: string; status: string; total_amount_pkr: number; travel_date: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }>) {
       const vr = b.vehicle_routes
-      out.push({ id: `ride-${b.id}`, kind: 'ride', title: t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: null })
+      out.push({ id: `ride-${b.id}`, kind: 'ride', title: t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: '/portal/marketplace' })
     }
     for (const e of (shadi.data ?? []) as Array<{ id: string; event_date: string; venue_address: string; status: string; advance_amount_pkr: number | null; created_at: string }>) {
       out.push({ id: `shadi-${e.id}`, kind: 'shadi', title: t('vp.shadiPageTitle'), subtitle: e.venue_address, amount: e.advance_amount_pkr, status: mapStatus(e.status), date: e.event_date || e.created_at, href: `/portal/marketplace/shadi/${e.id}` })
@@ -110,7 +110,7 @@ export default function TripsPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="font-extrabold text-[20px] text-[#005A36] flex items-center gap-2"><Receipt size={19} /> {t('cm.tripsPageTitle')}</h1>
+      <h1 className="font-extrabold text-[20px] text-[#005A36] flex items-center gap-2"><Receipt size={19} /> {t('mb.myBookingsHeading')}</h1>
 
       <div className="flex flex-col gap-2">
         {(rows?.length ?? 0) === 0 && <p className="text-center py-10 text-[#94a3b8] text-[13.5px]">{t('vp.noEquipmentBookingsHint')}</p>}

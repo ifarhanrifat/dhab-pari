@@ -5362,6 +5362,7 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     'mb.portalSuffix': 'Portal', 'mb.headerSubtitle': 'Rides, errands & machinery',
     'mb.navHome': 'Home', 'mb.navMachinery': 'Machinery', 'mb.navBookings': 'Bookings', 'mb.navChat': 'Chat', 'mb.navAccount': 'Account',
+    'mb.myBookingsHeading': 'My Bookings',
     'mb.navJobs': 'Jobs', 'mb.navEarnings': 'Earnings', 'mb.navVehicle': 'Vehicle',
     'mb.useMyLocationBtn': 'Use my location', 'mb.tapMapToPinHint': 'Tap the map to drop a pin', 'mb.locationLabelField': 'What is this place?', 'mb.locationLabelPlaceholder': 'e.g. House near the mosque', 'mb.confirmLocationBtn': 'Use this location',
     'mb.whereToHeading': 'Where are you going today?', 'mb.fromLabel': 'From', 'mb.toLabel': 'To', 'mb.toPlaceholder': 'Where to?', 'mb.fromPlaceholder': 'Pick your starting point',
@@ -10861,6 +10862,7 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     'mb.portalSuffix': 'پورٹل', 'mb.headerSubtitle': 'سواری، خریداری اور مشینری',
     'mb.navHome': 'ہوم', 'mb.navMachinery': 'مشینری', 'mb.navBookings': 'بکنگز', 'mb.navChat': 'چیٹ', 'mb.navAccount': 'اکاؤنٹ',
+    'mb.myBookingsHeading': 'میری بکنگز',
     'mb.navJobs': 'کام', 'mb.navEarnings': 'کمائی', 'mb.navVehicle': 'گاڑی',
     'mb.useMyLocationBtn': 'میرا مقام استعمال کریں', 'mb.tapMapToPinHint': 'نشان لگانے کے لیے نقشے پر ٹیپ کریں', 'mb.locationLabelField': 'یہ کون سی جگہ ہے؟', 'mb.locationLabelPlaceholder': 'مثلاً مسجد کے قریب گھر', 'mb.confirmLocationBtn': 'یہ جگہ استعمال کریں',
     'mb.whereToHeading': 'آج کہاں جانا ہے؟', 'mb.fromLabel': 'کہاں سے', 'mb.toLabel': 'کہاں تک', 'mb.toPlaceholder': 'کہاں جانا ہے؟', 'mb.fromPlaceholder': 'اپنا مقام چنیں',
