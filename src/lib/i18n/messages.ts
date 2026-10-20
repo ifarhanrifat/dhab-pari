@@ -5304,6 +5304,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.rentalPageTitle': 'Point-to-Point Rental', 'vp.rentalPageSubtitle': 'Book a vehicle from a pickup point to a destination, at a fixed rate the committee has set.',
     'vp.rentalFormulaNote': 'Price is a base fare plus distance, at the committee’s rate for this vehicle — a return trip also lets you add driver-wait time.',
     'vp.noRentalVehiclesHint': 'No vehicles are offering point-to-point rental right now.',
+    'vp.rentalPickRouteFirstHint': 'Pick your pickup and drop-off points above to see available vehicle categories.',
     'vp.noRentalBookingsHint': 'You have no rental bookings yet.',
     'vp.rentalFromLabel': 'Pickup location', 'vp.rentalToLabel': 'Destination',
     'vp.rentalFromPlaceholder': 'Tap to set pickup location', 'vp.rentalToPlaceholder': 'Tap to set destination',
@@ -5438,6 +5439,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.availableByTypeHeading': 'Available Weddings (By Type)', 'vp.claimSlotBtn': 'Claim This Slot',
     'vp.confirmClaimSlot': 'Claim this vehicle slot for this wedding?', 'vp.slotClaimedToast': 'Slot claimed — you\'re booked for this wedding.',
     'vp.yourFleetClassLabel': 'Your vehicle type (for wedding type-requests)', 'vp.noFleetClassSetHint': 'Not set — ask the committee to assign your vehicle a type.',
+    'vp.yourRentalTierLabel': 'Your rental category', 'vp.rentalTier.small_ac': 'Small car — AC', 'vp.rentalTier.small_non_ac': 'Small car — Non-AC', 'vp.rentalTier.big_ac': 'Big car — AC', 'vp.rentalTier.big_non_ac': 'Big car — Non-AC', 'vp.rentalTier.suv': 'SUV', 'vp.rentalTier.luxury': 'Luxury',
     'vp.fleetClassLockedToVehicleNote': 'Only categories matching your registered vehicle ({vehicleType}) are shown.',
     'vp.noOpenSlotsHint': 'No open wedding slots for your vehicle type right now.',
 
@@ -10807,6 +10809,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.rentalPageTitle': 'پوائنٹ ٹو پوائنٹ کرایہ', 'vp.rentalPageSubtitle': 'کمیٹی کے مقرر کردہ فکس ریٹ پر گاڑی ایک جگہ سے دوسری جگہ بک کریں۔',
     'vp.rentalFormulaNote': 'قیمت بنیادی کرایہ جمع فاصلہ ہے، اس گاڑی کے لیے کمیٹی کے نرخ پر — واپسی کے سفر میں ڈرائیور کے انتظار کا وقت بھی شامل کر سکتے ہیں۔',
     'vp.noRentalVehiclesHint': 'اس وقت کوئی گاڑی پوائنٹ ٹو پوائنٹ کرایہ کے لیے دستیاب نہیں۔',
+    'vp.rentalPickRouteFirstHint': 'دستیاب گاڑیوں کی کیٹیگریز دیکھنے کے لیے اوپر پک اپ اور ڈراپ آف پوائنٹس منتخب کریں۔',
     'vp.noRentalBookingsHint': 'ابھی تک آپ کی کوئی کرایہ بکنگ نہیں۔',
     'vp.rentalFromLabel': 'روانگی کی جگہ', 'vp.rentalToLabel': 'منزل',
     'vp.rentalFromPlaceholder': 'روانگی کی جگہ منتخب کرنے کے لیے دبائیں', 'vp.rentalToPlaceholder': 'منزل منتخب کرنے کے لیے دبائیں',
@@ -10941,6 +10944,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.availableByTypeHeading': 'دستیاب شادیاں (قسم کے مطابق)', 'vp.claimSlotBtn': 'یہ جگہ لیں',
     'vp.confirmClaimSlot': 'اس شادی کے لیے یہ گاڑی کی جگہ لینا چاہتے ہیں؟', 'vp.slotClaimedToast': 'جگہ لے لی گئی — آپ اس شادی کے لیے بک ہو گئے ہیں۔',
     'vp.yourFleetClassLabel': 'آپ کی گاڑی کی قسم (شادی کی درخواستوں کے لیے)', 'vp.noFleetClassSetHint': 'مقرر نہیں — کمیٹی سے اپنی گاڑی کی قسم مقرر کروائیں۔',
+    'vp.yourRentalTierLabel': 'آپ کی رینٹل کیٹیگری', 'vp.rentalTier.small_ac': 'چھوٹی گاڑی — اے سی', 'vp.rentalTier.small_non_ac': 'چھوٹی گاڑی — بغیر اے سی', 'vp.rentalTier.big_ac': 'بڑی گاڑی — اے سی', 'vp.rentalTier.big_non_ac': 'بڑی گاڑی — بغیر اے سی', 'vp.rentalTier.suv': 'ایس یو وی', 'vp.rentalTier.luxury': 'لگژری',
     'vp.fleetClassLockedToVehicleNote': 'صرف وہ قسمیں دکھائی جا رہی ہیں جو آپ کی رجسٹرڈ گاڑی ({vehicleType}) سے میل کھاتی ہیں۔',
     'vp.noOpenSlotsHint': 'اس وقت آپ کی گاڑی کی قسم کے لیے کوئی خالی شادی کی جگہ نہیں۔',
 

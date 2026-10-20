@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Car, Snowflake, MapPin, Navigation, Clock3, Loader2, AlertCircle, CheckCircle2, Ban, RotateCcw } from 'lucide-react'
+import { Car, MapPin, Navigation, Loader2, AlertCircle, CheckCircle2, Ban, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
@@ -32,15 +32,21 @@ import { CallButton } from '@/components/portal/CallButton'
 import { ChatButton } from '@/components/portal/ChatButton'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
+import { CategoryVehiclePicker, type CategoryDef } from '@/components/mobility/CategoryVehiclePicker'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
-  category_name: string | null; category_name_ur: string | null
+  category_name: string | null; category_name_ur: string | null; rental_tier: string | null
   rental_base_pkr: number; rental_per_km_pkr: number; rental_wait_hour_pkr: number | null; cover_url: string | null
   shared_from_other_village: boolean; owner_village_name: string | null
 }
+const RENTAL_TIERS = [
+  { key: 'small_ac', emoji: '🚗' }, { key: 'small_non_ac', emoji: '🚗' },
+  { key: 'big_ac', emoji: '🚐' }, { key: 'big_non_ac', emoji: '🚐' },
+  { key: 'suv', emoji: '🚙' }, { key: 'luxury', emoji: '🚘' },
+] as const
 interface Booking {
   id: string; from_address: string; from_lat: number | null; from_lng: number | null
   to_address: string; to_lat: number | null; to_lng: number | null
@@ -103,7 +109,11 @@ export default function RentalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, bookings])
 
-  const openBooking = (v: Vehicle) => { setOpenVehicle(v); setTripType('one'); setWaitHours(0); setFromLoc(null); setToLoc(null); setNotes(''); setPaymentMethod('cash') }
+  // Real ask: "categories should appear right after choosing the
+  // destination and start point" — from/to are now picked once, up
+  // front, before any vehicle/category is shown, not re-asked per
+  // vehicle inside the booking sheet.
+  const openBooking = (v: Vehicle) => { setOpenVehicle(v); setNotes(''); setPaymentMethod('cash') }
   const bookAgain = (vehicleId: string) => {
     setTab('browse')
     const v = vehicles.find((x) => x.id === vehicleId)
@@ -117,9 +127,52 @@ export default function RentalPage() {
     const s = Math.sin(dl / 2) ** 2 + Math.cos(rad(fromLoc.lat)) * Math.cos(rad(toLoc.lat)) * Math.sin(dn / 2) ** 2
     return Math.max(1, Math.round(6371 * 2 * Math.asin(Math.sqrt(s)) * 1.3))
   })()
-  const estimatedTrip = openVehicle ? (tripType === 'return' ? km * 2 * openVehicle.rental_per_km_pkr : km * openVehicle.rental_per_km_pkr * 1.5) : 0
-  const estimatedWait = openVehicle && tripType === 'return' ? waitHours * (openVehicle.rental_wait_hour_pkr ?? 0) : 0
-  const estimatedTotal = openVehicle ? openVehicle.rental_base_pkr + estimatedTrip + estimatedWait : 0
+  const tripFareFor = (v: Vehicle) => (tripType === 'return' ? km * 2 * v.rental_per_km_pkr : km * v.rental_per_km_pkr * 1.5)
+  const waitFareFor = (v: Vehicle) => (tripType === 'return' ? waitHours * (v.rental_wait_hour_pkr ?? 0) : 0)
+  const totalFor = (v: Vehicle) => v.rental_base_pkr + tripFareFor(v) + waitFareFor(v)
+  const estimatedTrip = openVehicle ? tripFareFor(openVehicle) : 0
+  const estimatedWait = openVehicle ? waitFareFor(openVehicle) : 0
+  const estimatedTotal = openVehicle ? totalFor(openVehicle) : 0
+  const haveRoute = !!fromLoc && !!toLoc
+
+  const tierVehicleCard = (v: Vehicle) => {
+    const Wrapper = v.shared_from_other_village ? 'div' : 'button'
+    return (
+      <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => openBooking(v) })}
+        className={`bg-white border border-[#e5e2d0] rounded-xl overflow-hidden text-start flex flex-col ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}>
+        <div className="h-[56px] bg-[#F9F9F6] shrink-0 flex items-center justify-center overflow-hidden">
+          {v.cover_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
+          ) : <Car size={20} className="text-[#94a3b8]" />}
+        </div>
+        <div className="p-1.5 flex flex-col gap-0.5">
+          <p className="text-[10px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(v.vehicle_type, v.model, isUrdu && v.category_name_ur ? v.category_name_ur : v.category_name)}</p>
+          <p className="text-[8.5px] text-[#64748b] truncate">{v.owner_name}</p>
+          <p className="font-extrabold text-[11px] text-[#166534] ltr-num">₨{fmt(totalFor(v))}</p>
+          {v.shared_from_other_village && (
+            <CallButton phone={v.owner_mobile} className="inline-flex items-center gap-1 text-[8px] font-bold text-[#166534]" />
+          )}
+        </div>
+      </Wrapper>
+    )
+  }
+  const classifiedTierKeys = new Set(RENTAL_TIERS.map((rt) => rt.key))
+  const otherTierVehicles = vehicles.filter((v) => !v.rental_tier || !classifiedTierKeys.has(v.rental_tier as typeof RENTAL_TIERS[number]['key']))
+  const tierCategoryDefs: CategoryDef[] = [
+    ...RENTAL_TIERS.map((rt) => {
+      const inTier = vehicles.filter((v) => v.rental_tier === rt.key)
+      return {
+        key: rt.key, emoji: rt.emoji, name: t(`vp.rentalTier.${rt.key}`), vehicleCount: inTier.length,
+        fromPricePkr: inTier.length > 0 ? Math.min(...inTier.map(totalFor)) : null,
+        selectedCount: 0, children: inTier.map(tierVehicleCard),
+      }
+    }),
+    ...(otherTierVehicles.length > 0 ? [{
+      key: 'other', emoji: '🚗', name: t('vp.otherVehiclesCategory'), vehicleCount: otherTierVehicles.length,
+      fromPricePkr: Math.min(...otherTierVehicles.map(totalFor)), selectedCount: 0, children: otherTierVehicles.map(tierVehicleCard),
+    }] : []),
+  ]
 
   const submitRequest = async () => {
     if (!openVehicle) return
@@ -168,42 +221,56 @@ export default function RentalPage() {
             <p className="text-[10.5px] font-bold uppercase tracking-[0.05em] text-white/75">{t('vp.committeeRateHeading')}</p>
             <p className="text-[12.5px] text-white/90 mt-1 leading-[1.6]">{t('vp.rentalFormulaNote')}</p>
           </div>
-          {vehicles.length === 0 ? (
+
+          {/* Real ask: pick the destination/start point FIRST, categories
+              appear right after — not a flat vehicle list up front. */}
+          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
+            <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.tripTypeLabel')}</label>
+            <div className="flex items-center gap-2 mb-3">
+              <button onClick={() => setTripType('one')} className="flex-1 py-2 rounded-xl text-[13px] font-semibold cursor-pointer border"
+                style={{ background: tripType === 'one' ? '#166534' : '#fff', color: tripType === 'one' ? '#fff' : '#334155', borderColor: tripType === 'one' ? '#166534' : '#e5e2d0' }}>
+                {t('vp.oneWayLabel')}
+              </button>
+              <button onClick={() => setTripType('return')} className="flex-1 py-2 rounded-xl text-[13px] font-semibold cursor-pointer border"
+                style={{ background: tripType === 'return' ? '#166534' : '#fff', color: tripType === 'return' ? '#fff' : '#334155', borderColor: tripType === 'return' ? '#166534' : '#e5e2d0' }}>
+                {t('vp.returnTripLabel')}
+              </button>
+            </div>
+
+            <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.rentalFromLabel')}</label>
+            <button onClick={() => setShowPicker('from')} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
+              <MapPin size={15} className="text-[#166534] shrink-0" />
+              <span className={`text-[13.5px] truncate ${fromLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{fromLoc ? fromLoc.label : t('vp.rentalFromPlaceholder')}</span>
+            </button>
+
+            <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.rentalToLabel')}</label>
+            <button onClick={() => setShowPicker('to')} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
+              <MapPin size={15} className="text-[#b91c1c] shrink-0" />
+              <span className={`text-[13.5px] truncate ${toLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{toLoc ? toLoc.label : t('vp.rentalToPlaceholder')}</span>
+            </button>
+
+            {haveRoute && (
+              <LeafletMap pins={[{ lat: fromLoc!.lat, lng: fromLoc!.lng, color: '#166534' }, { lat: toLoc!.lat, lng: toLoc!.lng, color: '#b91c1c' }]} height={130} className="rounded-xl mb-3" />
+            )}
+
+            {tripType === 'return' && (
+              <>
+                <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.waitHoursLabel')}</label>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setWaitHours((h) => Math.max(0, h - 1))} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">−</button>
+                  <span className="font-extrabold text-[18px] w-10 text-center ltr-num">{waitHours}</span>
+                  <button onClick={() => setWaitHours((h) => h + 1)} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">+</button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {!haveRoute ? (
+            <p className="text-center py-6 text-[#94a3b8] text-[13.5px]">{t('vp.rentalPickRouteFirstHint')}</p>
+          ) : vehicles.length === 0 ? (
             <p className="text-center py-10 text-[#94a3b8] text-[14px]">{t('vp.noRentalVehiclesHint')}</p>
           ) : (
-            <div className="flex flex-col gap-2">
-              {vehicles.map((v) => {
-                const Wrapper = v.shared_from_other_village ? 'div' : 'button'
-                return (
-                <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => openBooking(v) })}
-                  className={`w-full flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden text-start ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}>
-                  <div className="w-16 h-16 bg-[#F9F9F6] shrink-0 flex items-center justify-center overflow-hidden">
-                    {v.cover_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
-                    ) : <Car size={22} className="text-[#94a3b8]" />}
-                  </div>
-                  <div className="py-2.5 pe-1 shrink-0 min-w-[72px]">
-                    <p className="font-extrabold text-[16px] text-[#166534] ltr-num leading-tight">{fmt(v.rental_base_pkr)}</p>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('vp.rentalBaseFareLabel')}</p>
-                  </div>
-                  <div className="flex-1 min-w-0 py-2.5 pe-3 border-s border-[#f1f5f9] ps-3">
-                    <p className="text-[13.5px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(v.vehicle_type, v.model, isUrdu && v.category_name_ur ? v.category_name_ur : v.category_name)}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                      {v.color && <span className="text-[11px] text-[#64748b]">{v.color}</span>}
-                      {v.has_ac && <span className="flex items-center gap-0.5 text-[9.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={9} /> {t('mv.hasAcLabel')}</span>}
-                    </div>
-                    <p className="text-[10.5px] text-[#64748b] mt-0.5 ltr-num">{fmt(v.rental_per_km_pkr)}/km</p>
-                    {v.shared_from_other_village && (
-                      <div className="flex items-center justify-between gap-2 mt-1">
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800">{t('vp.sharedFromVillageBadge').replace('{village}', v.owner_village_name ?? '')}</span>
-                        <CallButton phone={v.owner_mobile} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#166534]" />
-                      </div>
-                    )}
-                  </div>
-                </Wrapper>
-              )})}
-            </div>
+            <CategoryVehiclePicker categories={tierCategoryDefs} availableLabel={t('mb.availableLabel')} fromLabel={t('mb.fromPriceLabel')} />
           )}
         </>
       ) : (
@@ -290,44 +357,12 @@ export default function RentalPage() {
         <MobilityBottomSheet title={vehicleDisplayName(openVehicle.vehicle_type, openVehicle.model, isUrdu && openVehicle.category_name_ur ? openVehicle.category_name_ur : openVehicle.category_name)} onClose={() => setOpenVehicle(null)}>
           <p className="text-[12px] text-[#64748b] -mt-2 mb-3">{openVehicle.color}{openVehicle.has_ac ? ` · ${t('mv.hasAcLabel')}` : ''}</p>
 
-          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.tripTypeLabel')}</label>
-          <div className="flex items-center gap-2 mb-3">
-            <button onClick={() => setTripType('one')} className="flex-1 py-2 rounded-xl text-[13px] font-semibold cursor-pointer border"
-              style={{ background: tripType === 'one' ? '#166534' : '#fff', color: tripType === 'one' ? '#fff' : '#334155', borderColor: tripType === 'one' ? '#166534' : '#e5e2d0' }}>
-              {t('vp.oneWayLabel')}
-            </button>
-            <button onClick={() => setTripType('return')} className="flex-1 py-2 rounded-xl text-[13px] font-semibold cursor-pointer border"
-              style={{ background: tripType === 'return' ? '#166534' : '#fff', color: tripType === 'return' ? '#fff' : '#334155', borderColor: tripType === 'return' ? '#166534' : '#e5e2d0' }}>
-              {t('vp.returnTripLabel')}
-            </button>
+          {/* Route/trip-type/wait-hours already chosen up front (browse
+              tab, before categories appeared) — shown read-only here. */}
+          <div className="bg-[#F9F9F6] rounded-xl p-2.5 mb-3 flex flex-col gap-1">
+            <p className="text-[12.5px] text-[#1e293b] flex items-start gap-1.5"><MapPin size={12} className="shrink-0 mt-0.5 text-[#166534]" /> {fromLoc?.label}</p>
+            <p className="text-[12.5px] text-[#1e293b] flex items-start gap-1.5"><MapPin size={12} className="shrink-0 mt-0.5 text-[#b91c1c]" /> {toLoc?.label}</p>
           </div>
-
-          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.rentalFromLabel')}</label>
-          <button onClick={() => setShowPicker('from')} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
-            <MapPin size={15} className="text-[#166534] shrink-0" />
-            <span className={`text-[13.5px] truncate ${fromLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{fromLoc ? fromLoc.label : t('vp.rentalFromPlaceholder')}</span>
-          </button>
-
-          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.rentalToLabel')}</label>
-          <button onClick={() => setShowPicker('to')} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
-            <MapPin size={15} className="text-[#b91c1c] shrink-0" />
-            <span className={`text-[13.5px] truncate ${toLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{toLoc ? toLoc.label : t('vp.rentalToPlaceholder')}</span>
-          </button>
-
-          {fromLoc && toLoc && (
-            <LeafletMap pins={[{ lat: fromLoc.lat, lng: fromLoc.lng, color: '#166534' }, { lat: toLoc.lat, lng: toLoc.lng, color: '#b91c1c' }]} height={140} className="rounded-xl mb-3" />
-          )}
-
-          {tripType === 'return' && (
-            <>
-              <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.waitHoursLabel')}</label>
-              <div className="flex items-center gap-2 mb-3">
-                <button onClick={() => setWaitHours((h) => Math.max(0, h - 1))} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">−</button>
-                <span className="font-extrabold text-[18px] w-10 text-center ltr-num">{waitHours}</span>
-                <button onClick={() => setWaitHours((h) => h + 1)} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">+</button>
-              </div>
-            </>
-          )}
 
           <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.notesLabel')}</label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder={t('vp.rentalNotesPlaceholder')}

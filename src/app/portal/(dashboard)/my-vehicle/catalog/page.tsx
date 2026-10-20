@@ -26,7 +26,7 @@ interface Vehicle {
   offers_hourly: boolean; offers_shadi: boolean; offers_rental: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
   shadi_full_day_rate_pkr: number | null; shadi_vehicle_class: string | null
-  rental_base_pkr: number | null; rental_per_km_pkr: number | null; rental_wait_hour_pkr: number | null
+  rental_base_pkr: number | null; rental_per_km_pkr: number | null; rental_wait_hour_pkr: number | null; rental_tier: string | null
 }
 interface Photo { id: string; url: string; is_cover: boolean }
 interface ShadiClass { class_key: string; name_en: string; name_ur: string }
@@ -67,6 +67,7 @@ export default function MyVehicleCatalogPage() {
   const [offersRental, setOffersRental] = useState(false)
   const [shadiVehicleClass, setShadiVehicleClass] = useState<string>('')
   const [shadiClasses, setShadiClasses] = useState<ShadiClass[]>([])
+  const [rentalTier, setRentalTier] = useState<string>('')
   const [saving, setSaving] = useState(false)
 
   const loadPhotos = (vehicleId: string) =>
@@ -75,13 +76,14 @@ export default function MyVehicleCatalogPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, vehicle_type, color, model, has_ac, offers_hourly, offers_shadi, offers_rental, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_base_pkr, rental_per_km_pkr, rental_wait_hour_pkr')
+    supabase.from('vehicles').select('id, owner_name, vehicle_type, color, model, has_ac, offers_hourly, offers_shadi, offers_rental, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_base_pkr, rental_per_km_pkr, rental_wait_hour_pkr, rental_tier')
       .eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
         setVehicle(data)
         if (data) {
           setColor(data.color ?? ''); setModel(data.model ?? ''); setHasAc(data.has_ac)
           setOffersHourly(data.offers_hourly); setOffersShadi(data.offers_shadi); setOffersRental(data.offers_rental)
           setShadiVehicleClass(data.shadi_vehicle_class ?? '')
+          setRentalTier(data.rental_tier ?? '')
           await loadPhotos(data.id)
         }
         setLoading(false)
@@ -95,12 +97,12 @@ export default function MyVehicleCatalogPage() {
     setSaving(true)
     const { error } = await supabase.rpc('set_vehicle_catalog_prefs', {
       p_vehicle_id: vehicle.id, p_color: color, p_model: model, p_has_ac: hasAc, p_offers_hourly: offersHourly, p_offers_shadi: offersShadi, p_offers_rental: offersRental,
-      p_shadi_vehicle_class: shadiVehicleClass || null,
+      p_shadi_vehicle_class: shadiVehicleClass || null, p_rental_tier: rentalTier || null,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('g.saveChanges'))
-    setVehicle((v) => v ? { ...v, color: color.trim() || null, model: model.trim() || null, has_ac: hasAc, offers_hourly: offersHourly, offers_shadi: offersShadi, offers_rental: offersRental, shadi_vehicle_class: shadiVehicleClass || v.shadi_vehicle_class } : v)
+    setVehicle((v) => v ? { ...v, color: color.trim() || null, model: model.trim() || null, has_ac: hasAc, offers_hourly: offersHourly, offers_shadi: offersShadi, offers_rental: offersRental, shadi_vehicle_class: shadiVehicleClass || v.shadi_vehicle_class, rental_tier: rentalTier || v.rental_tier } : v)
   }
 
   const uploadPhoto = async (file: File) => {
@@ -236,6 +238,18 @@ export default function MyVehicleCatalogPage() {
           <Navigation size={15} className="text-[#64748b]" />
           <span className="font-sans text-[13.5px] text-[#1e293b]">{t('mv.offersRentalLabel')}</span>
         </label>
+        <div className="mt-3 pt-3 border-t border-[#f1f5f9]">
+          <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.yourRentalTierLabel')}</label>
+          <select value={rentalTier} onChange={(e) => setRentalTier(e.target.value)} className="dp2-input font-sans text-[13.5px]">
+            <option value="">—</option>
+            <option value="small_ac">{t('vp.rentalTier.small_ac')}</option>
+            <option value="small_non_ac">{t('vp.rentalTier.small_non_ac')}</option>
+            <option value="big_ac">{t('vp.rentalTier.big_ac')}</option>
+            <option value="big_non_ac">{t('vp.rentalTier.big_non_ac')}</option>
+            <option value="suv">{t('vp.rentalTier.suv')}</option>
+            <option value="luxury">{t('vp.rentalTier.luxury')}</option>
+          </select>
+        </div>
       </div>
 
       {/* Shadi (wedding) opt-in — its own rate, its own gate */}
