@@ -62,13 +62,22 @@ export function RouteStopsEditor({ routeId, routePath, departureTime, durationMi
       key: `village:${row.village_id}`, label: row.name, nameUr: row.name_ur, lat: row.lat, lng: row.lng, villageId: row.village_id,
     }))
 
-    // Sample a handful of points along the path (skip the very start/
-    // end — those are the route's own origin/destination already) and
-    // reverse-geocode each one via Photon for a real place name.
+    // Sample points along the path (skip the very start/end — those
+    // are the route's own origin/destination already) and reverse-
+    // geocode each via Photon for a real place name. Real gap found
+    // live: rural Pakistan has very sparse OSM coverage — Photon
+    // genuinely returns zero features for a real point in the middle
+    // of farmland (confirmed directly), which left the whole
+    // suggestion list empty for exactly the routes most likely to need
+    // it. A point with no nearby named feature still becomes a
+    // suggestion — just with a generic "Stop N" label instead of a
+    // real place name — so there is always something to tap and
+    // confirm, never a dead end; the driver can still rename it (the
+    // label field stays editable everywhere else in this app too).
     const cum: number[] = [0]
     for (let i = 1; i < routePath.length; i++) cum.push(cum[i - 1] + haversineKm(routePath[i - 1], routePath[i]))
     const total = cum[cum.length - 1] || 1
-    const fractions = [0.25, 0.5, 0.75]
+    const fractions = [0.2, 0.4, 0.6, 0.8]
     const samplePoints = fractions.map((f) => {
       const targetDist = f * total
       let idx = 0
@@ -76,9 +85,9 @@ export function RouteStopsEditor({ routeId, routePath, departureTime, durationMi
       return routePath[Math.min(idx, routePath.length - 1)]
     })
     const geocoded = await Promise.all(samplePoints.map((p) => geocodeReverse(p.lat, p.lng).then((label) => ({ label, p }))))
-    const fromPhoton: Suggestion[] = geocoded
-      .filter((g): g is { label: string; p: { lat: number; lng: number } } => !!g.label)
-      .map((g, i) => ({ key: `photon:${i}`, label: g.label, nameUr: null, lat: g.p.lat, lng: g.p.lng, villageId: null }))
+    const fromPhoton: Suggestion[] = geocoded.map((g, i) => ({
+      key: `photon:${i}`, label: g.label || t('mv.genericStopLabel').replace('{n}', String(i + 1)), nameUr: null, lat: g.p.lat, lng: g.p.lng, villageId: null,
+    }))
 
     // De-dupe by real proximity (not exact label text) against both
     // already-added stops and each other — a village match and a
