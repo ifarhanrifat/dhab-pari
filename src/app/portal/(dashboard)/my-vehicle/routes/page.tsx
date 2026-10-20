@@ -21,7 +21,6 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { FairPriceHint } from '@/components/mobility/FairPriceHint'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
 import { fetchRoadRouteAlternatives, fetchMultiWaypointRoute, type RoadRouteAlternative } from '@/lib/roadRoute'
@@ -68,6 +67,7 @@ export default function MyVehicleRoutesPage() {
   const [vehicleId, setVehicleId] = useState<string | null>(null)
   const [commissionMode, setCommissionMode] = useState<string | null>(null)
   const [totalSeats, setTotalSeats] = useState<number | null>(null)
+  const [routeFairPerSeat, setRouteFairPerSeat] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [routes, setRoutes] = useState<Route[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -110,6 +110,8 @@ export default function MyVehicleRoutesPage() {
   const [groupRouteId, setGroupRouteId] = useState<string | null>(null)
   const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[] } | null>(null)
   const [savingSchedule, setSavingSchedule] = useState(false)
+  const [stopCounts, setStopCounts] = useState<Record<string, number>>({})
+  const [nextRunSeats, setNextRunSeats] = useState<Record<string, number>>({})
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
@@ -132,7 +134,29 @@ export default function MyVehicleRoutesPage() {
         if (!latest[i.vehicle_route_id]) latest[i.vehicle_route_id] = i
       }
       setIlansByRoute(latest)
-    } else setIlansByRoute({})
+
+      // Real ask, 2026-10-20: the card showed nothing about its stops
+      // or whether it's actually full — both now computed for every
+      // active route's own next upcoming running day.
+      const { data: stopRows } = await supabase.from('route_stops').select('route_id').in('route_id', rts.map((r) => r.id))
+      const counts: Record<string, number> = {}
+      for (const row of stopRows ?? []) counts[row.route_id] = (counts[row.route_id] ?? 0) + 1
+      setStopCounts(counts)
+
+      const activeRoutes = (rts as Route[]).filter((r) => r.is_active)
+      const seatEntries = await Promise.all(activeRoutes.map(async (r) => {
+        const today = new Date()
+        let nextDate: string | null = null
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(today.getTime() + i * 86400000)
+          if (r.days_of_week.includes(d.getDay())) { nextDate = d.toISOString().slice(0, 10); break }
+        }
+        if (!nextDate) return [r.id, null] as const
+        const { data: seats } = await supabase.rpc('route_seats_available', { p_route_id: r.id, p_travel_date: nextDate })
+        return [r.id, seats as number | null] as const
+      }))
+      setNextRunSeats(Object.fromEntries(seatEntries.filter((e): e is [string, number] => e[1] != null)))
+    } else { setIlansByRoute({}); setStopCounts({}); setNextRunSeats({}) }
   }
 
   useEffect(() => {
@@ -221,6 +245,25 @@ export default function MyVehicleRoutesPage() {
     setChosenPathIdx(i)
     setForm((f) => ({ ...f, distance_km: String(Math.round(pathOptions[i].distanceKm)) }))
   }
+
+  // Real bug found live, 2026-10-20: fare_band_for('route', km) is a
+  // PER-SEAT fair price (same formula as trip_share, which really is
+  // per-seat) — the backend ceiling now correctly scales it by this
+  // vehicle's own seat count (migration 722) rather than comparing it
+  // straight against the whole-vehicle total, which silently divided
+  // the real per-seat price by however many seats the vehicle has.
+  // This hint shows the same per-seat number the backend actually
+  // enforces, plus what that means as a total for this vehicle.
+  useEffect(() => {
+    const km = form.distance_km ? Number(form.distance_km) : null
+    if (!km || km <= 0) { setRouteFairPerSeat(null); return }
+    let cancelled = false
+    supabase.rpc('fare_band_for', { p_flow: 'route', p_km: km }).then(({ data }) => {
+      if (!cancelled) setRouteFairPerSeat((data as { fair?: number } | null)?.fair ?? null)
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.distance_km])
 
   const postRoute = async () => {
     if (!vehicleId || !form.origin.trim() || !form.destination.trim()) { toast.error(t('mk.nameRequired')); return }
@@ -435,7 +478,11 @@ export default function MyVehicleRoutesPage() {
           {totalSeats != null && (
             <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('mv.yourVehicleSeatsNote').replace('{n}', String(totalSeats))}</p>
           )}
-          <FairPriceHint flow="route" distanceKm={form.distance_km ? Number(form.distance_km) : null} />
+          {routeFairPerSeat != null && (
+            <p className="font-sans text-[11.5px] text-[#166534] bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg px-2.5 py-1.5">
+              {t('mv.routeFairPriceHint').replace('{perSeat}', fmt(Math.round(routeFairPerSeat))).replace('{total}', fmt(Math.round(routeFairPerSeat * (totalSeats ?? 1)))).replace('{n}', String(totalSeats ?? 1))}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
@@ -486,6 +533,20 @@ export default function MyVehicleRoutesPage() {
                         {r.departure_time && `🕒 ${r.departure_time.slice(0, 5)}`}
                         {r.return_departure_time && ` · ↩️ ${r.return_departure_time.slice(0, 5)}`}
                       </p>
+                    )}
+                    {r.is_active && (
+                      <div className="flex items-center gap-2 mt-1">
+                        {stopCounts[r.id] > 0 && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#F9F9F6] font-sans text-[10px] font-semibold text-[#334155]">
+                            📍 {stopCounts[r.id]} {t('mp.routeStopsHeading')}
+                          </span>
+                        )}
+                        {nextRunSeats[r.id] != null && (
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full font-sans text-[10px] font-bold ${nextRunSeats[r.id] > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-[#b91c1c]'}`}>
+                            {nextRunSeats[r.id] > 0 ? `🪑 ${nextRunSeats[r.id]} ${t('mv.seatsLeftSuffix')}` : t('mp.fullyBookedError')}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   {r.is_active && (
