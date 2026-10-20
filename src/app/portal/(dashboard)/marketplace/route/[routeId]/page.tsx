@@ -19,7 +19,7 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
-import { haversineKm } from '@/lib/roadRoute'
+import { estimateArrivalTime } from '@/lib/roadRoute'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -37,22 +37,9 @@ interface Stop { id: string; label: string; label_ur: string | null; lat: number
 // Always labeled "approx." in the UI for exactly that reason.
 function computeStopEtas(path: { lat: number; lng: number }[], durationMin: number | null, departureTime: string | null, stops: Stop[]): Record<string, string> {
   const result: Record<string, string> = {}
-  if (path.length < 2 || !durationMin || !departureTime) return result
-  const cum: number[] = [0]
-  for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + haversineKm(path[i - 1], path[i]))
-  const total = cum[cum.length - 1] || 1
-  const [h, m] = departureTime.split(':').map(Number)
   for (const s of stops) {
-    let bestIdx = 0, bestDist = Infinity
-    path.forEach((p, i) => {
-      const d = haversineKm(p, { lat: s.lat, lng: s.lng })
-      if (d < bestDist) { bestDist = d; bestIdx = i }
-    })
-    const elapsedMin = (cum[bestIdx] / total) * durationMin
-    const totalMin = h * 60 + m + elapsedMin
-    const hh = Math.floor(totalMin / 60) % 24
-    const mm = Math.round(totalMin % 60)
-    result[s.id] = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+    const t = estimateArrivalTime(path, durationMin, departureTime, { lat: s.lat, lng: s.lng })
+    if (t) result[s.id] = t
   }
   return result
 }

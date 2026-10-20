@@ -85,7 +85,7 @@ async function geocodeSearch(query: string): Promise<SearchResult[]> {
     .map((f) => ({ lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], displayName: photonLabel(f.properties) }))
     .filter((r) => r.displayName)
 }
-async function geocodeReverse(lat: number, lng: number): Promise<string | null> {
+export async function geocodeReverse(lat: number, lng: number): Promise<string | null> {
   const res = await fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}&lang=en`)
   if (!res.ok) return null
   const data = (await res.json()) as { features: PhotonFeature[] }

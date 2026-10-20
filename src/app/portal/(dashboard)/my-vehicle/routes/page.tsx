@@ -44,7 +44,7 @@ interface Booking {
 interface Route {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_mode: string; fare_per_seat_pkr: number; total_fare_pkr: number | null; is_active: boolean
-  departure_time: string | null; days_of_week: number[]; route_path: { lat: number; lng: number }[] | null
+  departure_time: string | null; days_of_week: number[]; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
 }
 interface RouteIlan { id: string; vehicle_route_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 
@@ -93,7 +93,7 @@ export default function MyVehicleRoutesPage() {
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
-      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, days_of_week, route_path')
+      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, days_of_week, route_path, route_duration_min')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
@@ -467,13 +467,18 @@ export default function MyVehicleRoutesPage() {
         </div>
       </div>
 
-      {stopsRouteId && (
-        <RouteStopsEditor
-          routeId={stopsRouteId}
-          routePath={routes.find((r) => r.id === stopsRouteId)?.route_path ?? null}
-          onClose={() => setStopsRouteId(null)}
-        />
-      )}
+      {stopsRouteId && (() => {
+        const r = routes.find((rt) => rt.id === stopsRouteId)
+        return (
+          <RouteStopsEditor
+            routeId={stopsRouteId}
+            routePath={r?.route_path ?? null}
+            departureTime={r?.departure_time ?? null}
+            durationMin={r?.route_duration_min ?? null}
+            onClose={() => setStopsRouteId(null)}
+          />
+        )
+      })()}
       {groupRouteId && (
         <RouteGroupPanel routeId={groupRouteId} onClose={() => setGroupRouteId(null)} />
       )}

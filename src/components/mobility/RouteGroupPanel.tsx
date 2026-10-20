@@ -16,12 +16,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Send, Radio, Users, LogOut } from 'lucide-react'
+import { Send, Radio, Users, LogOut, PlayCircle, StopCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useLiveLocation } from '@/hooks/useLiveLocation'
+import { haversineKm } from '@/lib/roadRoute'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -29,8 +30,42 @@ const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr
 
 interface Participant { portal_user_id: string; name: string; sharing_location: boolean }
 interface Message { id: string; sender_portal_user_id: string; sender_name: string; is_own: boolean; body: string; created_at: string }
-interface LiveLoc { portal_user_id: string; name: string; is_own: boolean; lat: number; lng: number; updated_at: string }
-interface Detail { is_owner: boolean; is_member: boolean; sharing_location: boolean; participants: Participant[]; messages: Message[]; live_locations: LiveLoc[] }
+interface LiveLoc { portal_user_id: string; name: string; is_own: boolean; is_owner: boolean; lat: number; lng: number; updated_at: string }
+interface StopRow { id: string; label: string; label_ur: string | null; lat: number; lng: number }
+interface ActiveRun { id: string; started_at: string }
+interface Detail {
+  is_owner: boolean; is_member: boolean; sharing_location: boolean
+  owner_portal_user_id: string; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
+  active_run: ActiveRun | null; stops: StopRow[]
+  participants: Participant[]; messages: Message[]; live_locations: LiveLoc[]
+}
+
+// Live, moving ETA per stop — not the static schedule guess. Projects
+// forward from the driver's own most recent ping using the chosen
+// road path's real OSRM pace (duration/distance), measuring how far
+// along that same path the driver has actually gotten. A stop whose
+// nearest path point sits behind the driver's own nearest point has
+// already been passed.
+function computeLiveEtas(path: { lat: number; lng: number }[], durationMin: number | null, driverPos: { lat: number; lng: number } | null, stops: StopRow[]): Record<string, { minutesAway: number; passed: boolean } | undefined> {
+  const result: Record<string, { minutesAway: number; passed: boolean } | undefined> = {}
+  if (path.length < 2 || !durationMin || !driverPos) return result
+  const cum: number[] = [0]
+  for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + haversineKm(path[i - 1], path[i]))
+  const total = cum[cum.length - 1] || 1
+  const minPerKm = durationMin / total
+  const nearestIdx = (p: { lat: number; lng: number }) => {
+    let best = 0, bestDist = Infinity
+    path.forEach((pt, i) => { const d = haversineKm(pt, p); if (d < bestDist) { bestDist = d; best = i } })
+    return best
+  }
+  const driverIdx = nearestIdx(driverPos)
+  for (const s of stops) {
+    const stopIdx = nearestIdx({ lat: s.lat, lng: s.lng })
+    const remainingKm = cum[stopIdx] - cum[driverIdx]
+    result[s.id] = remainingKm < 0 ? { minutesAway: 0, passed: true } : { minutesAway: Math.round(remainingKm * minPerKm), passed: false }
+  }
+  return result
+}
 
 export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose: () => void }) {
   const { t, isUrdu } = useLocale()
@@ -71,6 +106,17 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
       if (error) setSharing(false)
     },
   })
+
+  const [runBusy, setRunBusy] = useState(false)
+  const toggleRun = async () => {
+    setRunBusy(true)
+    const { error } = detail?.active_run
+      ? await supabase.rpc('end_route_run', { p_route_id: routeId })
+      : await supabase.rpc('start_route_run', { p_route_id: routeId })
+    setRunBusy(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    load()
+  }
 
   const join = async () => {
     setJoining(true)
@@ -135,6 +181,42 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
               </span>
             ))}
           </div>
+
+          {detail.is_owner && (
+            <button type="button" onClick={toggleRun} disabled={runBusy}
+              className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[13px] font-sans font-bold cursor-pointer disabled:opacity-50 ${detail.active_run ? 'bg-[#b91c1c] text-white' : 'bg-[#D4AF37] text-[#0f172a]'}`}>
+              {detail.active_run ? <StopCircle size={15} /> : <PlayCircle size={15} />} {detail.active_run ? t('mv.endRideBtn') : t('mv.startRideBtn')}
+            </button>
+          )}
+          {detail.active_run && !detail.is_owner && (
+            <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
+              <Radio size={12} className="animate-pulse" /> {t('mv.rideLiveNowLabel')}
+            </p>
+          )}
+
+          {detail.active_run && detail.stops.length > 0 && (() => {
+            const driverPos = detail.live_locations.find((l) => l.is_owner)
+            const etas = computeLiveEtas(detail.route_path ?? [], detail.route_duration_min, driverPos ? { lat: driverPos.lat, lng: driverPos.lng } : null, detail.stops)
+            return (
+              <div className="flex flex-col gap-1">
+                {detail.stops.map((s) => {
+                  const e = etas[s.id]
+                  return (
+                    <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F9F9F6] px-2.5 py-1.5">
+                      <span className="font-sans text-[12px] font-semibold text-[#1e293b] truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</span>
+                      {e ? (
+                        <span className={`shrink-0 font-sans text-[11px] font-bold ltr-num ${e.passed ? 'text-[#94a3b8]' : 'text-[#166534]'}`}>
+                          {e.passed ? t('mv.stopPassedLabel') : `${e.minutesAway} ${t('mv.minAwaySuffix')}`}
+                        </span>
+                      ) : (
+                        <span className="shrink-0 font-sans text-[11px] text-[#94a3b8]">{t('action.loading')}</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
 
           <button type="button" onClick={toggleSharing} disabled={sharingBusy}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer transition-all disabled:opacity-50 w-fit ${sharing ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>

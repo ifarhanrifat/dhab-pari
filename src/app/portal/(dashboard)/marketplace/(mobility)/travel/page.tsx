@@ -24,6 +24,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityServiceTile } from '@/components/mobility/MobilityServiceTile'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
+import { FindRideNearStopSheet } from '@/components/mobility/FindRideNearStopSheet'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -78,6 +79,7 @@ export default function MobilityHomePage() {
   const [destPin, setDestPin] = useState<PickedLocation | null>(null)
   const [showOriginPicker, setShowOriginPicker] = useState(false)
   const [showDestPicker, setShowDestPicker] = useState(false)
+  const [showNearStop, setShowNearStop] = useState(false)
 
   useEffect(() => {
     supabase.from('cities').select('id, name, name_ur, lat, lng').eq('is_active', true).order('display_order').then(({ data }) => setCities(data ?? []))
@@ -202,9 +204,13 @@ export default function MobilityHomePage() {
             <button onClick={findVehicles} disabled={!toCity} className="w-full bg-[#166534] disabled:bg-[#166534]/40 text-white rounded-xl py-2.5 font-bold text-[13px] cursor-pointer disabled:cursor-not-allowed">
               {t('mb.findVehiclesBtn')}
             </button>
+            <button onClick={() => setShowNearStop(true)} className="w-full border border-[#e5e2d0] text-[#166534] rounded-xl py-2 font-bold text-[12.5px] cursor-pointer">
+              📍 {t('mv.findRideNearMeBtn')}
+            </button>
           </>
         )}
       </div>
+      {showNearStop && <FindRideNearStopSheet onClose={() => setShowNearStop(false)} />}
 
       {/* Adda departure board — exact flap/seat-dots shape */}
       {board && (

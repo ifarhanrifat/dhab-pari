@@ -69,3 +69,22 @@ export async function fetchRoadRouteAlternatives(a: LatLng, b: LatLng): Promise<
   }
   return [{ distanceKm: haversineKm(a, b) * 1.3, durationMin: (haversineKm(a, b) * 1.3 / 40) * 60, path: [a, b] }]
 }
+
+// Shared by the rider's stop board, the driver's own stop editor, and
+// the "find a ride near a stop" discovery list — approximate only,
+// interpolated proportionally along a chosen road path by each point's
+// fractional distance along it, using the path's own real OSRM
+// duration. Always an estimate off a static schedule, never a live
+// position — labeled "approx." everywhere it's shown for that reason.
+export function estimateArrivalTime(path: LatLng[], durationMin: number | null, departureTime: string | null, point: LatLng): string | null {
+  if (path.length < 2 || !durationMin || !departureTime) return null
+  const cum: number[] = [0]
+  for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + haversineKm(path[i - 1], path[i]))
+  const total = cum[cum.length - 1] || 1
+  let bestIdx = 0, bestDist = Infinity
+  path.forEach((p, i) => { const d = haversineKm(p, point); if (d < bestDist) { bestDist = d; bestIdx = i } })
+  const [h, m] = departureTime.split(':').map(Number)
+  const totalMin = h * 60 + m + (cum[bestIdx] / total) * durationMin
+  const hh = Math.floor(totalMin / 60) % 24, mm = Math.round(totalMin % 60)
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+}
