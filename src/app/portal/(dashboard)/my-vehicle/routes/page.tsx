@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus, Megaphone } from 'lucide-react'
 import { toast } from 'sonner'
@@ -21,6 +22,10 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { FairPriceHint } from '@/components/mobility/FairPriceHint'
+import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
+import { fetchRoadRoute, type RoadRoute } from '@/lib/roadRoute'
+
+const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 const DAYS = [0, 1, 2, 3, 4, 5, 6]
 const emptyRouteForm = {
@@ -57,6 +62,18 @@ export default function MyVehicleRoutesPage() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyRouteForm)
   const [posting, setPosting] = useState(false)
+  // Real gap found live, 2026-10-20: this form's distance_km was a bare
+  // guessed number the driver typed in — no map, no real coordinates
+  // ever reached create_vehicle_route_self's own p_origin_lat/lng
+  // params even though the RPC has long supported them. Mirrors the
+  // same map-pick + OSRM-road-distance pattern just added to the Home
+  // screen's quick-publish panel.
+  const [originPoint, setOriginPoint] = useState<PickedLocation | null>(null)
+  const [destPoint, setDestPoint] = useState<PickedLocation | null>(null)
+  const [showOriginPicker, setShowOriginPicker] = useState(false)
+  const [showDestPicker, setShowDestPicker] = useState(false)
+  const [routePath, setRoutePath] = useState<RoadRoute | null>(null)
+  const [routeLoading, setRouteLoading] = useState(false)
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
@@ -121,6 +138,19 @@ export default function MyVehicleRoutesPage() {
     setForm((f) => ({ ...f, days_of_week: f.days_of_week.includes(d) ? f.days_of_week.filter((x) => x !== d) : [...f.days_of_week, d].sort() }))
   }
 
+  useEffect(() => {
+    if (!originPoint || !destPoint) { setRoutePath(null); return }
+    setRouteLoading(true)
+    let cancelled = false
+    fetchRoadRoute({ lat: originPoint.lat, lng: originPoint.lng }, { lat: destPoint.lat, lng: destPoint.lng }).then((r) => {
+      if (cancelled) return
+      setRoutePath(r)
+      setForm((f) => ({ ...f, distance_km: String(Math.round(r.distanceKm)) }))
+      setRouteLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [originPoint?.lat, originPoint?.lng, destPoint?.lat, destPoint?.lng])
+
   const postRoute = async () => {
     if (!vehicleId || !form.origin.trim() || !form.destination.trim()) { toast.error(t('mk.nameRequired')); return }
     if (form.days_of_week.length === 0) { toast.error(t('mv.pickAtLeastOneDayError')); return }
@@ -138,6 +168,8 @@ export default function MyVehicleRoutesPage() {
       p_classification: form.classification, p_fare_mode: form.fare_mode, p_total_fare_pkr: totalFare,
       p_departure_time: form.departure_time || null, p_days_of_week: form.days_of_week,
       p_distance_km: distanceKm,
+      p_origin_lat: originPoint?.lat ?? null, p_origin_lng: originPoint?.lng ?? null,
+      p_destination_lat: destPoint?.lat ?? null, p_destination_lng: destPoint?.lng ?? null,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -147,6 +179,9 @@ export default function MyVehicleRoutesPage() {
     const originLabel = form.origin
     const destinationLabel = form.destination
     setForm(emptyRouteForm)
+    setOriginPoint(null)
+    setDestPoint(null)
+    setRoutePath(null)
     if (vehicleId) reload(vehicleId)
     if (confirm(t('mv.advertiseThisRidePrompt'))) {
       router.push(`/portal/my-vehicle/ilan?route=${routeId}&origin=${encodeURIComponent(originLabel)}&destination=${encodeURIComponent(destinationLabel)}`)
@@ -195,10 +230,53 @@ export default function MyVehicleRoutesPage() {
               <option value="flex">{t('mv.fareMode.flex')}</option>
             </select>
           </div>
-          <div>
-            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.distanceKmOptionalLabel')}</label>
-            <input type="number" value={form.distance_km} onChange={(e) => setForm((f) => ({ ...f, distance_km: e.target.value }))} placeholder={t('cm.distanceKmPlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-          </div>
+          {showOriginPicker ? (
+            <LocationPickerSheet
+              title={t('mv.pickOriginOnMapBtn')}
+              initial={originPoint}
+              inline
+              onClose={() => setShowOriginPicker(false)}
+              onConfirm={(loc) => { setOriginPoint(loc); setShowOriginPicker(false) }}
+            />
+          ) : showDestPicker ? (
+            <LocationPickerSheet
+              title={t('mv.pickDestinationOnMapBtn')}
+              initial={destPoint}
+              defaultCenter={originPoint ? [originPoint.lat, originPoint.lng] : undefined}
+              inline
+              onClose={() => setShowDestPicker(false)}
+              onConfirm={(loc) => { setDestPoint(loc); setShowDestPicker(false) }}
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setShowOriginPicker(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12px] font-semibold text-start cursor-pointer">
+                  <MapPin size={13} className="shrink-0 text-[#166534]" />
+                  <span className={`truncate ${originPoint ? 'text-[#1e293b]' : 'text-[#94a3b8]'}`}>{originPoint ? originPoint.label : t('mv.pickOriginOnMapBtn')}</span>
+                </button>
+                <button type="button" onClick={() => setShowDestPicker(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12px] font-semibold text-start cursor-pointer">
+                  <MapPin size={13} className="shrink-0 text-[#D4AF37]" />
+                  <span className={`truncate ${destPoint ? 'text-[#1e293b]' : 'text-[#94a3b8]'}`}>{destPoint ? destPoint.label : t('mv.pickDestinationOnMapBtn')}</span>
+                </button>
+              </div>
+              <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('mv.routeMapPointsHint')}</p>
+              {originPoint && destPoint && (
+                <LeafletMap
+                  pins={[{ lat: originPoint.lat, lng: originPoint.lng, color: '#166534' }, { lat: destPoint.lat, lng: destPoint.lng, color: '#D4AF37' }]}
+                  route={routePath?.path}
+                  height={140} className="rounded-xl"
+                />
+              )}
+              {originPoint && destPoint && (
+                <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{routeLoading ? t('action.loading') : routePath ? `🛣️ ${Math.round(routePath.distanceKm)} km` : ''}</p>
+              )}
+
+              <div>
+                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.distanceKmOptionalLabel')}</label>
+                <input type="number" value={form.distance_km} onChange={(e) => setForm((f) => ({ ...f, distance_km: e.target.value }))} placeholder={t('cm.distanceKmPlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+              </div>
+            </>
+          )}
           <input type="number" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
           <FairPriceHint flow="route" distanceKm={form.distance_km ? Number(form.distance_km) : null} />
           <div>
