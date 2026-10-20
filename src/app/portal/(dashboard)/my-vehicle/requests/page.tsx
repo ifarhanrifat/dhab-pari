@@ -13,7 +13,6 @@
 // from the Jobs tab's dispatch/city-purchase rows.
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Truck, ShoppingBag, MapPin, Package } from 'lucide-react'
 import { toast } from 'sonner'
@@ -23,6 +22,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
+import { JobQuickActionSheet, type QuickActionRow } from '@/components/mobility/JobQuickActionSheet'
 
 interface DispatchInvite { call_id: string; item: string; address: string; goods_budget_pkr: number; tier: number; shop_name: string; city_name: string; customer_trust: Trust | null }
 interface CityPurchaseInvite { request_id: string; item: string; goods_budget_pkr: number; pickup_label: string | null; source: string; reference_destination: string | null; city_name: string; city_name_ur: string | null }
@@ -40,6 +40,7 @@ export default function MyVehicleRequestsPage() {
   const [dispatchInvites, setDispatchInvites] = useState<DispatchInvite[]>([])
   const [cityPurchaseInvites, setCityPurchaseInvites] = useState<CityPurchaseInvite[]>([])
   const [parcelInvites, setParcelInvites] = useState<ParcelInvite[]>([])
+  const [openRow, setOpenRow] = useState<QuickActionRow | null>(null)
 
   const reload = async (id: string) => {
     const [{ data: invites }, { data: cpInvites }, { data: pInvites }] = await Promise.all([
@@ -113,11 +114,15 @@ export default function MyVehicleRequestsPage() {
           <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5"><ShoppingBag size={13} /> {t('vp.incomingCityPurchaseHeading')}</p>
           <div className="flex flex-col gap-2">
             {cityPurchaseInvites.map((r) => (
-              <Link key={r.request_id} href={`/portal/marketplace/city-purchase/${r.request_id}`} className="block bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
+              <button key={r.request_id} onClick={() => setOpenRow({
+                id: r.request_id, type: 'city_purchase', title: r.item,
+                subtitle: `${isUrdu && r.city_name_ur ? r.city_name_ur : r.city_name}${r.pickup_label ? ` · ${r.pickup_label}` : ''}`,
+                amount: r.goods_budget_pkr, href: `/portal/marketplace/city-purchase/${r.request_id}`, needsAction: true,
+              })} className="block w-full text-start bg-amber-50 border border-amber-200 rounded-2xl p-3.5 cursor-pointer">
                 <p className="font-sans text-[13px] font-semibold text-[#1e293b]">{r.item}</p>
                 <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{isUrdu && r.city_name_ur ? r.city_name_ur : r.city_name}{r.pickup_label ? ` · ${r.pickup_label}` : ''}</p>
                 <p className="font-sans text-[12px] text-[#166534] font-semibold mt-1">{t('vp.tapToRespondHint')}</p>
-              </Link>
+              </button>
             ))}
           </div>
         </div>
@@ -128,14 +133,27 @@ export default function MyVehicleRequestsPage() {
           <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5"><Package size={13} /> {t('vp.incomingParcelDeliveriesHeading')}</p>
           <div className="flex flex-col gap-2">
             {parcelInvites.map((p) => (
-              <Link key={p.delivery_id} href={`/portal/marketplace/parcel/${p.delivery_id}`} className="block bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
+              <button key={p.delivery_id} onClick={() => setOpenRow({
+                id: p.delivery_id, type: 'parcel', title: p.description,
+                subtitle: `${isUrdu && p.city_name_ur ? p.city_name_ur : p.city_name}${p.pickup_label ? ` · ${p.pickup_label}` : ''}`,
+                amount: null, href: `/portal/marketplace/parcel/${p.delivery_id}`, needsAction: true,
+              })} className="block w-full text-start bg-amber-50 border border-amber-200 rounded-2xl p-3.5 cursor-pointer">
                 <p className="font-sans text-[13px] font-semibold text-[#1e293b]">{p.description}</p>
                 <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{isUrdu && p.city_name_ur ? p.city_name_ur : p.city_name}{p.pickup_label ? ` · ${p.pickup_label}` : ''}</p>
                 <p className="font-sans text-[12px] text-[#166534] font-semibold mt-1">{t('vp.tapToRespondHint')}</p>
-              </Link>
+              </button>
             ))}
           </div>
         </div>
+      )}
+
+      {openRow && (
+        <JobQuickActionSheet
+          row={openRow}
+          vehicleId={vehicleId}
+          onClose={() => setOpenRow(null)}
+          onDone={() => vehicleId && reload(vehicleId)}
+        />
       )}
     </div>
   )

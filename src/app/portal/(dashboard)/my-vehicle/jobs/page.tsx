@@ -26,12 +26,11 @@ interface Row {
   id: string; type: 'hourly' | 'shadi' | 'equipment' | 'rental' | 'route' | 'dispatch' | 'city_purchase' | 'delivery' | 'parcel'
   title: string; subtitle: string; amount: number | null; at: string; needsAction: boolean; done: boolean; href: string
 }
-// Real ask: popping up a quick accept/decline instead of navigating away
-// only makes sense for the 5 kinds with a single-RPC accept/decline —
-// dispatch/city_purchase/parcel/delivery keep navigating (their own
-// pages already handle response inline or need a fee-entry step a quick
-// popup can't do justice to).
-const QUICK_ACTION_KINDS = new Set<Row['type']>(['hourly', 'rental', 'equipment', 'shadi', 'route'])
+// Every kind here now pops up instead of navigating away — dispatch/
+// parcel/delivery are plain accept/decline same as the first 5;
+// city_purchase gets its own fee-input step inside the same sheet
+// (JobQuickActionSheet handles that one difference).
+const QUICK_ACTION_KINDS = new Set<Row['type']>(['hourly', 'rental', 'equipment', 'shadi', 'route', 'dispatch', 'city_purchase', 'parcel', 'delivery'])
 function isQuickActionKind(t: Row['type']): t is QuickActionKind { return QUICK_ACTION_KINDS.has(t) }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -180,6 +179,7 @@ export default function MyVehicleJobsPage() {
       {openJob && isQuickActionKind(openJob.type) && (
         <JobQuickActionSheet
           row={{ id: openJob.id, type: openJob.type, title: openJob.title, subtitle: openJob.subtitle, amount: openJob.amount, href: openJob.href, needsAction: openJob.needsAction }}
+          vehicleId={vehicle?.id ?? null}
           onClose={() => setOpenJob(null)}
           onDone={() => vehicle && reload(vehicle)}
         />
