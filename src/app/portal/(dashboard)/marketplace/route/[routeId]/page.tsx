@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Minus, Plus, MapPin, Bus } from 'lucide-react'
+import { ArrowLeft, Minus, Plus, MapPin, Bus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -18,6 +18,8 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
+import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
+import { haversineKm } from '@/lib/roadRoute'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -25,8 +27,35 @@ interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; fare_mode: string; total_fare_pkr: number | null; fare_per_seat_pkr: number; departure_time: string | null; days_of_week: number[]
   origin_lat: number | null; origin_lng: number | null; destination_lat: number | null; destination_lng: number | null
+  route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
 }
 interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string }
+interface Stop { id: string; label: string; label_ur: string | null; lat: number; lng: number; stop_order: number }
+
+// Approximate only — interpolated proportionally along the driver's
+// own chosen road path using its real OSRM duration, not a live ETA.
+// Always labeled "approx." in the UI for exactly that reason.
+function computeStopEtas(path: { lat: number; lng: number }[], durationMin: number | null, departureTime: string | null, stops: Stop[]): Record<string, string> {
+  const result: Record<string, string> = {}
+  if (path.length < 2 || !durationMin || !departureTime) return result
+  const cum: number[] = [0]
+  for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + haversineKm(path[i - 1], path[i]))
+  const total = cum[cum.length - 1] || 1
+  const [h, m] = departureTime.split(':').map(Number)
+  for (const s of stops) {
+    let bestIdx = 0, bestDist = Infinity
+    path.forEach((p, i) => {
+      const d = haversineKm(p, { lat: s.lat, lng: s.lng })
+      if (d < bestDist) { bestDist = d; bestIdx = i }
+    })
+    const elapsedMin = (cum[bestIdx] / total) * durationMin
+    const totalMin = h * 60 + m + elapsedMin
+    const hh = Math.floor(totalMin / 60) % 24
+    const mm = Math.round(totalMin % 60)
+    result[s.id] = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+  }
+  return result
+}
 
 const DAY_KEYS = ['af.daySun', 'af.dayMon', 'af.dayTue', 'af.dayWed', 'af.dayThu', 'af.dayFri', 'af.daySat']
 
@@ -55,17 +84,21 @@ export default function RouteDetailPage() {
   const [proofPath, setProofPath] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [bookable, setBookable] = useState(true)
+  const [stops, setStops] = useState<Stop[]>([])
+  const [showGroup, setShowGroup] = useState(false)
 
   useEffect(() => {
     supabase.from('vehicle_routes').select('*').eq('id', params.routeId).single().then(async ({ data: r }) => {
       setRoute(r)
       if (r) {
-        const [{ data: v }, { data: bk }] = await Promise.all([
+        const [{ data: v }, { data: bk }, { data: st }] = await Promise.all([
           supabase.from('vehicles').select('id, owner_name, owner_mobile, vehicle_type, total_seats, commission_mode').eq('id', r.vehicle_id).single(),
           supabase.rpc('vehicle_bookable', { p_vehicle_id: r.vehicle_id }),
+          supabase.from('route_stops').select('id, label, label_ur, lat, lng, stop_order').eq('route_id', r.id).order('stop_order'),
         ])
         setVehicle(v)
         setBookable(bk !== false)
+        setStops(st ?? [])
       }
       setLoading(false)
     })
@@ -147,9 +180,33 @@ export default function RouteDetailPage() {
               { lat: route.origin_lat, lng: route.origin_lng, label: isUrdu && route.origin_ur ? route.origin_ur : route.origin, color: '#16a34a' },
               { lat: route.destination_lat, lng: route.destination_lng, label: isUrdu && route.destination_ur ? route.destination_ur : route.destination, color: '#dc2626' },
             ]}
+            route={route.route_path ?? undefined}
           />
         </div>
       )}
+
+      {stops.length > 0 && (() => {
+        const etas = computeStopEtas(route.route_path ?? [], route.route_duration_min, route.departure_time, stops)
+        return (
+          <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-4">
+            <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{t('mp.routeStopsHeading')}</p>
+            <div className="flex flex-col gap-1.5">
+              {stops.map((s, i) => (
+                <div key={s.id} className="flex items-center gap-2.5">
+                  <span className="shrink-0 w-5 h-5 rounded-full bg-dp-secondary-container text-dp-secondary text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
+                  <span className="flex-1 min-w-0 font-sans text-[13px] text-dp-on-surface truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</span>
+                  {etas[s.id] && <span className="shrink-0 font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{t('mp.approxTimePrefix')} {etas[s.id]}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
+      <button onClick={() => setShowGroup(true)} className="w-full flex items-center justify-center gap-1.5 bg-white border border-dp-outline-variant rounded-lg p-3 mt-4 font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer">
+        <Users size={14} /> {t('mv.routeGroupHeading')}
+      </button>
+      {showGroup && <RouteGroupPanel routeId={route.id} onClose={() => setShowGroup(false)} />}
 
       {!bookable && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 mt-4">

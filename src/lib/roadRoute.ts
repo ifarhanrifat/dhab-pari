@@ -15,7 +15,7 @@ interface LatLng { lat: number; lng: number }
 
 export interface RoadRoute { distanceKm: number; path: LatLng[]; isRealRoute: boolean }
 
-function haversineKm(a: LatLng, b: LatLng): number {
+export function haversineKm(a: LatLng, b: LatLng): number {
   const R = 6371, rad = (x: number) => (x * Math.PI) / 180
   const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng)
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2
@@ -40,4 +40,32 @@ export async function fetchRoadRoute(a: LatLng, b: LatLng): Promise<RoadRoute> {
     // OSRM unreachable — fall through to the straight-line estimate below.
   }
   return { distanceKm: haversineKm(a, b) * 1.3, path: [a, b], isRealRoute: false }
+}
+
+export interface RoadRouteAlternative { distanceKm: number; durationMin: number; path: LatLng[] }
+
+// Real roads to a city aren't all the one obvious line a flat map
+// shows — OSRM can return several genuinely distinct driven paths
+// between the same two points (confirmed live: a real Chakwal-area
+// pair returned an 84km/85min option and a separate 104km/95min one).
+// Used by the driver's Routes form so he picks the road he actually
+// drives, instead of the system guessing one.
+export async function fetchRoadRouteAlternatives(a: LatLng, b: LatLng): Promise<RoadRouteAlternative[]> {
+  try {
+    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?alternatives=true&overview=full&geometries=geojson`)
+    if (res.ok) {
+      const data = (await res.json()) as { routes?: Array<{ distance: number; duration: number; geometry: { coordinates: [number, number][] } }> }
+      const routes = data.routes ?? []
+      if (routes.length > 0) {
+        return routes.map((r) => ({
+          distanceKm: r.distance / 1000,
+          durationMin: r.duration / 60,
+          path: r.geometry.coordinates.map(([lng, lat]) => ({ lat, lng })),
+        }))
+      }
+    }
+  } catch {
+    // OSRM unreachable — fall through to the straight-line fallback below.
+  }
+  return [{ distanceKm: haversineKm(a, b) * 1.3, durationMin: (haversineKm(a, b) * 1.3 / 40) * 60, path: [a, b] }]
 }

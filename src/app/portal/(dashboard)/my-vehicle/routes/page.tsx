@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus, Megaphone } from 'lucide-react'
+import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus, Megaphone, Users, Route as RouteIcon, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -22,8 +22,11 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { FairPriceHint } from '@/components/mobility/FairPriceHint'
+import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
-import { fetchRoadRoute, type RoadRoute } from '@/lib/roadRoute'
+import { fetchRoadRouteAlternatives, type RoadRouteAlternative } from '@/lib/roadRoute'
+import { RouteStopsEditor } from '@/components/mobility/RouteStopsEditor'
+import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -38,7 +41,11 @@ interface Booking {
   id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null
   vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
 }
-interface Route { id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; fare_mode: string; fare_per_seat_pkr: number; total_fare_pkr: number | null; is_active: boolean }
+interface Route {
+  id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
+  fare_mode: string; fare_per_seat_pkr: number; total_fare_pkr: number | null; is_active: boolean
+  departure_time: string | null; days_of_week: number[]; route_path: { lat: number; lng: number }[] | null
+}
 interface RouteIlan { id: string; vehicle_route_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 
 function fmt(n: number) {
@@ -72,12 +79,21 @@ export default function MyVehicleRoutesPage() {
   const [destPoint, setDestPoint] = useState<PickedLocation | null>(null)
   const [showOriginPicker, setShowOriginPicker] = useState(false)
   const [showDestPicker, setShowDestPicker] = useState(false)
-  const [routePath, setRoutePath] = useState<RoadRoute | null>(null)
+  // Real roads to a city aren't all the one obvious line a flat map
+  // shows — OSRM can return several genuinely distinct driven paths
+  // between the same two points; the driver picks which one he
+  // actually drives rather than the system guessing.
+  const [pathOptions, setPathOptions] = useState<RoadRouteAlternative[]>([])
+  const [chosenPathIdx, setChosenPathIdx] = useState(0)
   const [routeLoading, setRouteLoading] = useState(false)
+  const [stopsRouteId, setStopsRouteId] = useState<string | null>(null)
+  const [groupRouteId, setGroupRouteId] = useState<string | null>(null)
+  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; days_of_week: number[] } | null>(null)
+  const [savingSchedule, setSavingSchedule] = useState(false)
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
-      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active')
+      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, days_of_week, route_path')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
@@ -124,6 +140,20 @@ export default function MyVehicleRoutesPage() {
     toast.success(t('mp.bookingRejectedToast'))
     if (vehicleId) reload(vehicleId)
   }
+  const saveSchedule = async () => {
+    if (!editSchedule) return
+    if (editSchedule.days_of_week.length === 0) { toast.error(t('mv.pickAtLeastOneDayError')); return }
+    setSavingSchedule(true)
+    const { error } = await supabase.rpc('update_vehicle_route_schedule', {
+      p_route_id: editSchedule.id, p_departure_time: editSchedule.departure_time || null, p_days_of_week: editSchedule.days_of_week,
+    })
+    setSavingSchedule(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.scheduleUpdatedToast'))
+    setEditSchedule(null)
+    if (vehicleId) reload(vehicleId)
+  }
+
   const closeRoute = async (routeId: string) => {
     if (!confirm(t('mp.confirmCloseRouteHint'))) return
     setClosingRouteId(routeId)
@@ -139,17 +169,24 @@ export default function MyVehicleRoutesPage() {
   }
 
   useEffect(() => {
-    if (!originPoint || !destPoint) { setRoutePath(null); return }
+    if (!originPoint || !destPoint) { setPathOptions([]); return }
     setRouteLoading(true)
     let cancelled = false
-    fetchRoadRoute({ lat: originPoint.lat, lng: originPoint.lng }, { lat: destPoint.lat, lng: destPoint.lng }).then((r) => {
+    fetchRoadRouteAlternatives({ lat: originPoint.lat, lng: originPoint.lng }, { lat: destPoint.lat, lng: destPoint.lng }).then((options) => {
       if (cancelled) return
-      setRoutePath(r)
-      setForm((f) => ({ ...f, distance_km: String(Math.round(r.distanceKm)) }))
+      setPathOptions(options)
+      setChosenPathIdx(0)
+      setForm((f) => ({ ...f, distance_km: String(Math.round(options[0].distanceKm)) }))
       setRouteLoading(false)
     })
     return () => { cancelled = true }
   }, [originPoint?.lat, originPoint?.lng, destPoint?.lat, destPoint?.lng])
+
+  const chosenPath = pathOptions[chosenPathIdx] ?? null
+  const pickPathOption = (i: number) => {
+    setChosenPathIdx(i)
+    setForm((f) => ({ ...f, distance_km: String(Math.round(pathOptions[i].distanceKm)) }))
+  }
 
   const postRoute = async () => {
     if (!vehicleId || !form.origin.trim() || !form.destination.trim()) { toast.error(t('mk.nameRequired')); return }
@@ -170,6 +207,7 @@ export default function MyVehicleRoutesPage() {
       p_distance_km: distanceKm,
       p_origin_lat: originPoint?.lat ?? null, p_origin_lng: originPoint?.lng ?? null,
       p_destination_lat: destPoint?.lat ?? null, p_destination_lng: destPoint?.lng ?? null,
+      p_route_path: chosenPath ? chosenPath.path : null, p_route_duration_min: chosenPath ? chosenPath.durationMin : null,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -181,7 +219,8 @@ export default function MyVehicleRoutesPage() {
     setForm(emptyRouteForm)
     setOriginPoint(null)
     setDestPoint(null)
-    setRoutePath(null)
+    setPathOptions([])
+    setChosenPathIdx(0)
     if (vehicleId) reload(vehicleId)
     if (confirm(t('mv.advertiseThisRidePrompt'))) {
       router.push(`/portal/my-vehicle/ilan?route=${routeId}&origin=${encodeURIComponent(originLabel)}&destination=${encodeURIComponent(destinationLabel)}`)
@@ -263,12 +302,30 @@ export default function MyVehicleRoutesPage() {
               {originPoint && destPoint && (
                 <LeafletMap
                   pins={[{ lat: originPoint.lat, lng: originPoint.lng, color: '#166534' }, { lat: destPoint.lat, lng: destPoint.lng, color: '#D4AF37' }]}
-                  route={routePath?.path}
+                  route={chosenPath?.path}
                   height={140} className="rounded-xl"
                 />
               )}
-              {originPoint && destPoint && (
-                <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{routeLoading ? t('action.loading') : routePath ? `🛣️ ${Math.round(routePath.distanceKm)} km` : ''}</p>
+              {originPoint && destPoint && routeLoading && (
+                <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('action.loading')}</p>
+              )}
+              {originPoint && destPoint && pathOptions.length > 1 && (
+                <div>
+                  <p className="font-sans text-[11px] font-bold text-[#005A36]">{t('mv.routePathOptionsHeading')}</p>
+                  <p className="font-sans text-[10px] text-[#64748b] mb-1.5">{t('mv.routePathOptionsHint')}</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {pathOptions.map((opt, i) => (
+                      <button key={i} type="button" onClick={() => pickPathOption(i)}
+                        className="px-2.5 py-1.5 rounded-full text-[11px] font-sans font-semibold cursor-pointer border"
+                        style={{ background: chosenPathIdx === i ? '#166534' : '#F9F9F6', color: chosenPathIdx === i ? '#fff' : '#334155', borderColor: chosenPathIdx === i ? '#166534' : '#e5e2d0' }}>
+                        {t('mv.routePathOption').replace('{n}', String(i + 1))} · {Math.round(opt.distanceKm)}km
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {originPoint && destPoint && !routeLoading && chosenPath && (
+                <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">🛣️ {Math.round(chosenPath.distanceKm)} km</p>
               )}
 
               <div>
@@ -347,6 +404,22 @@ export default function MyVehicleRoutesPage() {
                     )}
                   </div>
                 )}
+                {r.is_active && (
+                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[#f1f5f9]">
+                    <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', days_of_week: r.days_of_week ?? [] })}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
+                      <Pencil size={11} /> {t('mv.editScheduleBtn')}
+                    </button>
+                    <button onClick={() => setStopsRouteId(r.id)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
+                      <RouteIcon size={11} /> {t('mv.manageStopsBtn')}
+                    </button>
+                    <button onClick={() => setGroupRouteId(r.id)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#166534]">
+                      <Users size={11} /> {t('mv.routeGroupBtn')}
+                    </button>
+                  </div>
+                )}
               </div>
             )
           })}
@@ -393,6 +466,45 @@ export default function MyVehicleRoutesPage() {
           ))}
         </div>
       </div>
+
+      {stopsRouteId && (
+        <RouteStopsEditor
+          routeId={stopsRouteId}
+          routePath={routes.find((r) => r.id === stopsRouteId)?.route_path ?? null}
+          onClose={() => setStopsRouteId(null)}
+        />
+      )}
+      {groupRouteId && (
+        <RouteGroupPanel routeId={groupRouteId} onClose={() => setGroupRouteId(null)} />
+      )}
+      {editSchedule && (
+        <MobilityBottomSheet title={t('mv.editScheduleHeading')} onClose={() => setEditSchedule(null)}>
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
+              <input type="time" value={editSchedule.departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+            </div>
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {DAYS.map((d) => {
+                  const on = editSchedule.days_of_week.includes(d)
+                  return (
+                    <button key={d} type="button" onClick={() => setEditSchedule({ ...editSchedule, days_of_week: on ? editSchedule.days_of_week.filter((x) => x !== d) : [...editSchedule.days_of_week, d].sort() })}
+                      className="px-2.5 py-1.5 rounded-full text-[11.5px] font-sans font-semibold cursor-pointer border"
+                      style={{ background: on ? '#166534' : '#F9F9F6', color: on ? '#fff' : '#334155', borderColor: on ? '#166534' : '#e5e2d0' }}>
+                      {t(['af.daySun', 'af.dayMon', 'af.dayTue', 'af.dayWed', 'af.dayThu', 'af.dayFri', 'af.daySat'][d])}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <button onClick={saveSchedule} disabled={savingSchedule} className="w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
+              {savingSchedule ? t('action.saving') : t('action.save')}
+            </button>
+          </div>
+        </MobilityBottomSheet>
+      )}
     </div>
   )
 }
