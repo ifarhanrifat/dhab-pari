@@ -27,11 +27,13 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
+import { CategoryVehiclePicker, type CategoryDef } from '@/components/mobility/CategoryVehiclePicker'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
+  shadi_vehicle_class: string | null
   shadi_full_day_rate_pkr: number; cover_url: string | null; avg_rating: number | null
   shared_from_other_village: boolean; owner_village_name: string | null
 }
@@ -54,7 +56,6 @@ export default function ShadiBookingPage() {
   const router = useRouter()
 
   const [tab, setTab] = useState<'new' | 'mine'>('new')
-  const [bookMode, setBookMode] = useState<'specific' | 'type'>('specific')
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [classes, setClasses] = useState<ShadiClass[]>([])
   const [events, setEvents] = useState<ShadiEvent[]>([])
@@ -66,7 +67,6 @@ export default function ShadiBookingPage() {
   const [distanceKm, setDistanceKm] = useState('')
   const [notes, setNotes] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [fleetQty, setFleetQty] = useState<Record<string, number>>({})
   const [submitting, setSubmitting] = useState(false)
   const [openVehicle, setOpenVehicle] = useState<Vehicle | null>(null)
 
@@ -88,36 +88,80 @@ export default function ShadiBookingPage() {
 
   const selectedVehicles = vehicles.filter((v) => selectedIds.has(v.id))
   const estimatedTotal = selectedVehicles.reduce((sum, v) => sum + v.shadi_full_day_rate_pkr, 0)
-  const fleetEstimatedTotal = classes.reduce((sum, c) => {
-    const qty = fleetQty[c.class_key] ?? 0
-    if (qty <= 0) return sum
-    const extra = Math.max(0, Number(distanceKm || 0) - c.free_km)
-    return sum + qty * (c.full_day_rate_pkr + extra * c.per_extra_km_pkr)
-  }, 0)
+
+  // Category cards, the mockup's own wcats/dropdown mechanism — one per
+  // real shadi_vehicle_class plus an "other" bucket for any vehicle a
+  // driver hasn't classified yet (set_vehicle_catalog_prefs), so nothing
+  // silently disappears from the picker just for lacking a class.
+  const classifiedKeys = new Set(classes.map((c) => c.class_key))
+  const otherVehicles = vehicles.filter((v) => !v.shadi_vehicle_class || !classifiedKeys.has(v.shadi_vehicle_class))
+  const vehicleCard = (v: Vehicle) => {
+    const picked = selectedIds.has(v.id)
+    const Wrapper = v.shared_from_other_village ? 'div' : 'button'
+    return (
+      <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => setOpenVehicle(v) })}
+        className={`bg-white border-2 rounded-xl overflow-hidden text-start flex flex-col relative ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}
+        style={{ borderColor: picked ? '#166534' : '#e5e2d0' }}>
+        <div className="h-[70px] relative bg-[#F9F9F6] shrink-0 flex items-center justify-center">
+          {v.cover_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
+          ) : <Car size={26} className="text-[#94a3b8]" />}
+          {v.color && (
+            <span className="absolute bottom-1 start-1 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/90 text-[9px] font-bold text-[#1e293b]">
+              <span className="w-2 h-2 rounded-full border border-[#cbd5e1] bg-[#cbd5e1]" /> {v.color}
+            </span>
+          )}
+        </div>
+        <div className="p-2 flex-1 flex flex-col gap-0.5">
+          <p className="text-[10.5px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(v.vehicle_type, v.model)}</p>
+          <p className="text-[9px] text-[#64748b] truncate">{v.owner_name}{v.avg_rating != null ? ` · ⭐ ${v.avg_rating}` : ''}</p>
+          {v.has_ac && <span className="self-start flex items-center gap-0.5 text-[8.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={8} /> {t('mv.hasAcLabel')}</span>}
+          <p className="font-extrabold text-[11.5px] text-[#166534] ltr-num">{fmt(v.shadi_full_day_rate_pkr)}</p>
+          {v.shared_from_other_village ? (
+            <div className="mt-auto flex flex-col gap-0.5">
+              <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-amber-50 text-amber-800 self-start">{t('vp.sharedFromVillageBadge').replace('{village}', v.owner_village_name ?? '')}</span>
+              <CallButton phone={v.owner_mobile} className="inline-flex items-center gap-1 text-[9px] font-bold text-[#166534]" />
+            </div>
+          ) : (
+            <span className="mt-auto rounded-[9px] px-1 py-1 text-center text-[9.5px] font-bold"
+              style={{ background: picked ? '#166534' : '#fff', color: picked ? '#fff' : '#166534', border: '1px solid #166534' }}>
+              {picked ? `✓ ${t('vp.addedLabel')}` : `+ ${t('vp.addVehicleBtn')}`}
+            </span>
+          )}
+        </div>
+      </Wrapper>
+    )
+  }
+  const categoryDefs: CategoryDef[] = [
+    ...classes.map((c) => {
+      const inClass = vehicles.filter((v) => v.shadi_vehicle_class === c.class_key)
+      return {
+        key: c.class_key, emoji: c.class_key === 'hiace' ? '🚐' : c.class_key === 'bolan' ? '🚐' : '🚗',
+        name: isUrdu ? c.name_ur : c.name_en, vehicleCount: inClass.length,
+        fromPricePkr: inClass.length > 0 ? Math.min(...inClass.map((v) => v.shadi_full_day_rate_pkr)) : c.full_day_rate_pkr,
+        selectedCount: inClass.filter((v) => selectedIds.has(v.id)).length,
+        children: inClass.map(vehicleCard),
+      }
+    }),
+    ...(otherVehicles.length > 0 ? [{
+      key: 'other', emoji: '🚗', name: t('vp.otherVehiclesCategory'), vehicleCount: otherVehicles.length,
+      fromPricePkr: Math.min(...otherVehicles.map((v) => v.shadi_full_day_rate_pkr)),
+      selectedCount: otherVehicles.filter((v) => selectedIds.has(v.id)).length,
+      children: otherVehicles.map(vehicleCard),
+    }] : []),
+  ]
 
   const submit = async () => {
     if (!eventDate) { toast.error(t('vp.shadiDateRequired')); return }
     if (!venueLoc) { toast.error(t('vp.shadiVenueRequired')); return }
     if (distanceKm === '' || Number(distanceKm) < 0) { toast.error(t('vp.shadiDistanceRequired')); return }
+    if (selectedIds.size === 0) { toast.error(t('vp.shadiSelectVehicleRequired')); return }
     setSubmitting(true)
-    if (bookMode === 'specific') {
-      if (selectedIds.size === 0) { setSubmitting(false); toast.error(t('vp.shadiSelectVehicleRequired')); return }
-      const { data, error } = await supabase.rpc('create_shadi_event', {
-        p_event_date: eventDate, p_venue_address: venueLoc.label, p_distance_km: Number(distanceKm),
-        p_notes: notes.trim() || null, p_vehicle_ids: Array.from(selectedIds),
-        p_venue_lat: venueLoc.lat, p_venue_lng: venueLoc.lng,
-      })
-      setSubmitting(false)
-      if (error) { toast.error(friendlyError(error)); return }
-      toast.success(t('vp.shadiRequestsSentToast'))
-      router.push(`/portal/marketplace/shadi/${data}`)
-      return
-    }
-    const fleet = classes.map((c) => ({ class_key: c.class_key, qty: fleetQty[c.class_key] ?? 0 })).filter((f) => f.qty > 0)
-    if (fleet.length === 0) { setSubmitting(false); toast.error(t('vp.shadiSelectVehicleRequired')); return }
-    const { data, error } = await supabase.rpc('create_shadi_fleet_event', {
+    const { data, error } = await supabase.rpc('create_shadi_event', {
       p_event_date: eventDate, p_venue_address: venueLoc.label, p_distance_km: Number(distanceKm),
-      p_notes: notes.trim() || null, p_fleet: fleet, p_venue_lat: venueLoc.lat, p_venue_lng: venueLoc.lng,
+      p_notes: notes.trim() || null, p_vehicle_ids: Array.from(selectedIds),
+      p_venue_lat: venueLoc.lat, p_venue_lng: venueLoc.lng,
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -163,100 +207,20 @@ export default function ShadiBookingPage() {
               className="dp2-input text-[13.5px] resize-none leading-relaxed" />
           </div>
 
-          <div className="flex items-center gap-1 bg-white border border-[#e5e2d0] rounded-full p-1 w-fit">
-            <button onClick={() => setBookMode('specific')} className="px-3.5 py-1.5 rounded-full text-[12px] font-bold cursor-pointer whitespace-nowrap" style={{ background: bookMode === 'specific' ? '#166534' : 'transparent', color: bookMode === 'specific' ? '#fff' : '#64748b' }}>{t('vp.pickSpecificMode')}</button>
-            <button onClick={() => setBookMode('type')} className="px-3.5 py-1.5 rounded-full text-[12px] font-bold cursor-pointer whitespace-nowrap" style={{ background: bookMode === 'type' ? '#166534' : 'transparent', color: bookMode === 'type' ? '#fff' : '#64748b' }}>{t('vp.requestByTypeMode')}</button>
-          </div>
-
-          {bookMode === 'specific' ? (
-            <>
-              <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-[#64748b]">{t('vp.pickVehiclesHeading')}</p>
-              {vehicles.length === 0 ? (
-                <p className="text-center py-10 text-[#94a3b8] text-[14px]">{t('vp.noShadiVehiclesHint')}</p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {vehicles.map((v) => {
-                    const picked = selectedIds.has(v.id)
-                    const Wrapper = v.shared_from_other_village ? 'div' : 'button'
-                    return (
-                      <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => setOpenVehicle(v) })}
-                        className={`bg-white border-2 rounded-xl overflow-hidden text-start flex flex-col relative ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}
-                        style={{ borderColor: picked ? '#166534' : '#e5e2d0' }}>
-                        <div className="h-[70px] relative bg-[#F9F9F6] shrink-0 flex items-center justify-center">
-                          {v.cover_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
-                          ) : <Car size={26} className="text-[#94a3b8]" />}
-                          {v.color && (
-                            <span className="absolute bottom-1 start-1 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/90 text-[9px] font-bold text-[#1e293b]">
-                              <span className="w-2 h-2 rounded-full border border-[#cbd5e1] bg-[#cbd5e1]" /> {v.color}
-                            </span>
-                          )}
-                        </div>
-                        <div className="p-2 flex-1 flex flex-col gap-0.5">
-                          <p className="text-[10.5px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(v.vehicle_type, v.model)}</p>
-                          <p className="text-[9px] text-[#64748b] truncate">{v.owner_name}{v.avg_rating != null ? ` · ⭐ ${v.avg_rating}` : ''}</p>
-                          {v.has_ac && <span className="self-start flex items-center gap-0.5 text-[8.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={8} /> {t('mv.hasAcLabel')}</span>}
-                          <p className="font-extrabold text-[11.5px] text-[#166534] ltr-num">{fmt(v.shadi_full_day_rate_pkr)}</p>
-                          {v.shared_from_other_village ? (
-                            <div className="mt-auto flex flex-col gap-0.5">
-                              <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-amber-50 text-amber-800 self-start">{t('vp.sharedFromVillageBadge').replace('{village}', v.owner_village_name ?? '')}</span>
-                              <CallButton phone={v.owner_mobile} className="inline-flex items-center gap-1 text-[9px] font-bold text-[#166534]" />
-                            </div>
-                          ) : (
-                            <span className="mt-auto rounded-[9px] px-1 py-1 text-center text-[9.5px] font-bold"
-                              style={{ background: picked ? '#166534' : '#fff', color: picked ? '#fff' : '#166534', border: '1px solid #166534' }}>
-                              {picked ? `✓ ${t('vp.addedLabel')}` : `+ ${t('vp.addVehicleBtn')}`}
-                            </span>
-                          )}
-                        </div>
-                      </Wrapper>
-                    )
-                  })}
-                </div>
-              )}
-              {selectedIds.size > 0 && (
-                <div className="bg-[#F9F9F6] rounded-2xl p-3 flex items-center justify-between">
-                  <span className="text-[13px] text-[#64748b]">{selectedIds.size} {t('vp.vehiclesSelectedSuffix')}</span>
-                  <span className="font-extrabold text-[16px] text-[#1e293b] ltr-num">{fmt(estimatedTotal)}</span>
-                </div>
-              )}
-            </>
+          <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-[#64748b]">{t('vp.pickVehiclesHeading')}</p>
+          {vehicles.length === 0 ? (
+            <p className="text-center py-10 text-[#94a3b8] text-[14px]">{t('vp.noShadiVehiclesHint')}</p>
           ) : (
-            <>
-              <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-[#64748b]">{t('vp.pickVehicleTypesHeading')}</p>
-              {classes.length === 0 ? (
-                <p className="text-center py-10 text-[#94a3b8] text-[14px]">{t('vp.noShadiClassesHint')}</p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {classes.map((c) => {
-                    const qty = fleetQty[c.class_key] ?? 0
-                    return (
-                      <div key={c.class_key} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[13.5px] font-bold text-[#1e293b]">{isUrdu ? c.name_ur : c.name_en}</p>
-                          <p className="text-[11px] text-[#64748b] ltr-num mt-0.5">{fmt(c.full_day_rate_pkr)}/{t('mv.perDayShort')} · {fmt(c.free_km)}km {t('mv.includedShort')}</p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button onClick={() => setFleetQty((f) => ({ ...f, [c.class_key]: Math.max(0, (f[c.class_key] ?? 0) - 1) }))} className="w-8 h-8 border border-[#e5e2d0] rounded-xl cursor-pointer text-[15px]">−</button>
-                          <span className="font-extrabold text-[16px] w-6 text-center ltr-num">{qty}</span>
-                          <button onClick={() => setFleetQty((f) => ({ ...f, [c.class_key]: (f[c.class_key] ?? 0) + 1 }))} className="w-8 h-8 border border-[#e5e2d0] rounded-xl cursor-pointer text-[15px]">+</button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-              {fleetEstimatedTotal > 0 && (
-                <div className="bg-[#F9F9F6] rounded-2xl p-3 flex items-center justify-between">
-                  <span className="text-[13px] text-[#64748b]">{t('vp.totalLabel')}</span>
-                  <span className="font-extrabold text-[16px] text-[#1e293b] ltr-num">{fmt(fleetEstimatedTotal)}</span>
-                </div>
-              )}
-            </>
+            <CategoryVehiclePicker categories={categoryDefs} availableLabel={t('mb.availableLabel')} fromLabel={t('mb.fromPriceLabel')} />
+          )}
+          {selectedIds.size > 0 && (
+            <div className="bg-[#F9F9F6] rounded-2xl p-3 flex items-center justify-between">
+              <span className="text-[13px] text-[#64748b]">{selectedIds.size} {t('vp.vehiclesSelectedSuffix')}</span>
+              <span className="font-extrabold text-[16px] text-[#1e293b] ltr-num">{fmt(estimatedTotal)}</span>
+            </div>
           )}
 
-          <button onClick={submit} disabled={submitting || (bookMode === 'specific' ? vehicles.length === 0 : classes.length === 0)} className="w-full bg-[#166534] text-white rounded-xl py-3 font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2">
+          <button onClick={submit} disabled={submitting || vehicles.length === 0} className="w-full bg-[#166534] text-white rounded-xl py-3 font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2">
             {submitting ? <Loader2 size={16} className="animate-spin" /> : null} {t('vp.sendRequestsBtn')}
           </button>
         </>
