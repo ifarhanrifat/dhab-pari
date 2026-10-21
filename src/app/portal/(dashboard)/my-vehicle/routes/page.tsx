@@ -2,13 +2,16 @@
 
 // My Routes + Bookings — its own screen, matching the design zip's
 // "ROUTE BOOKINGS" screen (this used to be a section embedded on the
-// driver dashboard, moved out per direct instruction). Route/schedule
-// creation itself stays staff-managed (unlike a shop's own catalog) —
-// this is what a per_order driver actually needs day to day: closing a
-// route he no longer runs, and confirming/rejecting/cancelling bookings.
+// driver dashboard, moved out per direct instruction). A driver creates
+// and schedules their own routes here too (self-serve, migration
+// 672_driver_self_post_route.sql — the comment that used to be here
+// claiming creation was staff-only was stale relative to that), plus
+// the day-to-day management: closing a route no longer run, and
+// confirming/rejecting/cancelling bookings.
 //
 // Phase 5: re-skinned to the new Mobility design — same RPCs, reached
-// from the Jobs tab's route rows or the Home screen's quick link.
+// from the Home screen's own "Post a daily route" card or the Jobs
+// tab's route rows.
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -40,6 +43,13 @@ const DAYS = [0, 1, 2, 3, 4, 5, 6]
 const emptyRouteForm = {
   origin: '', destination: '',
   classification: 'intercity', fare_mode: 'fixed', total_fare_pkr: '' as string | number,
+  // Real ask, 2026-10-21: whether a route also runs back used to be
+  // implied purely by whether the driver happened to fill in the
+  // optional return-time field below — nothing told them filling it in
+  // is what makes "Start Return Trip" show up later. Now an explicit
+  // choice; toggling it off always clears return_departure_time so a
+  // half-filled field can never silently leave a route two-way.
+  is_two_way: false,
   departure_time: '', return_departure_time: '', days_of_week: [] as number[], distance_km: '' as string,
   is_monthly_fixed: false, monthly_reference_fee_pkr: '' as string | number,
 }
@@ -304,7 +314,7 @@ export default function MyVehicleRoutesPage() {
       p_origin: form.origin, p_origin_ur: form.origin || null,
       p_destination: form.destination, p_destination_ur: form.destination || null,
       p_classification: form.classification, p_fare_mode: form.fare_mode, p_total_fare_pkr: totalFare,
-      p_departure_time: form.departure_time || null, p_return_departure_time: form.return_departure_time || null, p_days_of_week: form.days_of_week,
+      p_departure_time: form.departure_time || null, p_return_departure_time: form.is_two_way ? (form.return_departure_time || null) : null, p_days_of_week: form.days_of_week,
       p_distance_km: distanceKm,
       p_origin_lat: originPoint?.lat ?? null, p_origin_lng: originPoint?.lng ?? null,
       p_destination_lat: destPoint?.lat ?? null, p_destination_lng: destPoint?.lng ?? null,
@@ -377,21 +387,30 @@ export default function MyVehicleRoutesPage() {
       {showForm && (
         <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5 flex flex-col gap-2.5">
           <p className="font-sans text-[13px] font-bold text-[#1e293b]">{t('mv.postRouteHeading')}</p>
+
+          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1">{t('mv.routeBasicsSectionLabel')}</p>
           <div className="grid grid-cols-2 gap-2">
             <input value={form.origin} onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))} placeholder={t('mv.originUrPlaceholder')} dir="rtl" className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
             <input value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} placeholder={t('mv.destinationUrPlaceholder')} dir="rtl" className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <select value={form.classification} onChange={(e) => setForm((f) => ({ ...f, classification: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
-              <option value="intercity">{t('mv.classification.intercity')}</option>
-              <option value="out_of_city">{t('mv.classification.out_of_city')}</option>
-            </select>
-            <select value={form.fare_mode} onChange={(e) => setForm((f) => ({ ...f, fare_mode: e.target.value }))} disabled={form.is_monthly_fixed} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] disabled:opacity-40">
-              <option value="fixed">{t('mv.fareMode.fixed')}</option>
-              <option value="flex">{t('mv.fareMode.flex')}</option>
-            </select>
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.classificationLabel')}</label>
+              <select value={form.classification} onChange={(e) => setForm((f) => ({ ...f, classification: e.target.value }))} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                <option value="intercity">{t('mv.classification.intercity')}</option>
+                <option value="out_of_city">{t('mv.classification.out_of_city')}</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.fareModeLabel')}</label>
+              <select value={form.fare_mode} onChange={(e) => setForm((f) => ({ ...f, fare_mode: e.target.value }))} disabled={form.is_monthly_fixed} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] disabled:opacity-40">
+                <option value="fixed">{t('mv.fareMode.fixed')}</option>
+                <option value="flex">{t('mv.fareMode.flex')}</option>
+              </select>
+            </div>
           </div>
 
+          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1">{t('mv.routePricingSectionLabel')}</p>
           {/* Real ask, 2026-10-20: "these vehicles can be monthly
               fixed... fix lumpsum charges per month... whether they
               travel or no travel, they must need to pay" — a second
@@ -435,6 +454,7 @@ export default function MyVehicleRoutesPage() {
             />
           ) : (
             <>
+              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1">{t('mv.routePathSectionLabel')}</p>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setShowOriginPicker(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12px] font-semibold text-start cursor-pointer">
                   <MapPin size={13} className="shrink-0 text-[#166534]" />
@@ -521,16 +541,28 @@ export default function MyVehicleRoutesPage() {
               {t('mv.routeFairPriceHint').replace('{perSeat}', fmt(Math.round(routeFairPerSeat))).replace('{total}', fmt(Math.round(routeFairPerSeat * (totalSeats ?? 1)))).replace('{n}', String(totalSeats ?? 1))}
             </p>
           )}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
-              <input type="time" value={form.departure_time} onChange={(e) => setForm((f) => ({ ...f, departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
-            </div>
+          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1">{t('mv.routeScheduleSectionLabel')}</p>
+          <div>
+            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
+            <input type="time" value={form.departure_time} onChange={(e) => setForm((f) => ({ ...f, departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+          </div>
+          {/* Real ask, 2026-10-21: "the return ride button is displaying
+              like going back empty? why?" traced back to this form never
+              asking whether a route runs back at all — two-way used to be
+              implied purely by whether the optional return-time field
+              below happened to get filled in, with nothing explaining
+              that connection. An explicit toggle now owns that decision;
+              turning it off always clears return_departure_time. */}
+          <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] font-semibold text-[#1e293b] cursor-pointer">
+            <input type="checkbox" checked={form.is_two_way} onChange={(e) => setForm((f) => ({ ...f, is_two_way: e.target.checked, return_departure_time: e.target.checked ? f.return_departure_time : '' }))} />
+            {t('mv.isTwoWayToggleLabel')}
+          </label>
+          {form.is_two_way && (
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
               <input type="time" value={form.return_departure_time} onChange={(e) => setForm((f) => ({ ...f, return_departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
             </div>
-          </div>
+          )}
           <div>
             <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>
             <div className="flex gap-1.5 flex-wrap">

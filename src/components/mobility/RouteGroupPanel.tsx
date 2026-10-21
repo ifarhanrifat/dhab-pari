@@ -250,12 +250,21 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
                 : nextDirection === 'return' ? t('mv.startReturnTripBtn') : t('mv.startRideBtn')}
             </button>
           )}
-          {detail.active_run && !detail.is_owner && (
+          {/* Real ask, 2026-10-21: "the return ride button... when driver is
+              starting a return ride... it should" show something — the
+              driver (owner) used to get NO feedback at all beyond the
+              button itself flipping from gold to red; this same "Live
+              now" status already existed for riders, just never for the
+              one person who most needs to know their own tap registered. */}
+          {detail.active_run && (
             <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
               <Radio size={12} className="animate-pulse" /> {detail.active_run.direction === 'return' ? t('mv.rideLiveReturnLabel') : t('mv.rideLiveNowLabel')}
             </p>
           )}
 
+          {detail.active_run && detail.stops.length === 0 && (
+            <p className="font-sans text-[11.5px] text-[#94a3b8] text-center py-2">{t('mv.noStopsConfiguredNote')}</p>
+          )}
           {detail.active_run && detail.stops.length > 0 && (() => {
             const driverPos = detail.live_locations.find((l) => l.is_owner)
             const etas = computeLiveEtas(detail.route_path ?? [], detail.route_duration_min, driverPos ? { lat: driverPos.lat, lng: driverPos.lng } : null, detail.stops, detail.active_run.direction)
@@ -289,11 +298,13 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
           </button>
           {sharing && geoError && <p className="font-sans text-[11px] text-amber-700">{geoError}</p>}
 
-          {detail.live_locations.length > 0 && (
+          {detail.live_locations.length > 0 ? (
             <LeafletMap
               pins={detail.live_locations.map((l) => ({ lat: l.lat, lng: l.lng, label: l.name, color: l.is_own ? '#D4AF37' : '#166534', emoji: '🚗' }))}
               height={150} className="rounded-xl"
             />
+          ) : detail.active_run && !sharing && (
+            <p className="font-sans text-[11.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-2 text-center">{t('mv.turnOnSharingNote')}</p>
           )}
 
           <div className="bg-[#F9F9F6] border border-[#e5e2d0] rounded-2xl p-3 min-h-[220px] max-h-[40vh] overflow-y-auto flex flex-col gap-2">

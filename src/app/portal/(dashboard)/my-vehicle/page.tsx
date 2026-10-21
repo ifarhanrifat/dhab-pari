@@ -410,6 +410,24 @@ export default function MyVehicleHomePage() {
         </section>
       )}
 
+      {/* Real ask, 2026-10-21: "the feature of creating a route on the main
+          page is garbage looking, this feature is incomplete" — Routes used
+          to be one plain, unlabeled grid tile ("Routes", same weight as
+          Adda/Trips/Weekend) buried under a generic "More" heading, giving
+          no hint this is where a driver starts a recurring daily route.
+          Given its own prominent card here instead, matching the "Publish
+          a shared ride" section right above it in weight and style — the
+          /routes page itself already has a real, working create form; this
+          just gives it an entry point that looks like it. */}
+      <Link href="/portal/my-vehicle/routes" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3 hover:border-[#166534]">
+        <span className="shrink-0 w-10 h-10 rounded-full bg-[#F0FDF4] flex items-center justify-center"><RouteIcon size={18} className="text-[#166534]" /></span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-sans text-[13px] font-bold text-[#005A36]">{t('mv.postRouteHomeHeading')}</span>
+          <span className="block font-sans text-[10.5px] text-[#64748b] mt-0.5">{t('mv.postRouteHomeHint')}</span>
+        </span>
+        <ChevronRight size={16} className={`shrink-0 text-[#166534] ${isUrdu ? 'rotate-180' : ''}`} />
+      </Link>
+
       <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
         <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-1.5">{t('vp.cityPresenceLabel')}</p>
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-0.5 px-0.5">
@@ -442,10 +460,6 @@ export default function MyVehicleHomePage() {
         <Link href="/portal/my-vehicle/adda" className="flex flex-col gap-2 bg-white border border-[#e5e2d0] rounded-2xl p-3">
           <span className="w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center"><Bus size={16} className="text-[#166534]" /></span>
           <span className="font-sans text-[12.5px] font-bold text-[#1e293b]">{t('mv.tab.adda')}</span>
-        </Link>
-        <Link href="/portal/my-vehicle/routes" className="flex flex-col gap-2 bg-white border border-[#e5e2d0] rounded-2xl p-3">
-          <span className="w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center"><RouteIcon size={16} className="text-[#166534]" /></span>
-          <span className="font-sans text-[12.5px] font-bold text-[#1e293b]">{t('mv.tab.routes')}</span>
         </Link>
         <Link href="/portal/my-vehicle/trips" className="flex flex-col gap-2 bg-white border border-[#e5e2d0] rounded-2xl p-3">
           <span className="w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center"><Users2 size={16} className="text-[#166534]" /></span>
