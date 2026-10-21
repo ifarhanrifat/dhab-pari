@@ -3,23 +3,36 @@
 // Home screen of the new "Dhab Pari Mobility" design — rebuilt here
 // (replacing the old marketplace/travel tile-list hub, not the
 // top-level /marketplace two-pillar page, which stays untouched so
-// Shops access isn't dropped). Visual/structural fidelity to the design
-// file's own v.rHome: a service-tile belt, a from/to search card, city
-// quick-chips, and the live adda departure board — all wired to real
-// data (cities, addas/adda_board, vehicle_routes), not the design's own
-// demo formulas/seed data.
+// Shops access isn't dropped).
 //
-// "Find vehicles" navigates to /portal/marketplace/results with the
-// picked destination as a query param, a real route rather than the
-// design's in-memory view-toggle, matching this app's own established
-// preference for real routes per screen (see my-vehicle's 7-screen split).
+// Real ask, 2026-10-21: "for the rider on the home page it will be a
+// full map on which you will display all the features like start and
+// destination, select go home, and then categories at the top, there
+// is no need anything else on the home page." Rebuilt around that: a
+// large, full-bleed map with the service-category belt floating over
+// its top edge and the from/to search card floating over its bottom
+// edge (the from/to picker sheets still expand inline inside that same
+// card, unchanged) — the adda departure board and the routes list that
+// used to fill the rest of this page are gone; both already have a
+// real home of their own (the adda tile's own board, the route cards
+// already reachable from results/shared).
+//
+// "Go Home" — confirmed with the user: find a ride BACK to the village
+// today, reusing the standalone return-leg booking work (727/728/729)
+// rather than inventing a second booking system. The rider says which
+// city they're currently in; find_rides_home(city) returns today's
+// routes/trip-offers whose return leg goes to this village with a free
+// seat, booked at the full one-way fare (board_stop_id omitted —
+// they're at the route's own far endpoint, not partway down a
+// configured stop).
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Bus, MapPin } from 'lucide-react'
+import { friendlyError } from '@/lib/errors'
+import { Search, Home as HomeIcon, Loader2 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityServiceTile } from '@/components/mobility/MobilityServiceTile'
@@ -36,17 +49,12 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface City { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null }
-interface Route {
-  id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
-  classification: string; fare_per_seat_pkr: number; is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
-}
-interface AddaBoardEntry {
-  entry_id: string; status: string; position: number
-  turn_expires_at: string | null; seats_total: number; seats_available: number
-  fare_mode: string; fixed_fare_per_seat_pkr: number | null; owner_name: string; vehicle_type: string
-}
 interface Adda { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null }
-interface AddaBoard { adda: Adda; entries: AddaBoardEntry[] }
+interface GoHomeResult {
+  kind: 'route' | 'trip'; id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null
+  origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
+  approx_fare_pkr: number; seats_available: number; departure_time: string | null; travel_date: string
+}
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
@@ -70,48 +78,31 @@ export default function MobilityHomePage() {
 
   const [cities, setCities] = useState<City[]>([])
   const [origin, setOrigin] = useState<{ lat: number; lng: number; name: string; id: string } | null>(null)
-  const [routes, setRoutes] = useState<Route[]>([])
   const [toCity, setToCity] = useState<City | null>(null)
-  const [mainAdda, setMainAdda] = useState<Adda | null>(null)
-  const [board, setBoard] = useState<AddaBoard | null>(null)
-  const [now, setNow] = useState(() => Date.now())
   const [loading, setLoading] = useState(true)
   const [destPin, setDestPin] = useState<PickedLocation | null>(null)
   const [showOriginPicker, setShowOriginPicker] = useState(false)
   const [showDestPicker, setShowDestPicker] = useState(false)
   const [showNearStop, setShowNearStop] = useState(false)
 
+  // "Go Home" — a separate small flow inside the same card: pick which
+  // city you're currently in, see today's return-leg seats going back
+  // to the village, book one directly from here.
+  const [showGoHome, setShowGoHome] = useState(false)
+  const [goHomeCity, setGoHomeCity] = useState<City | null>(null)
+  const [goHomeLoading, setGoHomeLoading] = useState(false)
+  const [goHomeResults, setGoHomeResults] = useState<GoHomeResult[] | null>(null)
+  const [bookingId, setBookingId] = useState<string | null>(null)
+
   useEffect(() => {
     supabase.from('cities').select('id, name, name_ur, lat, lng').eq('is_active', true).order('display_order').then(({ data }) => setCities(data ?? []))
-    supabase.from('addas').select('id, name, name_ur, lat, lng').eq('is_active', true).order('name').then(async ({ data }) => {
-      const main = data?.[0] ?? null
-      setMainAdda(main)
+    supabase.from('addas').select('id, name, name_ur, lat, lng').eq('is_active', true).order('name').then(({ data }) => {
+      const main: Adda | null = data?.[0] ?? null
       if (main?.lat && main?.lng) setOrigin({ lat: main.lat, lng: main.lng, name: isUrdu && main.name_ur ? main.name_ur : main.name, id: main.id })
-      if (main) {
-        const { data: b } = await supabase.rpc('adda_board', { p_adda_id: main.id })
-        if (b) setBoard(b)
-      }
       setLoading(false)
     })
-    supabase.from('vehicle_routes').select('id, vehicle_id, origin, origin_ur, destination, destination_ur, classification, fare_per_seat_pkr, is_monthly_fixed, monthly_reference_fee_pkr').eq('is_active', true).order('origin')
-      .then(({ data }) => setRoutes(data ?? []))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    const iv = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(iv)
-  }, [])
-  useEffect(() => {
-    if (!mainAdda) return
-    const iv = setInterval(() => supabase.rpc('adda_board', { p_adda_id: mainAdda.id }).then(({ data }) => data && setBoard(data)), 15000)
-    return () => clearInterval(iv)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainAdda])
-
-  const current = board?.entries.find((e) => e.status === 'current')
-  const secondsLeft = current?.turn_expires_at ? Math.max(0, Math.floor((new Date(current.turn_expires_at).getTime() - now) / 1000)) : null
-  const mm = secondsLeft != null ? String(Math.floor(secondsLeft / 60)).padStart(2, '0') : '--'
-  const ss = secondsLeft != null ? String(secondsLeft % 60).padStart(2, '0') : '--'
+  }, [])
 
   const findVehicles = () => {
     if (!toCity) return
@@ -134,24 +125,57 @@ export default function MobilityHomePage() {
     setToCity(nearest)
   }
 
+  const openGoHome = () => {
+    setShowGoHome(true)
+    setGoHomeCity(null)
+    setGoHomeResults(null)
+  }
+  const pickGoHomeCity = async (c: City) => {
+    setGoHomeCity(c)
+    setGoHomeLoading(true)
+    const { data, error } = await supabase.rpc('find_rides_home', { p_city_key: c.name })
+    setGoHomeLoading(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    setGoHomeResults((data as GoHomeResult[]) ?? [])
+  }
+  const bookRideHome = async (r: GoHomeResult) => {
+    setBookingId(r.id)
+    const { data, error } = r.kind === 'route'
+      ? await supabase.rpc('book_standalone_return_seat', { p_route_id: r.id, p_travel_date: r.travel_date, p_method: 'cash' })
+      : await supabase.rpc('book_trip_return_only_seat', { p_trip_offer_id: r.id })
+    setBookingId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    const total = (data as { total?: number; fare_per_seat?: number })?.total ?? (data as { fare_per_seat?: number })?.fare_per_seat ?? r.approx_fare_pkr
+    toast.success(t('mv.returnSeatBookedToast').replace('{amount}', fmt(total)))
+    setShowGoHome(false)
+    router.push('/portal/marketplace/trips')
+  }
+
   if (loading) return <div className="text-center py-12"><LoadingDots /></div>
 
   return (
-    <div className="flex flex-col gap-3.5">
-      {/* Services belt — exact shape: horizontal scroll of tinted pills. */}
-      <div className="-mx-3.5 px-3.5 overflow-x-auto">
-        <div className="flex gap-1.5 w-max pb-0.5">
-          {SERVICES.map((s) => (
-            <MobilityServiceTile key={s.key} href={s.href} emoji={s.emoji} tint={s.tint} name={t(`mb.svc.${s.key}`)} />
-          ))}
+    <div className="flex flex-col gap-0">
+      {/* Full-bleed map — breaks out of this layout's own p-3.5 padding
+          (see marketplace/(mobility)/layout.tsx) so it genuinely reaches
+          the frame's edges instead of sitting as a small inset card. */}
+      <div className="-mx-3.5 -mt-3.5 relative">
+        <LeafletMap pins={pins} height="44vh" className="rounded-b-[28px]" />
+
+        {/* Categories, floating over the map's top edge. */}
+        <div className="absolute top-3 inset-x-0 px-3.5 overflow-x-auto">
+          <div className="flex gap-1.5 w-max pb-0.5">
+            {SERVICES.map((s) => (
+              <MobilityServiceTile key={s.key} href={s.href} emoji={s.emoji} tint={s.tint} name={t(`mb.svc.${s.key}`)} />
+            ))}
+          </div>
         </div>
       </div>
 
-      {pins.length > 0 && <LeafletMap pins={pins} height={190} className="rounded-2xl" />}
-
-      {/* Search card — real complaint: a map popup opening on top of this
-          card "is wrong"; it now expands inline in the same card. */}
-      <div className="bg-white rounded-2xl shadow-[0_-6px_20px_rgba(0,0,0,.08)] p-3.5 flex flex-col gap-2.5">
+      {/* Search card, pulled up to float over the map's bottom edge —
+          real complaint fixed earlier this session: a map popup used to
+          open ON TOP of this card; both pickers now expand inline here
+          instead. */}
+      <div className="relative z-10 -mt-7 bg-white rounded-2xl shadow-[0_-6px_20px_rgba(0,0,0,.1)] p-3.5 flex flex-col gap-2.5">
         {showOriginPicker ? (
           <LocationPickerSheet
             title={t('mb.fromPlaceholder')}
@@ -170,6 +194,48 @@ export default function MobilityHomePage() {
             onClose={() => setShowDestPicker(false)}
             onConfirm={confirmDestPin}
           />
+        ) : showGoHome ? (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="font-bold text-[15px] text-[#005A36] flex items-center gap-1.5"><HomeIcon size={16} /> {t('mb.goHomeHeading')}</p>
+              <button onClick={() => setShowGoHome(false)} className="font-sans text-[12px] font-semibold text-[#64748b] cursor-pointer">{t('action.cancel')}</button>
+            </div>
+            {!goHomeCity ? (
+              <>
+                <p className="font-sans text-[12.5px] text-[#64748b]">{t('mb.pickYourCityHint')}</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {cities.map((c) => (
+                    <button key={c.id} onClick={() => pickGoHomeCity(c)} className="px-3 py-1.5 rounded-full text-[12px] font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155] bg-white">
+                      📍 {isUrdu && c.name_ur ? c.name_ur : c.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : goHomeLoading ? (
+              <div className="py-6 text-center"><Loader2 size={20} className="animate-spin text-[#166534] mx-auto" /></div>
+            ) : (
+              <>
+                <button onClick={() => setGoHomeCity(null)} className="font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer text-start">← {isUrdu && goHomeCity.name_ur ? goHomeCity.name_ur : goHomeCity.name}</button>
+                {(goHomeResults?.length ?? 0) === 0 ? (
+                  <p className="font-sans text-[13px] text-[#94a3b8] text-center py-4">{t('mb.noRidesHomeFound')}</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {goHomeResults!.map((r) => (
+                      <div key={`${r.kind}-${r.id}`} className="border border-[#e5e2d0] rounded-xl p-2.5 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-sans text-[12.5px] font-bold text-[#1e293b] truncate">{r.owner_name} · {r.vehicle_type}</p>
+                          <p className="font-sans text-[11px] text-[#64748b]">{fmt(r.approx_fare_pkr)} {t('mk.perSeat')} · {r.seats_available} {t('mk.seatsLabel')}</p>
+                        </div>
+                        <button onClick={() => bookRideHome(r)} disabled={bookingId === r.id} className="shrink-0 px-3 py-1.5 rounded-lg text-[11.5px] font-bold text-white cursor-pointer bg-[#166534] disabled:opacity-50">
+                          {bookingId === r.id ? t('action.saving') : t('mv.bookReturnSeatBtn')}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </>
         ) : (
           <>
             <p className="font-bold text-[15px] text-[#005A36]">{t('mb.whereToHeading')}</p>
@@ -204,67 +270,18 @@ export default function MobilityHomePage() {
             <button onClick={findVehicles} disabled={!toCity} className="w-full bg-[#166534] disabled:bg-[#166534]/40 text-white rounded-xl py-2.5 font-bold text-[13px] cursor-pointer disabled:cursor-not-allowed">
               {t('mb.findVehiclesBtn')}
             </button>
-            <button onClick={() => setShowNearStop(true)} className="w-full border border-[#e5e2d0] text-[#166534] rounded-xl py-2 font-bold text-[12.5px] cursor-pointer">
-              📍 {t('mv.findRideNearMeBtn')}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowNearStop(true)} className="flex-1 border border-[#e5e2d0] text-[#166534] rounded-xl py-2 font-bold text-[12.5px] cursor-pointer">
+                📍 {t('mv.findRideNearMeBtn')}
+              </button>
+              <button onClick={openGoHome} className="flex-1 border border-[#D4AF37] text-[#0f172a] bg-[#FFFBEB] rounded-xl py-2 font-bold text-[12.5px] cursor-pointer flex items-center justify-center gap-1.5">
+                <HomeIcon size={13} /> {t('mb.goHomeBtn')}
+              </button>
+            </div>
           </>
         )}
       </div>
       {showNearStop && <FindRideNearStopSheet onClose={() => setShowNearStop(false)} />}
-
-      {/* Adda departure board — exact flap/seat-dots shape */}
-      {board && (
-        <div className="bg-[#145040] rounded-2xl p-3.5 text-white">
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-bold text-[13px] flex items-center gap-1.5"><Bus size={14} /> {t('mb.addaBoardHeading')}</p>
-            <Link href="/portal/marketplace/adda" className="text-[10.5px] font-semibold text-[#bbf7d0] underline">{t('mb.viewFullBoardBtn')}</Link>
-          </div>
-          {current ? (
-            <>
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="font-semibold text-[13px] truncate">{current.owner_name}</p>
-                  <p className="text-[11px] text-[#bbf7d0] truncate">{current.vehicle_type}</p>
-                </div>
-                <div dir="ltr" className="shrink-0 flex items-center gap-0.5 font-mono text-[18px] font-extrabold">
-                  <span className="bg-black/20 rounded px-1.5">{mm}</span>:<span className="bg-black/20 rounded px-1.5">{ss}</span>
-                </div>
-              </div>
-              <div className="flex gap-1 mt-2">
-                {Array.from({ length: current.seats_total }, (_, i) => (
-                  <span key={i} className="w-3.5 h-3.5 rounded-sm" style={{ background: i < current.seats_total - current.seats_available ? '#D4AF37' : 'rgba(255,255,255,.15)' }} />
-                ))}
-              </div>
-              <p className="text-[11px] text-[#bbf7d0] mt-1.5">
-                {current.seats_available > 0
-                  ? `${current.seats_available} ${t('mb.seatsFreeLabel')}`
-                  : t('mb.vanFullLabel')}
-                {' · '}{current.fare_mode === 'fixed' ? fmt(current.fixed_fare_per_seat_pkr ?? 0) : t('af.rideRequestMode')}
-              </p>
-            </>
-          ) : (
-            <p className="text-[12px] text-[#bbf7d0]">{t('af.noCurrentVehicle')}</p>
-          )}
-        </div>
-      )}
-
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#64748b] mb-2 flex items-center gap-1.5"><MapPin size={12} /> {t('mb.routesHeading')}</p>
-        {routes.length === 0 && <p className="text-[13px] text-[#64748b]">{t('mp.noRoutesListed')}</p>}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {routes.map((r) => (
-            <Link key={r.id} href={`/portal/marketplace/route/${r.id}`} className="bg-white border border-[#e5e2d0] rounded-xl p-3">
-              <p className="text-[13px] font-semibold text-[#1e293b]">{isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
-              {r.is_monthly_fixed ? (
-                <p className="text-[12px] font-bold text-amber-700 mt-1">✅ {t('mv.monthlyFixedBadge')} · {fmt(r.monthly_reference_fee_pkr ?? 0)}</p>
-              ) : (
-                <p className="text-[13px] font-bold text-[#005A36] mt-1">{fmt(r.fare_per_seat_pkr)} <span className="font-normal text-[#64748b] text-[11px]">{t('mk.perSeat')}</span></p>
-              )}
-            </Link>
-          ))}
-        </div>
-      </div>
-
     </div>
   )
 }
