@@ -27,6 +27,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityHeader } from '@/components/mobility/MobilityHeader'
 import { DriverMobilityNav } from '@/components/mobility/DriverMobilityNav'
 import { DriverJobsBadgeProvider, useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext'
+import { PendingRequestOverlay } from '@/components/mobility/PendingRequestOverlay'
 
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; commission_mode: string
@@ -111,6 +112,10 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
 
   return (
     <DriverJobsBadgeProvider vehicleId={vehicle.id} vehicle={vehicle}>
+      {/* Mounted at this layout level (not inside any one page) so the
+          incoming-request popup is alive no matter which driver screen
+          is open — see PendingRequestOverlay.tsx's own header comment. */}
+      <PendingRequestOverlay vehicleId={vehicle.id} vehicle={vehicle} />
       <Chrome>{children}</Chrome>
     </DriverJobsBadgeProvider>
   )
