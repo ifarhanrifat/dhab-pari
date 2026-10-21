@@ -26,7 +26,7 @@
 // they're at the route's own far endpoint, not partway down a
 // configured stop).
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { toast } from 'sonner'
@@ -59,6 +59,77 @@ interface GoHomeResult {
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
+// Real ask, 2026-10-21: "catagories must be displaying above the map not
+// on the map and must be running like news belt" — moved out of the
+// absolute overlay on the map's top edge into its own row above it, and
+// made it auto-scroll continuously. Driven by `scrollLeft` in a rAF loop
+// rather than a CSS transform/keyframe animation — the exact same choice
+// AnnouncementBar's own ticker made (see its header comment) after a
+// transform marquee confirmed invisible on a real production Android
+// WebView for a wide track; this belt is shorter, but there's no reason
+// to risk the same class of bug twice when the proven approach is right
+// here to reuse. Paused on touchstart/mouseenter so a rider can actually
+// tap a tile instead of it sliding out from under their finger — plain
+// text tickers elsewhere never needed that since nothing in them is
+// clickable.
+function useAutoScrollBelt(rtl: boolean) {
+  // A plain useRef here would only ever get checked inside a mount-only
+  // effect — and this page gates its whole return behind `if (loading)
+  // return <LoadingDots/>` until the cities/addas fetch resolves, so the
+  // belt's own div doesn't exist in the tree on that first render. The
+  // effect would run once, see a null ref forever, and never start the
+  // loop (confirmed live: the belt rendered correctly but sat
+  // completely still). A callback ref + state re-runs the effect the
+  // instant the real node mounts, whenever that actually happens.
+  const [node, setNode] = useState<HTMLDivElement | null>(null)
+  const pausedRef = useRef(false)
+
+  // Same RTL gotcha AnnouncementBar's own ticker already chased down:
+  // Chromium clamps scrollLeft to <= 0 on an RTL-direction container, so
+  // the sign of the per-frame write has to match that — and the `dir`
+  // this depends on is set explicitly on the container in the JSX below
+  // (never left to ambient context), so `rtl` here is always right.
+  useEffect(() => {
+    if (!node) return
+    const contentWidth = node.scrollWidth / 2
+    if (contentWidth <= 0) return
+    const negative = rtl
+    const PIXELS_PER_SECOND = 28
+    let pos = 0
+    let raf = 0
+    let last = performance.now()
+    function step(now: number) {
+      const dt = (now - last) / 1000
+      last = now
+      if (!pausedRef.current) {
+        pos = (pos + PIXELS_PER_SECOND * dt) % contentWidth
+        node!.scrollLeft = negative ? -pos : pos
+      }
+      raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [node, rtl])
+
+  useEffect(() => {
+    if (!node) return
+    const pause = () => { pausedRef.current = true }
+    const resume = () => { pausedRef.current = false }
+    node.addEventListener('mouseenter', pause)
+    node.addEventListener('mouseleave', resume)
+    node.addEventListener('touchstart', pause, { passive: true })
+    node.addEventListener('touchend', resume)
+    return () => {
+      node.removeEventListener('mouseenter', pause)
+      node.removeEventListener('mouseleave', resume)
+      node.removeEventListener('touchstart', pause)
+      node.removeEventListener('touchend', resume)
+    }
+  }, [node])
+
+  return setNode
+}
+
 const SERVICES = [
   { key: 'adda', emoji: '🚐', tint: '#dcfce7', href: '/portal/marketplace/adda' },
   { key: 'shared', emoji: '👥', tint: '#e0f2fe', href: '/portal/marketplace/shared' },
@@ -76,6 +147,7 @@ export default function MobilityHomePage() {
   const { t, isUrdu } = useLocale()
   const router = useRouter()
   const supabase = createClient()
+  const beltRef = useAutoScrollBelt(isUrdu)
 
   const [cities, setCities] = useState<City[]>([])
   const [origin, setOrigin] = useState<{ lat: number; lng: number; name: string; id: string } | null>(null)
@@ -156,20 +228,29 @@ export default function MobilityHomePage() {
 
   return (
     <div className="flex flex-col gap-0">
+      {/* Real ask, 2026-10-21: "catagories must be displaying above the
+          map not on the map and must be running like news belt" — its
+          own row above the map now, in normal flow, not an overlay on
+          top of it, and auto-scrolling continuously (useAutoScrollBelt
+          above) instead of a manually-swiped static row. Two back-to-
+          back copies of the tile list give the loop a seamless wrap,
+          same trick the text tickers elsewhere already use. */}
+      <div ref={beltRef} dir={isUrdu ? 'rtl' : 'ltr'} className="-mx-3.5 px-3.5 pb-2.5 overflow-hidden whitespace-nowrap">
+        <div className="inline-flex gap-1.5">
+          {SERVICES.map((s) => (
+            <MobilityServiceTile key={`a-${s.key}`} href={s.href} emoji={s.emoji} tint={s.tint} name={t(`mb.svc.${s.key}`)} />
+          ))}
+          {SERVICES.map((s) => (
+            <MobilityServiceTile key={`b-${s.key}`} href={s.href} emoji={s.emoji} tint={s.tint} name={t(`mb.svc.${s.key}`)} />
+          ))}
+        </div>
+      </div>
+
       {/* Full-bleed map — breaks out of this layout's own p-3.5 padding
           (see marketplace/(mobility)/layout.tsx) so it genuinely reaches
           the frame's edges instead of sitting as a small inset card. */}
-      <div className="-mx-3.5 -mt-3.5 relative">
+      <div className="-mx-3.5 relative">
         <LeafletMap pins={pins} height="44vh" className="rounded-b-[28px]" />
-
-        {/* Categories, floating over the map's top edge. */}
-        <div className="absolute top-3 inset-x-0 px-3.5 overflow-x-auto">
-          <div className="flex gap-1.5 w-max pb-0.5">
-            {SERVICES.map((s) => (
-              <MobilityServiceTile key={s.key} href={s.href} emoji={s.emoji} tint={s.tint} name={t(`mb.svc.${s.key}`)} />
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Search card, pulled up to float over the map's bottom edge —
