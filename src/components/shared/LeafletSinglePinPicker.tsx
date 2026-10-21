@@ -73,7 +73,11 @@ export default function LeafletSinglePinPicker({ lat, lng, onChange }: Props) {
 
   return (
     <div>
-      <div className="relative rounded-lg overflow-hidden border border-dp-outline-variant" style={{ height: 260 }}>
+      {/* isolate: traps Leaflet's own internal panes (tiles/markers/popups,
+          which use very high z-index values) inside this div's own
+          stacking context so they can never escape above a caller's
+          modal/sheet overlay — same fix as LeafletMap.tsx, see its comment. */}
+      <div className="relative rounded-lg overflow-hidden isolate border border-dp-outline-variant" style={{ height: 260 }}>
         <div ref={containerRef} className="w-full h-full" />
         {/* The fixed pin — never moves; the map pans underneath it. A tiny
             lift-and-drop motion while dragging (translateY + a shrinking

@@ -181,7 +181,19 @@ const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pin
 
   useEffect(() => () => { mapRef.current?.remove(); mapRef.current = null }, [])
 
-  return <div ref={containerRef} className={`overflow-hidden ${className}`} style={{ height }} />
+  // Real ask, 2026-10-21: "almost on all pages where map is displaying
+  // its displaying over all the popups" — Leaflet's own internal panes
+  // (tiles, markers, popups, controls) use very high z-index values
+  // that escape a normal CSS stacking context, so the map rendered
+  // above a bottom sheet/modal's overlay (z-[100]+) no matter how high
+  // that overlay's own z-index was set. `isolate` (CSS `isolation:
+  // isolate`) traps Leaflet's panes inside their own stacking context
+  // rooted at this div, so nothing it draws can ever escape above
+  // whatever a caller stacks on top of it. Previously only applied
+  // ad-hoc on one caller (LocationPickerSheet) instead of here, in the
+  // one shared component every map in the app actually renders through
+  // — every other page still had the bug.
+  return <div ref={containerRef} className={`overflow-hidden isolate ${className}`} style={{ height }} />
 })
 
 export default LeafletMap

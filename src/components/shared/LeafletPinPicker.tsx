@@ -77,7 +77,8 @@ export default function LeafletPinPicker({ originLat, originLng, destinationLat,
 
   return (
     <div>
-      <div ref={containerRef} className="rounded-lg overflow-hidden border border-dp-outline-variant" style={{ height: 220 }} />
+      {/* isolate: same Leaflet-pane-escaping-over-a-modal fix as LeafletMap.tsx. */}
+      <div ref={containerRef} className="rounded-lg overflow-hidden isolate border border-dp-outline-variant" style={{ height: 220 }} />
       <div className="flex items-center gap-3 mt-2">
         <button type="button" onClick={() => onChange({ originLat: null, originLng: null, destinationLat, destinationLng })}
           className="text-[12px] font-sans font-semibold text-dp-on-surface-variant hover:text-dp-error cursor-pointer disabled:opacity-40" disabled={originLat == null}>

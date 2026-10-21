@@ -21,7 +21,7 @@
 // own parties (hourly_bookings_parties_read etc.) — no new backend.
 
 import { useState } from 'react'
-import { Loader2, Ban } from 'lucide-react'
+import { Loader2, Ban, Radio, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -56,6 +56,29 @@ interface RideDetail {
 }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
+
+// Real ask, 2026-10-21: "the rider once sent the request... the same
+// request popup kept displaying" — this sheet already live-updates,
+// but while status is still 'requested' it showed nothing distinguishing
+// "waiting for a driver" from any other state, unlike a real app's
+// explicit "searching" screen. One shared banner for all 3 kinds here.
+function StatusBanner({ t, status, declineReason }: { t: (k: string, f?: string) => string; status: string; declineReason: string | null }) {
+  if (status === 'requested') {
+    return (
+      <p className="flex items-center gap-2 font-sans text-[13px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+        <Radio size={14} className="animate-pulse shrink-0" /> {t('vp.waitingForDriverLabel')}
+      </p>
+    )
+  }
+  if (status === 'declined') {
+    return (
+      <p className="flex items-center gap-2 font-sans text-[13px] font-bold text-[#b91c1c] bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+        <XCircle size={14} className="shrink-0" /> {declineReason || t('vp.requestDeclinedLabel')}
+      </p>
+    )
+  }
+  return null
+}
 
 const HOURLY_SELECT = 'id, status, pickup_address, decline_reason, total_amount_pkr, base_amount_pkr, pin, vehicle_id, vehicles(owner_name, owner_mobile, vehicle_type, model)'
 const RENTAL_SELECT = 'id, status, from_address, to_address, decline_reason, total_amount_pkr, base_amount_pkr, pin, vehicle_id, vehicles(owner_name, owner_mobile, vehicle_type, model)'
@@ -96,6 +119,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
         <div className="flex flex-col gap-3">
           <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(hourly.vehicles.vehicle_type, hourly.vehicles.model)} — {hourly.vehicles.owner_name}</p>
           <p className="font-sans text-[12.5px] text-[#64748b]">{hourly.pickup_address}</p>
+          <StatusBanner t={t} status={hourly.status} declineReason={hourly.decline_reason} />
           {hourly.pin && hourly.status === 'accepted' && (
             <div className="bg-[#F9F9F6] rounded-xl p-3 flex items-center justify-between">
               <span className="font-sans text-[11.5px] text-[#64748b]">{t('vp.yourPinLabel')}</span>
@@ -103,7 +127,6 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
             </div>
           )}
           <p className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num">₨{fmt(hourly.total_amount_pkr ?? hourly.base_amount_pkr)}</p>
-          {hourly.decline_reason && <p className="font-sans text-[12px] text-[#b91c1c]">{hourly.decline_reason}</p>}
           {(hourly.status === 'accepted' || hourly.status === 'in_progress') && (
             <div className="flex items-center gap-3">
               <CallButton phone={hourly.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
@@ -120,6 +143,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
         <div className="flex flex-col gap-3">
           <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(equipment.vehicles.vehicle_type, equipment.vehicles.model)} — {equipment.vehicles.owner_name}</p>
           <p className="font-sans text-[12.5px] text-[#64748b]">{equipment.site_address}</p>
+          <StatusBanner t={t} status={equipment.status} declineReason={equipment.decline_reason} />
           {equipment.pin && equipment.status === 'accepted' && (
             <div className="bg-[#F9F9F6] rounded-xl p-3 flex items-center justify-between">
               <span className="font-sans text-[11.5px] text-[#64748b]">{t('vp.yourPinLabel')}</span>
@@ -127,7 +151,6 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
             </div>
           )}
           <p className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num">₨{fmt(equipment.total_amount_pkr ?? equipment.rate_pkr)}</p>
-          {equipment.decline_reason && <p className="font-sans text-[12px] text-[#b91c1c]">{equipment.decline_reason}</p>}
           {(equipment.status === 'accepted' || equipment.status === 'in_progress') && (
             <div className="flex items-center gap-3">
               <CallButton phone={equipment.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
@@ -144,6 +167,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
         <div className="flex flex-col gap-3">
           <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(rental.vehicles.vehicle_type, rental.vehicles.model)} — {rental.vehicles.owner_name}</p>
           <p className="font-sans text-[12.5px] text-[#64748b]">{rental.from_address} → {rental.to_address}</p>
+          <StatusBanner t={t} status={rental.status} declineReason={rental.decline_reason} />
           {rental.pin && rental.status === 'accepted' && (
             <div className="bg-[#F9F9F6] rounded-xl p-3 flex items-center justify-between">
               <span className="font-sans text-[11.5px] text-[#64748b]">{t('vp.yourPinLabel')}</span>
@@ -151,7 +175,6 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
             </div>
           )}
           <p className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num">₨{fmt(rental.total_amount_pkr ?? rental.base_amount_pkr)}</p>
-          {rental.decline_reason && <p className="font-sans text-[12px] text-[#b91c1c]">{rental.decline_reason}</p>}
           {(rental.status === 'accepted' || rental.status === 'in_progress') && (
             <div className="flex items-center gap-3">
               <CallButton phone={rental.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
