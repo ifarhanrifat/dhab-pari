@@ -49,7 +49,7 @@ const emptyRouteForm = {
   // is what makes "Start Return Trip" show up later. Now an explicit
   // choice; toggling it off always clears return_departure_time so a
   // half-filled field can never silently leave a route two-way.
-  is_two_way: false,
+  is_two_way: false, return_wait_minutes: 300 as number,
   departure_time: '', return_departure_time: '', days_of_week: [] as number[], distance_km: '' as string,
   is_monthly_fixed: false, monthly_reference_fee_pkr: '' as string | number,
 }
@@ -320,6 +320,7 @@ export default function MyVehicleRoutesPage() {
       p_destination_lat: destPoint?.lat ?? null, p_destination_lng: destPoint?.lng ?? null,
       p_route_path: chosenPath ? chosenPath.path : null, p_route_duration_min: chosenPath ? chosenPath.durationMin : null,
       p_is_monthly_fixed: form.is_monthly_fixed, p_monthly_reference_fee_pkr: monthlyFee,
+      p_is_two_way: form.is_two_way, p_return_wait_minutes: form.is_two_way ? form.return_wait_minutes : null,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -558,10 +559,32 @@ export default function MyVehicleRoutesPage() {
             {t('mv.isTwoWayToggleLabel')}
           </label>
           {form.is_two_way && (
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
-              <input type="time" value={form.return_departure_time} onChange={(e) => setForm((f) => ({ ...f, return_departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
-            </div>
+            <>
+              {/* Real ask, 2026-10-21: "it should work like this... it
+                  could be 6 hour waiting time or 5 or 8 hours the vehicle
+                  will leave on its time" — a wait window at the
+                  destination, not a second static clock time. Kept
+                  alongside the existing return-time field as a display
+                  hint ("usually leaves around...") since drivers still
+                  find a clock time easier to picture than a duration. */}
+              <div>
+                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.returnWaitMinutesLabel')}</label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {[300, 360, 480].map((mins) => (
+                    <button key={mins} type="button" onClick={() => setForm((f) => ({ ...f, return_wait_minutes: mins }))}
+                      className={`px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${form.return_wait_minutes === mins ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                      {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
+                    </button>
+                  ))}
+                  <input type="number" min={30} step={30} value={form.return_wait_minutes} onChange={(e) => setForm((f) => ({ ...f, return_wait_minutes: Number(e.target.value) }))}
+                    className="w-24 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" placeholder={t('mv.customMinutesPlaceholder')} />
+                </div>
+              </div>
+              <div>
+                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
+                <input type="time" value={form.return_departure_time} onChange={(e) => setForm((f) => ({ ...f, return_departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+              </div>
+            </>
           )}
           <div>
             <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>

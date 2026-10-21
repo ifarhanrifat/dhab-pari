@@ -29,6 +29,7 @@ interface Route {
   origin_lat: number | null; origin_lng: number | null; destination_lat: number | null; destination_lng: number | null
   route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
   is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
+  is_two_way: boolean; return_wait_minutes: number | null
 }
 interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string }
 interface Stop { id: string; label: string; label_ur: string | null; lat: number; lng: number; stop_order: number }
@@ -88,6 +89,10 @@ export default function RouteDetailPage() {
   const [selectedBoardStopId, setSelectedBoardStopId] = useState<string | null>(null)
   const [applying, setApplying] = useState(false)
   const [leavingSeat, setLeavingSeat] = useState(false)
+  const [returnSeatsAvailable, setReturnSeatsAvailable] = useState<number | null>(null)
+  const [returnBoardStopId, setReturnBoardStopId] = useState<string | null>(null)
+  const [returnProofPath, setReturnProofPath] = useState('')
+  const [bookingReturn, setBookingReturn] = useState(false)
 
   useEffect(() => {
     supabase.from('vehicle_routes').select('*').eq('id', params.routeId).single().then(async ({ data: r }) => {
@@ -123,6 +128,35 @@ export default function RouteDetailPage() {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [travelDate, route?.id, wrongDay])
+
+  // Real ask, 2026-10-21: "an alert will be sent to the riders... with 1
+  // seat or 2 seat available and now they can join the ride with one way
+  // fare" — a seat an outbound rider was offboarded from (see
+  // RouteGroupPanel's own offboard flow) shows up here for ANYONE,
+  // bookable as a standalone, distance-proportional one-way return.
+  useEffect(() => {
+    if (!travelDate || !route?.is_two_way || wrongDay) { setReturnSeatsAvailable(null); return }
+    supabase.rpc('return_seats_available', { p_route_id: route.id, p_travel_date: travelDate }).then(({ data }) => {
+      setReturnSeatsAvailable(data as number)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [travelDate, route?.id, route?.is_two_way, wrongDay])
+
+  const bookReturnSeat = async () => {
+    if (!route) return
+    if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
+    if (!returnBoardStopId) { toast.error(t('mv.pickBoardStopLabel')); return }
+    if (!isPerOrder && !returnProofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
+    setBookingReturn(true)
+    const { data, error } = await supabase.rpc('book_standalone_return_seat', {
+      p_route_id: route.id, p_travel_date: travelDate, p_board_stop_id: returnBoardStopId,
+      p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : returnProofPath,
+    })
+    setBookingReturn(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.returnSeatBookedToast').replace('{amount}', fmt((data as { total: number }).total)))
+    router.push('/portal/marketplace')
+  }
 
   const isFlex = route?.fare_mode === 'flex'
   // Live estimate only — the actual charge locks in server-side
@@ -345,6 +379,39 @@ export default function RouteDetailPage() {
           <p className="font-sans text-[13px] text-dp-error mt-3">{t('mp.fullyBookedError')}</p>
         )}
       </div>
+      )}
+
+      {/* Real ask, 2026-10-21: "an alert will be sent to the riders... with
+          1 seat or 2 seat available and now they can join the ride with
+          one way fare" — a seat released by an offboard (RouteGroupPanel's
+          own flow) shows up here for anyone, not just people already on
+          the outbound leg, bookable one-way at a distance-proportional
+          fare (book_standalone_return_seat). */}
+      {!route.is_monthly_fixed && bookable && route.is_two_way && !wrongDay && travelDate && (returnSeatsAvailable ?? 0) > 0 && (
+        <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg p-4 mt-4">
+          <p className="font-sans text-[13px] font-bold text-[#166534]">🔄 {t('mv.returnSeatsOpenNote').replace('{n}', String(returnSeatsAvailable))}</p>
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('mv.returnSeatHint')}</p>
+
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 mt-3">{t('mv.pickBoardStopLabel')}</label>
+          <select value={returnBoardStopId ?? ''} onChange={(e) => setReturnBoardStopId(e.target.value || null)} className="input-field">
+            <option value="">{t('mv.pickBoardStopLabel')}</option>
+            {stops.map((s) => (
+              <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>
+            ))}
+          </select>
+
+          {isPerOrder ? (
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-3">{t('cm.payDirectlyNote')}</p>
+          ) : (
+            <div className="mt-3">
+              <DonationReceiptUpload onUpload={setReturnProofPath} />
+            </div>
+          )}
+
+          <button onClick={bookReturnSeat} disabled={bookingReturn || !returnBoardStopId} className="w-full mt-3 bg-[#166534] text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-[#0f4b27] transition-all disabled:opacity-50">
+            {bookingReturn ? t('mp.placingBooking') : t('mv.bookReturnSeatBtn')}
+          </button>
+        </div>
       )}
       <MarketplaceBottomNav />
     </div>

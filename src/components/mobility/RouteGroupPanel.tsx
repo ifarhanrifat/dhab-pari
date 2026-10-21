@@ -32,13 +32,16 @@ interface Participant { portal_user_id: string; name: string; sharing_location: 
 interface Message { id: string; sender_portal_user_id: string; sender_name: string; is_own: boolean; body: string; created_at: string }
 interface LiveLoc { portal_user_id: string; name: string; is_own: boolean; is_owner: boolean; lat: number; lng: number; updated_at: string }
 interface StopRow { id: string; label: string; label_ur: string | null; lat: number; lng: number }
-interface ActiveRun { id: string; started_at: string; direction: 'outbound' | 'return' }
+interface ActiveRun { id: string; started_at: string; direction: 'outbound' | 'return'; outbound_arrived_at: string | null }
 interface TodaysRun { id: string; direction: 'outbound' | 'return'; started_at: string; ended_at: string | null }
 interface RosterRow { subscription_id: string; name: string; present: boolean }
+interface OutboundBookingRow { booking_id: string; name: string; seats: number; offboarded: boolean }
 interface Detail {
   is_owner: boolean; is_member: boolean; sharing_location: boolean
   owner_portal_user_id: string; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
+  is_two_way: boolean; return_wait_minutes: number | null; return_seats_available_today: number | null
   active_run: ActiveRun | null; todays_runs: TodaysRun[]; stops: StopRow[]; roster_today: RosterRow[]
+  todays_outbound_bookings: OutboundBookingRow[]
   participants: Participant[]; messages: Message[]; live_locations: LiveLoc[]
 }
 
@@ -157,6 +160,30 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
     load()
   }
 
+  // Real ask, 2026-10-21: "the vehicle will leave on its time and then
+  // the driver can off board the rider who is late" — arriving starts
+  // the wait window; offboarding during it releases that one rider's
+  // seat for the return leg only, which is what makes a standalone
+  // one-way return booking (and the alert to nearby riders) possible.
+  const [offboardBusy, setOffboardBusy] = useState<string | null>(null)
+  const markArrived = async () => {
+    if (!detail?.active_run) return
+    setRunBusy(true)
+    const { error } = await supabase.rpc('mark_run_arrived', { p_run_id: detail.active_run.id })
+    setRunBusy(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    load()
+  }
+  const offboard = async (bookingId: string) => {
+    if (!detail?.active_run) return
+    setOffboardBusy(bookingId)
+    const { error } = await supabase.rpc('offboard_rider', { p_run_id: detail.active_run.id, p_booking_id: bookingId })
+    setOffboardBusy(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.riderOffboardedToast'))
+    load()
+  }
+
   const join = async () => {
     setJoining(true)
     const { error } = await supabase.rpc('join_route_group', { p_route_id: routeId })
@@ -259,6 +286,53 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
           {detail.active_run && (
             <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
               <Radio size={12} className="animate-pulse" /> {detail.active_run.direction === 'return' ? t('mv.rideLiveReturnLabel') : t('mv.rideLiveNowLabel')}
+            </p>
+          )}
+
+          {/* Real ask, 2026-10-21: "the vehicle will leave on its time and
+              then the driver can off board the rider who is late" — the
+              owner marks arrival, which opens a wait window (the route's
+              own return_wait_minutes), and can release a specific
+              outbound rider's seat for the return leg during that window. */}
+          {detail.is_owner && detail.is_two_way && detail.active_run?.direction === 'outbound' && !detail.active_run.outbound_arrived_at && (
+            <button type="button" onClick={markArrived} disabled={runBusy} className="w-full py-2 rounded-xl text-[13px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">
+              {t('mv.markArrivedBtn')}
+            </button>
+          )}
+          {detail.is_owner && detail.active_run?.direction === 'outbound' && detail.active_run.outbound_arrived_at && (() => {
+            const elapsedMin = (Date.now() - new Date(detail.active_run.outbound_arrived_at).getTime()) / 60000
+            const remainingMin = detail.return_wait_minutes != null ? Math.max(0, Math.round(detail.return_wait_minutes - elapsedMin)) : null
+            return (
+              <div className="flex flex-col gap-1.5">
+                {remainingMin != null && (
+                  <p className="font-sans text-[12px] font-semibold text-[#64748b] bg-[#F9F9F6] rounded-lg px-2.5 py-1.5 text-center">
+                    {remainingMin > 0 ? t('mv.returnOpensInLabel').replace('{n}', String(remainingMin)) : t('mv.returnWaitOverLabel')}
+                  </p>
+                )}
+                {detail.todays_outbound_bookings.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b]">{t('mv.offboardRosterLabel')}</p>
+                    {detail.todays_outbound_bookings.map((b) => (
+                      <div key={b.booking_id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F9F9F6] px-2.5 py-1.5">
+                        <span className="font-sans text-[12px] font-semibold text-[#1e293b] truncate">{b.name} {b.seats > 1 ? `(${b.seats})` : ''}</span>
+                        {b.offboarded ? (
+                          <span className="shrink-0 font-sans text-[11px] text-[#94a3b8]">{t('mv.offboardedLabel')}</span>
+                        ) : (
+                          <button type="button" onClick={() => offboard(b.booking_id)} disabled={offboardBusy === b.booking_id}
+                            className="shrink-0 font-sans text-[11px] font-bold text-[#b91c1c] cursor-pointer disabled:opacity-50">
+                            {offboardBusy === b.booking_id ? t('action.saving') : t('mv.offboardBtn')}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+          {detail.is_two_way && detail.return_seats_available_today != null && detail.return_seats_available_today > 0 && (
+            <p className="font-sans text-[11.5px] font-bold text-[#166534] bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg px-2.5 py-1.5 text-center">
+              {t('mv.returnSeatsOpenNote').replace('{n}', String(detail.return_seats_available_today))}
             </p>
           )}
 
