@@ -39,6 +39,7 @@ import { MobilityServiceTile } from '@/components/mobility/MobilityServiceTile'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
 import { FindRideNearStopSheet } from '@/components/mobility/FindRideNearStopSheet'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
+import { SITE } from '@/lib/constants'
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371, dLat = (b.lat - a.lat) * Math.PI / 180, dLng = (b.lng - a.lng) * Math.PI / 180
@@ -180,7 +181,7 @@ export default function MobilityHomePage() {
           <LocationPickerSheet
             title={t('mb.fromPlaceholder')}
             initial={origin ? { lat: origin.lat, lng: origin.lng, label: origin.name } : null}
-            defaultCenter={origin ? [origin.lat, origin.lng] : undefined}
+            defaultCenter={origin ? [origin.lat, origin.lng] : [SITE.lat, SITE.lng]}
             inline
             onClose={() => setShowOriginPicker(false)}
             onConfirm={(loc) => { setOrigin({ lat: loc.lat, lng: loc.lng, name: loc.label, id: 'custom' }); setShowOriginPicker(false) }}
@@ -189,7 +190,7 @@ export default function MobilityHomePage() {
           <LocationPickerSheet
             title={t('mb.toPlaceholder')}
             initial={destPin}
-            defaultCenter={origin ? [origin.lat, origin.lng] : undefined}
+            defaultCenter={origin ? [origin.lat, origin.lng] : [SITE.lat, SITE.lng]}
             inline
             onClose={() => setShowDestPicker(false)}
             onConfirm={confirmDestPin}

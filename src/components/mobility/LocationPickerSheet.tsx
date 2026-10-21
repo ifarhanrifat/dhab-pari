@@ -42,10 +42,10 @@
 // provider that actually answers.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
 import { Target, Loader2, Search, ArrowLeft } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { getCurrentPositionOnce, classifyLocationError, type LocationErrorReason } from '@/hooks/useLiveLocation'
 import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
 
@@ -104,6 +104,10 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
   const [searching, setSearching] = useState(false)
   const [reverseLookingUp, setReverseLookingUp] = useState(false)
   const labelEditedRef = useRef(false)
+  // Portals to document.body below need a real DOM to exist first —
+  // false during SSR/the first client render, true right after mount.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     const q = query.trim()
@@ -147,74 +151,97 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
 
   const canConfirm = !!pin && label.trim().length > 0
 
+  // Real ask, 2026-10-21: "make this exactly like that provided html,
+  // this current app of our selection method is garbage" — the design's
+  // own destination-picker is a full-screen takeover (the map fills the
+  // whole screen, nothing else above it), not a card embedded below the
+  // header/ticker/category-pills in the page's own scroll flow. The
+  // `inline` embed (built for an earlier, different complaint — see
+  // this file's older comments above) made the confirm bar/locate
+  // button require scrolling past a very tall page to even reach, which
+  // is exactly the "garbage" being pointed at. Every caller now gets
+  // this same fixed, full-viewport overlay regardless of `inline` — one
+  // screen, map-dominant, floating search/back over its top edge, a
+  // floating locate-me button on the map itself, and a confirm bar
+  // floating over its bottom edge, matching the design file exactly.
   const body = (
-    <div className="flex flex-col gap-2.5">
-      {inline && (
-        <button onClick={onClose} className="flex items-center gap-1.5 font-sans text-[13px] font-semibold text-[#166534] cursor-pointer w-fit -mt-1 mb-1">
-          <ArrowLeft size={14} /> {title}
-        </button>
-      )}
-      <div className="relative">
-        <Search size={14} className="absolute top-1/2 -translate-y-1/2 start-3 text-[#94a3b8]" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('mb.searchLocationPlaceholder')} className="dp2-input ps-9" />
-        {searching && <Loader2 size={13} className="absolute top-1/2 -translate-y-1/2 end-3 text-[#94a3b8] animate-spin" />}
-        {results.length > 0 && (
-          <div className="absolute z-20 top-full mt-1 inset-x-0 border border-[#e5e2d0] rounded-xl overflow-hidden bg-white shadow-lg max-h-[180px] overflow-y-auto">
-            {results.map((r, i) => (
-              <button key={i} type="button" onClick={() => pickSearchResult(r)} className="w-full text-start px-3 py-2 font-sans text-[12.5px] cursor-pointer hover:bg-[#F9F9F6] border-b border-[#f1f5f9] last:border-0">
-                {r.displayName}
-              </button>
-            ))}
+    <div className="fixed inset-0 z-[200] flex flex-col bg-[#F9F9F6]" style={{ height: '100dvh' }}>
+      <div className="relative flex-1 min-h-0">
+        <LeafletMap
+          pins={pin ? [{ lat: pin.lat, lng: pin.lng, color: '#166534', openPopup: true, popupHtml: `<b>${label || t('mb.locationLabelPlaceholder')}</b><br/><span style="font-family:monospace;font-size:11px;color:#64748b">${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</span>` }] : []}
+          center={defaultCenter}
+          height="100%"
+          zoom={14}
+          className="isolate"
+          onMapClick={(lat, lng) => setPinAndReverseGeocode(lat, lng)}
+        />
+
+        {/* Search + back, floating over the map's top edge. */}
+        <div className="absolute top-3 inset-x-3 z-10 flex flex-col gap-2">
+          <button onClick={onClose} className="flex items-center gap-1.5 font-sans text-[13px] font-bold text-[#166534] bg-white/95 backdrop-blur-sm w-fit px-2.5 py-1 rounded-full shadow cursor-pointer">
+            <ArrowLeft size={14} /> {title}
+          </button>
+          <div className="relative">
+            <Search size={14} className="absolute top-1/2 -translate-y-1/2 start-3 text-[#94a3b8]" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('mb.searchLocationPlaceholder')} className="dp2-input ps-9 shadow-md" />
+            {searching && <Loader2 size={13} className="absolute top-1/2 -translate-y-1/2 end-3 text-[#94a3b8] animate-spin" />}
+            {results.length > 0 && (
+              <div className="absolute z-20 top-full mt-1 inset-x-0 border border-[#e5e2d0] rounded-xl overflow-hidden bg-white shadow-lg max-h-[180px] overflow-y-auto">
+                {results.map((r, i) => (
+                  <button key={i} type="button" onClick={() => pickSearchResult(r)} className="w-full text-start px-3 py-2 font-sans text-[12.5px] cursor-pointer hover:bg-[#F9F9F6] border-b border-[#f1f5f9] last:border-0">
+                    {r.displayName}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Locate-me, floating directly on the map like the design's own
+            floating GPS button (bottom-start corner, clear of the confirm
+            bar below it). */}
+        <button onClick={useGps} disabled={locating}
+          className="absolute bottom-3 start-3 z-10 w-11 h-11 rounded-full bg-white shadow-lg border border-[#e5e2d0] flex items-center justify-center text-[#166534] cursor-pointer disabled:opacity-50">
+          {locating ? <Loader2 size={16} className="animate-spin" /> : <Target size={16} />}
+        </button>
       </div>
-      {/* Real bug found live, 2026-10-20: the search results dropdown
-          above was rendering UNDER the map — Leaflet's own internal
-          panes/controls carry high z-index values (400-1000+) that
-          otherwise escape into the page's own stacking order. `isolate`
-          traps all of that inside its own local stacking context
-          capped at the map's own z-index (0 here), so anything outside
-          it — like the dropdown above — always renders on top,
-          regardless of whatever z-index Leaflet sets internally. */}
-      <LeafletMap
-        pins={pin ? [{ lat: pin.lat, lng: pin.lng, color: '#166534' }] : []}
-        center={defaultCenter}
-        height={inline ? 280 : 240}
-        zoom={14}
-        className="rounded-xl border border-[#e5e2d0] isolate"
-        onMapClick={(lat, lng) => setPinAndReverseGeocode(lat, lng)}
-      />
-      <button onClick={useGps} disabled={locating} className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#e5e2d0] text-[#166534] font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-50">
-        {locating ? <Loader2 size={13} className="animate-spin" /> : <Target size={13} />} {t('mb.useMyLocationBtn')}
-      </button>
-      <p className="font-sans text-[11.5px] text-[#64748b] text-center -mt-1">{t('mb.tapMapToPinHint')}</p>
-      <div>
-        <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mb.locationLabelField')}</label>
+
+      {/* Confirm bar — its own flex row now (not absolutely positioned
+          over the map), so it always has real space on screen instead
+          of floating past the bottom edge of a tall scrolling page. */}
+      <div className="shrink-0 bg-white rounded-t-2xl shadow-[0_-6px_20px_rgba(0,0,0,.12)] p-3 flex flex-col gap-2">
+        {!pin && <p className="font-sans text-[11.5px] text-[#64748b] text-center">{t('mb.tapMapToPinHint')}</p>}
         <div className="relative">
           <input value={label} onChange={(e) => { labelEditedRef.current = true; setLabel(e.target.value) }} placeholder={t('mb.locationLabelPlaceholder')} className="dp2-input" />
           {reverseLookingUp && <Loader2 size={13} className="absolute top-1/2 -translate-y-1/2 end-3 text-[#94a3b8] animate-spin" />}
         </div>
+        <button onClick={() => pin && onConfirm({ lat: pin.lat, lng: pin.lng, label: label.trim() })} disabled={!canConfirm}
+          className="w-full bg-[#166534] text-white rounded-xl py-3 font-sans font-semibold text-[14px] cursor-pointer disabled:opacity-40">
+          {t('mb.confirmLocationBtn')}
+        </button>
       </div>
-      <button onClick={() => pin && onConfirm({ lat: pin.lat, lng: pin.lng, label: label.trim() })} disabled={!canConfirm}
-        className="w-full bg-[#166534] text-white rounded-xl py-3 font-sans font-semibold text-[14px] cursor-pointer disabled:opacity-40">
-        {t('mb.confirmLocationBtn')}
-      </button>
     </div>
   )
 
-  let shell: ReactNode
-  if (inline) {
-    shell = <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">{body}</div>
-  } else {
-    shell = <MobilityBottomSheet title={title} onClose={onClose}>{body}</MobilityBottomSheet>
-  }
-
-  return (
+  // Portaled straight to <body> — this is a `fixed inset-0` full-screen
+  // takeover, and real devices/browsers sometimes have a transformed or
+  // containing-block-creating ancestor somewhere up the tree (an
+  // animation wrapper, a card with its own stacking context) that would
+  // otherwise re-scope "fixed" to that ancestor instead of the real
+  // viewport — exactly the bug this caused live: the app's own sticky
+  // header kept rendering on top of this picker's floating back/search
+  // bar. A portal sidesteps that entirely, the same fix every overlay
+  // library reaches for.
+  if (!mounted) return null
+  const shell: ReactNode = createPortal(
     <>
-      {shell}
+      {body}
       {locationModalReason && <LocationSettingsModal reason={locationModalReason} onClose={() => setLocationModalReason(null)} />}
-    </>
+    </>,
+    document.body
   )
+
+  return shell
 }
 
 export function LocationPickerSheet(props: Props) {

@@ -27,7 +27,7 @@ import 'leaflet/dist/leaflet.css'
 // content on purpose: Leaflet manages this DOM itself outside React's
 // tree, and a plain <a href="..."> inside it navigates via the browser
 // natively — no click-handler wiring back into React needed at all.
-export interface MapPin { lat: number; lng: number; label?: string; popupHtml?: string; color?: string; emoji?: string; isVehicle?: boolean }
+export interface MapPin { lat: number; lng: number; label?: string; popupHtml?: string; color?: string; emoji?: string; isVehicle?: boolean; openPopup?: boolean }
 
 export interface LeafletMapHandle {
   // Pan/zoom to a pin by its index in the same `pins` array the caller
@@ -159,6 +159,7 @@ const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pin
         const marker = L.marker([p.lat, p.lng], { icon: p.emoji ? (p.isVehicle ? vehicleIcon(L, p.emoji) : teardropIcon(L, p.emoji, p.color)) : coloredIcon(L, p.color) }).addTo(map)
         if (p.popupHtml) marker.bindPopup(p.popupHtml, { minWidth: 180 })
         else if (p.label) marker.bindPopup(p.label)
+        if (p.openPopup) marker.openPopup()
         markersRef.current.push(marker)
       })
       const boundsPoints = [...pins.map((p) => [p.lat, p.lng] as [number, number]), ...(route ?? []).map((p) => [p.lat, p.lng] as [number, number])]

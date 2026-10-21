@@ -360,15 +360,19 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
 
           {kind === 'tractor' && openVehicle.tractor_services && openVehicle.tractor_services.length > 0 && (
             <>
-              <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.chooseServiceLabel')}</label>
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {openVehicle.tractor_services.map((s) => (
-                  <button key={s.service_key} onClick={() => setServiceKey(s.service_key)}
-                    className="px-2.5 py-1.5 rounded-full text-[12px] font-semibold cursor-pointer border"
-                    style={{ background: serviceKey === s.service_key ? '#166534' : '#fff', color: serviceKey === s.service_key ? '#fff' : '#334155', borderColor: serviceKey === s.service_key ? '#166534' : '#e5e2d0' }}>
-                    {isUrdu ? s.name_ur : s.name_en} · {fmt(s.rate_pkr)}
-                  </button>
-                ))}
+              <label className="block text-[12px] font-semibold text-[#64748b] mb-1.5">{t('vp.chooseServiceLabel')}</label>
+              <div className="flex flex-col gap-2 mb-3">
+                {openVehicle.tractor_services.map((s) => {
+                  const on = serviceKey === s.service_key
+                  return (
+                    <button key={s.service_key} onClick={() => setServiceKey(s.service_key)}
+                      className="w-full flex items-center justify-between gap-2 rounded-xl border-2 px-3.5 py-3 text-start cursor-pointer transition-colors"
+                      style={{ borderColor: on ? '#166534' : '#e5e2d0', background: on ? '#f0fdf4' : '#fff' }}>
+                      <span className="font-semibold text-[13.5px] text-[#1e293b]">{isUrdu ? s.name_ur : s.name_en}</span>
+                      <span className="shrink-0 font-bold text-[13px] text-[#166534] ltr-num">{fmt(s.rate_pkr)}/{t('vp.hoursShort')}</span>
+                    </button>
+                  )
+                })}
               </div>
             </>
           )}
@@ -478,10 +482,13 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
             )}
           </div>
 
-          <p className="flex items-start gap-1.5 text-[11px] text-[#64748b] mb-3"><AlertCircle size={12} className="shrink-0 mt-0.5 text-[#166534]" /> {t('vp.noAdvanceExplainer')}</p>
+          <div className="flex items-start gap-2 text-[11.5px] text-[#1e3a5f] bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-2.5 mb-3">
+            <AlertCircle size={14} className="shrink-0 mt-0.5 text-[#2563eb]" />
+            <span>{t('vp.noAdvanceExplainer')}</span>
+          </div>
 
-          <button onClick={submitRequest} disabled={requesting || (kind === 'tractor' && !serviceKey)} className="w-full bg-[#166534] text-white rounded-xl py-3 font-semibold cursor-pointer disabled:opacity-50">
-            {requesting ? t('action.saving') : t('vp.sendRequestBtn')}
+          <button onClick={submitRequest} disabled={requesting || (kind === 'tractor' && !serviceKey)} className="w-full flex items-center justify-center gap-1.5 bg-[#166534] text-white rounded-xl py-3 font-semibold cursor-pointer disabled:opacity-50">
+            {requesting ? t('action.saving') : <>{t('vp.sendRequestBtn')} <span className="ltr-num">· {fmt(estimatedTotal)}</span></>}
           </button>
         </MobilityBottomSheet>
       )}
