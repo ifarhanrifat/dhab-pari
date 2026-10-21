@@ -18,7 +18,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
+import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { RateAndReport } from '@/components/portal/RateAndReport'
 
@@ -213,7 +213,7 @@ export default function DispatchCallDetailPage() {
       {(call.status === 'tier1' || call.status === 'tier2' || call.status === 'priced') && (
         <button onClick={cancel} disabled={busy} className="font-sans text-[12px] text-dp-on-surface-variant hover:text-dp-error cursor-pointer disabled:opacity-50">{t('vp.cancelCallBtn')}</button>
       )}
-      <MarketplaceBottomNav />
+      <MobilityBottomNav />
     </div>
   )
 }

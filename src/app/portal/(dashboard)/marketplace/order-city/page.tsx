@@ -22,7 +22,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
+import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 
 interface City { id: string; name: string; name_ur: string | null; is_home_city: boolean }
 interface VehicleRow { vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; vehicle_number: string | null }
@@ -182,7 +182,7 @@ export default function OrderCityPage() {
           )}
         </>
       )}
-      <MarketplaceBottomNav />
+      <MobilityBottomNav />
     </div>
   )
 }

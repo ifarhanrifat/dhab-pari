@@ -15,7 +15,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
+import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 
 interface City { id: string; name: string; name_ur: string | null }
 interface MatchOffer { offer_id: string; vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; vehicle_number: string | null; depart_time: string | null; seats_free: number; fare_per_seat_pkr: number; day_of_week: number }
@@ -146,7 +146,7 @@ export default function CommutePage() {
           </div>
         </>
       )}
-      <MarketplaceBottomNav />
+      <MobilityBottomNav />
     </div>
   )
 }

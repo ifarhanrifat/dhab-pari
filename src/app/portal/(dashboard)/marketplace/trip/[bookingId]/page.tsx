@@ -21,7 +21,7 @@ import { ArrowLeft, Navigation, AlertTriangle } from 'lucide-react'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
+import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -129,7 +129,7 @@ export default function TripTrackingPage() {
           )}
         </>
       )}
-      <MarketplaceBottomNav />
+      <MobilityBottomNav />
     </div>
   )
 }
