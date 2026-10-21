@@ -29,6 +29,7 @@ interface TripOffer {
   id: string; trip_type: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; travel_date: string; seats_available: number; listed_fare_per_seat_pkr: number; status: string
   share_live_location: boolean; distance_km: number | null
+  return_wait_minutes: number | null; outbound_arrived_at: string | null
 }
 interface FareOffer {
   id: string; trip_offer_id: string; seats_requested: number; proposed_fare_per_seat_pkr: number
@@ -36,8 +37,8 @@ interface FareOffer {
   rider_full_name: string | null; rider_mobile: string | null
 }
 interface TripBooking {
-  id: string; seats: number; leg: string; agreed_fare_per_seat_pkr: number; total_amount_pkr: number; status: string; cancellation_reason: string | null
-  rider_sharing_location: boolean
+  id: string; trip_offer_id: string; portal_user_id: string; seats: number; leg: string; agreed_fare_per_seat_pkr: number; total_amount_pkr: number; status: string; cancellation_reason: string | null
+  rider_sharing_location: boolean; offboarded: boolean; rider_name: string | null
   vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; travel_date: string; return_departure_time_estimate: string | null } | null
 }
 interface RiderLocation { lat: number; lng: number }
@@ -47,6 +48,7 @@ const emptyTripOffer = {
   trip_type: 'oneway' as string, origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
   travel_date: '', departure_time_estimate: '', seats_available: 1, listed_fare_per_seat_pkr: 0, distance_km: '' as string,
   dest_lat: null as number | null, dest_lng: null as number | null, return_departure_time_estimate: '',
+  return_wait_minutes: 300 as number,
 }
 
 const inputCls = 'dp2-input'
@@ -85,12 +87,26 @@ export default function MyVehicleTripsPage() {
   const reload = async (vehicleId: string) => {
     const [{ data: trips }, { data: tripB }] = await Promise.all([
       supabase.from('vehicle_trip_offers').select('*').eq('vehicle_id', vehicleId).order('created_at', { ascending: false }),
-      supabase.from('vehicle_trip_bookings').select('id, seats, leg, agreed_fare_per_seat_pkr, total_amount_pkr, status, cancellation_reason, rider_sharing_location, vehicle_trip_offers(origin, origin_ur, destination, destination_ur, travel_date, return_departure_time_estimate)')
+      supabase.from('vehicle_trip_bookings').select('id, trip_offer_id, portal_user_id, seats, leg, agreed_fare_per_seat_pkr, total_amount_pkr, status, cancellation_reason, rider_sharing_location, vehicle_trip_offers(origin, origin_ur, destination, destination_ur, travel_date, return_departure_time_estimate)')
         .eq('vehicle_id', vehicleId).order('created_at', { ascending: false }).limit(20),
     ])
     setTripOffers(trips ?? [])
-    const bookings = (tripB ?? []) as unknown as TripBooking[]
-    setTripBookings(bookings)
+    const bookings = (tripB ?? []) as unknown as Omit<TripBooking, 'offboarded' | 'rider_name'>[]
+    setTripBookings(bookings.map((b) => ({ ...b, offboarded: false, rider_name: null })))
+
+    // portal_users has no cross-reader RLS policy (rightly — a driver
+    // can't just read any rider's profile), so rider names for the
+    // offboard roster come from a dedicated SECURITY DEFINER RPC
+    // instead of a client-side embed, which would silently return null.
+    const returnTripIds = (trips ?? []).filter((tr) => tr.trip_type === 'return' && tr.status === 'open').map((tr) => tr.id)
+    if (returnTripIds.length > 0) {
+      const rosters = await Promise.all(returnTripIds.map((id) => supabase.rpc('trip_offer_outbound_riders', { p_trip_offer_id: id })))
+      const byBookingId = new Map<string, { name: string; offboarded: boolean }>()
+      rosters.forEach(({ data }) => {
+        for (const r of (data ?? []) as { booking_id: string; name: string; offboarded: boolean }[]) byBookingId.set(r.booking_id, r)
+      })
+      setTripBookings((cur) => cur.map((b) => byBookingId.has(b.id) ? { ...b, rider_name: byBookingId.get(b.id)!.name, offboarded: byBookingId.get(b.id)!.offboarded } : b))
+    }
 
     const sharingIds = bookings.filter((b) => b.status === 'confirmed' && b.leg === 'return' && b.rider_sharing_location).map((b) => b.id)
     if (sharingIds.length > 0) {
@@ -185,6 +201,26 @@ export default function MyVehicleTripsPage() {
     setTripOffers((rows) => rows.map((r) => r.id === tripOfferId ? { ...r, status: 'closed' } : r))
   }
 
+  // Real ask, 2026-10-21: "make it same like the route creating... same
+  // day return and there must be indications for this" — the trip-offer
+  // equivalent of Routes' mark-arrived/offboard flow (727), scoped to a
+  // single same-day trip instead of a recurring schedule.
+  const markTripArrived = async (tripOfferId: string) => {
+    setActionId(tripOfferId)
+    const { error } = await supabase.rpc('mark_trip_arrived', { p_trip_offer_id: tripOfferId })
+    setActionId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    if (vehicle) reload(vehicle.id)
+  }
+  const offboardTripRider = async (tripOfferId: string, bookingId: string) => {
+    setActionId(bookingId)
+    const { error } = await supabase.rpc('offboard_trip_rider', { p_trip_offer_id: tripOfferId, p_booking_id: bookingId })
+    setActionId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.riderOffboardedToast'))
+    if (vehicle) reload(vehicle.id)
+  }
+
   const postTripOffer = async () => {
     if (!vehicle || !tripForm.origin.trim() || !tripForm.destination.trim() || !tripForm.travel_date) { toast.error(t('mk.nameRequired')); return }
     setPosting(true)
@@ -197,6 +233,7 @@ export default function MyVehicleTripsPage() {
       p_distance_km: tripForm.distance_km ? Number(tripForm.distance_km) : null,
       p_dest_lat: tripForm.dest_lat, p_dest_lng: tripForm.dest_lng,
       p_return_departure_time_estimate: tripForm.trip_type === 'return' ? (tripForm.return_departure_time_estimate || null) : null,
+      p_return_wait_minutes: tripForm.trip_type === 'return' ? tripForm.return_wait_minutes : null,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -331,6 +368,51 @@ export default function MyVehicleTripsPage() {
                         sharing={tr.share_live_location}
                         onSharingChange={(on) => setTripOffers((rows) => rows.map((r) => r.id === tr.id ? { ...r, share_live_location: on } : r))}
                       />
+
+                      {/* Real ask, 2026-10-21: "make it same like the route
+                          creating but this is... for same day return and
+                          there must be indications for this" — mark
+                          arrival, see the live wait-window countdown, and
+                          offboard a no-show from today's return leg. */}
+                      {tr.trip_type === 'return' && !tr.outbound_arrived_at && (
+                        <button type="button" onClick={() => markTripArrived(tr.id)} disabled={actionId === tr.id}
+                          className="w-full mt-2 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">
+                          {t('mv.markArrivedBtn')}
+                        </button>
+                      )}
+                      {tr.trip_type === 'return' && tr.outbound_arrived_at && (() => {
+                        const elapsedMin = (Date.now() - new Date(tr.outbound_arrived_at).getTime()) / 60000
+                        const remainingMin = tr.return_wait_minutes != null ? Math.max(0, Math.round(tr.return_wait_minutes - elapsedMin)) : null
+                        const roster = tripBookings.filter((tb) => tb.trip_offer_id === tr.id && tb.leg === 'return')
+                        return (
+                          <div className="flex flex-col gap-1.5 mt-2">
+                            {remainingMin != null && (
+                              <p className="font-sans text-[11.5px] font-semibold text-[#64748b] bg-[#F9F9F6] rounded-lg px-2.5 py-1.5 text-center">
+                                {remainingMin > 0 ? t('mv.returnOpensInLabel').replace('{n}', String(remainingMin)) : t('mv.returnWaitOverLabel')}
+                              </p>
+                            )}
+                            {roster.length > 0 && (
+                              <div className="flex flex-col gap-1">
+                                <p className="font-sans text-[10px] font-bold uppercase tracking-[0.06em] text-[#64748b]">{t('mv.offboardRosterLabel')}</p>
+                                {roster.map((tb) => (
+                                  <div key={tb.id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F9F9F6] px-2.5 py-1.5">
+                                    <span className="font-sans text-[11.5px] font-semibold text-[#1e293b] truncate">{tb.rider_name ?? '—'} {tb.seats > 1 ? `(${tb.seats})` : ''}</span>
+                                    {tb.offboarded ? (
+                                      <span className="shrink-0 font-sans text-[10.5px] text-[#94a3b8]">{t('mv.offboardedLabel')}</span>
+                                    ) : (
+                                      <button type="button" onClick={() => offboardTripRider(tr.id, tb.id)} disabled={actionId === tb.id}
+                                        className="shrink-0 font-sans text-[10.5px] font-bold text-[#b91c1c] cursor-pointer disabled:opacity-50">
+                                        {actionId === tb.id ? t('action.saving') : t('mv.offboardBtn')}
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+
                       <button onClick={() => cancelTripOffer(tr.id)} disabled={actionId === tr.id} className="flex items-center gap-1 font-sans text-[11.5px] font-semibold mt-2 pt-2 border-t border-[#f1f5f9] cursor-pointer disabled:opacity-50 text-[#b91c1c]">
                         <Ban size={12} /> {t('cm.cancelTripBtn')}
                       </button>
@@ -437,7 +519,20 @@ export default function MyVehicleTripsPage() {
               <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mk.departureTimeLabel')}</label><input type="time" value={tripForm.departure_time_estimate} onChange={(e) => setTripForm({ ...tripForm, departure_time_estimate: e.target.value })} className={inputCls} /></div>
             </div>
             {tripForm.trip_type === 'return' && (
-              <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label><input type="time" value={tripForm.return_departure_time_estimate} onChange={(e) => setTripForm({ ...tripForm, return_departure_time_estimate: e.target.value })} className={inputCls} /></div>
+              <>
+                <div>
+                  <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mv.returnWaitMinutesLabel')}</label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {[300, 360, 480].map((mins) => (
+                      <button key={mins} type="button" onClick={() => setTripForm({ ...tripForm, return_wait_minutes: mins })}
+                        className={`px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${tripForm.return_wait_minutes === mins ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                        {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label><input type="time" value={tripForm.return_departure_time_estimate} onChange={(e) => setTripForm({ ...tripForm, return_departure_time_estimate: e.target.value })} className={inputCls} /></div>
+              </>
             )}
             <div className="grid grid-cols-2 gap-3">
               <div><label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mk.totalSeatsLabel')}</label><input type="number" value={tripForm.seats_available || ''} onChange={(e) => setTripForm({ ...tripForm, seats_available: +e.target.value })} className={inputCls} placeholder="1" /></div>

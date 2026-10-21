@@ -99,6 +99,7 @@ export default function MyVehicleHomePage() {
   const [showDestPicker, setShowDestPicker] = useState(false)
   const [tripType, setTripType] = useState<'oneway' | 'return'>('oneway')
   const [returnDepartureTime, setReturnDepartureTime] = useState('')
+  const [returnWaitMinutes, setReturnWaitMinutes] = useState(300)
   const [route, setRoute] = useState<RoadRoute | null>(null)
   const [routeLoading, setRouteLoading] = useState(false)
   const [fareBand, setFareBand] = useState<{ min: number; max: number; fair: number } | null>(null)
@@ -230,6 +231,7 @@ export default function MyVehicleHomePage() {
       p_seats_available: seats, p_listed_fare_per_seat_pkr: fare,
       p_distance_km: Math.round(route.distanceKm), p_dest_lat: destination.lat, p_dest_lng: destination.lng,
       p_return_departure_time_estimate: tripType === 'return' ? (returnDepartureTime || null) : null,
+      p_return_wait_minutes: tripType === 'return' ? returnWaitMinutes : null,
     })
     setPublishing(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -238,6 +240,7 @@ export default function MyVehicleHomePage() {
     setFareTouched(false)
     setTripType('oneway')
     setReturnDepartureTime('')
+    setReturnWaitMinutes(300)
     reloadTripOffers(vehicle.id)
   }
 
@@ -356,10 +359,28 @@ export default function MyVehicleHomePage() {
               </div>
               <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{tripType === 'return' ? t('cm.tripTypeReturnHint') : t('cm.tripTypeOnewayHint')}</p>
               {tripType === 'return' && (
-                <div>
-                  <label className="block font-sans text-[10.5px] font-semibold text-[#334155] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
-                  <input type="time" dir="ltr" value={returnDepartureTime} onChange={(e) => setReturnDepartureTime(e.target.value)} className="w-full border border-[#e5e2d0] rounded-lg px-2.5 py-1.5 text-[12.5px] font-sans" />
-                </div>
+                <>
+                  {/* Real ask, 2026-10-21: "make it same like the route
+                      creating but this is not for weekly booking this is
+                      for same day return" — a real wait window at the
+                      destination (same chips as Routes), not just a
+                      static display time. */}
+                  <div>
+                    <label className="block font-sans text-[10.5px] font-semibold text-[#334155] mb-1">{t('mv.returnWaitMinutesLabel')}</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {[300, 360, 480].map((mins) => (
+                        <button key={mins} type="button" onClick={() => setReturnWaitMinutes(mins)}
+                          className={`px-2.5 py-1 rounded-lg font-sans text-[11px] font-semibold cursor-pointer ${returnWaitMinutes === mins ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                          {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block font-sans text-[10.5px] font-semibold text-[#334155] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
+                    <input type="time" dir="ltr" value={returnDepartureTime} onChange={(e) => setReturnDepartureTime(e.target.value)} className="w-full border border-[#e5e2d0] rounded-lg px-2.5 py-1.5 text-[12.5px] font-sans" />
+                  </div>
+                </>
               )}
 
               <div className="flex items-center gap-1.5 flex-wrap">

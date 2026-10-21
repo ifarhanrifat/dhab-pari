@@ -33,6 +33,7 @@ interface TripRow {
   origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; travel_date: string; departure_time_estimate: string | null
   seats_available: number; listed_fare_per_seat_pkr: number; trip_type: string
+  outbound_open: boolean; return_seats_available: number | null; return_wait_minutes: number | null; outbound_arrived_at: string | null
 }
 interface BookingRow {
   id: string; status: string; seats: number; leg: string; agreed_fare_per_seat_pkr: number; total_amount_pkr: number
@@ -111,6 +112,29 @@ export default function SharedRidePage() {
   async function bookTrip(trip: TripRow, leg: 'oneway' | 'return') {
     setBusyId(trip.id)
     const { error } = await supabase.rpc('book_trip_offer', { p_trip_offer_id: trip.id, p_seats_requested: seats, p_leg: leg })
+    setBusyId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('vp.tripBookedToast'))
+    if (cityKey) {
+      setListLoading(true)
+      supabase.rpc('browse_open_trip_offers', { p_city_key: cityKey }).then(({ data }) => {
+        setTrips((data as TripRow[]) || [])
+        setListLoading(false)
+      })
+    }
+    loadMyBookings()
+  }
+
+  // Real ask, 2026-10-21: "same day return... there must be indications
+  // for this" — once a trip's outbound seats sell out it normally
+  // vanishes from this list entirely, taking any still-open return-only
+  // availability down with it (fixed server-side in
+  // browse_open_trip_offers). This is the entry point for that case:
+  // someone who was never on the outbound leg joining just the return,
+  // once a seat's freed up by an offboard.
+  async function bookReturnOnly(trip: TripRow) {
+    setBusyId(trip.id)
+    const { error } = await supabase.rpc('book_trip_return_only_seat', { p_trip_offer_id: trip.id })
     setBusyId(null)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('vp.tripBookedToast'))
@@ -308,7 +332,22 @@ export default function SharedRidePage() {
                       </div>
                     </div>
 
-                    {isReturn ? (
+                    {/* Real ask, 2026-10-21: "same day return... there
+                        must be indications for this" — once the outbound
+                        leg is fully booked (or already left), the only
+                        thing anyone new can join is the return leg,
+                        standalone, one-way, once a seat frees up. */}
+                    {!trip.outbound_open && isReturn && (trip.return_seats_available ?? 0) > 0 ? (
+                      <>
+                        <p className="flex items-center gap-1.5 font-sans text-[11px] font-bold text-[#166534] bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg px-2.5 py-1.5">
+                          🔄 {trip.outbound_arrived_at ? t('mv.atDestinationNote') : t('mv.returnSeatsOpenNote').replace('{n}', String(trip.return_seats_available))}
+                        </p>
+                        <button disabled={busyId === trip.id} onClick={() => bookReturnOnly(trip)}
+                          className="w-full rounded-xl py-2 text-[11.5px] font-bold text-white cursor-pointer disabled:opacity-50 bg-[#166534] ltr-num">
+                          {t('mv.bookReturnSeatBtn')} — {fmt(Math.round(trip.listed_fare_per_seat_pkr / 2))}
+                        </button>
+                      </>
+                    ) : isReturn ? (
                       <div className="flex items-center gap-2">
                         <button disabled={!ok || busyId === trip.id} onClick={() => bookTrip(trip, 'oneway')}
                           className="flex-1 rounded-xl py-2 text-[11px] font-bold text-white cursor-pointer disabled:opacity-50 ltr-num"

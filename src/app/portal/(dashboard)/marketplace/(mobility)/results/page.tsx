@@ -43,6 +43,7 @@ interface TripRow {
   classification: string; travel_date: string; departure_time_estimate: string | null
   seats_available: number; listed_fare_per_seat_pkr: number; trip_type: string
   source: 'adda' | 'shared'; adda_name: string | null; adda_name_ur: string | null; queue_position: number | null
+  outbound_open: boolean; return_seats_available: number | null; outbound_arrived_at: string | null
 }
 interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -125,6 +126,17 @@ function ResultsPageInner() {
     if (city) reload(city)
   }
 
+  // Same standalone one-way return booking as the Shared Ride screen —
+  // see its own comment (shared/page.tsx) for the full context.
+  async function bookReturnOnly(trip: TripRow) {
+    setBusyId(trip.id)
+    const { error } = await supabase.rpc('book_trip_return_only_seat', { p_trip_offer_id: trip.id })
+    setBusyId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('vp.tripBookedToast'))
+    if (city) reload(city)
+  }
+
   const nm = (en: string, ur: string | null) => (isUrdu && ur ? ur : en)
 
   if (loading) return <div className="text-center py-12"><LoadingDots /></div>
@@ -165,7 +177,7 @@ function ResultsPageInner() {
               <p className="text-[12px] text-[#94a3b8] py-1">{t('mb.noAddaGoingHere')}</p>
             ) : (
               addaTrips.map((trip) => (
-                <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} nm={nm} t={t} isUrdu={isUrdu} />
+                <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} onBookReturnOnly={bookReturnOnly} nm={nm} t={t} isUrdu={isUrdu} />
               ))
             )}
           </div>
@@ -178,7 +190,7 @@ function ResultsPageInner() {
             ) : (
               <>
                 {sharedTrips.map((trip) => (
-                  <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} nm={nm} t={t} isUrdu={isUrdu} />
+                  <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} onBookReturnOnly={bookReturnOnly} nm={nm} t={t} isUrdu={isUrdu} />
                 ))}
                 {routes.map((r) => (
                   <Link key={r.id} href={`/portal/marketplace/route/${r.id}`} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3">
@@ -237,8 +249,9 @@ function ResultsPageInner() {
   )
 }
 
-function TripCard({ trip, busy, onBook, nm, t, isUrdu }: {
+function TripCard({ trip, busy, onBook, onBookReturnOnly, nm, t, isUrdu }: {
   trip: TripRow; busy: boolean; onBook: (trip: TripRow, leg: 'oneway' | 'return') => void
+  onBookReturnOnly: (trip: TripRow) => void
   nm: (en: string, ur: string | null) => string; t: (k: string) => string; isUrdu: boolean
 }) {
   const ok = trip.seats_available >= 1
@@ -276,7 +289,17 @@ function TripCard({ trip, busy, onBook, nm, t, isUrdu }: {
         </div>
       </div>
 
-      {isReturn ? (
+      {!trip.outbound_open && isReturn && (trip.return_seats_available ?? 0) > 0 ? (
+        <>
+          <p className="flex items-center gap-1.5 font-sans text-[11px] font-bold text-[#166534] bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg px-2.5 py-1.5">
+            🔄 {trip.outbound_arrived_at ? t('mv.atDestinationNote') : t('mv.returnSeatsOpenNote').replace('{n}', String(trip.return_seats_available))}
+          </p>
+          <button disabled={busy} onClick={() => onBookReturnOnly(trip)}
+            className="w-full rounded-xl py-2 text-[11.5px] font-bold text-white cursor-pointer disabled:opacity-50 bg-[#166534] ltr-num">
+            {t('mv.bookReturnSeatBtn')} — {fmt(Math.round(trip.listed_fare_per_seat_pkr / 2))}
+          </button>
+        </>
+      ) : isReturn ? (
         <div className="flex items-center gap-2">
           <button disabled={!ok || busy} onClick={() => onBook(trip, 'oneway')}
             className="flex-1 rounded-xl py-2 text-[11px] font-bold text-white cursor-pointer disabled:opacity-50 ltr-num"
