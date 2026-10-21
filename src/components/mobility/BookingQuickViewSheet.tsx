@@ -7,16 +7,27 @@
 // that one booking's own status/actions instead, reusing the exact
 // RPCs/fields each vertical's own "mine" tab already uses — no new
 // backend. trip/shadi/cityPurchase rows keep navigating to their real
-// (and genuinely rich) detail pages; this sheet is only for the 3 kinds
+// (and genuinely rich) detail pages; this sheet is only for the 4 kinds
 // that had nowhere real to go before.
+//
+// Real gap found 2026-10-21: this used to fetch its one row once on
+// mount and never again — opening it right after sending a request and
+// then just sitting there gave no sign at all when the driver actually
+// responded, the opposite of a real app's live "waiting for driver"
+// screen. Now driven by useBookingLiveStatus (Realtime UPDATE on this
+// exact row + a poll fallback), so a status flip from 'requested' to
+// 'accepted'/'declined' shows up here on its own, no re-open needed.
+// Each booking table already has a direct-select RLS policy for its
+// own parties (hourly_bookings_parties_read etc.) — no new backend.
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Loader2, Ban } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { useBookingLiveStatus } from '@/hooks/useBookingLiveStatus'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { CallButton } from '@/components/portal/CallButton'
 import { ChatButton } from '@/components/portal/ChatButton'
@@ -27,17 +38,17 @@ interface Props { kind: QuickViewKind; rawId: string; onClose: () => void; onCha
 interface HourlyDetail {
   id: string; status: string; pickup_address: string; decline_reason: string | null
   total_amount_pkr: number | null; base_amount_pkr: number; pin: string | null
-  vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null
+  vehicle_id: string; vehicles: { owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null }
 }
 interface RentalDetail {
   id: string; status: string; from_address: string; to_address: string; decline_reason: string | null
   total_amount_pkr: number | null; base_amount_pkr: number; pin: string | null
-  vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null
+  vehicle_id: string; vehicles: { owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null }
 }
 interface EquipmentDetail {
   id: string; kind: string; status: string; site_address: string; decline_reason: string | null
   total_amount_pkr: number | null; rate_pkr: number; pin: string | null
-  vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null
+  vehicle_id: string; vehicles: { owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null }
 }
 interface RideDetail {
   id: string; status: string; total_amount_pkr: number; rejected_reason: string | null
@@ -46,35 +57,23 @@ interface RideDetail {
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
+const HOURLY_SELECT = 'id, status, pickup_address, decline_reason, total_amount_pkr, base_amount_pkr, pin, vehicle_id, vehicles(owner_name, owner_mobile, vehicle_type, model)'
+const RENTAL_SELECT = 'id, status, from_address, to_address, decline_reason, total_amount_pkr, base_amount_pkr, pin, vehicle_id, vehicles(owner_name, owner_mobile, vehicle_type, model)'
+const EQUIPMENT_SELECT = 'id, kind, status, site_address, decline_reason, total_amount_pkr, rate_pkr, pin, vehicle_id, vehicles(owner_name, owner_mobile, vehicle_type, model)'
+const RIDE_SELECT = 'id, status, total_amount_pkr, rejected_reason, vehicle_routes(origin, origin_ur, destination, destination_ur)'
+
 export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props) {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
-  const [loading, setLoading] = useState(true)
-  const [hourly, setHourly] = useState<HourlyDetail | null>(null)
-  const [equipment, setEquipment] = useState<EquipmentDetail | null>(null)
-  const [ride, setRide] = useState<RideDetail | null>(null)
-  const [rental, setRental] = useState<RentalDetail | null>(null)
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
-    (async () => {
-      if (kind === 'hourly') {
-        const { data } = await supabase.rpc('my_hourly_bookings')
-        setHourly(((data ?? []) as HourlyDetail[]).find((b) => b.id === rawId) ?? null)
-      } else if (kind === 'equipment') {
-        const { data } = await supabase.rpc('my_equipment_bookings')
-        setEquipment(((data ?? []) as EquipmentDetail[]).find((b) => b.id === rawId) ?? null)
-      } else if (kind === 'rental') {
-        const { data } = await supabase.rpc('my_rental_bookings')
-        setRental(((data ?? []) as RentalDetail[]).find((b) => b.id === rawId) ?? null)
-      } else {
-        const { data } = await supabase.from('ride_bookings').select('id, status, total_amount_pkr, rejected_reason, vehicle_routes(origin, origin_ur, destination, destination_ur)').eq('id', rawId).maybeSingle()
-        setRide(data as unknown as RideDetail | null)
-      }
-      setLoading(false)
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, rawId])
+  // All four always called (hooks can't be conditional) — only the one
+  // matching `kind` gets a real id, the other three stay idle (id=null).
+  const { row: hourly, loading: hourlyLoading } = useBookingLiveStatus<HourlyDetail>('hourly_bookings', kind === 'hourly' ? rawId : null, HOURLY_SELECT)
+  const { row: rental, loading: rentalLoading } = useBookingLiveStatus<RentalDetail>('rental_bookings', kind === 'rental' ? rawId : null, RENTAL_SELECT)
+  const { row: equipment, loading: equipmentLoading } = useBookingLiveStatus<EquipmentDetail>('equipment_bookings', kind === 'equipment' ? rawId : null, EQUIPMENT_SELECT)
+  const { row: ride, loading: rideLoading } = useBookingLiveStatus<RideDetail>('ride_bookings', kind === 'ride' ? rawId : null, RIDE_SELECT)
+  const loading = kind === 'hourly' ? hourlyLoading : kind === 'rental' ? rentalLoading : kind === 'equipment' ? equipmentLoading : rideLoading
 
   const cancel = async () => {
     setBusy(true)
@@ -95,7 +94,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
         <div className="py-8 text-center"><Loader2 size={20} className="animate-spin text-[#166534] mx-auto" /></div>
       ) : kind === 'hourly' && hourly ? (
         <div className="flex flex-col gap-3">
-          <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(hourly.vehicle_type, hourly.model)} — {hourly.owner_name}</p>
+          <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(hourly.vehicles.vehicle_type, hourly.vehicles.model)} — {hourly.vehicles.owner_name}</p>
           <p className="font-sans text-[12.5px] text-[#64748b]">{hourly.pickup_address}</p>
           {hourly.pin && hourly.status === 'accepted' && (
             <div className="bg-[#F9F9F6] rounded-xl p-3 flex items-center justify-between">
@@ -107,7 +106,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
           {hourly.decline_reason && <p className="font-sans text-[12px] text-[#b91c1c]">{hourly.decline_reason}</p>}
           {(hourly.status === 'accepted' || hourly.status === 'in_progress') && (
             <div className="flex items-center gap-3">
-              <CallButton phone={hourly.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
+              <CallButton phone={hourly.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
               <ChatButton refType="hourly_booking" refId={hourly.id} basePath="/portal/marketplace/negotiations" className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer" />
             </div>
           )}
@@ -119,7 +118,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
         </div>
       ) : kind === 'equipment' && equipment ? (
         <div className="flex flex-col gap-3">
-          <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(equipment.vehicle_type, equipment.model)} — {equipment.owner_name}</p>
+          <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(equipment.vehicles.vehicle_type, equipment.vehicles.model)} — {equipment.vehicles.owner_name}</p>
           <p className="font-sans text-[12.5px] text-[#64748b]">{equipment.site_address}</p>
           {equipment.pin && equipment.status === 'accepted' && (
             <div className="bg-[#F9F9F6] rounded-xl p-3 flex items-center justify-between">
@@ -131,7 +130,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
           {equipment.decline_reason && <p className="font-sans text-[12px] text-[#b91c1c]">{equipment.decline_reason}</p>}
           {(equipment.status === 'accepted' || equipment.status === 'in_progress') && (
             <div className="flex items-center gap-3">
-              <CallButton phone={equipment.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
+              <CallButton phone={equipment.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
               <ChatButton refType="equipment_booking" refId={equipment.id} basePath="/portal/marketplace/negotiations" className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer" />
             </div>
           )}
@@ -143,7 +142,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
         </div>
       ) : kind === 'rental' && rental ? (
         <div className="flex flex-col gap-3">
-          <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(rental.vehicle_type, rental.model)} — {rental.owner_name}</p>
+          <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(rental.vehicles.vehicle_type, rental.vehicles.model)} — {rental.vehicles.owner_name}</p>
           <p className="font-sans text-[12.5px] text-[#64748b]">{rental.from_address} → {rental.to_address}</p>
           {rental.pin && rental.status === 'accepted' && (
             <div className="bg-[#F9F9F6] rounded-xl p-3 flex items-center justify-between">
@@ -155,7 +154,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
           {rental.decline_reason && <p className="font-sans text-[12px] text-[#b91c1c]">{rental.decline_reason}</p>}
           {(rental.status === 'accepted' || rental.status === 'in_progress') && (
             <div className="flex items-center gap-3">
-              <CallButton phone={rental.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
+              <CallButton phone={rental.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
               <ChatButton refType="rental_booking" refId={rental.id} basePath="/portal/marketplace/negotiations" className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer" />
             </div>
           )}
