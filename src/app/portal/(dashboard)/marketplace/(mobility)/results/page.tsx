@@ -258,36 +258,51 @@ function TripCard({ trip, busy, onBook, onBookReturnOnly, nm, t, isUrdu }: {
   const depTime = fmtTime(trip.departure_time_estimate, isUrdu)
   const isReturn = trip.trip_type === 'return'
   const onewayFare = isReturn ? Math.round(trip.listed_fare_per_seat_pkr / 2) : trip.listed_fare_per_seat_pkr
+  const isAdda = trip.source === 'adda'
   return (
     <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2">
+      {/* Real ask, 2026-10-21: "check what the screen displays when both
+          destinations have been selected... add that layout" — the
+          reference puts the price first and biggest, with the vehicle
+          type + a tinted icon on the other side, instead of owner/
+          vehicle details first and the price as an afterthought on the
+          right. Booking logic/RPCs below are untouched — this is the
+          same card, same data, rearranged to match. */}
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="font-sans text-[13.5px] font-extrabold text-[#1e293b]">{trip.owner_name}</p>
-            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${isReturn ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
-              {isReturn ? t('cm.tripTypeReturn') : t('cm.tripTypeOneway')}
-            </span>
-          </div>
-          <p className="text-[10.5px] text-[#64748b]">
-            {trip.vehicle_type}{trip.vehicle_number ? ` · ${trip.vehicle_number}` : ''}
-            {trip.avg_rating != null && <> · <Star size={9} className="inline -mt-0.5 fill-amber-400 text-amber-400" /> {trip.avg_rating}</>}
-          </p>
-          <p className="text-[10.5px] text-[#64748b]">{nm(trip.origin, trip.origin_ur)} → {nm(trip.destination, trip.destination_ur)}</p>
-          {trip.source === 'adda' && trip.adda_name && (
-            <p className="text-[10.5px] text-[#64748b]">{t('mb.svc.adda')} · {nm(trip.adda_name, trip.adda_name_ur)}{trip.queue_position ? ` · #${trip.queue_position}` : ''}</p>
-          )}
-          {depTime && (
-            <p className="text-[10.5px] text-[#64748b] flex items-center gap-1 mt-0.5"><Clock size={10} /> {t('vp.departureLabel')} <span className="ltr-num font-semibold text-[#1e293b]">{depTime}</span></p>
-          )}
+        <div className="shrink-0">
+          <p className="font-sans text-[18px] font-extrabold text-[#166534] ltr-num leading-none">{fmt(onewayFare)}</p>
+          <p className="text-[10.5px] text-[#64748b] mt-1">{t('vp.perSeatLabel')}</p>
+          {isReturn && <p className="text-[9.5px] text-[#64748b] ltr-num mt-0.5">{t('vp.returnFareLabel')} {fmt(trip.listed_fare_per_seat_pkr)}</p>}
         </div>
-        <div className="text-right shrink-0">
-          <p className="font-sans text-[13px] font-extrabold text-[#166534] ltr-num">{fmt(onewayFare)}<span className="text-[9.5px] font-semibold text-[#64748b]">{t('vp.perSeatLabel')}</span></p>
-          {isReturn && <p className="text-[9.5px] text-[#64748b] ltr-num">{t('vp.returnFareLabel')} {fmt(trip.listed_fare_per_seat_pkr)}</p>}
-          <span className={`inline-flex items-center gap-1 mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ltr-num ${trip.seats_available <= 1 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'}`}>
-            <Users size={10} /> {t('vp.seatsLeftLabel').replace('{n}', String(trip.seats_available))}
+        <div className="flex items-start gap-2 text-end">
+          <div>
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              <p className="font-sans text-[12.5px] font-extrabold text-[#1e293b]">{trip.owner_name}</p>
+              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${isReturn ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
+                {isReturn ? t('cm.tripTypeReturn') : t('cm.tripTypeOneway')}
+              </span>
+            </div>
+            <p className="text-[10.5px] text-[#64748b]">
+              {trip.vehicle_type}{trip.vehicle_number ? ` · ${trip.vehicle_number}` : ''}
+              {trip.avg_rating != null && <> · <Star size={9} className="inline -mt-0.5 fill-amber-400 text-amber-400" /> {trip.avg_rating}</>}
+            </p>
+            <p className="text-[10.5px] text-[#64748b]">{nm(trip.origin, trip.origin_ur)} → {nm(trip.destination, trip.destination_ur)}</p>
+            {isAdda && trip.adda_name && (
+              <p className="text-[10.5px] text-[#64748b]">{t('mb.svc.adda')} · {nm(trip.adda_name, trip.adda_name_ur)}{trip.queue_position ? ` · #${trip.queue_position}` : ''}</p>
+            )}
+            {depTime && (
+              <p className="text-[10.5px] text-[#64748b] flex items-center gap-1 mt-0.5 justify-end"><Clock size={10} /> {t('vp.departureLabel')} <span className="ltr-num font-semibold text-[#1e293b]">{depTime}</span></p>
+            )}
+          </div>
+          <span className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: isAdda ? '#dcfce7' : '#e0f2fe' }}>
+            {isAdda ? <Bus size={16} className="text-[#166534]" /> : <Car size={16} className="text-[#0369a1]" />}
           </span>
         </div>
       </div>
+
+      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ltr-num ${trip.seats_available <= 1 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'}`}>
+        <Users size={10} /> {t('vp.seatsLeftLabel').replace('{n}', String(trip.seats_available))}
+      </span>
 
       {!trip.outbound_open && isReturn && (trip.return_seats_available ?? 0) > 0 ? (
         <>
@@ -313,8 +328,8 @@ function TripCard({ trip, busy, onBook, onBookReturnOnly, nm, t, isUrdu }: {
         </div>
       ) : (
         <button disabled={!ok || busy} onClick={() => onBook(trip, 'oneway')}
-          className="w-full rounded-xl py-2 text-[11.5px] font-bold text-white cursor-pointer disabled:opacity-50 ltr-num"
-          style={{ background: ok ? '#166534' : '#94a3b8' }}>
+          className={`w-full rounded-xl py-2 text-[11.5px] font-bold cursor-pointer disabled:opacity-50 ltr-num ${isAdda && ok ? 'text-[#1e293b]' : 'text-white'}`}
+          style={{ background: !ok ? '#94a3b8' : isAdda ? '#D4AF37' : '#166534' }}>
           {ok ? t('vp.bookAtListedPriceBtn').replace('{price}', fmt(trip.listed_fare_per_seat_pkr)) : t('vp.notEnoughSeats')}
         </button>
       )}
