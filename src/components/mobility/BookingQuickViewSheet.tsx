@@ -21,11 +21,16 @@ import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { CallButton } from '@/components/portal/CallButton'
 import { ChatButton } from '@/components/portal/ChatButton'
 
-export type QuickViewKind = 'hourly' | 'equipment' | 'ride'
+export type QuickViewKind = 'hourly' | 'equipment' | 'ride' | 'rental'
 interface Props { kind: QuickViewKind; rawId: string; onClose: () => void; onChanged: () => void }
 
 interface HourlyDetail {
   id: string; status: string; pickup_address: string; decline_reason: string | null
+  total_amount_pkr: number | null; base_amount_pkr: number; pin: string | null
+  vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null
+}
+interface RentalDetail {
+  id: string; status: string; from_address: string; to_address: string; decline_reason: string | null
   total_amount_pkr: number | null; base_amount_pkr: number; pin: string | null
   vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null
 }
@@ -48,6 +53,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
   const [hourly, setHourly] = useState<HourlyDetail | null>(null)
   const [equipment, setEquipment] = useState<EquipmentDetail | null>(null)
   const [ride, setRide] = useState<RideDetail | null>(null)
+  const [rental, setRental] = useState<RentalDetail | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -58,6 +64,9 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
       } else if (kind === 'equipment') {
         const { data } = await supabase.rpc('my_equipment_bookings')
         setEquipment(((data ?? []) as EquipmentDetail[]).find((b) => b.id === rawId) ?? null)
+      } else if (kind === 'rental') {
+        const { data } = await supabase.rpc('my_rental_bookings')
+        setRental(((data ?? []) as RentalDetail[]).find((b) => b.id === rawId) ?? null)
       } else {
         const { data } = await supabase.from('ride_bookings').select('id, status, total_amount_pkr, rejected_reason, vehicle_routes(origin, origin_ur, destination, destination_ur)').eq('id', rawId).maybeSingle()
         setRide(data as unknown as RideDetail | null)
@@ -69,7 +78,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
 
   const cancel = async () => {
     setBusy(true)
-    const rpc = kind === 'hourly' ? 'cancel_hourly_booking' : kind === 'equipment' ? 'cancel_equipment_booking' : 'cancel_ride_booking'
+    const rpc = kind === 'hourly' ? 'cancel_hourly_booking' : kind === 'equipment' ? 'cancel_equipment_booking' : kind === 'rental' ? 'cancel_rental_booking' : 'cancel_ride_booking'
     const params = kind === 'ride' ? { p_booking_id: rawId, p_reason: null } : { p_booking_id: rawId }
     const { error } = await supabase.rpc(rpc, params)
     setBusy(false)
@@ -78,7 +87,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
     onClose()
   }
 
-  const title = kind === 'hourly' ? t('vp.hourlyPageTitle') : kind === 'equipment' ? t(`vp.${equipment?.kind ?? 'machinery'}PageTitle`) : t('af.addaBoardPageTitle')
+  const title = kind === 'hourly' ? t('vp.hourlyPageTitle') : kind === 'equipment' ? t(`vp.${equipment?.kind ?? 'machinery'}PageTitle`) : kind === 'rental' ? t('vp.rentalPageTitle') : t('af.addaBoardPageTitle')
 
   return (
     <MobilityBottomSheet title={title} onClose={onClose}>
@@ -127,6 +136,30 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
             </div>
           )}
           {(equipment.status === 'requested' || equipment.status === 'accepted') && (
+            <button onClick={cancel} disabled={busy} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[#e5e2d0] text-[#b91c1c] font-sans text-[13px] font-semibold cursor-pointer disabled:opacity-50">
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />} {t('vp.cancelBookingBtn')}
+            </button>
+          )}
+        </div>
+      ) : kind === 'rental' && rental ? (
+        <div className="flex flex-col gap-3">
+          <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(rental.vehicle_type, rental.model)} — {rental.owner_name}</p>
+          <p className="font-sans text-[12.5px] text-[#64748b]">{rental.from_address} → {rental.to_address}</p>
+          {rental.pin && rental.status === 'accepted' && (
+            <div className="bg-[#F9F9F6] rounded-xl p-3 flex items-center justify-between">
+              <span className="font-sans text-[11.5px] text-[#64748b]">{t('vp.yourPinLabel')}</span>
+              <span className="font-extrabold text-[20px] tracking-[0.3em] text-[#005A36] ltr-num">{rental.pin}</span>
+            </div>
+          )}
+          <p className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num">₨{fmt(rental.total_amount_pkr ?? rental.base_amount_pkr)}</p>
+          {rental.decline_reason && <p className="font-sans text-[12px] text-[#b91c1c]">{rental.decline_reason}</p>}
+          {(rental.status === 'accepted' || rental.status === 'in_progress') && (
+            <div className="flex items-center gap-3">
+              <CallButton phone={rental.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
+              <ChatButton refType="rental_booking" refId={rental.id} basePath="/portal/marketplace/negotiations" className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer" />
+            </div>
+          )}
+          {(rental.status === 'requested' || rental.status === 'accepted') && (
             <button onClick={cancel} disabled={busy} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[#e5e2d0] text-[#b91c1c] font-sans text-[13px] font-semibold cursor-pointer disabled:opacity-50">
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />} {t('vp.cancelBookingBtn')}
             </button>

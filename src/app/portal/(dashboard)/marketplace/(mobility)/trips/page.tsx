@@ -5,9 +5,6 @@
 // merging every vertical's own real "my bookings" source into one
 // normalized shape. No new backend: every source here is an RPC/table
 // that already existed before this page.
-// dispatch_calls (order-city) is deliberately left out — there's no
-// "my calls" listing anywhere in this app today, and its negotiation
-// side already shows up in Chat (kind='fetch'/'pro').
 //
 // 2026-10-17: this page used to also have its own "Browse" tab running
 // the OLD trip-share propose/counter-offer negotiation flow
@@ -21,6 +18,18 @@
 // vehicle bookings that should say "driver", and only the trip-share
 // row type ever got a working tap-through to a detail page even though
 // shadi and city-purchase both have real detail pages of their own.
+//
+// Real ask, 2026-10-21: "a real app doesn't save a booking in a
+// separate option" — rental, parcel, and dispatch calls previously had
+// NO entry here at all (rental only lived on its own creation page's
+// "mine" tab; parcel and dispatch calls had no index at all), so a
+// confirmed booking of those three types genuinely was stuck somewhere
+// a rider would never think to look. my_rental_bookings/
+// my_parcel_deliveries/my_dispatch_calls already existed as real RPCs —
+// this just merges them in the same way every other kind here already
+// is. dispatch_calls' "as_role" field is read here but currently
+// unused (always 'user' for a rider on this page) — kept for when a
+// driver-facing view of this same list gets built.
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -34,14 +43,14 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { BookingQuickViewSheet, type QuickViewKind } from '@/components/mobility/BookingQuickViewSheet'
 
-type Kind = 'trip' | 'hourly' | 'equipment' | 'ride' | 'shadi' | 'cityPurchase'
+type Kind = 'trip' | 'hourly' | 'equipment' | 'ride' | 'shadi' | 'cityPurchase' | 'rental' | 'parcel' | 'dispatch' | 'shop'
 interface BookingRow { id: string; rawId: string; kind: Kind; title: string; subtitle: string; amount: number | null; status: 'pending' | 'confirmed' | 'declined' | 'cancelled' | 'completed'; date: string; href: string | null }
 // Real ask: hourly/equipment/ride rows used to send the rider to a
 // generic, unscoped browse page instead of their own booking — these 3
 // now pop up that one booking's own status/actions instead (see
 // BookingQuickViewSheet). trip/shadi/cityPurchase go to real, rich
 // detail pages and keep navigating there, deliberately.
-const QUICK_VIEW_KINDS = new Set<Kind>(['hourly', 'equipment', 'ride'])
+const QUICK_VIEW_KINDS = new Set<Kind>(['hourly', 'equipment', 'ride', 'rental'])
 function isQuickViewKind(k: Kind): k is QuickViewKind { return QUICK_VIEW_KINDS.has(k) }
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -49,11 +58,15 @@ const STATUS_STYLE: Record<BookingRow['status'], { bg: string; fg: string }> = {
   pending: { bg: '#fef3c7', fg: '#92400e' }, confirmed: { bg: '#dcfce7', fg: '#166534' },
   declined: { bg: '#fee2e2', fg: '#b91c1c' }, cancelled: { bg: '#f1f5f9', fg: '#64748b' }, completed: { bg: '#e0f2fe', fg: '#0369a1' },
 }
+// dispatch_calls/parcel_deliveries add a few statuses the original 4-kind
+// mapping never had to handle: 'no_answer' (nobody picked up — a dead end,
+// same bucket as declined), 'approved'/'picked_up'/'delivered' (driver
+// committed, trip under way — same bucket as 'accepted'/'in_progress').
 function mapStatus(s: string): BookingRow['status'] {
   if (s === 'completed') return 'completed'
   if (s === 'cancelled') return 'cancelled'
-  if (['declined', 'rejected'].includes(s)) return 'declined'
-  if (['confirmed', 'accepted', 'announced', 'in_progress'].includes(s)) return 'confirmed'
+  if (['declined', 'rejected', 'no_answer'].includes(s)) return 'declined'
+  if (['confirmed', 'accepted', 'announced', 'in_progress', 'approved', 'picked_up', 'delivered'].includes(s)) return 'confirmed'
   return 'pending'
 }
 // Equipment/machinery bookings are keyed to an "owner"; every other
@@ -73,13 +86,17 @@ export default function TripsPage() {
   const [openRow, setOpenRow] = useState<BookingRow | null>(null)
 
   const reloadMine = async () => {
-    const [tripShare, hourly, equipment, ride, shadi, cityPurchase] = await Promise.all([
+    const [tripShare, hourly, equipment, ride, shadi, cityPurchase, rental, parcel, dispatch, shop] = await Promise.all([
       supabase.rpc('my_trip_bookings'),
       supabase.rpc('my_hourly_bookings'),
       supabase.rpc('my_equipment_bookings'),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, travel_date, vehicle_routes(origin, origin_ur, destination, destination_ur)').order('created_at', { ascending: false }).limit(20),
       supabase.rpc('my_shadi_events'),
       supabase.rpc('my_city_purchase_requests'),
+      supabase.rpc('my_rental_bookings'),
+      supabase.rpc('my_parcel_deliveries'),
+      supabase.rpc('my_dispatch_calls'),
+      supabase.from('shop_orders').select('id, status, total_amount_pkr, fulfillment_status, created_at, shops(name, name_ur)').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
     ])
     if (tripShare.error) toast.error(friendlyError(tripShare.error, undefined, isUrdu))
 
@@ -102,6 +119,18 @@ export default function TripsPage() {
     }
     for (const r of (cityPurchase.data ?? []) as Array<{ id: string; item: string; status: string; total_fare_pkr: number | null; created_at: string; city_name: string; city_name_ur: string | null }>) {
       out.push({ id: `cp-${r.id}`, rawId: r.id, kind: 'cityPurchase', title: t('vp.cityPurchasePageTitle'), subtitle: `${r.item} · ${isUrdu && r.city_name_ur ? r.city_name_ur : r.city_name}`, amount: r.total_fare_pkr, status: mapStatus(r.status), date: r.created_at, href: `/portal/marketplace/city-purchase/${r.id}` })
+    }
+    for (const b of (rental.data ?? []) as Array<{ id: string; vehicle_type: string; model: string | null; total_amount_pkr: number | null; base_amount_pkr: number; status: string; requested_at: string; from_address: string; to_address: string }>) {
+      out.push({ id: `rental-${b.id}`, rawId: b.id, kind: 'rental', title: t('vp.rentalPageTitle'), subtitle: `${b.from_address} → ${b.to_address}`, amount: b.total_amount_pkr ?? b.base_amount_pkr, status: mapStatus(b.status), date: b.requested_at, href: null })
+    }
+    for (const p of (parcel.data ?? []) as Array<{ id: string; description: string; status: string; total_fare_pkr: number | null; created_at: string; city_name: string; city_name_ur: string | null }>) {
+      out.push({ id: `parcel-${p.id}`, rawId: p.id, kind: 'parcel', title: t('vp.parcelPageTitle'), subtitle: `${p.description} · ${isUrdu && p.city_name_ur ? p.city_name_ur : p.city_name}`, amount: p.total_fare_pkr, status: mapStatus(p.status), date: p.created_at, href: `/portal/marketplace/parcel/${p.id}` })
+    }
+    for (const d of (dispatch.data ?? []) as Array<{ id: string; item: string; status: string; total_pkr: number | null; created_at: string; shop_name: string }>) {
+      out.push({ id: `dispatch-${d.id}`, rawId: d.id, kind: 'dispatch', title: t('vp.dispatchPageTitle'), subtitle: `${d.item} · ${d.shop_name}`, amount: d.total_pkr, status: mapStatus(d.status), date: d.created_at, href: `/portal/marketplace/dispatch/${d.id}` })
+    }
+    for (const o of (shop.data ?? []) as unknown as Array<{ id: string; status: string; total_amount_pkr: number; fulfillment_status: string; created_at: string; shops: { name: string; name_ur: string | null } | null }>) {
+      out.push({ id: `shop-${o.id}`, rawId: o.id, kind: 'shop', title: isUrdu && o.shops?.name_ur ? o.shops.name_ur : o.shops?.name ?? '—', subtitle: o.fulfillment_status, amount: o.total_amount_pkr, status: mapStatus(o.status), date: o.created_at, href: `/portal/marketplace/order/${o.id}` })
     }
 
     out.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
