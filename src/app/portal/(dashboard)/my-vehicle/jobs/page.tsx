@@ -81,6 +81,17 @@ export default function MyVehicleJobsPage() {
       }
     }
     {
+      // Adda-based bookings have route_id NULL (adda_queue_entry_id set instead) —
+      // the route query above's !inner join on vehicle_routes has nothing to
+      // match for these, so they need their own query against adda_queue_entries
+      // or they silently never appear in this unified list at all.
+      const { data } = await supabase.from('ride_bookings').select('id, status, total_amount_pkr, travel_date, adda_queue_entries!inner(vehicle_id, addas(name, name_ur))').eq('adda_queue_entries.vehicle_id', v.id).order('created_at', { ascending: false }).limit(30)
+      for (const b of (data ?? []) as unknown as { id: string; status: string; total_amount_pkr: number; travel_date: string; adda_queue_entries: { addas: { name: string; name_ur: string } } }[]) {
+        const addaName = isUrdu ? (b.adda_queue_entries.addas.name_ur || b.adda_queue_entries.addas.name) : b.adda_queue_entries.addas.name
+        out.push({ id: b.id, type: 'route', title: addaName, subtitle: t('mv.tab.adda'), amount: b.total_amount_pkr, at: b.travel_date, needsAction: b.status === 'announced', done: b.status === 'rejected' || b.status === 'cancelled', href: '/portal/my-vehicle/adda' })
+      }
+    }
+    {
       const [{ data: dispatch }, { data: cp }, { data: parcels }] = await Promise.all([
         supabase.rpc('my_dispatch_invitations', { p_vehicle_id: v.id }),
         supabase.rpc('my_city_purchase_invitations', { p_vehicle_id: v.id }),

@@ -33,6 +33,12 @@ export function DriverJobsBadgeProvider({ vehicleId, vehicle, children }: { vehi
     calls.push(
       Promise.resolve(supabase.from('ride_bookings').select('id, vehicle_routes!inner(vehicle_id)', { count: 'exact', head: true }).eq('vehicle_routes.vehicle_id', vehicleId).eq('status', 'announced').then(({ count: c }) => c ?? 0))
     )
+    // Adda-based bookings have route_id NULL and adda_queue_entry_id set instead —
+    // the !inner join above has nothing to match for those rows, so they need
+    // their own count against adda_queue_entries rather than vehicle_routes.
+    calls.push(
+      Promise.resolve(supabase.from('ride_bookings').select('id, adda_queue_entries!inner(vehicle_id)', { count: 'exact', head: true }).eq('adda_queue_entries.vehicle_id', vehicleId).eq('status', 'announced').then(({ count: c }) => c ?? 0))
+    )
     calls.push(Promise.resolve(supabase.rpc('my_dispatch_invitations', { p_vehicle_id: vehicleId }).then(({ data }) => (data ?? []).length)))
     calls.push(Promise.resolve(supabase.rpc('my_city_purchase_invitations', { p_vehicle_id: vehicleId }).then(({ data }) => (data ?? []).length)))
     if (vehicle.delivers) calls.push(Promise.resolve(supabase.rpc('my_shop_delivery_invitations', { p_vehicle_id: vehicleId }).then(({ data }) => (data ?? []).length)))
