@@ -50,12 +50,40 @@ interface EquipmentDetail {
   total_amount_pkr: number | null; rate_pkr: number; pin: string | null
   vehicle_id: string; vehicles: { owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null }
 }
+type RideVehicle = { owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null; vehicle_number: string | null }
 interface RideDetail {
-  id: string; status: string; total_amount_pkr: number; rejected_reason: string | null
-  vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
+  id: string; status: string; total_amount_pkr: number; rejected_reason: string | null; seats: number; travel_date: string
+  // Adda-based bookings (checked in at an adda, no posted route) have
+  // route_id NULL — adda_queue_entry_id is set instead. Real gap found
+  // live, 2026-10-26: this sheet's query only ever joined through
+  // vehicle_routes, so an adda booking's vehicle/driver info silently
+  // came back null — same blind spot already fixed on the driver-side
+  // jobs list for the same reason. Both join paths are fetched; the
+  // render picks whichever one actually resolved.
+  vehicle_routes: {
+    origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null
+    vehicles: RideVehicle | null
+  } | null
+  adda_queue_entries: { vehicles: RideVehicle | null; addas: { name: string; name_ur: string | null } | null } | null
 }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
+
+// hourly/equipment/rental all share the same real 4-stage lifecycle
+// (requested → accepted → in_progress → completed), confirmed against
+// equipment_bookings' own status CHECK constraint — unlike ride_bookings
+// (only 2 real stages), this one genuinely supports the reference
+// design's 4-step progress bar with no fabrication.
+const PROGRESS_STEP: Record<string, number> = { requested: 0, accepted: 1, in_progress: 2, completed: 3 }
+function ProgressSteps({ status }: { status: string }) {
+  if (status === 'declined' || status === 'cancelled') return null
+  const step = PROGRESS_STEP[status] ?? 0
+  return (
+    <div dir="ltr" className="flex items-center gap-1">
+      {[0, 1, 2, 3].map((i) => <span key={i} className="flex-1 h-1 rounded-full" style={{ background: i <= step ? '#16a34a' : '#e5e2d0' }} />)}
+    </div>
+  )
+}
 
 // Real ask, 2026-10-21: "the rider once sent the request... the same
 // request popup kept displaying" — this sheet already live-updates,
@@ -83,7 +111,7 @@ function StatusBanner({ t, status, declineReason }: { t: (k: string, f?: string)
 const HOURLY_SELECT = 'id, status, pickup_address, decline_reason, total_amount_pkr, base_amount_pkr, pin, vehicle_id, vehicles(owner_name, owner_mobile, vehicle_type, model)'
 const RENTAL_SELECT = 'id, status, from_address, to_address, decline_reason, total_amount_pkr, base_amount_pkr, pin, vehicle_id, vehicles(owner_name, owner_mobile, vehicle_type, model)'
 const EQUIPMENT_SELECT = 'id, kind, status, site_address, decline_reason, total_amount_pkr, rate_pkr, pin, vehicle_id, vehicles(owner_name, owner_mobile, vehicle_type, model)'
-const RIDE_SELECT = 'id, status, total_amount_pkr, rejected_reason, vehicle_routes(origin, origin_ur, destination, destination_ur)'
+const RIDE_SELECT = 'id, status, total_amount_pkr, rejected_reason, seats, travel_date, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time, vehicles(owner_name, owner_mobile, vehicle_type, model, vehicle_number)), adda_queue_entries(vehicles(owner_name, owner_mobile, vehicle_type, model, vehicle_number), addas(name, name_ur))'
 
 export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props) {
   const { t, isUrdu } = useLocale()
@@ -119,6 +147,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
         <div className="flex flex-col gap-3">
           <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(hourly.vehicles.vehicle_type, hourly.vehicles.model)} — {hourly.vehicles.owner_name}</p>
           <p className="font-sans text-[12.5px] text-[#64748b]">{hourly.pickup_address}</p>
+          <ProgressSteps status={hourly.status} />
           <StatusBanner t={t} status={hourly.status} declineReason={hourly.decline_reason} />
           {hourly.pin && hourly.status === 'accepted' && (
             <div className="bg-[#F9F9F6] rounded-xl p-3 flex items-center justify-between">
@@ -143,6 +172,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
         <div className="flex flex-col gap-3">
           <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(equipment.vehicles.vehicle_type, equipment.vehicles.model)} — {equipment.vehicles.owner_name}</p>
           <p className="font-sans text-[12.5px] text-[#64748b]">{equipment.site_address}</p>
+          <ProgressSteps status={equipment.status} />
           <StatusBanner t={t} status={equipment.status} declineReason={equipment.decline_reason} />
           {equipment.pin && equipment.status === 'accepted' && (
             <div className="bg-[#F9F9F6] rounded-xl p-3 flex items-center justify-between">
@@ -167,6 +197,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
         <div className="flex flex-col gap-3">
           <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{vehicleDisplayName(rental.vehicles.vehicle_type, rental.vehicles.model)} — {rental.vehicles.owner_name}</p>
           <p className="font-sans text-[12.5px] text-[#64748b]">{rental.from_address} → {rental.to_address}</p>
+          <ProgressSteps status={rental.status} />
           <StatusBanner t={t} status={rental.status} declineReason={rental.decline_reason} />
           {rental.pin && rental.status === 'accepted' && (
             <div className="bg-[#F9F9F6] rounded-xl p-3 flex items-center justify-between">
@@ -189,13 +220,34 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
         </div>
       ) : kind === 'ride' && ride ? (
         <div className="flex flex-col gap-3">
-          {ride.vehicle_routes && (
-            <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">
-              {isUrdu && ride.vehicle_routes.origin_ur ? ride.vehicle_routes.origin_ur : ride.vehicle_routes.origin} → {isUrdu && ride.vehicle_routes.destination_ur ? ride.vehicle_routes.destination_ur : ride.vehicle_routes.destination}
-            </p>
-          )}
-          <p className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num">₨{fmt(ride.total_amount_pkr)}</p>
-          {ride.rejected_reason && <p className="font-sans text-[12px] text-[#b91c1c]">{ride.rejected_reason}</p>}
+          {(() => {
+            const vehicle = ride.vehicle_routes?.vehicles ?? ride.adda_queue_entries?.vehicles ?? null
+            const adda = ride.adda_queue_entries?.addas
+            const routeLabel = ride.vehicle_routes
+              ? `${isUrdu && ride.vehicle_routes.origin_ur ? ride.vehicle_routes.origin_ur : ride.vehicle_routes.origin} → ${isUrdu && ride.vehicle_routes.destination_ur ? ride.vehicle_routes.destination_ur : ride.vehicle_routes.destination}`
+              : adda ? `${t('mb.svc.adda')} · ${isUrdu && adda.name_ur ? adda.name_ur : adda.name}` : null
+            return (
+              <>
+                {vehicle && (
+                  <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">
+                    {vehicleDisplayName(vehicle.vehicle_type, vehicle.model)} — {vehicle.owner_name}
+                  </p>
+                )}
+                {routeLabel && <p className="font-sans text-[12.5px] text-[#64748b]">{routeLabel}</p>}
+                <StatusBanner t={t} status={ride.status === 'announced' ? 'requested' : ride.status === 'rejected' ? 'declined' : ride.status} declineReason={ride.rejected_reason} />
+                <div className="flex items-center justify-between gap-2 bg-[#F9F9F6] rounded-xl p-3">
+                  <span className="font-sans text-[12px] text-[#64748b]">{t('mb.travelDateLabel')}</span>
+                  <span className="font-sans text-[12.5px] font-semibold text-[#1e293b] ltr-num">
+                    {new Date(ride.travel_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}{ride.vehicle_routes?.departure_time ? ` · ${ride.vehicle_routes.departure_time.slice(0, 5)}` : ''} · {ride.seats} {t('vp.seatsLabel')}
+                  </span>
+                </div>
+                <p className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num">₨{fmt(ride.total_amount_pkr)}</p>
+                {ride.status === 'confirmed' && vehicle && (
+                  <CallButton phone={vehicle.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
+                )}
+              </>
+            )
+          })()}
           {(ride.status === 'announced' || ride.status === 'confirmed') && (
             <button onClick={cancel} disabled={busy} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[#e5e2d0] text-[#b91c1c] font-sans text-[13px] font-semibold cursor-pointer disabled:opacity-50">
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />} {t('vp.cancelBookingBtn')}

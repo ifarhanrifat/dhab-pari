@@ -35,7 +35,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
-import { Receipt } from 'lucide-react'
+import { Receipt, Users, Clock, Wrench, Bus, Sparkles, ShoppingBag, Car, Package, Phone, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -58,6 +58,22 @@ const STATUS_STYLE: Record<BookingRow['status'], { bg: string; fg: string }> = {
   pending: { bg: '#fef3c7', fg: '#92400e' }, confirmed: { bg: '#dcfce7', fg: '#166534' },
   declined: { bg: '#fee2e2', fg: '#b91c1c' }, cancelled: { bg: '#f1f5f9', fg: '#64748b' }, completed: { bg: '#e0f2fe', fg: '#0369a1' },
 }
+// Per-kind icon + tint for each row's leading badge, matching the reference
+// design's tinted-icon-circle pattern on its own bookings list — reuses the
+// same tint tokens the rest of the app's category belt/service tiles use.
+const KIND_ICON: Record<Kind, typeof Users> = {
+  trip: Users, hourly: Clock, equipment: Wrench, ride: Bus, shadi: Sparkles,
+  cityPurchase: ShoppingBag, rental: Car, parcel: Package, dispatch: Phone, shop: Store,
+}
+const KIND_TINT: Record<Kind, string> = {
+  trip: '#e0f2fe', hourly: '#fef9c3', equipment: '#fde68a', ride: '#dcfce7', shadi: '#fce7f3',
+  cityPurchase: '#ffe4e6', rental: '#f3e8ff', parcel: '#ffedd5', dispatch: '#e0e7ff', shop: '#fff7ed',
+}
+// Our status model has 3 real stages (pending → confirmed → completed), not the
+// reference's 4 (requested/accepted/ontheway/completed) — every kind here only
+// ever actually passes through 3, so the progress dots stay honest to that
+// instead of padding in a 4th step nothing ever reaches.
+const STEP: Record<BookingRow['status'], number> = { pending: 0, confirmed: 1, completed: 2, declined: 0, cancelled: 0 }
 // dispatch_calls/parcel_deliveries add a few statuses the original 4-kind
 // mapping never had to handle: 'no_answer' (nobody picked up — a dead end,
 // same bucket as declined), 'approved'/'picked_up'/'delivered' (driver
@@ -84,6 +100,7 @@ export default function TripsPage() {
   const [rows, setRows] = useState<BookingRow[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [openRow, setOpenRow] = useState<BookingRow | null>(null)
+  const [seg, setSeg] = useState<'active' | 'past'>('active')
 
   const reloadMine = async () => {
     const [tripShare, hourly, equipment, ride, shadi, cityPurchase, rental, parcel, dispatch, shop] = await Promise.all([
@@ -146,35 +163,60 @@ export default function TripsPage() {
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!user) return <div className="text-center py-12 text-[#64748b] text-[14px]">{t('p.couldNotLoad')}</div>
 
+  const active = (rows ?? []).filter((r) => !['completed', 'cancelled', 'declined'].includes(r.status))
+  const past = (rows ?? []).filter((r) => ['completed', 'cancelled', 'declined'].includes(r.status))
+  const shown = seg === 'active' ? active : past
+
   return (
     <div className="flex flex-col gap-3">
       <h1 className="font-extrabold text-[20px] text-[#005A36] flex items-center gap-2"><Receipt size={19} /> {t('mb.myBookingsHeading')}</h1>
 
+      <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#f2f1e8]">
+        {(['active', 'past'] as const).map((k) => (
+          <button key={k} onClick={() => setSeg(k)}
+            className="rounded-[9px] py-1.5 text-[12.5px] font-bold cursor-pointer"
+            style={{ background: seg === k ? '#166534' : 'transparent', color: seg === k ? '#fff' : '#64748b', boxShadow: seg === k ? '0 1px 2px rgba(0,0,0,.1)' : 'none' }}>
+            {k === 'active' ? `${t('mb.bookingsActiveTab')} (${active.length})` : t('mb.bookingsPastTab')}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-col gap-2">
-        {(rows?.length ?? 0) === 0 && <p className="text-center py-10 text-[#94a3b8] text-[13.5px]">{t('vp.noEquipmentBookingsHint')}</p>}
-        {rows?.map((r) => {
+        {shown.length === 0 && <p className="text-center py-10 text-[#94a3b8] text-[13.5px]">{t('vp.noEquipmentBookingsHint')}</p>}
+        {shown.map((r) => {
           const style = STATUS_STYLE[r.status]
+          const Icon = KIND_ICON[r.kind]
+          const step = STEP[r.status]
+          const cancelled = r.status === 'cancelled' || r.status === 'declined'
           const content = (
             <>
-              <div className="min-w-0">
-                <p className="text-[13.5px] font-bold text-[#1e293b] truncate">{r.title}</p>
-                <p className="text-[12px] text-[#64748b] truncate mt-0.5">{r.subtitle}</p>
-              </div>
-              <div className="shrink-0 text-end">
-                {r.amount != null && <p className="text-[13.5px] font-extrabold text-[#005A36] ltr-num">{fmt(r.amount)}</p>}
+              <span className="flex items-center gap-2.5 w-full">
+                <span className="shrink-0 w-[34px] h-[34px] rounded-[11px] flex items-center justify-center" style={{ background: KIND_TINT[r.kind] }}><Icon size={16} className="text-[#1e293b]/70" /></span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13.5px] font-bold text-[#1e293b] truncate">{r.title}</span>
+                  <span className="block text-[12px] text-[#64748b] truncate mt-0.5">{r.subtitle}</span>
+                </span>
+                {r.amount != null && <span className="shrink-0 font-extrabold text-[13px] text-[#005A36] ltr-num">{fmt(r.amount)}</span>}
+              </span>
+              <span className="flex items-center justify-between gap-2 w-full">
                 <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: style.bg, color: style.fg }}>{t(statusKey(r.kind, r.status))}</span>
-              </div>
+                <span dir="ltr" className="flex items-center gap-[3px]">
+                  {[0, 1, 2].map((i) => <span key={i} className="w-[18px] h-1 rounded-full" style={{ background: cancelled ? '#fecaca' : i <= step ? '#16a34a' : '#e5e2d0' }} />)}
+                  {r.date && <span className="font-sans text-[9px] text-[#94a3b8] ms-1 ltr-num">{new Date(r.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>}
+                </span>
+              </span>
             </>
           )
+          const cls = 'w-full text-start bg-white border border-[#e5e2d0] rounded-2xl p-3 flex flex-col gap-2 cursor-pointer hover:border-[#166534]'
           if (isQuickViewKind(r.kind)) {
             return (
-              <button key={r.id} onClick={() => setOpenRow(r)} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center justify-between gap-3 text-start cursor-pointer hover:border-[#166534]">{content}</button>
+              <button key={r.id} onClick={() => setOpenRow(r)} className={cls}>{content}</button>
             )
           }
           return r.href ? (
-            <Link key={r.id} href={r.href} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer hover:border-[#166534]">{content}</Link>
+            <Link key={r.id} href={r.href} className={cls}>{content}</Link>
           ) : (
-            <div key={r.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center justify-between gap-3">{content}</div>
+            <div key={r.id} className={cls.replace(' cursor-pointer hover:border-[#166534]', '')}>{content}</div>
           )
         })}
       </div>

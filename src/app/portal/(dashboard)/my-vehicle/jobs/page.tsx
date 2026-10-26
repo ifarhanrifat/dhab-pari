@@ -86,8 +86,9 @@ export default function MyVehicleJobsPage() {
       // match for these, so they need their own query against adda_queue_entries
       // or they silently never appear in this unified list at all.
       const { data } = await supabase.from('ride_bookings').select('id, status, total_amount_pkr, travel_date, adda_queue_entries!inner(vehicle_id, addas(name, name_ur))').eq('adda_queue_entries.vehicle_id', v.id).order('created_at', { ascending: false }).limit(30)
-      for (const b of (data ?? []) as unknown as { id: string; status: string; total_amount_pkr: number; travel_date: string; adda_queue_entries: { addas: { name: string; name_ur: string } } }[]) {
-        const addaName = isUrdu ? (b.adda_queue_entries.addas.name_ur || b.adda_queue_entries.addas.name) : b.adda_queue_entries.addas.name
+      for (const b of (data ?? []) as unknown as { id: string; status: string; total_amount_pkr: number; travel_date: string; adda_queue_entries: { addas: { name: string; name_ur: string } | null } }[]) {
+        const addas = b.adda_queue_entries.addas
+        const addaName = addas ? (isUrdu ? (addas.name_ur || addas.name) : addas.name) : t('mv.tab.adda')
         out.push({ id: b.id, type: 'route', title: addaName, subtitle: t('mv.tab.adda'), amount: b.total_amount_pkr, at: b.travel_date, needsAction: b.status === 'announced', done: b.status === 'rejected' || b.status === 'cancelled', href: '/portal/my-vehicle/adda' })
       }
     }
@@ -138,6 +139,10 @@ export default function MyVehicleJobsPage() {
   }, [vehicle])
 
   const ICONS: Record<Row['type'], typeof Bus> = { hourly: Clock3, shadi: Users2, equipment: Wrench, rental: Navigation, route: RouteIcon, dispatch: ShoppingBag, city_purchase: ShoppingBag, delivery: Package, parcel: Package }
+  // Was flat #F9F9F6 — identical to the page background, so the icon badge
+  // had no visible boundary. Tinted per job type, same pattern already
+  // fixed on the equipment browse cards.
+  const TINTS: Record<Row['type'], string> = { hourly: '#fef9c3', shadi: '#fce7f3', equipment: '#fde68a', rental: '#f3e8ff', route: '#dcfce7', dispatch: '#e0e7ff', city_purchase: '#ffe4e6', delivery: '#ffedd5', parcel: '#ffedd5' }
 
   const groups = { new: rows.filter((r) => r.needsAction), active: rows.filter((r) => !r.needsAction && !r.done), done: rows.filter((r) => r.done) }
   const list = groups[seg]
@@ -165,7 +170,7 @@ export default function MyVehicleJobsPage() {
             const Icon = ICONS[r.type]
             const content = (
               <>
-                <span className="shrink-0 w-10 h-10 rounded-full bg-[#F9F9F6] flex items-center justify-center"><Icon size={17} className="text-[#166534]" /></span>
+                <span className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style={{ background: TINTS[r.type] }}><Icon size={17} className="text-[#1e293b]/70" /></span>
                 <span className="flex-1 min-w-0">
                   <span className="block font-sans text-[13.5px] font-bold text-[#1e293b] truncate">{r.title}</span>
                   <span className="block font-sans text-[12px] text-[#64748b] truncate">{r.subtitle}</span>

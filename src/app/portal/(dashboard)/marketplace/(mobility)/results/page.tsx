@@ -85,6 +85,7 @@ function ResultsPageInner() {
   const [routes, setRoutes] = useState<RouteRow[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [filter, setFilter] = useState<'all' | 'adda' | 'shared'>('all')
 
   async function reload(c: City) {
     const [{ data: trips, error: tripsErr }, { data: routeRows, error: routesErr }] = await Promise.all([
@@ -160,47 +161,83 @@ function ResultsPageInner() {
             <p className="text-[10.5px] font-bold uppercase tracking-[0.05em] text-white/75">{t('mb.pricesAreEstimates')}</p>
           </div>
 
-          {/* Section 1 — Adda vans going here */}
-          <div className="flex flex-col gap-2">
-            <p className="text-[12.5px] font-extrabold text-[#1e293b] flex items-center gap-1.5"><Bus size={14} className="text-[#166534]" /> {t('mb.addaGoingHereHeading')}</p>
-            {addaTrips.length === 0 ? (
-              <p className="text-[12px] text-[#94a3b8] py-1">{t('mb.noAddaGoingHere')}</p>
-            ) : (
-              addaTrips.map((trip) => (
-                <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} onBookReturnOnly={bookReturnOnly} nm={nm} t={t} isUrdu={isUrdu} />
-              ))
-            )}
-          </div>
-
-          {/* Section 2 — Shared rides going here (one-off trips + weekly routes) */}
-          <div className="flex flex-col gap-2">
-            <p className="text-[12.5px] font-extrabold text-[#1e293b] flex items-center gap-1.5"><Users size={14} className="text-[#0369a1]" /> {t('mb.sharedGoingHereHeading')}</p>
-            {sharedTrips.length === 0 && routes.length === 0 ? (
-              <p className="text-[12px] text-[#94a3b8] py-1">{t('vp.noOpenTripsToCity')}</p>
-            ) : (
+          {(() => {
+            const sharedCount = sharedTrips.length + routes.length
+            const totalCount = addaTrips.length + sharedCount
+            const showAdda = filter === 'all' || filter === 'adda'
+            const showShared = filter === 'all' || filter === 'shared'
+            return (
               <>
-                {sharedTrips.map((trip) => (
-                  <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} onBookReturnOnly={bookReturnOnly} nm={nm} t={t} isUrdu={isUrdu} />
-                ))}
-                {routes.map((r) => (
-                  <Link key={r.id} href={`/portal/marketplace/route/${r.id}`} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3">
-                    <span className="shrink-0 w-9 h-9 rounded-xl bg-[#dcfce7] flex items-center justify-center"><Bus size={17} className="text-[#166534]" /></span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[13px] font-bold text-[#1e293b]">{nm(r.origin, r.origin_ur)} → {nm(r.destination, r.destination_ur)}</span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('mb.weeklyRouteBadge')}</span>
-                      </div>
-                      <p className="text-[11px] text-[#64748b] mt-0.5">{r.owner_name}</p>
-                    </div>
-                    <div className="shrink-0 text-end">
-                      <p className="font-extrabold text-[14px] text-[#005A36]">{fmt(r.fare_per_seat_pkr)}</p>
-                      <p className="text-[9px] text-[#64748b]">{t('mk.perSeat')}</p>
-                    </div>
-                  </Link>
-                ))}
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[13px] font-extrabold text-[#1e293b]">{t('mb.availableRidesHeading')}</p>
+                  <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534] ltr-num">{t('mb.optionsCountBadge').replace('{n}', String(totalCount))}</span>
+                </div>
+
+                <div className="flex gap-1.5 overflow-x-auto -mx-3.5 px-3.5 pb-0.5">
+                  {([
+                    ['all', t('mb.filterAll'), null],
+                    ['adda', t('mb.filterAdda'), Bus],
+                    ['shared', t('mb.filterShared'), Users],
+                  ] as const).map(([key, label, ChipIcon]) => {
+                    const on = filter === key
+                    return (
+                      <button key={key} onClick={() => setFilter(key)}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold whitespace-nowrap cursor-pointer border"
+                        style={{ background: on ? '#166534' : '#fff', color: on ? '#fff' : '#334155', borderColor: on ? '#166534' : '#e5e2d0' }}>
+                        {ChipIcon && <ChipIcon size={12} />} {label}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Adda vans going here */}
+                {showAdda && (
+                  <div className="flex flex-col gap-2">
+                    {filter === 'all' && <p className="text-[12.5px] font-extrabold text-[#1e293b] flex items-center gap-1.5"><Bus size={14} className="text-[#166534]" /> {t('mb.addaGoingHereHeading')}</p>}
+                    {addaTrips.length === 0 ? (
+                      <p className="text-[12px] text-[#94a3b8] py-1">{t('mb.noAddaGoingHere')}</p>
+                    ) : (
+                      addaTrips.map((trip) => (
+                        <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} onBookReturnOnly={bookReturnOnly} nm={nm} t={t} isUrdu={isUrdu} />
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* Shared rides going here (one-off trips + weekly routes) */}
+                {showShared && (
+                  <div className="flex flex-col gap-2">
+                    {filter === 'all' && <p className="text-[12.5px] font-extrabold text-[#1e293b] flex items-center gap-1.5"><Users size={14} className="text-[#0369a1]" /> {t('mb.sharedGoingHereHeading')}</p>}
+                    {sharedCount === 0 ? (
+                      <p className="text-[12px] text-[#94a3b8] py-1">{t('vp.noOpenTripsToCity')}</p>
+                    ) : (
+                      <>
+                        {sharedTrips.map((trip) => (
+                          <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} onBookReturnOnly={bookReturnOnly} nm={nm} t={t} isUrdu={isUrdu} />
+                        ))}
+                        {routes.map((r) => (
+                          <Link key={r.id} href={`/portal/marketplace/route/${r.id}`} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3">
+                            <span className="shrink-0 w-9 h-9 rounded-xl bg-[#dcfce7] flex items-center justify-center"><Bus size={17} className="text-[#166534]" /></span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[13px] font-bold text-[#1e293b]">{nm(r.origin, r.origin_ur)} → {nm(r.destination, r.destination_ur)}</span>
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('mb.weeklyRouteBadge')}</span>
+                              </div>
+                              <p className="text-[11px] text-[#64748b] mt-0.5">{r.owner_name}</p>
+                            </div>
+                            <div className="shrink-0 text-end">
+                              <p className="font-extrabold text-[14px] text-[#005A36]">{fmt(r.fare_per_seat_pkr)}</p>
+                              <p className="text-[9px] text-[#64748b]">{t('mk.perSeat')}</p>
+                            </div>
+                          </Link>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
               </>
-            )}
-          </div>
+            )
+          })()}
 
           <Link href="/portal/marketplace/commute" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3">
             <span className="shrink-0 w-9 h-9 rounded-xl bg-[#e0f2fe] flex items-center justify-center"><Users size={17} className="text-[#0369a1]" /></span>
