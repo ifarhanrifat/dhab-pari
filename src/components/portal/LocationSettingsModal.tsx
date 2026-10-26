@@ -72,24 +72,24 @@ export function LocationSettingsModal({ reason, onClose }: Props) {
     <div className="fixed inset-0 z-[200] bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-3">
-          <div className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center ${disabled ? 'bg-amber-50 text-amber-700' : 'bg-dp-secondary-container/50 text-dp-secondary'}`}>
+          <div className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center ${disabled ? 'bg-amber-50 text-amber-700' : 'bg-[#dcfce7] text-[#166534]'}`}>
             {disabled ? <MapPinOff size={20} /> : <ShieldAlert size={20} />}
           </div>
-          <button onClick={onClose} className="shrink-0 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1"><X size={16} /></button>
+          <button onClick={onClose} className="shrink-0 text-[#64748b] hover:text-[#1e293b] cursor-pointer p-1"><X size={16} /></button>
         </div>
-        <p className="font-sans text-[15px] font-bold text-dp-on-surface">
+        <p className="font-sans text-[15px] font-bold text-[#1e293b]">
           {disabled ? t('af.gpsOffModalTitle') : t('af.permissionModalTitle')}
         </p>
-        <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1.5 leading-relaxed">
+        <p className="font-sans text-[13px] text-[#64748b] mt-1.5 leading-relaxed">
           {disabled ? t('af.gpsOffModalBody') : t('af.permissionModalBody')}
         </p>
         {isNative ? (
           <button onClick={openSettings} disabled={opening}
-            className="mt-4 w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-sans text-[13.5px] font-bold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">
+            className="mt-4 w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-sans text-[13.5px] font-bold cursor-pointer bg-[#166534] text-white hover:bg-[#005A36] disabled:opacity-50">
             {opening ? <Loader2 size={15} className="animate-spin" /> : <ExternalLink size={15} />} {t('af.openSettingsBtn')}
           </button>
         ) : (
-          <p className="font-sans text-[12px] text-dp-on-surface-variant mt-4 italic">{t('af.settingsWebFallbackHint')}</p>
+          <p className="font-sans text-[12px] text-[#64748b] mt-4 italic">{t('af.settingsWebFallbackHint')}</p>
         )}
       </div>
     </div>

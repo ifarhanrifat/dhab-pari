@@ -52,16 +52,16 @@ export function TripLiveShareToggle({ tripOfferId, sharing, onSharingChange }: P
   }
 
   return (
-    <div className="mt-2 pt-2 border-t border-dp-outline-variant/60">
+    <div className="mt-2 pt-2 border-t border-[#e5e2d0]/60">
       <button type="button" onClick={toggle} disabled={busy}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-sans font-semibold cursor-pointer transition-all disabled:opacity-50 ${sharing ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container'}`}>
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-sans font-semibold cursor-pointer transition-all disabled:opacity-50 ${sharing ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b] hover:bg-[#F9F9F6]'}`}>
         <Radio size={12} className={sharing ? 'animate-pulse' : ''} /> {sharing ? t('cm.liveSharingOnBtn') : t('cm.liveShareOffBtn')}
       </button>
       {sharing && error && (
         <p className="flex items-center gap-1 font-sans text-[11px] text-amber-700 mt-1.5"><AlertCircle size={11} /> {error}</p>
       )}
       {sharing && !error && (
-        <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1.5">
+        <p className="font-sans text-[11px] text-[#64748b] mt-1.5">
           {isNative ? t('cm.liveShareActiveHintNative') : t('cm.liveShareActiveHint')}
         </p>
       )}

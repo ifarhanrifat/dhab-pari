@@ -76,49 +76,49 @@ export function RateAndReport({ refType, refId, againstPartyType, againstPartyId
   if (myRating === undefined) return null
 
   return (
-    <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5 mb-4">
-      <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface mb-2">{t('rr.howWasItHeading')}</p>
+    <div className="bg-white border border-[#e5e2d0] rounded-xl p-3.5 mb-4">
+      <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] mb-2">{t('rr.howWasItHeading')}</p>
 
       {myRating ? (
         <div className="flex items-center gap-1">
-          {[1, 2, 3, 4, 5].map((n) => <Star key={n} size={16} className={n <= myRating!.stars ? 'fill-current text-amber-500' : 'text-dp-outline-variant'} />)}
-          <span className="font-sans text-[12px] text-dp-on-surface-variant ms-1">{t('rr.yourRatingNote')}</span>
+          {[1, 2, 3, 4, 5].map((n) => <Star key={n} size={16} className={n <= myRating!.stars ? 'fill-current text-amber-500' : 'text-[#e5e2d0]'} />)}
+          <span className="font-sans text-[12px] text-[#64748b] ms-1">{t('rr.yourRatingNote')}</span>
         </div>
       ) : (
         <div className="space-y-2">
           <div className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map((n) => (
               <button key={n} type="button" onClick={() => setStars(n)} className="cursor-pointer">
-                <Star size={20} className={n <= stars ? 'fill-current text-amber-500' : 'text-dp-outline-variant hover:text-amber-300'} />
+                <Star size={20} className={n <= stars ? 'fill-current text-amber-500' : 'text-[#e5e2d0] hover:text-amber-300'} />
               </button>
             ))}
           </div>
-          <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t('rr.commentPlaceholder')} className="input-field !text-[13px]" />
-          <button onClick={submitRating} disabled={submitting || stars < 1} className="px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">
+          <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t('rr.commentPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13px]" />
+          <button onClick={submitRating} disabled={submitting || stars < 1} className="px-3 py-1.5 rounded-xl text-[12.5px] font-sans font-semibold cursor-pointer bg-[#166534] text-white hover:bg-[#005A36] disabled:opacity-50">
             {submitting ? t('action.saving') : t('rr.submitRatingBtn')}
           </button>
         </div>
       )}
 
       {allowComplaint && (
-      <div className="mt-3 pt-3 border-t border-dp-outline-variant/60">
+      <div className="mt-3 pt-3 border-t border-[#e5e2d0]/60">
         {complaintFiled ? (
-          <p className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1"><ShieldAlert size={12} /> {t('rr.complaintFiledNote')}</p>
+          <p className="font-sans text-[12px] text-[#64748b] flex items-center gap-1"><ShieldAlert size={12} /> {t('rr.complaintFiledNote')}</p>
         ) : !showComplaint ? (
-          <button onClick={() => setShowComplaint(true)} className="flex items-center gap-1.5 font-sans text-[12px] font-semibold text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
+          <button onClick={() => setShowComplaint(true)} className="flex items-center gap-1.5 font-sans text-[12px] font-semibold text-[#64748b] hover:text-[#b91c1c] cursor-pointer">
             <ShieldAlert size={13} /> {t('rr.reportProblemBtn')}
           </button>
         ) : (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface">{t('rr.reportProblemBtn')}</p>
-              <button onClick={() => setShowComplaint(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={14} /></button>
+              <p className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{t('rr.reportProblemBtn')}</p>
+              <button onClick={() => setShowComplaint(false)} className="cursor-pointer text-[#64748b]"><X size={14} /></button>
             </div>
-            <select value={kind} onChange={(e) => setKind(e.target.value)} className="input-field !text-[13px]">
+            <select value={kind} onChange={(e) => setKind(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13px] bg-white">
               {COMPLAINT_KINDS.map((k) => <option key={k} value={k}>{t(`pc.kind.${k}`)}</option>)}
             </select>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={t('rr.describeProblemPlaceholder')} className="input-field !text-[13px] resize-none" />
-            <button onClick={fileComplaint} disabled={filingComplaint} className="px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer bg-dp-error text-white hover:opacity-90 disabled:opacity-50">
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={t('rr.describeProblemPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13px] resize-none" />
+            <button onClick={fileComplaint} disabled={filingComplaint} className="px-3 py-1.5 rounded-xl text-[12.5px] font-sans font-semibold cursor-pointer bg-[#b91c1c] text-white hover:opacity-90 disabled:opacity-50">
               {filingComplaint ? t('action.saving') : t('rr.submitComplaintBtn')}
             </button>
           </div>
