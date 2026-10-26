@@ -249,8 +249,15 @@ export default function MyVehicleHomePage() {
   // countered within elsewhere. Suggesting and capping at anything but
   // `fair` here would let the stepper reach a number the backend still
   // rejects.
-  const suggestedFare = fareBand ? Math.round(fareBand.fair) : null
-  const fareCeiling = fareBand ? Math.round(fareBand.fair) : null
+  //
+  // Real bug, reported live: a 'return' trip showed/capped the exact
+  // same fare as 'oneway' — 4 riders doing the full round trip ended up
+  // paying what should only cover one leg. A return listing's fare is
+  // the FULL round trip (a one-way-only booker automatically pays half
+  // of it, 693/728), so its ceiling must be double the single-leg fair
+  // — place_trip_offer (737) enforces the same doubling server-side.
+  const suggestedFare = fareBand ? Math.round(fareBand.fair) * (tripType === 'return' ? 2 : 1) : null
+  const fareCeiling = fareBand ? Math.round(fareBand.fair) * (tripType === 'return' ? 2 : 1) : null
   useEffect(() => {
     if (suggestedFare != null && !fareTouched) setFare(suggestedFare)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -402,7 +409,7 @@ export default function MyVehicleHomePage() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="font-sans text-[10.5px] font-semibold text-[#334155]">{t('cm.listedFareLabel')}</span>
+                  <span className="font-sans text-[10.5px] font-semibold text-[#334155]">{tripType === 'return' ? t('cm.listedFareLabelReturn') : t('cm.listedFareLabel')}</span>
                   <div dir="ltr" className="flex items-center border border-[#e5e2d0] rounded-lg overflow-hidden">
                     <button onClick={() => { setFareTouched(true); setFare((f) => Math.max(50, f - 50)) }} className="w-8 h-8 border-0 bg-[#F9F9F6] text-[#166534] font-bold cursor-pointer">−</button>
                     <span className="flex-1 text-center font-bold text-[13px] ltr-num">{fmt(fare)}</span>
@@ -410,6 +417,9 @@ export default function MyVehicleHomePage() {
                   </div>
                 </div>
               </div>
+              {tripType === 'return' && fare > 0 && (
+                <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('cm.oneWayAutoHalfHint').replace('{price}', String(Math.round(fare / 2)))}</p>
+              )}
 
               <button onClick={publishRide} disabled={publishing || routeLoading} className="rounded-xl py-2 font-sans text-[12.5px] font-extrabold cursor-pointer disabled:opacity-50" style={{ background: '#D4AF37', color: '#0f172a' }}>
                 📢 {publishing ? t('action.saving') : t('cm.postTripBtn')}

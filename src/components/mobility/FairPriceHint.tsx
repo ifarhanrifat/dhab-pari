@@ -16,7 +16,19 @@ function fmt(n: number) {
   return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
-export function FairPriceHint({ flow, distanceKm }: { flow: 'route' | 'trip_share'; distanceKm: number | null }) {
+// Real bug, reported live: a trip_share 'return' listing showed and
+// enforced the exact same ceiling as a 'oneway' one — the driver's
+// listed fare for "there and back" ended up priced the same as a
+// single leg, so 4 riders doing a full round trip paid what should
+// only cover getting there. The listed fare for a return trip-share is
+// the FULL round-trip price (a one-way-only booker automatically pays
+// half of it, 693/728) — so its fair ceiling must be double the
+// single-leg fair, not the same number. `roundTrip` doubles it here;
+// place_trip_offer (737) enforces the same doubling server-side, so
+// this stays cosmetic/in-sync, never the actual cap. Routes has no
+// such halving concept (each leg is its own full-price booking) so
+// its own FairPriceHint usage never passes this — default false.
+export function FairPriceHint({ flow, distanceKm, roundTrip }: { flow: 'route' | 'trip_share'; distanceKm: number | null; roundTrip?: boolean }) {
   const { t } = useLocale()
   const supabase = createClient()
   const [fair, setFair] = useState<number | null>(null)
@@ -25,11 +37,12 @@ export function FairPriceHint({ flow, distanceKm }: { flow: 'route' | 'trip_shar
     if (!distanceKm || distanceKm <= 0) { setFair(null); return }
     let cancelled = false
     supabase.rpc('fare_band_for', { p_flow: flow, p_km: distanceKm }).then(({ data }) => {
-      if (!cancelled) setFair((data as { fair?: number } | null)?.fair ?? null)
+      const oneWay = (data as { fair?: number } | null)?.fair ?? null
+      if (!cancelled) setFair(oneWay != null ? (roundTrip ? oneWay * 2 : oneWay) : null)
     })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flow, distanceKm])
+  }, [flow, distanceKm, roundTrip])
 
   if (fair == null) return null
   return (
