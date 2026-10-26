@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { Users2, Car, Snowflake, Check, Loader2, CalendarDays, MapPin, Star } from 'lucide-react'
+import { Users2, Car, Snowflake, Check, Loader2, CalendarDays, MapPin, Star, X, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { CallButton } from '@/components/portal/CallButton'
@@ -228,11 +228,35 @@ export default function ShadiBookingPage() {
             <CategoryVehiclePicker categories={categoryDefs} availableLabel={t('mb.availableLabel')} fromLabel={t('mb.fromPriceLabel')} />
           )}
           {selectedIds.size > 0 && (
-            <div className="bg-[#F9F9F6] rounded-2xl p-3 flex items-center justify-between">
-              <span className="text-[13px] text-[#64748b]">{selectedIds.size} {t('vp.vehiclesSelectedSuffix')}</span>
-              <span className="font-extrabold text-[16px] text-[#1e293b] ltr-num">{fmt(estimatedTotal)}</span>
+            <div className="bg-[#F9F9F6] rounded-2xl p-3 flex flex-col gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#64748b]">{t('vp.selectedVehiclesListHeading')} ({selectedIds.size})</p>
+              <div className="flex flex-col gap-1.5">
+                {selectedVehicles.map((v) => (
+                  <div key={v.id} className="flex items-center gap-2 bg-white rounded-xl px-2.5 py-2">
+                    <button onClick={() => toggleSelect(v.id)} className="shrink-0 text-[#b91c1c] cursor-pointer"><X size={14} /></button>
+                    <Car size={14} className="shrink-0 text-[#64748b]" />
+                    <span className="flex-1 min-w-0 text-[12.5px] font-semibold text-[#1e293b] truncate">
+                      {vehicleDisplayName(v.vehicle_type, v.model)}{v.color ? ` · ${v.color}` : ''} · {v.owner_name}
+                    </span>
+                    <span className="shrink-0 font-bold text-[12.5px] text-[#166534] ltr-num">{fmt(v.shadi_full_day_rate_pkr)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between pt-1.5 border-t border-[#e5e2d0]">
+                <span className="text-[13px] font-bold text-[#1e293b]">{t('vp.totalLabel')}</span>
+                <span className="font-extrabold text-[16px] text-[#1e293b] ltr-num">{fmt(estimatedTotal)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11.5px] text-[#92400e]">{t('vp.estimatedAdvanceLabel').replace('{pct}', '20')}</span>
+                <span className="font-semibold text-[12.5px] text-[#92400e] ltr-num">{fmt(Math.round(estimatedTotal * 0.2))}</span>
+              </div>
             </div>
           )}
+
+          <div className="flex items-start gap-2 text-[11px] text-[#1e3a5f] bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-2.5">
+            <Info size={13} className="shrink-0 mt-0.5 text-[#2563eb]" />
+            <span>{t('vp.noMoneyBeforeAcceptNote')}</span>
+          </div>
 
           <button onClick={submit} disabled={submitting || vehicles.length === 0} className="w-full bg-[#166534] text-white rounded-xl py-3 font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2">
             {submitting ? <Loader2 size={16} className="animate-spin" /> : null} {t('vp.sendRequestsBtn')}
