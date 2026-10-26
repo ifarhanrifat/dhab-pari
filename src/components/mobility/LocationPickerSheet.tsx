@@ -69,8 +69,25 @@ const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr
 
 interface PhotonProps { name?: string; street?: string; city?: string; county?: string; state?: string }
 interface PhotonFeature { geometry: { coordinates: [number, number] }; properties: PhotonProps }
-function photonLabel(p: PhotonProps): string {
-  return [p.name, p.street, p.city, p.county, p.state].filter(Boolean).join(', ')
+
+// Real ask, 2026-10-26: "the destination and starting point... is
+// showing english and big names... I want it should display in Urdu
+// names." Confirmed live (direct Photon query): for a specific
+// landmark/road, OSM frequently only has ONE name tag at all, in Latin
+// script — there is no Urdu alternative to request, Accept-Language: ur
+// genuinely can't produce one. The admin levels (city/county/state)
+// reliably DO have name:ur tags and already come back correctly in
+// Urdu — the ugly result was a mashup of one English segment glued to
+// three Urdu ones in the same string, not a translation failure on our
+// end. Rather than show that mashup, drop a `name`/`street` segment
+// that isn't actually in Arabic/Urdu script when displaying in Urdu —
+// the pin's real lat/lng is never affected, only which text labels it.
+const ARABIC_SCRIPT_RE = /[؀-ۿ]/
+function isUrduScript(s: string | undefined): boolean { return !!s && ARABIC_SCRIPT_RE.test(s) }
+function photonLabel(p: PhotonProps, isUrdu = false): string {
+  const name = !isUrdu || isUrduScript(p.name) ? p.name : undefined
+  const street = !isUrdu || isUrduScript(p.street) ? p.street : undefined
+  return [name, street, p.city, p.county, p.state].filter(Boolean).join(', ')
 }
 
 // Real ask, 2026-10-26: "try to display the addresses in Urdu and not
@@ -109,7 +126,7 @@ export async function geocodeReverse(lat: number, lng: number, isUrdu: boolean):
   const res = await fetch(`/api/geocode?mode=reverse&lat=${lat}&lon=${lng}&lang=${isUrdu ? 'ur' : 'en'}`)
   if (!res.ok) return null
   const data = (await res.json()) as { features: PhotonFeature[] }
-  const label = data.features[0] ? photonLabel(data.features[0].properties) : ''
+  const label = data.features[0] ? photonLabel(data.features[0].properties, isUrdu) : ''
   return label || null
 }
 
