@@ -41,13 +41,22 @@ import { ChatButton } from '@/components/portal/ChatButton'
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 type Kind = 'machinery' | 'tractor' | 'loader'
+const KINDS: Kind[] = ['machinery', 'tractor', 'loader']
 
 interface TractorService { service_key: string; name_en: string; name_ur: string; rate_pkr: number; unit: string }
 interface Vehicle {
-  id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; color: string | null; model: string | null
+  id: string; kind: Kind; owner_name: string; owner_mobile: string | null; vehicle_type: string; color: string | null; model: string | null
   machinery_hourly_rate_pkr: number | null; machinery_hourly_rate_min_pkr: number | null; machinery_min_hours: number | null; machinery_mobilization_fee_pkr: number | null
   loader_trip_rate_pkr: number | null; tractor_services: TractorService[] | null; cover_url: string | null; avg_rating: number | null
   shared_from_other_village: boolean; owner_village_name: string | null
+}
+// A vehicle's real per-unit rate, by its own kind — used for the hero's
+// "from" stat, each card's price line, and the rate-card table, so all
+// three read off one definition instead of three ad-hoc branches.
+function rateOf(v: Vehicle): number | null {
+  if (v.kind === 'machinery') return v.machinery_hourly_rate_pkr
+  if (v.kind === 'loader') return v.loader_trip_rate_pkr
+  return v.tractor_services?.[0]?.rate_pkr ?? null
 }
 interface RateOffer { id: string; proposed_rate_pkr: number; counter_rate_pkr: number | null; status: string }
 interface Booking {
@@ -56,6 +65,7 @@ interface Booking {
   actual_hours: number | null; total_amount_pkr: number | null
   requested_at: string; started_at: string | null; ended_at: string | null; pin: string | null
   notes: string | null; payment_method: string
+  pickup_address: string | null; pickup_lat: number | null; pickup_lng: number | null; trip_count: number
   vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null; color: string | null
 }
 
@@ -76,15 +86,27 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 const KIND_ICON: Record<Kind, typeof Wrench> = { machinery: Wrench, tractor: Tractor, loader: Truck }
+// Same per-kind tint the home page's category belt already uses (tractor/machine/loading) —
+// reused here so a card's icon zone reads as a real colored panel instead of blending into
+// the page background, matching the reference design's per-item tinted image zone.
+const KIND_TINT: Record<Kind, string> = { machinery: '#fde68a', tractor: '#d1fae5', loader: '#ffedd5' }
 
-export function EquipmentBookingPage({ kind }: { kind: Kind }) {
+export function EquipmentBookingPage({ kind: defaultKind }: { kind: Kind }) {
   const { t, isUrdu } = useLocale()
   const site = useSite()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
-  const Icon = KIND_ICON[kind]
 
   const [tab, setTab] = useState<'browse' | 'mine'>('browse')
+  // Real ask, 2026-10-26: the reference design's machinery screen is one
+  // unified catalog (construction/lifting/water/farm) filtered by category
+  // chips, plus a flat rate-card table underneath — this page used to be 3
+  // separate single-kind screens with neither. Our 3 real kinds (machinery/
+  // tractor/loader) are the honest equivalent of that category taxonomy
+  // (no fabricated cons/lift/water/farm split exists in the real data), so
+  // all 3 are fetched together here and `cat` filters client-side; each of
+  // the 3 thin page.tsx wrappers just picks which category starts selected.
+  const [cat, setCat] = useState<'all' | Kind>(defaultKind)
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
@@ -93,6 +115,9 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
   const [hours, setHours] = useState(1)
   const [serviceKey, setServiceKey] = useState('')
   const [material, setMaterial] = useState('bricks')
+  const [tripCount, setTripCount] = useState(1)
+  const [pickupLoc, setPickupLoc] = useState<PickedLocation | null>(null)
+  const [showPickupPicker, setShowPickupPicker] = useState(false)
   const [siteLoc, setSiteLoc] = useState<PickedLocation | null>(null)
   const [showPicker, setShowPicker] = useState(false)
   const [notes, setNotes] = useState('')
@@ -102,15 +127,17 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
   const [proposeRate, setProposeRate] = useState('')
   const [proposing, setProposing] = useState(false)
 
-  const loadVehicles = () => supabase.rpc('equipment_bookable_vehicles', { p_kind: kind }).then(({ data }) => setVehicles((data ?? []) as Vehicle[]))
-  const loadBookings = () => supabase.rpc('my_equipment_bookings').then(({ data }) => setBookings(((data ?? []) as Booking[]).filter((b) => b.kind === kind)))
+  const loadVehicles = () => Promise.all(KINDS.map((k) =>
+    supabase.rpc('equipment_bookable_vehicles', { p_kind: k }).then(({ data }) => ((data ?? []) as Omit<Vehicle, 'kind'>[]).map((v) => ({ ...v, kind: k })))
+  )).then((lists) => setVehicles(lists.flat()))
+  const loadBookings = () => supabase.rpc('my_equipment_bookings').then(({ data }) => setBookings((data ?? []) as Booking[]))
 
   useEffect(() => {
     if (!user) return
     setLoading(true)
     Promise.all([loadVehicles(), loadBookings()]).then(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, kind])
+  }, [user])
 
   useEffect(() => {
     if (tab !== 'mine' || !bookings.some((b) => b.status === 'in_progress')) return
@@ -124,17 +151,19 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
     setHours(v.machinery_min_hours ?? 1)
     setServiceKey(v.tractor_services?.[0]?.service_key ?? '')
     setMaterial('bricks')
+    setTripCount(1)
+    setPickupLoc(null)
     setSiteLoc(null)
     setNotes('')
     setPaymentMethod('cash')
     setRateOffer(null)
     setProposeRate('')
-    if (kind === 'machinery') {
+    if (v.kind === 'machinery') {
       supabase.rpc('my_proposed_machinery_rate', { p_vehicle_id: v.id }).then(({ data }) => setRateOffer((data as RateOffer | null) ?? null))
     }
   }
 
-  const hasNegotiableBand = kind === 'machinery' && openVehicle?.machinery_hourly_rate_min_pkr != null && openVehicle.machinery_hourly_rate_pkr != null && openVehicle.machinery_hourly_rate_min_pkr < openVehicle.machinery_hourly_rate_pkr
+  const hasNegotiableBand = openVehicle?.kind === 'machinery' && openVehicle.machinery_hourly_rate_min_pkr != null && openVehicle.machinery_hourly_rate_pkr != null && openVehicle.machinery_hourly_rate_min_pkr < openVehicle.machinery_hourly_rate_pkr
 
   const sendProposal = async () => {
     if (!openVehicle) return
@@ -165,23 +194,29 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
 
   const selectedService = openVehicle?.tractor_services?.find((s) => s.service_key === serviceKey) ?? null
   const acceptedRate = rateOffer?.status === 'accepted' ? (rateOffer.counter_rate_pkr ?? rateOffer.proposed_rate_pkr) : null
-  const unitRate = kind === 'tractor' ? (selectedService?.rate_pkr ?? 0) : (kind === 'machinery' ? (acceptedRate ?? openVehicle?.machinery_hourly_rate_pkr ?? 0) : (openVehicle?.loader_trip_rate_pkr ?? 0))
-  const mobilization = kind === 'machinery' ? (openVehicle?.machinery_mobilization_fee_pkr ?? 0) : 0
-  const estimatedTotal = kind === 'loader' ? unitRate : unitRate * hours + mobilization
+  const openKind = openVehicle?.kind
+  const unitRate = openKind === 'tractor' ? (selectedService?.rate_pkr ?? 0) : (openKind === 'machinery' ? (acceptedRate ?? openVehicle?.machinery_hourly_rate_pkr ?? 0) : (openVehicle?.loader_trip_rate_pkr ?? 0))
+  const mobilization = openKind === 'machinery' ? (openVehicle?.machinery_mobilization_fee_pkr ?? 0) : 0
+  const estimatedTotal = openKind === 'loader' ? unitRate * tripCount : unitRate * hours + mobilization
 
   const submitRequest = async () => {
     if (!openVehicle) return
     if (!siteLoc) { toast.error(t('vp.siteAddressRequired')); return }
+    if (openVehicle.kind === 'loader' && !pickupLoc) { toast.error(t('vp.goodsPickupAddressRequired')); return }
     setRequesting(true)
     const { error } = await supabase.rpc('create_equipment_booking', {
-      p_vehicle_id: openVehicle.id, p_kind: kind,
-      p_service_key: kind === 'tractor' ? serviceKey : null,
-      p_hours: kind === 'loader' ? null : hours,
+      p_vehicle_id: openVehicle.id, p_kind: openVehicle.kind,
+      p_service_key: openVehicle.kind === 'tractor' ? serviceKey : null,
+      p_hours: openVehicle.kind === 'loader' ? null : hours,
       p_site_address: siteLoc.label,
-      p_material: kind === 'loader' ? material : null,
+      p_material: openVehicle.kind === 'loader' ? material : null,
       p_site_lat: siteLoc.lat, p_site_lng: siteLoc.lng,
       p_notes: notes.trim() || null, p_payment_method: paymentMethod,
       p_accepted_offer_id: acceptedRate != null ? rateOffer!.id : null,
+      p_pickup_address: openVehicle.kind === 'loader' ? pickupLoc!.label : null,
+      p_pickup_lat: openVehicle.kind === 'loader' ? pickupLoc!.lat : null,
+      p_pickup_lng: openVehicle.kind === 'loader' ? pickupLoc!.lng : null,
+      p_trip_count: openVehicle.kind === 'loader' ? tripCount : 1,
     })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -198,19 +233,21 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
     loadBookings()
   }
 
-  const pageTitle = t(`vp.${kind}PageTitle`)
-  const pageSubtitle = t(`vp.${kind}PageSubtitle`)
-  const noVehiclesHint = t(`vp.no${kind.charAt(0).toUpperCase()}${kind.slice(1)}VehiclesHint`)
+  const kindTitle = (k: Kind) => t(`vp.${k}PageTitle`)
+  const pageTitle = cat === 'all' ? t('mv.tab.equipment') : kindTitle(cat)
+  const pageSubtitle = cat === 'all' ? t('vp.equipAllPageSubtitle') : t(`vp.${cat}PageSubtitle`)
+  const noVehiclesHint = cat === 'all' ? t('vp.noMachineryVehiclesHint') : t(`vp.no${cat.charAt(0).toUpperCase()}${cat.slice(1)}VehiclesHint`)
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
 
+  const filteredVehicles = cat === 'all' ? vehicles : vehicles.filter((v) => v.kind === cat)
+  const ratedVehicles = vehicles.filter((v) => v.avg_rating != null)
+  const avgRating = ratedVehicles.length > 0 ? (ratedVehicles.reduce((sum, v) => sum + (v.avg_rating ?? 0), 0) / ratedVehicles.length).toFixed(1) : '—'
+  const minRate = vehicles.length > 0 ? Math.min(...vehicles.map((v) => rateOf(v) ?? Infinity)) : null
+  const catChips: ('all' | Kind)[] = ['all', ...KINDS]
+
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <h1 className="font-extrabold text-[20px] text-[#005A36] flex items-center gap-2"><Icon size={19} /> {pageTitle}</h1>
-        <p className="text-[12.5px] text-[#64748b] mt-0.5">{pageSubtitle}</p>
-      </div>
-
       <div className="flex items-center gap-1 bg-white border border-[#e5e2d0] rounded-full p-1 w-fit">
         <button onClick={() => setTab('browse')} className="px-4 py-1.5 rounded-full text-[12.5px] font-bold cursor-pointer" style={{ background: tab === 'browse' ? '#166534' : 'transparent', color: tab === 'browse' ? '#fff' : '#64748b' }}>{t('vp.browseTab')}</button>
         <button onClick={() => setTab('mine')} className="relative px-4 py-1.5 rounded-full text-[12.5px] font-bold cursor-pointer" style={{ background: tab === 'mine' ? '#166534' : 'transparent', color: tab === 'mine' ? '#fff' : '#64748b' }}>
@@ -221,41 +258,72 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
 
       {tab === 'browse' ? (
         <>
-          <div className="bg-[#005A36] rounded-2xl p-3">
-            <p className="text-[10.5px] font-bold uppercase tracking-[0.05em] text-white/75">{t('vp.committeeRateHeading')}</p>
+          <section className="rounded-2xl p-3.5 flex flex-col gap-2 text-white border border-[#D4AF37]/20" style={{ background: 'linear-gradient(to right, #005A36, #166534)' }}>
+            <span className="self-start bg-[#D4AF37] text-[#0f172a] text-[9.5px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1"><Wrench size={11} /> {t('vp.committeeRateHeading')}</span>
+            <h1 className="font-extrabold text-[19px] leading-tight">{pageTitle}</h1>
+            <p className="text-[11.5px] text-[#dcfce7] leading-snug">{pageSubtitle}</p>
+            <div className="grid grid-cols-3 gap-1.5 mt-0.5">
+              <div className="rounded-xl bg-white/10 px-2 py-1.5">
+                <p className="font-extrabold text-[14px] ltr-num leading-none">{vehicles.length}</p>
+                <p className="text-[9px] text-[#dcfce7] mt-1">{t('vp.equipListedStat')}</p>
+              </div>
+              <div className="rounded-xl bg-white/10 px-2 py-1.5">
+                <p className="font-extrabold text-[14px] ltr-num leading-none">{avgRating !== '—' ? `⭐ ${avgRating}` : '—'}</p>
+                <p className="text-[9px] text-[#dcfce7] mt-1">{t('vp.equipAvgRatingStat')}</p>
+              </div>
+              <div className="rounded-xl bg-white/10 px-2 py-1.5">
+                <p className="font-extrabold text-[14px] ltr-num leading-none">{minRate != null && Number.isFinite(minRate) ? fmt(minRate) : '—'}</p>
+                <p className="text-[9px] text-[#dcfce7] mt-1">{t('vp.equipFromPriceStat')}/{t('vp.hoursShort')}</p>
+              </div>
+            </div>
+          </section>
+
+          <div className="flex gap-1.5 overflow-x-auto -mx-3.5 px-3.5 pb-0.5">
+            {catChips.map((c) => {
+              const on = cat === c
+              return (
+                <button key={c} onClick={() => setCat(c)}
+                  className="shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold cursor-pointer whitespace-nowrap border"
+                  style={{ background: on ? '#166534' : '#fff', color: on ? '#fff' : '#334155', borderColor: on ? '#166534' : '#e5e2d0' }}>
+                  {c === 'all' ? t('vp.equipAllCategoryChip') : kindTitle(c)}
+                </button>
+              )
+            })}
           </div>
-          {vehicles.length === 0 ? (
+
+          {filteredVehicles.length === 0 ? (
             <p className="text-center py-10 text-[#94a3b8] text-[14px]">{noVehiclesHint}</p>
           ) : (
             <div className="flex flex-col gap-2.5">
-              {vehicles.map((v) => {
-                const rate = kind === 'machinery' ? v.machinery_hourly_rate_pkr : kind === 'loader' ? v.loader_trip_rate_pkr : (v.tractor_services?.[0]?.rate_pkr ?? 0)
-                const mob = kind === 'machinery' ? v.machinery_mobilization_fee_pkr : null
-                const terms = kind === 'machinery' && v.machinery_min_hours != null
+              {filteredVehicles.map((v) => {
+                const CardIcon = KIND_ICON[v.kind]
+                const rate = rateOf(v)
+                const mob = v.kind === 'machinery' ? v.machinery_mobilization_fee_pkr : null
+                const terms = v.kind === 'machinery' && v.machinery_min_hours != null
                   ? `${t('vp.minHoursHint').replace('{hours}', String(v.machinery_min_hours))} · ${mob ? `${t('vp.mobilizationFeeLabel')} ${fmt(mob)}` : t('vp.freeDeliveryLabel')}`
-                  : kind === 'tractor' && v.tractor_services && v.tractor_services.length > 0
+                  : v.kind === 'tractor' && v.tractor_services && v.tractor_services.length > 0
                   ? v.tractor_services.map((s) => (isUrdu ? s.name_ur : s.name_en)).join(', ')
                   : null
                 const Wrapper = v.shared_from_other_village ? 'div' : 'button'
                 return (
-                  <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => openBooking(v) })}
+                  <Wrapper key={`${v.kind}-${v.id}`} {...(v.shared_from_other_village ? {} : { onClick: () => openBooking(v) })}
                     className={`w-full flex items-stretch bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden text-start shadow-[0_2px_6px_rgba(0,0,0,0.05)] min-h-[136px] ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}>
-                    <div className="w-[34%] shrink-0 relative bg-[#F9F9F6] flex items-center justify-center overflow-hidden">
+                    <div className="w-[34%] shrink-0 relative flex items-center justify-center overflow-hidden" style={{ background: v.cover_url ? '#F9F9F6' : KIND_TINT[v.kind] }}>
                       {v.cover_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
-                      ) : <Icon size={32} className="text-[#94a3b8]" />}
+                      ) : <CardIcon size={32} className="text-[#0f172a]/60" />}
                       {v.avg_rating != null && (
                         <span className="absolute top-1.5 start-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#16a34a] text-white ltr-num">⭐ {v.avg_rating}</span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0 p-2.5 flex flex-col gap-0.5">
-                      <p className="text-[9px] font-bold uppercase tracking-[0.04em] text-[#16a34a]">{pageTitle}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-[0.04em] text-[#16a34a]">{kindTitle(v.kind)}</p>
                       <p className="text-[13.5px] font-bold text-[#005A36] truncate">{vehicleDisplayName(v.vehicle_type, v.model)}</p>
                       <p className="text-[9.5px] text-[#64748b] truncate">{v.owner_name}</p>
                       <div className="flex items-baseline gap-1 mt-0.5">
                         <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{fmt(rate ?? 0)}</span>
-                        <span className="text-[9.5px] text-[#64748b]">{kind === 'loader' ? t('vp.baseAmountSuffix') : `/${t('vp.hoursShort')}`}</span>
+                        <span className="text-[9.5px] text-[#64748b]">{v.kind === 'loader' ? t('vp.baseAmountSuffix') : `/${t('vp.hoursShort')}`}</span>
                       </div>
                       {terms && <p className="text-[9.5px] text-[#475569] truncate">{terms}</p>}
                       {v.shared_from_other_village ? (
@@ -272,6 +340,27 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
               })}
             </div>
           )}
+
+          {vehicles.length > 0 && (
+            <section className="bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden">
+              <div className="px-3 py-2.5 text-[12.5px] font-bold text-[#005A36] border-b border-[#f1f5f9]">📋 {t('vp.equipRateCardHeading')}</div>
+              <div className="grid grid-cols-[1fr_72px_52px] gap-1.5 px-3 py-1.5 bg-[#F9F9F6] text-[10px] font-bold text-[#64748b]">
+                <span>{t('vp.equipRateCardVehicleCol')}</span><span>{t('vp.equipRateCardRateCol')}</span><span>{t('vp.equipRateCardMinCol')}</span>
+              </div>
+              {vehicles.map((v, i) => {
+                const RowIcon = KIND_ICON[v.kind]
+                const rate = rateOf(v)
+                const unit = v.kind === 'loader' ? t('vp.baseAmountSuffix') : `/${t('vp.hoursShort')}`
+                return (
+                  <div key={`${v.kind}-${v.id}`} className="grid grid-cols-[1fr_72px_52px] gap-1.5 items-center px-3 py-1.5 border-t border-[#f8fafc]" style={{ background: i % 2 ? '#fcfcfa' : '#fff' }}>
+                    <span className="flex items-center gap-1.5 text-[11px] text-[#1e293b] truncate"><RowIcon size={11} className="shrink-0 text-[#64748b]" /> {vehicleDisplayName(v.vehicle_type, v.model)}</span>
+                    <span className="font-sans text-[11px] font-bold text-[#166534] ltr-num truncate">{rate != null ? `${fmt(rate)}${v.kind === 'loader' ? '' : unit}` : '—'}</span>
+                    <span className="text-[10.5px] text-[#64748b]">{v.kind === 'machinery' && v.machinery_min_hours != null ? `${v.machinery_min_hours}${t('vp.hoursShort')}` : '—'}</span>
+                  </div>
+                )
+              })}
+            </section>
+          )}
         </>
       ) : (
         bookings.length === 0 ? (
@@ -283,9 +372,11 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[14px] font-bold text-[#1e293b]">{vehicleDisplayName(b.vehicle_type, b.model)} — {b.owner_name}</p>
-                    <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {b.site_address}</p>
+                    <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1">
+                      <MapPin size={11} className="shrink-0 mt-0.5" /> {b.kind === 'loader' && b.pickup_address ? `${b.pickup_address} → ${b.site_address}` : b.site_address}
+                    </p>
                     <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">
-                      {b.requested_hours != null ? `${b.requested_hours} ${t('vp.hoursShort')} · ` : ''}{fmt(b.rate_pkr)}{kind === 'loader' ? '' : `/${t('vp.hoursShort')}`}
+                      {b.kind === 'loader' ? `${b.trip_count} ${t('vp.tripsShort')} · ` : b.requested_hours != null ? `${b.requested_hours} ${t('vp.hoursShort')} · ` : ''}{fmt(b.rate_pkr)}{b.kind === 'loader' ? '' : `/${t('vp.hoursShort')}`}
                     </p>
                     {b.notes && <p className="text-[11.5px] text-[#64748b] mt-0.5 italic">&ldquo;{b.notes}&rdquo;</p>}
                     {(b.status === 'accepted' || b.status === 'in_progress') && (
@@ -358,7 +449,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
         <MobilityBottomSheet title={vehicleDisplayName(openVehicle.vehicle_type, openVehicle.model)} onClose={() => setOpenVehicle(null)}>
           <p className="text-[12px] text-[#64748b] -mt-2 mb-3">{openVehicle.owner_name}</p>
 
-          {kind === 'tractor' && openVehicle.tractor_services && openVehicle.tractor_services.length > 0 && (
+          {openKind === 'tractor' && openVehicle.tractor_services && openVehicle.tractor_services.length > 0 && (
             <>
               <label className="block text-[12px] font-semibold text-[#64748b] mb-1.5">{t('vp.chooseServiceLabel')}</label>
               <div className="flex flex-col gap-2 mb-3">
@@ -377,7 +468,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
             </>
           )}
 
-          {kind === 'loader' && (
+          {openKind === 'loader' && (
             <>
               <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.chooseMaterialLabel')}</label>
               <div className="flex flex-wrap gap-1.5 mb-3">
@@ -389,10 +480,38 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
                   </button>
                 ))}
               </div>
+
+              <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.tripCountLabel')}</label>
+              <div className="flex items-center gap-2 mb-3">
+                <button onClick={() => setTripCount((n) => Math.max(1, n - 1))} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">−</button>
+                <span className="font-extrabold text-[18px] w-10 text-center ltr-num">{tripCount}</span>
+                <button onClick={() => setTripCount((n) => n + 1)} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">+</button>
+              </div>
+
+              {showPickupPicker ? (
+                <div className="mb-3">
+                  <LocationPickerSheet
+                    title={t('vp.goodsPickupAddressLabel')}
+                    initial={pickupLoc}
+                    inline
+                    onClose={() => setShowPickupPicker(false)}
+                    onConfirm={(loc) => { setPickupLoc(loc); setShowPickupPicker(false) }}
+                  />
+                </div>
+              ) : (
+                <>
+                  <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.goodsPickupAddressLabel')}</label>
+                  {pickupLoc && <LeafletMap pins={[{ lat: pickupLoc.lat, lng: pickupLoc.lng, color: '#D4AF37' }]} height={120} className="rounded-xl mb-2" />}
+                  <button onClick={() => setShowPickupPicker(true)} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
+                    <MapPin size={15} className="text-[#D4AF37] shrink-0" />
+                    <span className={`text-[13.5px] truncate ${pickupLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{pickupLoc ? pickupLoc.label : t('vp.goodsPickupAddressPlaceholder')}</span>
+                  </button>
+                </>
+              )}
             </>
           )}
 
-          {kind !== 'loader' && (
+          {openKind !== 'loader' && (
             <>
               <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.hoursLabel')}</label>
               <div className="flex items-center gap-2 mb-3">
@@ -436,7 +555,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
           {showPicker ? (
             <div className="mb-3">
               <LocationPickerSheet
-                title={t('vp.siteAddressLabel')}
+                title={openKind === 'loader' ? t('vp.dropAddressLabel') : t('vp.siteAddressLabel')}
                 initial={siteLoc}
                 inline
                 onClose={() => setShowPicker(false)}
@@ -445,11 +564,11 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
             </div>
           ) : (
             <>
-              <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.siteAddressLabel')}</label>
+              <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{openKind === 'loader' ? t('vp.dropAddressLabel') : t('vp.siteAddressLabel')}</label>
               {siteLoc && <LeafletMap pins={[{ lat: siteLoc.lat, lng: siteLoc.lng, color: '#166534' }]} height={140} className="rounded-xl mb-2" />}
               <button onClick={() => setShowPicker(true)} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
                 <MapPin size={15} className="text-[#166534] shrink-0" />
-                <span className={`text-[13.5px] truncate ${siteLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{siteLoc ? siteLoc.label : t('vp.siteAddressPlaceholder')}</span>
+                <span className={`text-[13.5px] truncate ${siteLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{siteLoc ? siteLoc.label : (openKind === 'loader' ? t('vp.dropAddressPlaceholder') : t('vp.siteAddressPlaceholder'))}</span>
               </button>
             </>
           )}
@@ -471,7 +590,7 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
 
           <div className="bg-[#F9F9F6] rounded-xl p-3 mb-3">
             <div className="flex items-center justify-between text-[13px]">
-              <span className="text-[#64748b]">{kind === 'loader' ? t('vp.baseAmountSuffix') : `${fmt(unitRate)} × ${hours}${t('vp.hoursShort')}`}</span>
+              <span className="text-[#64748b] ltr-num">{openKind === 'loader' ? `${fmt(unitRate)} × ${tripCount} ${t('vp.tripsShort')}` : `${fmt(unitRate)} × ${hours}${t('vp.hoursShort')}`}</span>
               <span className="font-bold text-[#1e293b] ltr-num">{fmt(estimatedTotal)}</span>
             </div>
             {mobilization > 0 && (
@@ -482,12 +601,14 @@ export function EquipmentBookingPage({ kind }: { kind: Kind }) {
             )}
           </div>
 
-          <div className="flex items-start gap-2 text-[11.5px] text-[#1e3a5f] bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-2.5 mb-3">
-            <AlertCircle size={14} className="shrink-0 mt-0.5 text-[#2563eb]" />
-            <span>{t('vp.noAdvanceExplainer')}</span>
+          <div className="flex flex-col gap-1.5 text-[11.5px] text-[#1e3a5f] bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-2.5 mb-3">
+            <p className="flex items-center gap-1.5 font-bold"><AlertCircle size={13} className="shrink-0 text-[#2563eb]" /> {t('vp.howPaymentWorksHeading')}</p>
+            <p>1. {t('vp.noAdvanceStepNote')}</p>
+            <p>2. {t('vp.paymentStepDriverAcceptsNote')}</p>
+            <p>3. {t('vp.paymentStepPayAfterJobNote')}</p>
           </div>
 
-          <button onClick={submitRequest} disabled={requesting || (kind === 'tractor' && !serviceKey)} className="w-full flex items-center justify-center gap-1.5 bg-[#166534] text-white rounded-xl py-3 font-semibold cursor-pointer disabled:opacity-50">
+          <button onClick={submitRequest} disabled={requesting || (openKind === 'tractor' && !serviceKey)} className="w-full flex items-center justify-center gap-1.5 bg-[#166534] text-white rounded-xl py-3 font-semibold cursor-pointer disabled:opacity-50">
             {requesting ? t('action.saving') : <>{t('vp.sendRequestBtn')} <span className="ltr-num">· {fmt(estimatedTotal)}</span></>}
           </button>
         </MobilityBottomSheet>
