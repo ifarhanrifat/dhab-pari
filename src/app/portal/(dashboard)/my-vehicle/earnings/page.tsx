@@ -23,6 +23,7 @@ interface Summary {
 }
 interface LedgerRow { kind: string; label: string; amount: number; at: string }
 interface PendingTopup { id: string; amount_pkr: number; announced_at: string }
+interface StatementRow { id: string; voucher_no: string; date: string; particular: string; amount_pkr: number; direction: 'debit' | 'credit'; created_at: string }
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -41,18 +42,22 @@ export default function MyVehicleEarningsPage() {
   const [pendingTopups, setPendingTopups] = useState<PendingTopup[]>([])
   const [showTopup, setShowTopup] = useState(false)
   const [negotiationInbox, setNegotiationInbox] = useState<{ id: string; kind: string; status: string; item: string | null; last_message: string | null; as_role: string }[]>([])
+  const [statement, setStatement] = useState<StatementRow[]>([])
+  const [showStatement, setShowStatement] = useState(false)
 
   const reload = async (id: string) => {
-    const [{ data: s }, { data: led }, { data: inbox }, { data: topups }] = await Promise.all([
+    const [{ data: s }, { data: led }, { data: inbox }, { data: topups }, { data: stmt }] = await Promise.all([
       supabase.rpc('vehicle_dashboard_summary', { p_vehicle_id: id }),
       supabase.rpc('vehicle_today_ledger', { p_vehicle_id: id }),
       supabase.rpc('my_negotiation_threads'),
       supabase.from('vehicle_wallet_topups').select('id, amount_pkr, announced_at').eq('vehicle_id', id).eq('status', 'announced').order('announced_at', { ascending: false }),
+      supabase.rpc('vehicle_wallet_statement', { p_vehicle_id: id }),
     ])
     setSummary(s as unknown as Summary)
     setLedger((led ?? []) as LedgerRow[])
     setNegotiationInbox(((inbox ?? []) as typeof negotiationInbox).filter((th) => th.as_role === 'driver'))
     setPendingTopups((topups ?? []) as PendingTopup[])
+    setStatement((stmt ?? []) as StatementRow[])
   }
 
   useEffect(() => {
@@ -132,6 +137,43 @@ export default function MyVehicleEarningsPage() {
           <p className="font-sans text-[13px] text-violet-900">{t('cm.onLumpsumNote')} <span className="font-bold ltr-num">{fmt(summary.lumpsum_fee_pkr ?? 0)}</span></p>
         </div>
       )}
+
+      {/* Real ask, 2026-10-27: "where in the driver wallet and account
+          I can see that deposited payment? Where it has been
+          recorded?" — the balance number above was already live, but
+          nowhere in the app showed WHY it changed: no top-up log, no
+          commission log, nothing beyond the one running number. This
+          reads back every real voucher that's ever touched this
+          vehicle's own ledger account (vehicle_wallet_statement, 739)
+          — top-ups, per-order commission, route/trip posting stakes —
+          the same real data the balance card itself is computed from. */}
+      <div>
+        <p className="font-sans text-[12px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-1.5">{t('mv.walletStatementHeading')}</p>
+        {statement.length === 0 ? (
+          <p className="font-sans text-[12.5px] text-[#64748b]">{t('mv.noTransactionsYetNote')}</p>
+        ) : (
+          <>
+            <div className="bg-white border border-[#e5e2d0] rounded-2xl divide-y divide-[#f1f5f9]">
+              {(showStatement ? statement : statement.slice(0, 6)).map((row) => (
+                <div key={row.id} className="flex items-center justify-between gap-3 p-3">
+                  <div className="min-w-0">
+                    <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{row.particular}</p>
+                    <p className="font-sans text-[10.5px] text-[#94a3b8] mt-0.5 ltr-num">{row.voucher_no} · {new Date(row.date).toLocaleDateString('en-GB')}</p>
+                  </div>
+                  <p className={`font-sans text-[13.5px] font-bold shrink-0 ltr-num ${row.direction === 'credit' ? 'text-[#166534]' : 'text-[#b91c1c]'}`}>
+                    {row.direction === 'credit' ? '+' : '−'}{fmt(row.amount_pkr)}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {statement.length > 6 && (
+              <button onClick={() => setShowStatement((v) => !v)} className="w-full text-center font-sans text-[12px] font-semibold text-[#166534] mt-1.5 cursor-pointer">
+                {showStatement ? t('action.showLess') : t('action.showMore')}
+              </button>
+            )}
+          </>
+        )}
+      </div>
 
       {summary?.last_settlement_date && (
         <p className="font-sans text-[12.5px] text-[#64748b]">{t('cm.lastSettlementLabel')} <span className="font-semibold text-[#1e293b]">{fmt(summary.last_settlement_amount ?? 0)}</span> — {new Date(summary.last_settlement_date).toLocaleDateString('en-GB')}</p>
