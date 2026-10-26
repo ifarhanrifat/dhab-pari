@@ -37,6 +37,8 @@ import { RateAndReport } from '@/components/portal/RateAndReport'
 import { ShareBookingButton } from '@/components/portal/ShareBookingButton'
 import { CallButton } from '@/components/portal/CallButton'
 import { ChatButton } from '@/components/portal/ChatButton'
+import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
+import { fetchRoadRoute, type RoadRoute } from '@/lib/roadRoute'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -121,6 +123,7 @@ export function EquipmentBookingPage({ kind: defaultKind }: { kind: Kind }) {
   const [showPickupPicker, setShowPickupPicker] = useState(false)
   const [siteLoc, setSiteLoc] = useState<PickedLocation | null>(null)
   const [showPicker, setShowPicker] = useState(false)
+  const [pickupDropRoute, setPickupDropRoute] = useState<RoadRoute | null>(null)
   const [notes, setNotes] = useState('')
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
@@ -148,6 +151,19 @@ export function EquipmentBookingPage({ kind: defaultKind }: { kind: Kind }) {
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, bookings])
+
+  // Real ask, 2026-10-27: "why this system is using two maps lol, it
+  // should display start and destination on one map along with route"
+  // — the loader's pickup + drop pickers each showed their own small
+  // map with just one pin. One shared map with both pins + the real
+  // road route between them instead, same reasoning as the city-
+  // purchase rebuild earlier this session.
+  useEffect(() => {
+    if (!pickupLoc || !siteLoc) { setPickupDropRoute(null); return }
+    let cancelled = false
+    fetchRoadRoute({ lat: pickupLoc.lat, lng: pickupLoc.lng }, { lat: siteLoc.lat, lng: siteLoc.lng }).then((r) => { if (!cancelled) setPickupDropRoute(r) })
+    return () => { cancelled = true }
+  }, [pickupLoc?.lat, pickupLoc?.lng, siteLoc?.lat, siteLoc?.lng])
 
   const openBooking = (v: Vehicle) => {
     setOpenVehicle(v)
@@ -513,7 +529,6 @@ export function EquipmentBookingPage({ kind: defaultKind }: { kind: Kind }) {
               ) : (
                 <>
                   <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.goodsPickupAddressLabel')}</label>
-                  {pickupLoc && <LeafletMap pins={[{ lat: pickupLoc.lat, lng: pickupLoc.lng, color: '#D4AF37' }]} height={120} className="rounded-xl mb-2" />}
                   <button onClick={() => setShowPickupPicker(true)} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
                     <MapPin size={15} className="text-[#D4AF37] shrink-0" />
                     <span className={`text-[13.5px] truncate ${pickupLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{pickupLoc ? pickupLoc.label : t('vp.goodsPickupAddressPlaceholder')}</span>
@@ -577,11 +592,23 @@ export function EquipmentBookingPage({ kind: defaultKind }: { kind: Kind }) {
           ) : (
             <>
               <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{openKind === 'loader' ? t('vp.dropAddressLabel') : t('vp.siteAddressLabel')}</label>
-              {siteLoc && <LeafletMap pins={[{ lat: siteLoc.lat, lng: siteLoc.lng, color: '#166534' }]} height={140} className="rounded-xl mb-2" />}
               <button onClick={() => setShowPicker(true)} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
                 <MapPin size={15} className="text-[#166534] shrink-0" />
                 <span className={`text-[13.5px] truncate ${siteLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{siteLoc ? siteLoc.label : (openKind === 'loader' ? t('vp.dropAddressPlaceholder') : t('vp.siteAddressPlaceholder'))}</span>
               </button>
+              {(pickupLoc || siteLoc) && (() => {
+                const pins: LeafletPin[] = []
+                if (openKind === 'loader' && pickupLoc) pins.push({ lat: pickupLoc.lat, lng: pickupLoc.lng, label: pickupLoc.label, color: '#D4AF37', emoji: '🛍️' })
+                if (siteLoc) pins.push({ lat: siteLoc.lat, lng: siteLoc.lng, label: siteLoc.label, color: '#166534', emoji: '📍' })
+                return (
+                  <div className="relative mb-3">
+                    <LeafletMap pins={pins} route={pickupDropRoute?.path} height={160} className="rounded-xl" />
+                    {pickupDropRoute && (
+                      <span className="absolute top-2 end-2 z-10 bg-white/95 backdrop-blur-sm text-[10.5px] font-bold px-2 py-1 rounded-full text-[#1e293b] shadow ltr-num">{pickupDropRoute.distanceKm.toFixed(1)} km 🛣️</span>
+                    )}
+                  </div>
+                )
+              })()}
             </>
           )}
 
