@@ -42,6 +42,7 @@ import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface City { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null; is_home_city: boolean }
+interface FeeEstimate { distance_fare_pkr: number; detour_fuel_pkr: number; tip_pkr: number; total_fee_pkr: number }
 interface MyRequest { id: string; item: string; status: string; total_fare_pkr: number | null; estimated_fee_pkr: number | null; created_at: string; city_name: string; city_name_ur: string | null; as_role: string }
 type Area = 'city' | 'out_of_city'
 type RideType = 'bike' | 'car'
@@ -107,9 +108,6 @@ export default function CityPurchasePage() {
   useEffect(() => { if (area === 'out_of_city' && rideType === 'bike') setRideType('car') }, [area, rideType])
 
   const distanceKm = pickupLoc && deliveryLoc ? haversineKm(pickupLoc, deliveryLoc) : null
-  const baseFee = area === 'out_of_city' ? 600 : 300
-  const fuelFee = distanceKm != null ? Math.round(distanceKm * 8) : 0
-  const totalFee = baseFee + fuelFee + tipPkr
 
   const nearestCity = (loc: PickedLocation | null): City | null => {
     if (!loc) return null
@@ -121,6 +119,31 @@ export default function CityPurchasePage() {
       return d < bestD ? c : best
     })
   }
+
+  // Real gap found, 2026-10-26: this preview used to invent its own
+  // flat area-base-fee + one-way haversine(pickup, delivery) number —
+  // completely different math from what accept_city_purchase_request
+  // actually charges once a driver accepts (round-trip city.distance_km
+  // × the vehicle's own per_km_pkr, plus a pickup-detour top-up). A
+  // rider could see one number here and get charged something else
+  // entirely. Now calls the same real formula server-side (migration
+  // 733's city_purchase_fee_estimate), using the matched city the
+  // backend will actually bill against — the only unknown left is the
+  // driver's own service fee, added once someone accepts.
+  const matchedCity = nearestCity(pickupLoc)
+  const [feeEstimate, setFeeEstimate] = useState<FeeEstimate | null>(null)
+  const [estimating, setEstimating] = useState(false)
+  useEffect(() => {
+    if (!matchedCity || !pickupLoc) { setFeeEstimate(null); return }
+    setEstimating(true)
+    let cancelled = false
+    supabase.rpc('city_purchase_fee_estimate', {
+      p_city_id: matchedCity.id, p_pickup_lat: pickupLoc.lat, p_pickup_lng: pickupLoc.lng, p_tip_pkr: tipPkr,
+    }).then(({ data }) => { if (!cancelled) { setFeeEstimate((data as FeeEstimate) ?? null); setEstimating(false) } })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchedCity?.id, pickupLoc?.lat, pickupLoc?.lng, tipPkr])
+  const totalFee = feeEstimate?.total_fee_pkr ?? 0
 
   const post = async () => {
     if (!pickupLoc) { toast.error(t('vp.pickupShopPlaceholder')); return }
@@ -257,13 +280,15 @@ export default function CityPurchasePage() {
 
       <div className="bg-[#F9F9F6] rounded-xl p-3">
         <div className="flex items-center justify-between text-[13px]">
-          <span className="text-[#64748b]">{area === 'out_of_city' ? t('vp.baseFeeOutstationLabel') : t('vp.baseFeeCityLabel')}</span>
-          <span className="font-bold text-[#1e293b] ltr-num">{fmt(baseFee)}</span>
+          <span className="text-[#64748b]">{t('vp.fuelFeeLabel')} <span className="ltr-num">({matchedCity ? matchedCity.name : '—'} · {t('vp.roundTripNote')})</span></span>
+          <span className="font-bold text-[#1e293b] ltr-num">{fmt(feeEstimate?.distance_fare_pkr ?? 0)}</span>
         </div>
-        <div className="flex items-center justify-between text-[12px] mt-1 text-[#64748b]">
-          <span>{t('vp.fuelFeeLabel')} <span className="ltr-num">({distanceKm != null ? distanceKm.toFixed(1) : '0'} km × Rs 8)</span></span>
-          <span className="ltr-num">{fmt(fuelFee)}</span>
-        </div>
+        {!!feeEstimate?.detour_fuel_pkr && (
+          <div className="flex items-center justify-between text-[12px] mt-1 text-[#64748b]">
+            <span>{t('vp.detourFuelLabel')}</span>
+            <span className="ltr-num">{fmt(feeEstimate.detour_fuel_pkr)}</span>
+          </div>
+        )}
         {tipPkr > 0 && (
           <div className="flex items-center justify-between text-[12px] mt-1 text-[#64748b]">
             <span>{t('vp.additionalTipLabel')}</span>
@@ -271,10 +296,11 @@ export default function CityPurchasePage() {
           </div>
         )}
         <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-[#e5e2d0]">
-          <span className="font-bold text-[13.5px] text-[#1e293b]">{t('vp.totalFeeLabel')}</span>
+          <span className="font-bold text-[13.5px] text-[#1e293b]">{estimating ? t('action.loading') : t('vp.totalFeeLabel')}</span>
           <span className="font-extrabold text-[16px] text-[#166534] ltr-num">{fmt(totalFee)}</span>
         </div>
-        <p className="text-[10.5px] text-[#94a3b8] mt-1">{t('vp.goodsCostSeparateNote')}</p>
+        <p className="text-[10.5px] text-[#94a3b8] mt-1">{t('vp.driverServiceFeeAddedLaterNote')}</p>
+        <p className="text-[10.5px] text-[#94a3b8] mt-0.5">{t('vp.goodsCostSeparateNote')}</p>
       </div>
 
       <div className="flex flex-col gap-1.5 text-[11.5px] text-[#1e3a5f] bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-2.5">

@@ -25,7 +25,7 @@ import { RateAndReport } from '@/components/portal/RateAndReport'
 interface RequestDetail {
   id: string; item: string; has_item_attachment: boolean; pickup_label: string | null
   pickup_lat: number | null; pickup_lng: number | null; goods_budget_pkr: number; status: string
-  distance_fare_pkr: number | null; addon_fee_pkr: number | null; detour_fuel_pkr: number | null; total_fare_pkr: number | null
+  distance_fare_pkr: number | null; addon_fee_pkr: number | null; detour_fuel_pkr: number | null; total_fare_pkr: number | null; tip_pkr: number
   actual_goods_cost_pkr: number | null; has_bill_attachment: boolean
   city_name: string; city_name_ur: string | null; city_km: number
   accepted_vehicle_id: string | null; accepted_owner_name: string | null; accepted_owner_mobile: string | null; accepted_vehicle_type: string | null
@@ -206,6 +206,9 @@ export default function CityPurchaseDetailPage() {
             <div className="flex justify-between"><span className="text-[#64748b]">{t('vp.driverServiceFeeLabel')}</span><span className="ltr-num text-[#1e293b]">{fmt(request.addon_fee_pkr ?? 0)}</span></div>
             {!!request.detour_fuel_pkr && (
               <div className="flex justify-between"><span className="text-[#64748b]">{t('vp.detourFuelLabel')}</span><span className="ltr-num text-[#1e293b]">{fmt(request.detour_fuel_pkr)}</span></div>
+            )}
+            {!!request.tip_pkr && (
+              <div className="flex justify-between"><span className="text-[#64748b]">{t('vp.additionalTipLabel')}</span><span className="ltr-num text-[#1e293b]">{fmt(request.tip_pkr)}</span></div>
             )}
             <div className="flex justify-between font-bold text-[14px] pt-1 border-t border-[#f1f5f9]"><span className="text-[#1e293b]">{t('vp.totalLabel')}</span><span className="ltr-num text-[#166534]">{fmt(request.total_fare_pkr ?? 0)}</span></div>
             {request.goods_budget_pkr > 0 && <div className="flex justify-between"><span className="text-[#64748b]">{t('vp.goodsBudgetEstimateLabel')}</span><span className="ltr-num text-[#1e293b]">{fmt(request.goods_budget_pkr)}</span></div>}
