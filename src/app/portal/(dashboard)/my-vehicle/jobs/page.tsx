@@ -108,6 +108,27 @@ export default function MyVehicleJobsPage() {
         out.push({ id: p.delivery_id, type: 'parcel', title: p.description, subtitle: p.pickup_label ?? '', amount: null, at: new Date().toISOString(), needsAction: true, done: false, href: '/portal/my-vehicle/requests' })
       }
     }
+    {
+      // Real gap found live, 2026-10-26: once a driver accepts a City
+      // Purchase invitation above, the request falls out of
+      // my_city_purchase_invitations (status moves past 'ringing') but
+      // never appeared anywhere else in this list either — an accepted
+      // job just vanished from the driver's own Jobs screen with nowhere
+      // to go start/complete it. my_city_purchase_requests() already
+      // includes driver-accepted rows (as_role: 'driver'), it just
+      // wasn't being read from here yet.
+      const { data: myCp } = await supabase.rpc('my_city_purchase_requests')
+      for (const r of (myCp ?? []) as { id: string; item: string; status: string; estimated_fee_pkr: number | null; total_fare_pkr: number | null; pickup_label: string | null; delivery_label: string | null; created_at: string; as_role: string }[]) {
+        if (r.as_role !== 'driver') continue
+        out.push({
+          id: r.id, type: 'city_purchase', title: r.item,
+          subtitle: r.pickup_label && r.delivery_label ? `${r.pickup_label} → ${r.delivery_label}` : (r.pickup_label ?? r.delivery_label ?? ''),
+          amount: r.total_fare_pkr ?? r.estimated_fee_pkr, at: r.created_at,
+          needsAction: false, done: ['completed', 'cancelled'].includes(r.status),
+          href: `/portal/marketplace/city-purchase/${r.id}`,
+        })
+      }
+    }
     if (v.delivers) {
       const { data } = await supabase.rpc('my_shop_delivery_invitations', { p_vehicle_id: v.id })
       for (const i of (data ?? []) as { order_id: string; shop_name: string; delivery_address: string; delivery_fee_pkr: number; invited_at: string }[]) {
