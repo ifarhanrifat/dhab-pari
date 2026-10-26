@@ -7,16 +7,19 @@
 // destination then the car will be display and then there will be full
 // booking cataogry... vehical catagory wise like any professional app."
 //
-// Three sections, in that fixed order:
+// Two sections, in that fixed order:
 // 1. Adda vans going here — vehicle_trip_offers rows spawned by an adda
 //    check-in (migration 415: every check-in gets a real trip offer),
 //    tagged source='adda' by browse_open_trip_offers (698).
 // 2. Shared rides going here — freeform one-off trip offers
 //    (source='shared') plus the fixed weekly Routes, each badged so a
 //    rider can tell a one-off trip from a standing weekly route.
-// 3. Browse by vehicle type — a plain grid into the existing
-//    hourly/shadi/rental/machinery/tractor/loader screens; no booking
-//    logic here, this phase doesn't touch those screens.
+//
+// A third "browse by vehicle type" grid (hourly/shadi/rental/machinery/
+// tractor/loader) used to repeat here too — real ask, 2026-10-26: "no
+// need to display the catagories again when we have all the catagories
+// running at the top." Removed; the home page's own auto-scrolling
+// category belt is the one place that list lives now.
 //
 // Booking itself reuses the exact same RPC (book_trip_offer, with its
 // one-way/return half-price split) the Shared Ride screen already has
@@ -59,19 +62,6 @@ function fmtTime(t: string | null, isUrdu: boolean) {
   const suffix = isUrdu ? (h < 12 ? 'صبح' : h < 17 ? 'دوپہر' : 'شام') : (h < 12 ? 'AM' : 'PM')
   return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`
 }
-
-// Phase 6: emoji converged onto the mockup's own service-belt taxonomy
-// (💍 Wedding Fleet, 🚗 Car Rental, 🏗️ Machinery, 🚜 Tractor & Farm,
-// 🚚 Loader — exact matches; hourly has no belt equivalent, 🕒 picked
-// to match the Lucide Clock it replaces).
-const CATEGORY_GRID = [
-  { href: '/portal/marketplace/hourly', emoji: '🕒', titleKey: 'vp.hourlyPageTitle', bg: '#e0f2fe', fg: '#0369a1' },
-  { href: '/portal/marketplace/shadi', emoji: '💍', titleKey: 'vp.shadiPageTitle', bg: '#fce7f3', fg: '#be185d' },
-  { href: '/portal/marketplace/rental', emoji: '🚗', titleKey: 'vp.rentalPageTitle', bg: '#f3e8ff', fg: '#6d28d9' },
-  { href: '/portal/marketplace/machinery', emoji: '🏗️', titleKey: 'vp.machineryPageTitle', bg: '#fef3c7', fg: '#92400e' },
-  { href: '/portal/marketplace/tractor', emoji: '🚜', titleKey: 'vp.tractorPageTitle', bg: '#dcfce7', fg: '#166534' },
-  { href: '/portal/marketplace/loader', emoji: '🚚', titleKey: 'vp.loaderPageTitle', bg: '#fee2e2', fg: '#b91c1c' },
-] as const
 
 export default function ResultsPage() {
   return (
@@ -210,19 +200,6 @@ function ResultsPageInner() {
                 ))}
               </>
             )}
-          </div>
-
-          {/* Section 3 — Browse by vehicle type */}
-          <div className="flex flex-col gap-2">
-            <p className="text-[12.5px] font-extrabold text-[#1e293b]">{t('mb.categoryBrowseHeading')}</p>
-            <div className="grid grid-cols-3 gap-2">
-              {CATEGORY_GRID.map(({ href, emoji, titleKey, bg }) => (
-                <Link key={href} href={href} className="flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-[#e5e2d0] bg-white text-center">
-                  <span className="w-9 h-9 rounded-xl flex items-center justify-center text-[17px]" style={{ background: bg }}>{emoji}</span>
-                  <span className="text-[10.5px] font-bold text-[#1e293b] leading-tight">{t(titleKey)}</span>
-                </Link>
-              ))}
-            </div>
           </div>
 
           <Link href="/portal/marketplace/commute" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3">
