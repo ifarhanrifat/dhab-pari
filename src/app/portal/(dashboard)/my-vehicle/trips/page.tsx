@@ -44,6 +44,7 @@ interface TripBooking {
 interface RiderLocation { lat: number; lng: number }
 interface TripIlan { id: string; trip_offer_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 interface IlanQuote { price_pkr: number; wallet_balance_pkr: number; covered_by_wallet: boolean }
+interface StakeInfo { applies: boolean; stake_pkr: number; balance_pkr: number; can_afford: boolean }
 const emptyTripOffer = {
   trip_type: 'oneway' as string, origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
   travel_date: '', departure_time_estimate: '', seats_available: 1, listed_fare_per_seat_pkr: 0, distance_km: '' as string,
@@ -83,6 +84,7 @@ export default function MyVehicleTripsPage() {
   const [adQuote, setAdQuote] = useState<IlanQuote | null>(null)
   const [adQuoting, setAdQuoting] = useState(false)
   const [adRequesting, setAdRequesting] = useState(false)
+  const [stakeInfo, setStakeInfo] = useState<StakeInfo | null>(null)
 
   const reload = async (vehicleId: string) => {
     const [{ data: trips }, { data: tripB }] = await Promise.all([
@@ -166,6 +168,7 @@ export default function MyVehicleTripsPage() {
         const [{ data: sc }, { data: offers }] = await Promise.all([
           supabase.from('service_classes').select('id, ride_eligible').eq('is_active', true),
           supabase.from('vehicle_service_offers').select('service_class_id').eq('vehicle_id', data.id).eq('is_active', true),
+          supabase.rpc('vehicle_ride_stake_info', { p_vehicle_id: data.id }).then(({ data: s }) => setStakeInfo((s as StakeInfo) ?? null)),
         ])
         const mine = new Set((offers ?? []).map((o) => o.service_class_id))
         const myClasses = (sc ?? []).filter((c) => mine.has(c.id))
@@ -241,6 +244,7 @@ export default function MyVehicleTripsPage() {
     setShowPostTrip(false)
     setTripForm(emptyTripOffer)
     reload(vehicle.id)
+    supabase.rpc('vehicle_ride_stake_info', { p_vehicle_id: vehicle.id }).then(({ data: s }) => setStakeInfo((s as StakeInfo) ?? null))
   }
 
   const respondFare = async (fareOfferId: string, action: 'accept' | 'reject' | 'counter') => {
@@ -564,7 +568,12 @@ export default function MyVehicleTripsPage() {
                 </button>
               )}
             </div>
-            <button onClick={postTripOffer} disabled={posting} className="w-full bg-[#166534] text-white py-3 rounded-xl font-sans font-semibold cursor-pointer disabled:opacity-50">{posting ? t('action.saving') : t('cm.postTripBtn')}</button>
+            {stakeInfo?.applies && (
+              <p className={`font-sans text-[10.5px] rounded-lg px-2.5 py-1.5 mb-2 ${stakeInfo.can_afford ? 'bg-[#F9F9F6] text-[#64748b]' : 'bg-rose-50 text-rose-700 font-semibold'}`}>
+                {t('mv.postingStakeNote').replace('{stake}', fmt(stakeInfo.stake_pkr)).replace('{balance}', fmt(stakeInfo.balance_pkr))}
+              </p>
+            )}
+            <button onClick={postTripOffer} disabled={posting || (stakeInfo?.applies && !stakeInfo.can_afford)} className="w-full bg-[#166534] text-white py-3 rounded-xl font-sans font-semibold cursor-pointer disabled:opacity-50">{posting ? t('action.saving') : t('cm.postTripBtn')}</button>
           </div>
         </MobilityBottomSheet>
       )}

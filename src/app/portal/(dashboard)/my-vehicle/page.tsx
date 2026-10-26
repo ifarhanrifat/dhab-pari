@@ -74,6 +74,7 @@ interface Summary {
 interface City { id: string; name: string; name_ur: string | null }
 interface Presence { city_id: string }
 interface TripOffer { id: string; destination: string; destination_ur: string | null; departure_time_estimate: string | null; seats_available: number; listed_fare_per_seat_pkr: number; status: string }
+interface StakeInfo { applies: boolean; stake_pkr: number; balance_pkr: number; can_afford: boolean }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 function initials(name: string) { return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() }
@@ -108,6 +109,7 @@ export default function MyVehicleHomePage() {
   const [fare, setFare] = useState(300)
   const [fareTouched, setFareTouched] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [stakeInfo, setStakeInfo] = useState<StakeInfo | null>(null)
 
   const reloadPresence = async (vehicleId: string) => {
     const { data: p } = await supabase.from('vehicle_city_presence').select('city_id').eq('vehicle_id', vehicleId).eq('is_active', true).maybeSingle()
@@ -136,6 +138,7 @@ export default function MyVehicleHomePage() {
           supabase.rpc('vehicle_dashboard_summary', { p_vehicle_id: v.id }).then(({ data: s }) => setSummary(s as unknown as Summary)),
           reloadPresence(v.id),
           reloadTripOffers(v.id),
+          supabase.rpc('vehicle_ride_stake_info', { p_vehicle_id: v.id }).then(({ data: s }) => setStakeInfo((s as StakeInfo) ?? null)),
         ])
         const mine = new Set((offers ?? []).map((o) => o.service_class_id))
         const myClasses = (sc ?? []).filter((cl) => mine.has(cl.id))
@@ -242,6 +245,7 @@ export default function MyVehicleHomePage() {
     setReturnDepartureTime('')
     setReturnWaitMinutes(300)
     reloadTripOffers(vehicle.id)
+    supabase.rpc('vehicle_ride_stake_info', { p_vehicle_id: vehicle.id }).then(({ data: s }) => setStakeInfo((s as StakeInfo) ?? null))
   }
 
   // The backend ceiling (place_trip_offer) is `fair`, not `max` — `max`
@@ -411,7 +415,12 @@ export default function MyVehicleHomePage() {
                 </div>
               </div>
 
-              <button onClick={publishRide} disabled={publishing || routeLoading} className="rounded-xl py-2 font-sans text-[12.5px] font-extrabold cursor-pointer disabled:opacity-50" style={{ background: '#D4AF37', color: '#0f172a' }}>
+              {stakeInfo?.applies && (
+                <p className={`font-sans text-[10.5px] rounded-lg px-2.5 py-1.5 ${stakeInfo.can_afford ? 'bg-[#F9F9F6] text-[#64748b]' : 'bg-rose-50 text-rose-700 font-semibold'}`}>
+                  {t('mv.postingStakeNote').replace('{stake}', fmt(stakeInfo.stake_pkr)).replace('{balance}', fmt(stakeInfo.balance_pkr))}
+                </p>
+              )}
+              <button onClick={publishRide} disabled={publishing || routeLoading || (stakeInfo?.applies && !stakeInfo.can_afford)} className="rounded-xl py-2 font-sans text-[12.5px] font-extrabold cursor-pointer disabled:opacity-50" style={{ background: '#D4AF37', color: '#0f172a' }}>
                 📢 {publishing ? t('action.saving') : t('cm.postTripBtn')}
               </button>
 

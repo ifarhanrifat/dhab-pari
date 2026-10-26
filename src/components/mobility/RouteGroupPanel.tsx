@@ -118,6 +118,19 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
   const [runBusy, setRunBusy] = useState(false)
   const [showRoster, setShowRoster] = useState(false)
   const [rosterChecks, setRosterChecks] = useState<Record<string, boolean>>({})
+  const [stakeInfo, setStakeInfo] = useState<{ applies: boolean; stake_pkr: number; balance_pkr: number; can_afford: boolean } | null>(null)
+
+  // Real ask, 2026-10-26: "this will be notified before he click the
+  // save button" — same stake shown on the trip-offer post form, here
+  // for starting a route's daily run instead.
+  useEffect(() => {
+    if (!detail?.is_owner) return
+    supabase.from('vehicle_routes').select('vehicle_id').eq('id', routeId).single().then(({ data: r }) => {
+      if (!r) return
+      supabase.rpc('vehicle_ride_stake_info', { p_vehicle_id: r.vehicle_id }).then(({ data: s }) => setStakeInfo(s ?? null))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail?.is_owner, detail?.active_run])
 
   // "Now what is the procedure of starting the ride back home?" — a
   // day's return leg is just a second run on the same route, opposite
@@ -258,18 +271,28 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
                   {r.name}
                 </label>
               ))}
+              {stakeInfo?.applies && (
+                <p className={`font-sans text-[10.5px] rounded-lg px-2 py-1 ${stakeInfo.can_afford ? 'bg-white text-[#64748b]' : 'bg-rose-50 text-rose-700 font-semibold'}`}>
+                  {t('mv.startingStakeNote').replace('{stake}', String(stakeInfo.stake_pkr)).replace('{balance}', String(Math.round(stakeInfo.balance_pkr)))}
+                </p>
+              )}
               <div className="flex gap-1.5 mt-1">
                 <button type="button" onClick={() => setShowRoster(false)} className="flex-1 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#64748b]">
                   {t('action.cancel')}
                 </button>
-                <button type="button" onClick={() => startRun('outbound')} disabled={runBusy} className="flex-1 py-1.5 rounded-lg text-[12px] font-sans font-bold cursor-pointer bg-[#D4AF37] text-[#0f172a] disabled:opacity-50">
+                <button type="button" onClick={() => startRun('outbound')} disabled={runBusy || (stakeInfo?.applies && !stakeInfo.can_afford)} className="flex-1 py-1.5 rounded-lg text-[12px] font-sans font-bold cursor-pointer bg-[#D4AF37] text-[#0f172a] disabled:opacity-50">
                   {runBusy ? t('action.saving') : t('mv.confirmAndStartBtn')}
                 </button>
               </div>
             </div>
           )}
+          {detail.is_owner && !showRoster && !detail.active_run && stakeInfo?.applies && (
+            <p className={`font-sans text-[10.5px] rounded-lg px-2.5 py-1.5 ${stakeInfo.can_afford ? 'bg-[#F9F9F6] text-[#64748b]' : 'bg-rose-50 text-rose-700 font-semibold'}`}>
+              {t('mv.startingStakeNote').replace('{stake}', String(stakeInfo.stake_pkr)).replace('{balance}', String(Math.round(stakeInfo.balance_pkr)))}
+            </p>
+          )}
           {detail.is_owner && !showRoster && (
-            <button type="button" onClick={detail.active_run ? endRun : openStartFlow} disabled={runBusy}
+            <button type="button" onClick={detail.active_run ? endRun : openStartFlow} disabled={runBusy || (!detail.active_run && stakeInfo?.applies && !stakeInfo.can_afford)}
               className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[13px] font-sans font-bold cursor-pointer disabled:opacity-50 ${detail.active_run ? 'bg-[#b91c1c] text-white' : 'bg-[#D4AF37] text-[#0f172a]'}`}>
               {detail.active_run ? <StopCircle size={15} /> : <PlayCircle size={15} />}
               {detail.active_run
