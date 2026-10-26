@@ -66,6 +66,7 @@ interface Booking {
   requested_at: string; started_at: string | null; ended_at: string | null; pin: string | null
   notes: string | null; payment_method: string
   pickup_address: string | null; pickup_lat: number | null; pickup_lng: number | null; trip_count: number
+  scheduled_date: string | null; scheduled_time: string | null
   vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null; color: string | null
 }
 
@@ -121,6 +122,8 @@ export function EquipmentBookingPage({ kind: defaultKind }: { kind: Kind }) {
   const [siteLoc, setSiteLoc] = useState<PickedLocation | null>(null)
   const [showPicker, setShowPicker] = useState(false)
   const [notes, setNotes] = useState('')
+  const [scheduledDate, setScheduledDate] = useState('')
+  const [scheduledTime, setScheduledTime] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [requesting, setRequesting] = useState(false)
   const [rateOffer, setRateOffer] = useState<RateOffer | null>(null)
@@ -152,6 +155,8 @@ export function EquipmentBookingPage({ kind: defaultKind }: { kind: Kind }) {
     setServiceKey(v.tractor_services?.[0]?.service_key ?? '')
     setMaterial('bricks')
     setTripCount(1)
+    setScheduledDate(new Date().toISOString().slice(0, 10))
+    setScheduledTime('08:00')
     setPickupLoc(null)
     setSiteLoc(null)
     setNotes('')
@@ -203,6 +208,7 @@ export function EquipmentBookingPage({ kind: defaultKind }: { kind: Kind }) {
     if (!openVehicle) return
     if (!siteLoc) { toast.error(t('vp.siteAddressRequired')); return }
     if (openVehicle.kind === 'loader' && !pickupLoc) { toast.error(t('vp.goodsPickupAddressRequired')); return }
+    if (!scheduledDate) { toast.error(t('vp.scheduledDateRequired')); return }
     setRequesting(true)
     const { error } = await supabase.rpc('create_equipment_booking', {
       p_vehicle_id: openVehicle.id, p_kind: openVehicle.kind,
@@ -217,6 +223,7 @@ export function EquipmentBookingPage({ kind: defaultKind }: { kind: Kind }) {
       p_pickup_lat: openVehicle.kind === 'loader' ? pickupLoc!.lat : null,
       p_pickup_lng: openVehicle.kind === 'loader' ? pickupLoc!.lng : null,
       p_trip_count: openVehicle.kind === 'loader' ? tripCount : 1,
+      p_scheduled_date: scheduledDate, p_scheduled_time: scheduledTime || null,
     })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -375,6 +382,11 @@ export function EquipmentBookingPage({ kind: defaultKind }: { kind: Kind }) {
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1">
                       <MapPin size={11} className="shrink-0 mt-0.5" /> {b.kind === 'loader' && b.pickup_address ? `${b.pickup_address} → ${b.site_address}` : b.site_address}
                     </p>
+                    {b.scheduled_date && (
+                      <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">
+                        {new Date(b.scheduled_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}{b.scheduled_time ? ` · ${b.scheduled_time.slice(0, 5)}` : ''}
+                      </p>
+                    )}
                     <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">
                       {b.kind === 'loader' ? `${b.trip_count} ${t('vp.tripsShort')} · ` : b.requested_hours != null ? `${b.requested_hours} ${t('vp.hoursShort')} · ` : ''}{fmt(b.rate_pkr)}{b.kind === 'loader' ? '' : `/${t('vp.hoursShort')}`}
                     </p>
@@ -572,6 +584,12 @@ export function EquipmentBookingPage({ kind: defaultKind }: { kind: Kind }) {
               </button>
             </>
           )}
+
+          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.scheduledDateTimeLabel')}</label>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <input type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13px]" />
+            <input type="date" value={scheduledDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setScheduledDate(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13px]" />
+          </div>
 
           <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.notesLabel')}</label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t('vp.equipmentNotesPlaceholder')}
