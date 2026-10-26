@@ -84,7 +84,7 @@ export function RouteStopsEditor({ routeId, routePath, departureTime, durationMi
       for (; idx < cum.length; idx++) if (cum[idx] >= targetDist) break
       return routePath[Math.min(idx, routePath.length - 1)]
     })
-    const geocoded = await Promise.all(samplePoints.map((p) => geocodeReverse(p.lat, p.lng).then((label) => ({ label, p }))))
+    const geocoded = await Promise.all(samplePoints.map((p) => geocodeReverse(p.lat, p.lng, isUrdu).then((label) => ({ label, p }))))
     const fromPhoton: Suggestion[] = geocoded.map((g, i) => ({
       key: `photon:${i}`, label: g.label || t('mv.genericStopLabel').replace('{n}', String(i + 1)), nameUr: null, lat: g.p.lat, lng: g.p.lng, villageId: null,
     }))

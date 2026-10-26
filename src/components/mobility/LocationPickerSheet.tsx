@@ -44,8 +44,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
-import { Target, Loader2, Search, ArrowLeft } from 'lucide-react'
+import { Target, Loader2, Search, ArrowLeft, Bookmark } from 'lucide-react'
+import { toast } from 'sonner'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { createClient } from '@/lib/supabase/client'
 import { getCurrentPositionOnce, classifyLocationError, type LocationErrorReason } from '@/hooks/useLiveLocation'
 import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
 
@@ -65,36 +67,58 @@ interface SearchResult { lat: number; lng: number; displayName: string }
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
-// Pakistan's bounding box — this app never needs a result outside it,
-// and Photon's `bbox` param (unlike Nominatim's `countrycodes`) treats
-// it as a hard filter, which is exactly the scoping `countrycodes=pk`
-// used to give us.
-const PK_BBOX = '60.5,23.0,77.5,37.5'
-
 interface PhotonProps { name?: string; street?: string; city?: string; county?: string; state?: string }
 interface PhotonFeature { geometry: { coordinates: [number, number] }; properties: PhotonProps }
 function photonLabel(p: PhotonProps): string {
   return [p.name, p.street, p.city, p.county, p.state].filter(Boolean).join(', ')
 }
 
-async function geocodeSearch(query: string): Promise<SearchResult[]> {
-  const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6&lang=en&bbox=${PK_BBOX}`)
+// Real ask, 2026-10-26: "try to display the addresses in Urdu and not
+// English." Both calls go through /api/geocode (a thin server-side
+// Photon proxy — see that route for the full why) instead of hitting
+// photon.komoot.io directly, because getting Urdu out of Photon means
+// setting its Accept-Language header, and a browser `fetch()` can't be
+// made to send a different Accept-Language than the device's own OS/
+// Chrome locale — confirmed live, the same coordinate returns
+// "Punjab"/"Pakistan" or "پنجاب"/"پاکستان" purely based on that header,
+// and client-side JS has no way to override it. A server-side fetch can
+// set any header it wants, so the proxy does the one thing the browser
+// itself refuses to.
+//
+// Search ranking is the other half of why Urdu isn't simply "always
+// ask for it": confirmed live, a `q=Chakwal` search ranks an Indian
+// village first under an Urdu/no-language request but correctly ranks
+// Pakistan's Chakwal first under `lang=en` — Photon's own `lang` query
+// param changes its whole relevance score, not just which name field
+// comes back. So the search call always asks the proxy for `lang=en`
+// (good ranking, Latin-script names), then each result's coordinate
+// gets a second, Urdu-mode reverse lookup to resolve its real local
+// label for display — the same reverse call already used for pin-drop/
+// GPS, just run once per result in parallel.
+async function geocodeSearch(query: string, isUrdu: boolean): Promise<SearchResult[]> {
+  const res = await fetch(`/api/geocode?mode=search&q=${encodeURIComponent(query)}`)
   if (!res.ok) return []
   const data = (await res.json()) as { features: PhotonFeature[] }
-  return data.features
+  const results = data.features
     .map((f) => ({ lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], displayName: photonLabel(f.properties) }))
     .filter((r) => r.displayName)
+  if (!isUrdu) return results
+  return Promise.all(results.map(async (r) => ({ ...r, displayName: (await geocodeReverse(r.lat, r.lng, true)) ?? r.displayName })))
 }
-export async function geocodeReverse(lat: number, lng: number): Promise<string | null> {
-  const res = await fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}&lang=en`)
+export async function geocodeReverse(lat: number, lng: number, isUrdu: boolean): Promise<string | null> {
+  const res = await fetch(`/api/geocode?mode=reverse&lat=${lat}&lon=${lng}&lang=${isUrdu ? 'ur' : 'en'}`)
   if (!res.ok) return null
   const data = (await res.json()) as { features: PhotonFeature[] }
   const label = data.features[0] ? photonLabel(data.features[0].properties) : ''
   return label || null
 }
 
+interface QuickCity { id: string; name: string; name_ur: string | null; lat: number; lng: number }
+const HOME_STORAGE_KEY = 'dp-mobility-home'
+
 function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose, inline }: Props) {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
+  const supabase = createClient()
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(initial ? { lat: initial.lat, lng: initial.lng } : null)
   const [label, setLabel] = useState(initial?.label ?? '')
   const [locating, setLocating] = useState(false)
@@ -109,31 +133,62 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
+  // Quick city chips, same row the reference design's own picker has
+  // below the search bar — the same `cities` table the home page's own
+  // destination pills already read from, fetched here too since this
+  // sheet is reused from several callers that don't otherwise have it.
+  const [cities, setCities] = useState<QuickCity[]>([])
+  useEffect(() => {
+    supabase.from('cities').select('id, name, name_ur, lat, lng').then(({ data }) => setCities(((data ?? []) as QuickCity[]).filter((c) => c.lat != null && c.lng != null)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // "Save this place as My Home" — same localStorage-only bookmark the
+  // reference design uses (dp-mobility-home), no backend needed for a
+  // single-device convenience shortcut.
+  const [savedHome, setSavedHome] = useState<{ lat: number; lng: number; label: string } | null>(null)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(HOME_STORAGE_KEY)
+      if (raw) setSavedHome(JSON.parse(raw))
+    } catch { /* ignore — just means no quick-jump chip for it */ }
+  }, [])
+  const saveAsHome = () => {
+    if (!pin) return
+    const home = { lat: pin.lat, lng: pin.lng, label: label.trim() || t('mb.myHomeChip') }
+    try { localStorage.setItem(HOME_STORAGE_KEY, JSON.stringify(home)) } catch { /* private-mode/blocked storage — button just won't persist */ }
+    setSavedHome(home)
+    toast.success(t('mb.myHomeSavedToast'))
+  }
+
   useEffect(() => {
     const q = query.trim()
     if (q.length < 3) { setResults([]); return }
     setSearching(true)
     const handle = setTimeout(() => {
-      geocodeSearch(q).then(setResults).catch(() => setResults([])).finally(() => setSearching(false))
+      geocodeSearch(q, isUrdu).then(setResults).catch(() => setResults([])).finally(() => setSearching(false))
     }, 400)
     return () => clearTimeout(handle)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
   const setPinAndReverseGeocode = (lat: number, lng: number) => {
     setPin({ lat, lng })
     labelEditedRef.current = false
     setReverseLookingUp(true)
-    geocodeReverse(lat, lng).then((name) => {
+    geocodeReverse(lat, lng, isUrdu).then((name) => {
       if (name && !labelEditedRef.current) setLabel(name)
     }).finally(() => setReverseLookingUp(false))
   }
 
-  const pickSearchResult = (r: SearchResult) => {
-    setPin({ lat: r.lat, lng: r.lng })
+  const jumpTo = (lat: number, lng: number, placeLabel: string) => {
+    setPin({ lat, lng })
     labelEditedRef.current = true
-    setLabel(r.displayName)
+    setLabel(placeLabel)
     setQuery(''); setResults([])
   }
+
+  const pickSearchResult = (r: SearchResult) => jumpTo(r.lat, r.lng, r.displayName)
 
   const useGps = async () => {
     setLocating(true)
@@ -195,6 +250,27 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
               </div>
             )}
           </div>
+
+          {/* Quick city chips, matching the reference design's own picker —
+              a saved "My Home" chip (if any) plus every real committee
+              city, so a common destination needs one tap instead of a
+              typed search. */}
+          {results.length === 0 && (cities.length > 0 || savedHome) && (
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+              {savedHome && (
+                <button onClick={() => jumpTo(savedHome.lat, savedHome.lng, savedHome.label)}
+                  className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-semibold whitespace-nowrap cursor-pointer bg-[#166534] text-white shadow">
+                  🏠 {t('mb.myHomeChip')}
+                </button>
+              )}
+              {cities.map((c) => (
+                <button key={c.id} onClick={() => jumpTo(c.lat, c.lng, isUrdu && c.name_ur ? c.name_ur : c.name)}
+                  className="shrink-0 px-2.5 py-1 rounded-full text-[11.5px] font-semibold whitespace-nowrap cursor-pointer bg-white/95 backdrop-blur-sm text-[#166534] border border-[#e5e2d0] shadow">
+                  📍 {isUrdu && c.name_ur ? c.name_ur : c.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Locate-me, floating directly on the map like the design's own
@@ -215,6 +291,11 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
           <input value={label} onChange={(e) => { labelEditedRef.current = true; setLabel(e.target.value) }} placeholder={t('mb.locationLabelPlaceholder')} className="dp2-input" />
           {reverseLookingUp && <Loader2 size={13} className="absolute top-1/2 -translate-y-1/2 end-3 text-[#94a3b8] animate-spin" />}
         </div>
+        {canConfirm && !(savedHome && savedHome.lat === pin?.lat && savedHome.lng === pin?.lng) && (
+          <button onClick={saveAsHome} className="w-full flex items-center justify-center gap-1.5 bg-[#D4AF37] text-[#0f172a] rounded-xl py-2 font-sans font-semibold text-[12.5px] cursor-pointer">
+            <Bookmark size={13} /> {t('mb.saveAsMyHomeBtn')}
+          </button>
+        )}
         <button onClick={() => pin && onConfirm({ lat: pin.lat, lng: pin.lng, label: label.trim() })} disabled={!canConfirm}
           className="w-full bg-[#166534] text-white rounded-xl py-3 font-sans font-semibold text-[14px] cursor-pointer disabled:opacity-40">
           {t('mb.confirmLocationBtn')}
