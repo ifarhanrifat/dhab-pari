@@ -138,11 +138,11 @@ export default function CityPurchasePage() {
     setEstimating(true)
     let cancelled = false
     supabase.rpc('city_purchase_fee_estimate', {
-      p_city_id: matchedCity.id, p_pickup_lat: pickupLoc.lat, p_pickup_lng: pickupLoc.lng, p_tip_pkr: tipPkr,
+      p_city_id: matchedCity.id, p_pickup_lat: pickupLoc.lat, p_pickup_lng: pickupLoc.lng, p_tip_pkr: tipPkr, p_ride_type: rideType,
     }).then(({ data }) => { if (!cancelled) { setFeeEstimate((data as FeeEstimate) ?? null); setEstimating(false) } })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matchedCity?.id, pickupLoc?.lat, pickupLoc?.lng, tipPkr])
+  }, [matchedCity?.id, pickupLoc?.lat, pickupLoc?.lng, tipPkr, rideType])
   const totalFee = feeEstimate?.total_fee_pkr ?? 0
 
   const post = async () => {
