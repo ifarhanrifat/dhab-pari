@@ -11,13 +11,16 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronDown, ChevronRight, LogOut, CreditCard } from 'lucide-react'
+import { ChevronDown, ChevronRight, LogOut, CreditCard, Users, Bus, Wrench, Landmark, MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { SITE } from '@/lib/constants'
 
 const ROLE_KEYS = ['rider', 'driver', 'owner', 'committee'] as const
+const ROLE_ICON: Record<(typeof ROLE_KEYS)[number], typeof Users> = { rider: Users, driver: Bus, owner: Wrench, committee: Landmark }
+const ROLE_TINT: Record<(typeof ROLE_KEYS)[number], string> = { rider: '#dcfce7', driver: '#e0f2fe', owner: '#fde68a', committee: '#f3e8ff' }
 
 export default function MobilityAccountPage() {
   const { t, isUrdu } = useLocale()
@@ -51,9 +54,11 @@ export default function MobilityAccountPage() {
         <h2 className="text-[13px] font-bold text-[#005A36] px-1">{t('mb.howItWorksHeading')}</h2>
         {ROLE_KEYS.map((role) => {
           const isOpen = open === role
+          const RoleIcon = ROLE_ICON[role]
           return (
             <div key={role} className="bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden">
               <button onClick={() => setOpen(isOpen ? null : role)} className="w-full flex items-center gap-2.5 p-3 cursor-pointer text-start">
+                <span className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: ROLE_TINT[role] }}><RoleIcon size={16} className="text-[#1e293b]/70" /></span>
                 <span className="flex-1 min-w-0 text-[13.5px] font-bold text-[#005A36]">{t(`mb.role.${role}.title`)}</span>
                 {isOpen ? <ChevronDown size={16} className="text-[#64748b]" /> : <ChevronRight size={16} className={`text-[#64748b] ${isUrdu ? 'rotate-180' : ''}`} />}
               </button>
@@ -79,9 +84,14 @@ export default function MobilityAccountPage() {
       <section className="bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden">
         <div className="px-3 py-2.5 text-[13px] font-bold text-[#005A36] border-b border-[#f1f5f9] flex items-center gap-1.5"><CreditCard size={14} /> {t('mb.paymentMethodsHeading')}</div>
         <div className="px-3 py-2 flex items-center justify-between gap-2 border-b border-[#f8fafc]"><span className="text-[12.5px] text-[#334155]">💵 {t('mb.payCash')}</span><span className="text-[11.5px] text-[#64748b]">{t('mb.payAlways')}</span></div>
-        <div className="px-3 py-2 flex items-center justify-between gap-2 border-b border-[#f8fafc]"><span className="text-[12.5px] text-[#334155]">📱 {t('mb.payJazzCash')}</span></div>
-        <div className="px-3 py-2 flex items-center justify-between gap-2"><span className="text-[12.5px] text-[#334155]">📲 {t('mb.payEasypaisa')}</span></div>
+        <div className="px-3 py-2 flex items-center justify-between gap-2 border-b border-[#f8fafc]"><span className="text-[12.5px] text-[#334155]">📱 {t('mb.payJazzCash')}</span><span className="text-[11.5px] text-[#64748b] ltr-num">{SITE.jazzcash}</span></div>
+        <div className="px-3 py-2 flex items-center justify-between gap-2"><span className="text-[12.5px] text-[#334155]">📲 {t('mb.payEasypaisa')}</span><span className="text-[11.5px] text-[#64748b] ltr-num">{SITE.easypaisa}</span></div>
       </section>
+
+      <a href={SITE.whatsappLink} target="_blank" rel="noopener noreferrer"
+        className="flex items-center justify-center gap-2 bg-[#166534] text-white rounded-2xl py-3 font-bold text-[13.5px]">
+        <MessageCircle size={15} /> {t('mb.committeeHelplineBtn')}
+      </a>
 
       <Link href="/portal/profile" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center justify-between gap-2">
         <span className="text-[13.5px] font-bold text-[#1e293b]">{t('mb.editProfileLink')}</span>
