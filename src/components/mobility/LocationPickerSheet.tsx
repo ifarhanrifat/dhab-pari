@@ -44,7 +44,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
-import { Target, Loader2, Search, ArrowLeft, Bookmark } from 'lucide-react'
+import { Target, Loader2, Search, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { createClient } from '@/lib/supabase/client'
@@ -269,15 +269,26 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
           </div>
 
           {/* Quick city chips, matching the reference design's own picker —
-              a saved "My Home" chip (if any) plus every real committee
-              city, so a common destination needs one tap instead of a
-              typed search. */}
-          {results.length === 0 && (cities.length > 0 || savedHome) && (
+              "Home" is always the first chip (professional-app
+              convention, not a separate "save as home" prompt
+              interrupting every single pick): tap it to jump there once
+              set, or to save whatever pin is currently dropped as home
+              if none is saved yet. Real ask, 2026-10-27: the old gold
+              "Save as My Home" button in the confirm bar below appeared
+              on almost every single pick (anything that wasn't already
+              the saved home), which read as cluttered and repetitive —
+              removed from there entirely now that this chip covers it. */}
+          {results.length === 0 && (
             <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-              {savedHome && (
+              {savedHome ? (
                 <button onClick={() => jumpTo(savedHome.lat, savedHome.lng, savedHome.label)}
                   className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-semibold whitespace-nowrap cursor-pointer bg-[#166534] text-white shadow">
                   🏠 {t('mb.myHomeChip')}
+                </button>
+              ) : (
+                <button onClick={() => pin ? saveAsHome() : toast.error(t('mb.pinFirstThenSaveHomeHint'))}
+                  className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-semibold whitespace-nowrap cursor-pointer bg-white/95 backdrop-blur-sm text-[#D4AF37] border border-[#D4AF37] shadow">
+                  🏠 {t('mb.setAsMyHomeChip')}
                 </button>
               )}
               {cities.map((c) => (
@@ -308,11 +319,6 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
           <input value={label} onChange={(e) => { labelEditedRef.current = true; setLabel(e.target.value) }} placeholder={t('mb.locationLabelPlaceholder')} className="dp2-input" />
           {reverseLookingUp && <Loader2 size={13} className="absolute top-1/2 -translate-y-1/2 end-3 text-[#94a3b8] animate-spin" />}
         </div>
-        {canConfirm && !(savedHome && savedHome.lat === pin?.lat && savedHome.lng === pin?.lng) && (
-          <button onClick={saveAsHome} className="w-full flex items-center justify-center gap-1.5 bg-[#D4AF37] text-[#0f172a] rounded-xl py-2 font-sans font-semibold text-[12.5px] cursor-pointer">
-            <Bookmark size={13} /> {t('mb.saveAsMyHomeBtn')}
-          </button>
-        )}
         <button onClick={() => pin && onConfirm({ lat: pin.lat, lng: pin.lng, label: label.trim() })} disabled={!canConfirm}
           className="w-full bg-[#166534] text-white rounded-xl py-3 font-sans font-semibold text-[14px] cursor-pointer disabled:opacity-40">
           {t('mb.confirmLocationBtn')}

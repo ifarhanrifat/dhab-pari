@@ -250,7 +250,7 @@ export default function MobilityHomePage() {
           (see marketplace/(mobility)/layout.tsx) so it genuinely reaches
           the frame's edges instead of sitting as a small inset card. */}
       <div className="-mx-3.5 relative">
-        <LeafletMap pins={pins} height="44vh" className="rounded-b-[28px]" />
+        <LeafletMap pins={pins} height="28vh" className="rounded-b-[28px]" />
       </div>
 
       {/* Search card, pulled up to float over the map's bottom edge —

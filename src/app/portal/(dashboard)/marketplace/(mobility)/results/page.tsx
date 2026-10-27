@@ -28,13 +28,15 @@
 import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { ArrowLeft, Bus, Users, Car, Clock, Star } from 'lucide-react'
+import { ArrowLeft, Bus, Users, Car, Clock, Star, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
+import { fetchRoadRoute } from '@/lib/roadRoute'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -52,6 +54,7 @@ interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_per_seat_pkr: number; vehicle_id: string; owner_name: string
 }
+interface VehicleCategory { id: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number }
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
@@ -80,12 +83,50 @@ function ResultsPageInner() {
   const fromLng = searchParams.get('from_lng')
   const fromName = searchParams.get('from_name')
 
+  const router = useRouter()
   const [city, setCity] = useState<City | null>(null)
   const [tripOffers, setTripOffers] = useState<TripRow[]>([])
   const [routes, setRoutes] = useState<RouteRow[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'adda' | 'shared'>('all')
+
+  // Real ask, 2026-10-27: "no regular rides are listed like catagory
+  // wise list... when user will chose one catagory then the request
+  // will go to all the catagory drivers" — Adda/Shared above only ever
+  // show a SPECIFIC driver's already-posted offer. This is the third,
+  // original option this page's own header comment always named but
+  // never actually built: pick a vehicle category, see its real rate
+  // card for this exact distance, and broadcast to every online driver
+  // of that category (create_ride_dispatch_request, 746).
+  const [pickup, setPickup] = useState<PickedLocation | null>(
+    fromLat && fromLng ? { lat: Number(fromLat), lng: Number(fromLng), label: fromName ?? '' } : null
+  )
+  const [showPickupPicker, setShowPickupPicker] = useState(false)
+  const [categories, setCategories] = useState<VehicleCategory[]>([])
+  const [distanceKm, setDistanceKm] = useState<number | null>(null)
+  const [requestingCategoryId, setRequestingCategoryId] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.from('vehicle_categories').select('id, name, name_ur, emoji, base_fare_pkr, per_km_pkr').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!pickup || !city?.lat || !city?.lng) { setDistanceKm(null); return }
+    fetchRoadRoute(pickup, { lat: city.lat, lng: city.lng }).then((r) => setDistanceKm(r.distanceKm)).catch(() => setDistanceKm(null))
+  }, [pickup, city?.lat, city?.lng])
+
+  const requestCategory = async (categoryId: string) => {
+    if (!pickup || !city || distanceKm == null) return
+    setRequestingCategoryId(categoryId)
+    const { data, error } = await supabase.rpc('create_ride_dispatch_request', {
+      p_category_id: categoryId, p_pickup_label: pickup.label || t('mb.fromPlaceholder'), p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng,
+      p_dropoff_label: isUrdu && city.name_ur ? city.name_ur : city.name, p_dropoff_lat: city.lat, p_dropoff_lng: city.lng, p_distance_km: distanceKm,
+    })
+    setRequestingCategoryId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    router.push(`/portal/marketplace/ride-dispatch/${data}`)
+  }
 
   async function reload(c: City) {
     const [{ data: trips, error: tripsErr }, { data: routeRows, error: routesErr }] = await Promise.all([
@@ -131,6 +172,18 @@ function ResultsPageInner() {
   const nm = (en: string, ur: string | null) => (isUrdu && ur ? ur : en)
 
   if (loading) return <div className="text-center py-12"><LoadingDots /></div>
+
+  if (showPickupPicker) {
+    return (
+      <LocationPickerSheet
+        title={t('mb.fromPlaceholder')}
+        initial={pickup}
+        defaultCenter={city?.lat && city?.lng ? [city.lat, city.lng] : undefined}
+        onClose={() => setShowPickupPicker(false)}
+        onConfirm={(loc) => { setPickup(loc); setShowPickupPicker(false) }}
+      />
+    )
+  }
 
   const addaTrips = tripOffers.filter((o) => o.source === 'adda')
   const sharedTrips = tripOffers.filter((o) => o.source === 'shared')
@@ -238,6 +291,44 @@ function ResultsPageInner() {
               </>
             )
           })()}
+
+          <div className="border-t border-[#e5e2d0] pt-3 flex flex-col gap-2.5">
+            <div>
+              <p className="text-[13px] font-extrabold text-[#1e293b]">{t('mb.requestAnyDriverHeading')}</p>
+              <p className="text-[11.5px] text-[#64748b] mt-0.5">{t('mb.requestAnyDriverHint')}</p>
+            </div>
+
+            {!pickup ? (
+              <button onClick={() => setShowPickupPicker(true)} className="w-full border border-dashed border-[#e5e2d0] rounded-xl py-2.5 text-[12.5px] font-semibold text-[#166534] cursor-pointer">
+                {t('mb.setPickupToSeeRatesBtn')}
+              </button>
+            ) : (
+              <>
+                <button onClick={() => setShowPickupPicker(true)} className="flex items-center gap-1.5 text-[11.5px] font-semibold text-[#64748b] cursor-pointer w-fit">
+                  📍 {pickup.label || t('mb.fromPlaceholder')} · <span className="text-[#166534] underline">{t('action.edit')}</span>
+                </button>
+                {distanceKm == null ? (
+                  <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-[#166534]" /></div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {categories.map((c) => {
+                      const fare = Math.round(c.base_fare_pkr + c.per_km_pkr * distanceKm)
+                      const busy = requestingCategoryId === c.id
+                      return (
+                        <button key={c.id} onClick={() => requestCategory(c.id)} disabled={!!requestingCategoryId}
+                          className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer disabled:opacity-50 hover:border-[#166534]">
+                          <span className="text-[20px]">{c.emoji}</span>
+                          <span className="text-[12.5px] font-bold text-[#1e293b]">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
+                          <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{busy ? <Loader2 size={14} className="animate-spin" /> : fmt(fare)}</span>
+                          <span className="text-[10px] text-[#94a3b8] ltr-num">{distanceKm.toFixed(1)} km</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
           <Link href="/portal/marketplace/commute" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3">
             <span className="shrink-0 w-9 h-9 rounded-xl bg-[#e0f2fe] flex items-center justify-center"><Users size={17} className="text-[#0369a1]" /></span>
