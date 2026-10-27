@@ -35,7 +35,7 @@ interface Vehicle {
   allows_out_of_city: boolean; per_km_pkr: number | null; is_online: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
   shadi_full_day_rate_pkr: number | null
-  rental_base_pkr: number | null; rental_per_km_pkr: number | null; rental_wait_hour_pkr: number | null
+  rental_base_pkr: number | null; rental_per_km_pkr: number | null; rental_wait_hour_pkr: number | null; rental_tier: string | null
   offers_machinery: boolean; machinery_hourly_rate_pkr: number | null; machinery_min_hours: number | null; machinery_mobilization_fee_pkr: number | null
   machinery_hourly_rate_min_pkr: number | null; machinery_hourly_rate_max_pkr: number | null
   offers_tractor: boolean
@@ -80,7 +80,7 @@ const emptyVehicle = {
   allows_out_of_city: true, per_km_pkr: null as number | null,
   hourly_rate_pkr: null as number | null, hourly_included_km: null as number | null, hourly_overage_per_km_pkr: null as number | null,
   shadi_full_day_rate_pkr: null as number | null,
-  rental_base_pkr: null as number | null, rental_per_km_pkr: null as number | null, rental_wait_hour_pkr: null as number | null,
+  rental_base_pkr: null as number | null, rental_per_km_pkr: null as number | null, rental_wait_hour_pkr: null as number | null, rental_tier: '' as string,
   offers_machinery: false, machinery_hourly_rate_pkr: null as number | null, machinery_min_hours: null as number | null, machinery_mobilization_fee_pkr: null as number | null,
   machinery_hourly_rate_min_pkr: null as number | null, machinery_hourly_rate_max_pkr: null as number | null,
   offers_tractor: false,
@@ -564,7 +564,7 @@ function AdminVehiclesInner() {
       night_booking_enabled: v.night_booking_enabled, allows_out_of_city: v.allows_out_of_city, per_km_pkr: v.per_km_pkr,
       hourly_rate_pkr: v.hourly_rate_pkr, hourly_included_km: v.hourly_included_km, hourly_overage_per_km_pkr: v.hourly_overage_per_km_pkr,
       shadi_full_day_rate_pkr: v.shadi_full_day_rate_pkr,
-      rental_base_pkr: v.rental_base_pkr, rental_per_km_pkr: v.rental_per_km_pkr, rental_wait_hour_pkr: v.rental_wait_hour_pkr,
+      rental_base_pkr: v.rental_base_pkr, rental_per_km_pkr: v.rental_per_km_pkr, rental_wait_hour_pkr: v.rental_wait_hour_pkr, rental_tier: v.rental_tier ?? '',
       offers_machinery: v.offers_machinery, machinery_hourly_rate_pkr: v.machinery_hourly_rate_pkr, machinery_min_hours: v.machinery_min_hours, machinery_mobilization_fee_pkr: v.machinery_mobilization_fee_pkr,
       machinery_hourly_rate_min_pkr: v.machinery_hourly_rate_min_pkr, machinery_hourly_rate_max_pkr: v.machinery_hourly_rate_max_pkr,
       offers_tractor: v.offers_tractor,
@@ -608,6 +608,7 @@ function AdminVehiclesInner() {
     const payload = {
       ...vehicleForm, owner_mobile: vehicleForm.owner_mobile || null, owner_whatsapp: vehicleForm.owner_whatsapp || null, vehicle_number: vehicleForm.vehicle_number || null,
       lumpsum_fee_pkr: vehicleForm.commission_mode === 'monthly_lumpsum' ? vehicleForm.lumpsum_fee_pkr : null,
+      rental_tier: vehicleForm.rental_tier || null,
     }
     let vehicleId = editingVehicle?.id ?? null
     if (editingVehicle) {
@@ -1211,6 +1212,18 @@ function AdminVehiclesInner() {
                   </div>
                 </div>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.rentalRateHint')}</p>
+                <div className="mt-2">
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('vp.yourRentalTierLabel')}</label>
+                  <select value={vehicleForm.rental_tier} onChange={(e) => setVehicleForm({ ...vehicleForm, rental_tier: e.target.value })} className="input-field">
+                    <option value="">—</option>
+                    <option value="small_ac">{t('vp.rentalTier.small_ac')}</option>
+                    <option value="small_non_ac">{t('vp.rentalTier.small_non_ac')}</option>
+                    <option value="big_ac">{t('vp.rentalTier.big_ac')}</option>
+                    <option value="big_non_ac">{t('vp.rentalTier.big_non_ac')}</option>
+                    <option value="suv">{t('vp.rentalTier.suv')}</option>
+                    <option value="luxury">{t('vp.rentalTier.luxury')}</option>
+                  </select>
+                </div>
               </div>
 
               {/* Machinery / tractor / loader — the 3 verticals imported

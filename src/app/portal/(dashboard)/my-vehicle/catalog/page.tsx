@@ -48,18 +48,6 @@ function fmt(n: number) {
   return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
-// Real bug, 2026-10-27: "آپ کی رینٹل کیٹیگری this is still selectable
-// for the driver end" — has_ac just got locked to the registration-
-// verified value, but the rental tier picker's own "_ac"/"_non_ac"
-// options encode that exact same fact a second time, completely
-// independently, so a driver could still misrepresent AC by picking
-// "big_ac" on a non-AC vehicle even with has_ac itself locked. Mirrors
-// shadiClassMatchesVehicleType's own precedent just above.
-function rentalTierMatchesAc(tierKey: string, hasAc: boolean): boolean {
-  if (tierKey.endsWith('_non_ac')) return !hasAc
-  if (tierKey.endsWith('_ac')) return hasAc
-  return true // suv / luxury carry no AC claim
-}
 
 export default function MyVehicleCatalogPage() {
   const { t, isUrdu } = useLocale()
@@ -260,13 +248,8 @@ export default function MyVehicleCatalogPage() {
         </label>
         <div className="mt-3 pt-3 border-t border-[#f1f5f9]">
           <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.yourRentalTierLabel')}</label>
-          <select value={rentalTier} onChange={(e) => setRentalTier(e.target.value)} className="dp2-input font-sans text-[13.5px]">
-            <option value="">—</option>
-            {(['small_ac', 'small_non_ac', 'big_ac', 'big_non_ac', 'suv', 'luxury'] as const)
-              .filter((key) => rentalTierMatchesAc(key, hasAc))
-              .map((key) => <option key={key} value={key}>{t(`vp.rentalTier.${key}`)}</option>)}
-          </select>
-          <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('vp.rentalTierLockedToAcNote')}</p>
+          <p className="font-sans text-[13.5px] font-semibold text-[#1e293b]">{rentalTier ? t(`vp.rentalTier.${rentalTier}`) : '—'}</p>
+          <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('vp.rentalTierCommitteeSetNote')}</p>
         </div>
       </div>
 
