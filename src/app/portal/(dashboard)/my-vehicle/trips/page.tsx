@@ -79,6 +79,7 @@ export default function MyVehicleTripsPage() {
   const [bookingsFilter, setBookingsFilter] = useState<'upcoming' | 'completed' | 'cancelled'>('upcoming')
   const [ilansByTrip, setIlansByTrip] = useState<Record<string, TripIlan>>({})
   const [riderLocationByBooking, setRiderLocationByBooking] = useState<Record<string, RiderLocation>>({})
+  const [driverLocationByTrip, setDriverLocationByTrip] = useState<Record<string, RiderLocation>>({})
   const [adSheetTrip, setAdSheetTrip] = useState<string | null>(null)
   const [adQuote, setAdQuote] = useState<IlanQuote | null>(null)
   const [adQuoting, setAdQuoting] = useState(false)
@@ -114,6 +115,19 @@ export default function MyVehicleTripsPage() {
       setRiderLocationByBooking(Object.fromEntries((locs ?? []).map((l) => [l.trip_booking_id, { lat: l.lat, lng: l.lng }])))
     } else {
       setRiderLocationByBooking({})
+    }
+
+    // Real ask, 2026-10-27: "after the driver start the ride... he can
+    // view his own vehicle and the riders on the map on the same window"
+    // — the driver's own live position (ping_trip_offer_location, 414)
+    // was never read back anywhere; TripGroupMapPanel below is the first
+    // place anything joins it with the riders' own positions into one map.
+    const sharingTripIds = (trips ?? []).filter((tr) => tr.share_live_location).map((tr) => tr.id)
+    if (sharingTripIds.length > 0) {
+      const { data: driverLocs } = await supabase.from('vehicle_trip_offer_locations').select('trip_offer_id, lat, lng').in('trip_offer_id', sharingTripIds)
+      setDriverLocationByTrip(Object.fromEntries((driverLocs ?? []).map((l) => [l.trip_offer_id, { lat: l.lat, lng: l.lng }])))
+    } else {
+      setDriverLocationByTrip({})
     }
 
     if (trips && trips.length > 0) {
@@ -369,6 +383,35 @@ export default function MyVehicleTripsPage() {
                         onSharingChange={(on) => setTripOffers((rows) => rows.map((r) => r.id === tr.id ? { ...r, share_live_location: on } : r))}
                       />
 
+                      {/* Real ask, 2026-10-27: "he can view his own
+                          vehicle and the riders on the map on the same
+                          window where they are from where i will pick
+                          them" — one shared map per trip instead of a
+                          separate tiny map per booking (the old per-
+                          booking map below the Trip Bookings list is
+                          gone; this replaces it). Only riders on a
+                          return leg have a live-location concept at all
+                          (rider_sharing_location, 706) — a one-way rider
+                          boards at the route's own fixed origin, so
+                          there's nothing to show a pickup pin for. */}
+                      {(() => {
+                        const driverPos = driverLocationByTrip[tr.id]
+                        const riderPins = tripBookings
+                          .filter((tb) => tb.trip_offer_id === tr.id && tb.status === 'confirmed' && tb.leg === 'return' && riderLocationByBooking[tb.id])
+                          .map((tb) => ({ ...riderLocationByBooking[tb.id], label: `${tb.rider_name ?? t('cm.riderLabel')}${tb.seats > 1 ? ` (${tb.seats})` : ''}`, color: '#166534' }))
+                        if (!driverPos && riderPins.length === 0) return null
+                        const pins = [
+                          ...(driverPos ? [{ lat: driverPos.lat, lng: driverPos.lng, label: t('cm.youLabel'), color: '#2563eb' }] : []),
+                          ...riderPins,
+                        ]
+                        return (
+                          <div className="mt-2 pt-2 border-t border-[#f1f5f9]">
+                            <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-1.5">{t('cm.groupMapHeading')}</p>
+                            <LeafletMap pins={pins} height={200} className="rounded-xl" />
+                          </div>
+                        )
+                      })()}
+
                       {/* Real ask, 2026-10-21: "make it same like the route
                           creating but this is... for same day return and
                           there must be indications for this" — mark
@@ -461,10 +504,7 @@ export default function MyVehicleTripsPage() {
                   <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('cm.returnDepartureTimeLabel').replace(' (optional)', '')}: <span className="ltr-num font-semibold text-[#1e293b]">{tb.vehicle_trip_offers.return_departure_time_estimate.slice(0, 5)}</span></p>
                 )}
                 {tb.status === 'confirmed' && tb.leg === 'return' && riderLocationByBooking[tb.id] && (
-                  <div className="mt-2 pt-2 border-t border-[#f1f5f9]">
-                    <p className="inline-flex items-center gap-1 font-sans text-[11px] font-bold text-emerald-700"><Navigation size={11} /> {t('cm.riderSharingLocationBadge')}</p>
-                    <LeafletMap pins={[{ lat: riderLocationByBooking[tb.id].lat, lng: riderLocationByBooking[tb.id].lng, color: '#166534' }]} height={120} className="rounded-xl mt-1.5" />
-                  </div>
+                  <p className="inline-flex items-center gap-1 font-sans text-[11px] font-bold text-emerald-700 mt-2 pt-2 border-t border-[#f1f5f9]"><Navigation size={11} /> {t('cm.riderSharingLocationBadge')} — {t('cm.seeGroupMapHint')}</p>
                 )}
                 <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
                   {tb.status === 'completed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={11} /> {t('cm.tripCompletedStatus')}</span>}

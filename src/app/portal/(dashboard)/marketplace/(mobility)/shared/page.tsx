@@ -19,7 +19,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { ChevronLeft, Star, Users, Clock, CheckCircle2, Ban, CalendarClock } from 'lucide-react'
+import { ChevronLeft, Star, Users, Clock, CheckCircle2, Ban, CalendarClock, Car } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -30,6 +30,7 @@ import { RiderLiveShareToggle } from '@/components/portal/RiderLiveShareToggle'
 interface CityRow { city_key: string; destination: string; destination_ur: string | null; ride_count: number }
 interface TripRow {
   id: string; vehicle_id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null; avg_rating: number | null
+  cover_photo_url: string | null
   origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; travel_date: string; departure_time_estimate: string | null
   seats_available: number; listed_fare_per_seat_pkr: number; trip_type: string
@@ -221,29 +222,34 @@ export default function SharedRidePage() {
                     b.status === 'completed' ? { icon: <CheckCircle2 size={11} />, cls: 'bg-sky-50 text-sky-700', label: t('cm.tripCompletedStatus') } :
                     { icon: <Ban size={11} />, cls: 'bg-rose-50 text-rose-600', label: t('mp.cancelledStatus') }
                   return (
-                    <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2">
+                    <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5 space-y-2.5 shadow-[0_1px_3px_rgba(0,0,0,.04)]">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="font-sans text-[13px] font-extrabold text-[#1e293b]">{nm(b.origin, b.origin_ur)} → {nm(b.destination, b.destination_ur)}</p>
-                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${b.leg === 'return' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
+                            <p className="font-sans text-[13.5px] font-extrabold text-[#1e293b] truncate">{nm(b.origin, b.origin_ur)} → {nm(b.destination, b.destination_ur)}</p>
+                            <span className={`shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${b.leg === 'return' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
                               {b.leg === 'return' ? t('cm.tripTypeReturn') : t('cm.tripTypeOneway')}
                             </span>
                           </div>
-                          <p className="text-[10.5px] text-[#64748b]">{b.owner_name} · {b.vehicle_type}{b.vehicle_number ? ` · ${b.vehicle_number}` : ''}</p>
-                          <p className="text-[10.5px] text-[#64748b] ltr-num">{new Date(b.travel_date).toLocaleDateString('en-GB')}{depTime ? ` · ${depTime}` : ''} · {b.seats} {t('vp.seatsLabel')}</p>
-                          {b.leg === 'return' && returnDepTime && (
-                            <p className="text-[10.5px] text-[#64748b] flex items-center gap-1 mt-0.5"><Clock size={10} /> {t('cm.returnDepartureTimeLabel').replace(' (optional)', '')}: <span className="ltr-num font-semibold text-[#1e293b]">{returnDepTime}</span></p>
-                          )}
-                          {b.status === 'cancelled' && b.cancellation_reason && (
-                            <p className="text-[10.5px] text-rose-600 mt-0.5">{b.cancellation_reason}</p>
-                          )}
+                          <p className="text-[10.5px] text-[#64748b] mt-0.5">{b.owner_name} · {b.vehicle_type}{b.vehicle_number ? ` · ${b.vehicle_number}` : ''}</p>
                         </div>
-                        <div className="text-right shrink-0 space-y-1">
-                          <p className="font-sans text-[13px] font-extrabold text-[#166534] ltr-num">{fmt(b.total_amount_pkr)}</p>
-                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.icon} {badge.label}</span>
-                        </div>
+                        <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.icon} {badge.label}</span>
                       </div>
+
+                      <div className="flex items-center justify-between gap-2 bg-[#F9F9F6] rounded-xl px-2.5 py-2">
+                        <div className="min-w-0">
+                          <p className="text-[10.5px] font-semibold text-[#1e293b] ltr-num">{new Date(b.travel_date).toLocaleDateString('en-GB')}{depTime ? ` · ${depTime}` : ''}</p>
+                          <p className="text-[10px] text-[#64748b] ltr-num">{b.seats} {t('vp.seatsLabel')}</p>
+                        </div>
+                        <p className="font-sans text-[15px] font-extrabold text-[#166534] ltr-num shrink-0">{fmt(b.total_amount_pkr)}</p>
+                      </div>
+
+                      {b.leg === 'return' && returnDepTime && (
+                        <p className="text-[10.5px] text-[#64748b] flex items-center gap-1"><Clock size={10} /> {t('cm.returnDepartureTimeLabel').replace(' (optional)', '')}: <span className="ltr-num font-semibold text-[#1e293b]">{returnDepTime}</span></p>
+                      )}
+                      {b.status === 'cancelled' && b.cancellation_reason && (
+                        <p className="text-[10.5px] text-rose-600">{b.cancellation_reason}</p>
+                      )}
                       {b.status === 'confirmed' && b.leg === 'return' && (
                         <RiderLiveShareToggle
                           tripBookingId={b.id}
@@ -273,9 +279,13 @@ export default function SharedRidePage() {
           <div className="grid grid-cols-2 gap-2.5">
             {cities.map((c) => (
               <button key={c.city_key} onClick={() => openCity(c)}
-                className="flex flex-col items-start gap-1 p-3 rounded-2xl border border-[#e5e2d0] bg-white text-left cursor-pointer hover:border-[#166534]">
-                <span className="text-[13.5px] font-bold text-[#1e293b]">🏙️ {nm(c.destination, c.destination_ur)}</span>
-                <span className="text-[10.5px] text-[#64748b] ltr-num">{t('vp.ridesCountLabel').replace('{n}', String(c.ride_count))}</span>
+                className="relative flex flex-col items-start gap-2 p-3.5 rounded-2xl border border-[#e5e2d0] bg-white text-left cursor-pointer overflow-hidden transition-all hover:border-[#166534] hover:shadow-[0_4px_14px_rgba(22,101,52,.12)] active:scale-[0.98]">
+                <span className="absolute -top-3 -end-3 w-16 h-16 rounded-full bg-[#F0FDF4]" aria-hidden />
+                <span className="relative text-[22px]">🏙️</span>
+                <span className="relative text-[13.5px] font-bold text-[#1e293b] leading-tight">{nm(c.destination, c.destination_ur)}</span>
+                <span className="relative inline-flex items-center gap-1 text-[10.5px] font-semibold text-[#166534] bg-[#F0FDF4] px-2 py-0.5 rounded-full ltr-num">
+                  <Car size={10} /> {t('vp.ridesCountLabel').replace('{n}', String(c.ride_count))}
+                </span>
               </button>
             ))}
           </div>
@@ -305,31 +315,55 @@ export default function SharedRidePage() {
                 const isReturn = trip.trip_type === 'return'
                 const onewayFare = isReturn ? Math.round(trip.listed_fare_per_seat_pkr / 2) : trip.listed_fare_per_seat_pkr
                 return (
-                  <div key={trip.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="font-sans text-[13.5px] font-extrabold text-[#1e293b]">{trip.owner_name}</p>
-                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${isReturn ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
-                            {isReturn ? t('cm.tripTypeReturn') : t('cm.tripTypeOneway')}
-                          </span>
-                        </div>
-                        <p className="text-[10.5px] text-[#64748b]">
-                          {trip.vehicle_type}{trip.vehicle_number ? ` · ${trip.vehicle_number}` : ''}
-                          {trip.avg_rating != null && <> · <Star size={9} className="inline -mt-0.5 fill-amber-400 text-amber-400" /> {trip.avg_rating}</>}
-                        </p>
-                        <p className="text-[10.5px] text-[#64748b]">{nm(trip.origin, trip.origin_ur)} → {nm(trip.destination, trip.destination_ur)}</p>
-                        {depTime && (
-                          <p className="text-[10.5px] text-[#64748b] flex items-center gap-1 mt-0.5"><Clock size={10} /> {t('vp.departureLabel')} <span className="ltr-num font-semibold text-[#1e293b]">{depTime}</span></p>
+                  <div key={trip.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2.5 shadow-[0_1px_3px_rgba(0,0,0,.04)]">
+                    <div className="flex items-start gap-2.5">
+                      <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-[#F0FDF4] border border-[#e5e2d0] flex items-center justify-center">
+                        {trip.cover_photo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={trip.cover_photo_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <Car size={22} className="text-[#166534]/40" />
                         )}
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-sans text-[13px] font-extrabold text-[#166534] ltr-num">{fmt(onewayFare)}<span className="text-[9.5px] font-semibold text-[#64748b]">{t('vp.perSeatLabel')}</span></p>
-                        {isReturn && <p className="text-[9.5px] text-[#64748b] ltr-num">{t('vp.returnFareLabel')} {fmt(trip.listed_fare_per_seat_pkr)}</p>}
-                        <span className={`inline-flex items-center gap-1 mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ltr-num ${trip.seats_available <= 1 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'}`}>
-                          <Users size={10} /> {t('vp.seatsLeftLabel').replace('{n}', String(trip.seats_available))}
-                        </span>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="font-sans text-[13.5px] font-extrabold text-[#1e293b] truncate">{trip.owner_name}</p>
+                              <span className={`shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${isReturn ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
+                                {isReturn ? t('cm.tripTypeReturn') : t('cm.tripTypeOneway')}
+                              </span>
+                            </div>
+                            <p className="text-[10.5px] text-[#64748b] truncate">
+                              {trip.vehicle_type}{trip.vehicle_number ? ` · ${trip.vehicle_number}` : ''}
+                              {trip.avg_rating != null && <> · <Star size={9} className="inline -mt-0.5 fill-amber-400 text-amber-400" /> {trip.avg_rating}</>}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-sans text-[15px] font-extrabold text-[#166534] ltr-num leading-none">{fmt(onewayFare)}</p>
+                            <p className="text-[9.5px] font-semibold text-[#94a3b8]">{t('vp.perSeatSuffixLabel')}</p>
+                          </div>
+                        </div>
                       </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-[#F9F9F6] rounded-xl px-2.5 py-2">
+                      <div className="flex-1 min-w-0 flex items-center gap-1.5 text-[11px] font-semibold text-[#1e293b]">
+                        <span className="truncate">{nm(trip.origin, trip.origin_ur)}</span>
+                        <span className="shrink-0 text-[#94a3b8]">→</span>
+                        <span className="truncate">{nm(trip.destination, trip.destination_ur)}</span>
+                      </div>
+                      {depTime && (
+                        <span className="shrink-0 flex items-center gap-1 text-[10.5px] font-semibold text-[#64748b] ltr-num"><Clock size={10} /> {depTime}</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2">
+                      {isReturn && <p className="text-[10px] text-[#64748b] ltr-num">{t('vp.returnFareLabel')} <span className="font-semibold text-[#1e293b]">{fmt(trip.listed_fare_per_seat_pkr)}</span></p>}
+                      <span className={`inline-flex items-center gap-1 ms-auto text-[10px] font-bold px-2 py-0.5 rounded-full ltr-num ${trip.seats_available <= 1 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                        <Users size={10} /> {t('vp.seatsLeftLabel').replace('{n}', String(trip.seats_available))}
+                      </span>
                     </div>
 
                     {/* Real ask, 2026-10-21: "same day return... there
