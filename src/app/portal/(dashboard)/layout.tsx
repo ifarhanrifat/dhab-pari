@@ -56,7 +56,7 @@ import { PortalMobileNavProvider } from '@/components/portal/PortalMobileNavCont
 // this layout, so it's untouched by this revert. Everything else in the
 // app (donations, water, academy, complaints, my-shop, etc.) is back to
 // exactly its pre-Phase-6 sidebar+PortalHeader chrome.
-const MOBILITY_MARKETPLACE_SLUGS = ['travel', 'results', 'hourly', 'rental', 'shadi', 'machinery', 'tractor', 'loader', 'trips', 'negotiations', 'account', 'city-purchase', 'notifications', 'shared']
+const MOBILITY_MARKETPLACE_SLUGS = ['travel', 'results', 'hourly', 'rental', 'shadi', 'machinery', 'tractor', 'loader', 'trips', 'negotiations', 'account', 'city-purchase', 'notifications', 'shared', 'parcel', 'weekly-commute']
 function isMobilityRoute(pathname: string) {
   if (pathname.startsWith('/portal/my-vehicle')) return true
   return MOBILITY_MARKETPLACE_SLUGS.some((slug) => pathname === `/portal/marketplace/${slug}` || pathname.startsWith(`/portal/marketplace/${slug}/`))
