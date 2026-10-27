@@ -28,7 +28,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { ArrowLeft, Bus, Users, Car, Clock, Star, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -36,6 +36,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
+import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { fetchRoadRoute } from '@/lib/roadRoute'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 
@@ -55,6 +56,8 @@ interface RouteRow {
   fare_per_seat_pkr: number; vehicle_id: string; owner_name: string
 }
 interface VehicleCategory { id: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number }
+interface RideQuote { online_count: number; base_fare_pkr: number; village_detour_pkr: number; total_with_village_pkr: number }
+interface DispatchRequest { id: string; status: string; fare_pkr: number; village_detour_pkr: number; used_village_driver: boolean; trip_offer_id: string | null }
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
@@ -83,7 +86,6 @@ function ResultsPageInner() {
   const fromLng = searchParams.get('from_lng')
   const fromName = searchParams.get('from_name')
 
-  const router = useRouter()
   const [city, setCity] = useState<City | null>(null)
   const [tripOffers, setTripOffers] = useState<TripRow[]>([])
   const [routes, setRoutes] = useState<RouteRow[]>([])
@@ -105,7 +107,21 @@ function ResultsPageInner() {
   const [showPickupPicker, setShowPickupPicker] = useState(false)
   const [categories, setCategories] = useState<VehicleCategory[]>([])
   const [distanceKm, setDistanceKm] = useState<number | null>(null)
-  const [requestingCategoryId, setRequestingCategoryId] = useState<string | null>(null)
+
+  // Real ask, 2026-10-28: "when i send the request of the ride to a car
+  // then its navigated to a page rather then a popup style window...
+  // atleast we should try to match it according to a native app" —
+  // the whole create→wait→accepted flow now lives in one bottom sheet,
+  // never a route change. Closing it before a driver accepts cancels
+  // the request outright (cancel_ride_dispatch_request) rather than
+  // leaving an abandoned 'open' row behind — on top of the 20-minute
+  // auto-expiry cron (748), this is the deliberate-exit path.
+  const [sheetCategory, setSheetCategory] = useState<VehicleCategory | null>(null)
+  const [quote, setQuote] = useState<RideQuote | null>(null)
+  const [quoting, setQuoting] = useState(false)
+  const [requesting, setRequesting] = useState(false)
+  const [activeRequest, setActiveRequest] = useState<DispatchRequest | null>(null)
+  const [bookingId, setBookingId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.from('vehicle_categories').select('id, name, name_ur, emoji, base_fare_pkr, per_km_pkr').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
@@ -116,16 +132,52 @@ function ResultsPageInner() {
     fetchRoadRoute(pickup, { lat: city.lat, lng: city.lng }).then((r) => setDistanceKm(r.distanceKm)).catch(() => setDistanceKm(null))
   }, [pickup, city?.lat, city?.lng])
 
-  const requestCategory = async (categoryId: string) => {
-    if (!pickup || !city || distanceKm == null) return
-    setRequestingCategoryId(categoryId)
+  const openCategorySheet = async (c: VehicleCategory) => {
+    if (!pickup || distanceKm == null) return
+    setSheetCategory(c)
+    setQuote(null)
+    setActiveRequest(null)
+    setBookingId(null)
+    setQuoting(true)
+    const { data, error } = await supabase.rpc('ride_dispatch_quote', { p_category_id: c.id, p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng, p_distance_km: distanceKm })
+    setQuoting(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); setSheetCategory(null); return }
+    setQuote(data as RideQuote)
+  }
+
+  const sendRequest = async (useVillageDriver: boolean) => {
+    if (!pickup || !city || !sheetCategory || distanceKm == null) return
+    setRequesting(true)
     const { data, error } = await supabase.rpc('create_ride_dispatch_request', {
-      p_category_id: categoryId, p_pickup_label: pickup.label || t('mb.fromPlaceholder'), p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng,
+      p_category_id: sheetCategory.id, p_pickup_label: pickup.label || t('mb.fromPlaceholder'), p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng,
       p_dropoff_label: isUrdu && city.name_ur ? city.name_ur : city.name, p_dropoff_lat: city.lat, p_dropoff_lng: city.lng, p_distance_km: distanceKm,
+      p_use_village_driver: useVillageDriver,
     })
-    setRequestingCategoryId(null)
+    setRequesting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    router.push(`/portal/marketplace/ride-dispatch/${data}`)
+    setActiveRequest({ id: data as string, status: 'open', fare_pkr: 0, village_detour_pkr: 0, used_village_driver: useVillageDriver, trip_offer_id: null })
+  }
+
+  useEffect(() => {
+    if (!activeRequest || activeRequest.status !== 'open') return
+    const poll = () => supabase.rpc('ride_dispatch_request_detail', { p_request_id: activeRequest.id }).then(({ data }) => { if (data) setActiveRequest(data as DispatchRequest) })
+    const iv = setInterval(poll, 4000)
+    return () => clearInterval(iv)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRequest?.id, activeRequest?.status])
+
+  useEffect(() => {
+    if (activeRequest?.status !== 'accepted' || !activeRequest.trip_offer_id) return
+    supabase.from('vehicle_trip_bookings').select('id').eq('trip_offer_id', activeRequest.trip_offer_id).maybeSingle()
+      .then(({ data }) => { if (data) setBookingId(data.id) })
+  }, [activeRequest?.status, activeRequest?.trip_offer_id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const closeSheet = async () => {
+    if (activeRequest?.status === 'open') {
+      if (!window.confirm(t('mb.confirmCancelRideRequest'))) return
+      await supabase.rpc('cancel_ride_dispatch_request', { p_request_id: activeRequest.id })
+    }
+    setSheetCategory(null); setQuote(null); setActiveRequest(null); setBookingId(null)
   }
 
   async function reload(c: City) {
@@ -226,18 +278,20 @@ function ResultsPageInner() {
                   <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534] ltr-num">{t('mb.optionsCountBadge').replace('{n}', String(totalCount))}</span>
                 </div>
 
-                <div className="flex gap-1.5 overflow-x-auto -mx-3.5 px-3.5 pb-0.5">
+                <div className="grid grid-cols-3 gap-2">
                   {([
-                    ['all', t('mb.filterAll'), null],
-                    ['adda', t('mb.filterAdda'), Bus],
-                    ['shared', t('mb.filterShared'), Users],
-                  ] as const).map(([key, label, ChipIcon]) => {
+                    ['all', t('mb.filterAll'), null, totalCount],
+                    ['adda', t('mb.filterAdda'), Bus, addaTrips.length],
+                    ['shared', t('mb.filterShared'), Users, sharedCount],
+                  ] as const).map(([key, label, ChipIcon, count]) => {
                     const on = filter === key
                     return (
                       <button key={key} onClick={() => setFilter(key)}
-                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold whitespace-nowrap cursor-pointer border"
-                        style={{ background: on ? '#166534' : '#fff', color: on ? '#fff' : '#334155', borderColor: on ? '#166534' : '#e5e2d0' }}>
-                        {ChipIcon && <ChipIcon size={12} />} {label}
+                        className="flex flex-col items-center gap-1 rounded-2xl p-3 text-center cursor-pointer border"
+                        style={{ background: on ? '#166534' : '#fff', color: on ? '#fff' : '#1e293b', borderColor: on ? '#166534' : '#e5e2d0' }}>
+                        {ChipIcon ? <ChipIcon size={18} /> : <span className="text-[18px] leading-none">🔎</span>}
+                        <span className="text-[12px] font-bold">{label}</span>
+                        <span className="text-[10px] font-semibold ltr-num" style={{ color: on ? 'rgba(255,255,255,.75)' : '#94a3b8' }}>{count}</span>
                       </button>
                     )
                   })}
@@ -313,13 +367,12 @@ function ResultsPageInner() {
                   <div className="grid grid-cols-2 gap-2">
                     {categories.map((c) => {
                       const fare = Math.round(c.base_fare_pkr + c.per_km_pkr * distanceKm)
-                      const busy = requestingCategoryId === c.id
                       return (
-                        <button key={c.id} onClick={() => requestCategory(c.id)} disabled={!!requestingCategoryId}
-                          className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer disabled:opacity-50 hover:border-[#166534]">
+                        <button key={c.id} onClick={() => openCategorySheet(c)}
+                          className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
                           <span className="text-[20px]">{c.emoji}</span>
                           <span className="text-[12.5px] font-bold text-[#1e293b]">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
-                          <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{busy ? <Loader2 size={14} className="animate-spin" /> : fmt(fare)}</span>
+                          <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{fmt(fare)}</span>
                           <span className="text-[10px] text-[#94a3b8] ltr-num">{distanceKm.toFixed(1)} km</span>
                         </button>
                       )
@@ -330,25 +383,66 @@ function ResultsPageInner() {
             )}
           </div>
 
-          <Link href="/portal/marketplace/commute" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3">
-            <span className="shrink-0 w-9 h-9 rounded-xl bg-[#e0f2fe] flex items-center justify-center"><Users size={17} className="text-[#0369a1]" /></span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold text-[#1e293b]">{t('vp.commutePageTitle')}</p>
-              <p className="text-[11px] text-[#64748b] mt-0.5">{t('vp.commuteCardHint')}</p>
-            </div>
-          </Link>
-
-          <Link href="/portal/marketplace/order-city" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3">
-            <span className="shrink-0 w-9 h-9 rounded-xl bg-[#f3e8ff] flex items-center justify-center"><Car size={17} className="text-[#6d28d9]" /></span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className="text-[13px] font-bold text-[#1e293b]">{t('vp.dispatchPageTitle')}</p>
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#f3e8ff] text-[#6d28d9]">{t('mb.negotiableTag')}</span>
-              </div>
-              <p className="text-[11px] text-[#64748b] mt-0.5">{t('vp.orderCityCardHint')}</p>
-            </div>
-          </Link>
         </>
+      )}
+
+      {sheetCategory && (
+        <MobilityBottomSheet title={`${sheetCategory.emoji} ${isUrdu && sheetCategory.name_ur ? sheetCategory.name_ur : sheetCategory.name}`} onClose={closeSheet}>
+          {quoting ? (
+            <div className="flex justify-center py-8"><Loader2 size={22} className="animate-spin text-[#166534]" /></div>
+          ) : !activeRequest ? (
+            quote && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between bg-[#F9F9F6] rounded-xl p-3">
+                  <span className="text-[12.5px] text-[#64748b]">{t('mb.fareForTripLabel')}</span>
+                  <span className="font-extrabold text-[18px] text-[#166534] ltr-num">{fmt(quote.base_fare_pkr)}</span>
+                </div>
+
+                {quote.online_count > 0 ? (
+                  <>
+                    <p className="text-[12px] text-[#166534] font-semibold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#166534] animate-pulse" /> {t('mb.driversOnlineNote').replace('{n}', String(quote.online_count))}
+                    </p>
+                    <button onClick={() => sendRequest(false)} disabled={requesting} className="w-full bg-[#166534] text-white rounded-xl py-3 font-bold text-[14px] cursor-pointer disabled:opacity-50">
+                      {requesting ? t('action.saving') : t('mb.sendRideRequestBtn').replace('{price}', fmt(quote.base_fare_pkr))}
+                    </button>
+                  </>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-col gap-2">
+                    <p className="text-[12.5px] font-bold text-amber-800">{t('mb.noDriverHereNote')}</p>
+                    <p className="text-[12px] text-amber-800">{t('mb.askVillageDriverNote')}</p>
+                    <div className="flex flex-col gap-1 text-[12px] bg-white rounded-lg p-2.5">
+                      <div className="flex justify-between"><span className="text-[#64748b]">{t('mb.tripFareLabel')}</span><span className="ltr-num text-[#1e293b]">{fmt(quote.base_fare_pkr)}</span></div>
+                      <div className="flex justify-between"><span className="text-[#64748b]">{t('mb.villageDetourFeeLabel')}</span><span className="ltr-num text-[#1e293b]">{fmt(quote.village_detour_pkr)}</span></div>
+                      <div className="flex justify-between font-bold pt-1 border-t border-[#f1f5f9]"><span className="text-[#1e293b]">{t('vp.totalLabel')}</span><span className="ltr-num text-[#166534]">{fmt(quote.total_with_village_pkr)}</span></div>
+                    </div>
+                    <button onClick={() => sendRequest(true)} disabled={requesting} className="w-full bg-[#166534] text-white rounded-xl py-3 font-bold text-[14px] cursor-pointer disabled:opacity-50">
+                      {requesting ? t('action.saving') : t('mb.callVillageDriverBtn').replace('{price}', fmt(quote.total_with_village_pkr))}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          ) : activeRequest.status === 'open' ? (
+            <div className="flex flex-col items-center gap-2 py-4 text-center">
+              <Loader2 size={26} className="animate-spin text-[#166534]" />
+              <p className="font-bold text-[14px] text-[#1e293b]">{t('mb.waitingForDriverHeading')}</p>
+              <p className="text-[12.5px] text-[#64748b]">{activeRequest.used_village_driver ? t('mb.waitingForVillageDriverHint') : t('mb.waitingForDriverHint')}</p>
+            </div>
+          ) : activeRequest.status === 'accepted' ? (
+            <div className="flex flex-col items-center gap-2 py-4 text-center">
+              <span className="text-[28px]">✅</span>
+              <p className="font-bold text-[14px] text-[#166534]">{t('mb.rideAcceptedHeading')}</p>
+              {bookingId && (
+                <Link href={`/portal/marketplace/trip/${bookingId}`} onClick={closeSheet} className="mt-1 px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold">
+                  {t('cm.trackLocationBtn')}
+                </Link>
+              )}
+            </div>
+          ) : (
+            <p className="text-center text-[12.5px] text-[#64748b] py-6">{t('mb.rideRequestCancelledNote')}</p>
+          )}
+        </MobilityBottomSheet>
       )}
     </div>
   )

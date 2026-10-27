@@ -170,13 +170,21 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
       if (raw) setSavedHome(JSON.parse(raw))
     } catch { /* ignore — just means no quick-jump chip for it */ }
   }, [])
-  const saveAsHome = () => {
-    if (!pin) return
-    const home = { lat: pin.lat, lng: pin.lng, label: label.trim() || t('mb.myHomeChip') }
+  const saveAsHome = (p: { lat: number; lng: number; label: string }) => {
+    const home = { lat: p.lat, lng: p.lng, label: p.label.trim() || t('mb.myHomeChip') }
     try { localStorage.setItem(HOME_STORAGE_KEY, JSON.stringify(home)) } catch { /* private-mode/blocked storage — button just won't persist */ }
     setSavedHome(home)
     toast.success(t('mb.myHomeSavedToast'))
   }
+
+  // Real ask, 2026-10-28: the chip always read as "Set Home" even
+  // before anyone had picked it — not what a first-time user is
+  // actually trying to do. It should read "Go Home" either way: before
+  // a home exists, tapping it starts picking ONE (same map/search/GPS
+  // flow everyone already uses, just flagged so the result gets saved
+  // as home too), and once saved, every later tap just jumps straight
+  // there — same label throughout, the destination just fills in once.
+  const [settingHome, setSettingHome] = useState(false)
 
   useEffect(() => {
     const q = query.trim()
@@ -248,8 +256,15 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
           onMapClick={(lat, lng) => setPinAndReverseGeocode(lat, lng)}
         />
 
-        {/* Search + back, floating over the map's top edge. */}
-        <div className="absolute top-3 inset-x-3 z-10 flex flex-col gap-2">
+        {/* Search + back, floating over the map's top edge. Real bug,
+            screenshot from the installed app: this sat flush against
+            the physical top edge with no safe-area padding, so the
+            back button/title landed partly under the status bar/notch
+            — the exact same class of bug the main portal header and
+            sw.js/MainActivity fixes already chased down elsewhere, just
+            never applied to this specific full-screen overlay since it
+            renders outside that header entirely (portaled to <body>). */}
+        <div className="absolute inset-x-3 z-10 flex flex-col gap-2" style={{ top: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>
           <button onClick={onClose} className="flex items-center gap-1.5 font-sans text-[13px] font-bold text-[#166534] bg-white/95 backdrop-blur-sm w-fit px-2.5 py-1 rounded-full shadow cursor-pointer">
             <ArrowLeft size={14} /> {title}
           </button>
@@ -283,12 +298,13 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
               {savedHome ? (
                 <button onClick={() => jumpTo(savedHome.lat, savedHome.lng, savedHome.label)}
                   className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-semibold whitespace-nowrap cursor-pointer bg-[#166534] text-white shadow">
-                  🏠 {t('mb.myHomeChip')}
+                  🏠 {t('mb.jumpHomeChip')}
                 </button>
               ) : (
-                <button onClick={() => pin ? saveAsHome() : toast.error(t('mb.pinFirstThenSaveHomeHint'))}
-                  className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-semibold whitespace-nowrap cursor-pointer bg-white/95 backdrop-blur-sm text-[#D4AF37] border border-[#D4AF37] shadow">
-                  🏠 {t('mb.setAsMyHomeChip')}
+                <button onClick={() => { setSettingHome(true); toast(t('mb.pickYourHomeHint')) }}
+                  className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-semibold whitespace-nowrap cursor-pointer shadow"
+                  style={{ background: settingHome ? '#166534' : 'rgba(255,255,255,.95)', color: settingHome ? '#fff' : '#D4AF37', border: settingHome ? 'none' : '1px solid #D4AF37' }}>
+                  🏠 {t('mb.goHomeChip')}
                 </button>
               )}
               {cities.map((c) => (
@@ -313,15 +329,23 @@ function LocationPickerBody({ title, initial, defaultCenter, onConfirm, onClose,
       {/* Confirm bar — its own flex row now (not absolutely positioned
           over the map), so it always has real space on screen instead
           of floating past the bottom edge of a tall scrolling page. */}
-      <div className="shrink-0 bg-white rounded-t-2xl shadow-[0_-6px_20px_rgba(0,0,0,.12)] p-3 flex flex-col gap-2">
-        {!pin && <p className="font-sans text-[11.5px] text-[#64748b] text-center">{t('mb.tapMapToPinHint')}</p>}
+      <div className="shrink-0 bg-white rounded-t-2xl shadow-[0_-6px_20px_rgba(0,0,0,.12)] p-3 flex flex-col gap-2" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
+        {settingHome && (
+          <p className="font-sans text-[11.5px] text-[#D4AF37] font-semibold text-center">🏠 {t('mb.pickYourHomeHint')}</p>
+        )}
+        {!pin && !settingHome && <p className="font-sans text-[11.5px] text-[#64748b] text-center">{t('mb.tapMapToPinHint')}</p>}
         <div className="relative">
           <input value={label} onChange={(e) => { labelEditedRef.current = true; setLabel(e.target.value) }} placeholder={t('mb.locationLabelPlaceholder')} className="dp2-input" />
           {reverseLookingUp && <Loader2 size={13} className="absolute top-1/2 -translate-y-1/2 end-3 text-[#94a3b8] animate-spin" />}
         </div>
-        <button onClick={() => pin && onConfirm({ lat: pin.lat, lng: pin.lng, label: label.trim() })} disabled={!canConfirm}
+        <button onClick={() => {
+            if (!pin) return
+            const loc = { lat: pin.lat, lng: pin.lng, label: label.trim() }
+            if (settingHome) { saveAsHome(loc); setSettingHome(false) }
+            onConfirm(loc)
+          }} disabled={!canConfirm}
           className="w-full bg-[#166534] text-white rounded-xl py-3 font-sans font-semibold text-[14px] cursor-pointer disabled:opacity-40">
-          {t('mb.confirmLocationBtn')}
+          {settingHome ? t('mb.saveHomeAndUseBtn') : t('mb.confirmLocationBtn')}
         </button>
       </div>
     </div>
