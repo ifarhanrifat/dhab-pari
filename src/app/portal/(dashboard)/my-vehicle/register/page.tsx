@@ -42,7 +42,7 @@ interface VehicleModel { id: string; make: string; model: string }
 const emptyForm = {
   owner_name: '', cnic_number: '', father_husband_name: '', address: '',
   category_id: '', vehicle_number: '', model: '', color: '', total_seats: 4,
-  owner_id_card_url: '', license_url: '', vehicle_doc_url: '', driver_photo_url: '',
+  owner_id_card_url: '', license_url: '', vehicle_doc_url: '', driver_photo_url: '', has_ac: false,
   wants_delivers: false, wants_hourly: false, wants_shadi: false, wants_out_of_city: false, wants_night_booking: false,
   wants_service_class_ids: [] as string[],
 }
@@ -120,7 +120,7 @@ export default function VehicleRegisterPage() {
       p_vehicle_type: selectedCategory?.name ?? '', p_vehicle_number: form.vehicle_number || null, p_model: form.model || null, p_color: form.color || null, p_total_seats: form.total_seats,
       p_owner_id_card_url: form.owner_id_card_url, p_license_url: form.license_url, p_vehicle_doc_url: form.vehicle_doc_url, p_driver_photo_url: form.driver_photo_url,
       p_wants_delivers: form.wants_delivers, p_wants_hourly: form.wants_hourly, p_wants_shadi: form.wants_shadi, p_wants_out_of_city: form.wants_out_of_city, p_wants_night_booking: form.wants_night_booking,
-      p_wants_service_class_ids: form.wants_service_class_ids, p_category_id: form.category_id,
+      p_wants_service_class_ids: form.wants_service_class_ids, p_category_id: form.category_id, p_has_ac: form.has_ac,
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -236,6 +236,10 @@ export default function VehicleRegisterPage() {
           <input value={form.vehicle_number} onChange={(e) => setForm({ ...form, vehicle_number: e.target.value })} placeholder={t('vr.vehicleNumberPlaceholder')} className={inputCls} />
         </div>
         <input type="number" min={1} value={form.total_seats || ''} onChange={(e) => setForm({ ...form, total_seats: +e.target.value })} placeholder={t('vr.totalSeatsPlaceholder')} className={inputCls} />
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={form.has_ac} onChange={(e) => setForm({ ...form, has_ac: e.target.checked })} className="accent-[#166534]" />
+          <span className="font-sans text-[13.5px] text-[#1e293b]">{t('mv.hasAcLabel')}</span>
+        </label>
       </div>
 
       <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.documentsHeading')}</p>

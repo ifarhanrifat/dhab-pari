@@ -13,7 +13,7 @@
 // from the Vehicle tab's settings list.
 
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Star, Trash2, Loader2, Clock3, Users2, Navigation } from 'lucide-react'
+import { Camera, Star, Trash2, Loader2, Clock3, Users2, Navigation, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -183,22 +183,29 @@ export default function MyVehicleCatalogPage() {
         </div>
       </div>
 
-      {/* Color / model / AC */}
+      {/* Color / model / AC — registration-time facts, committee-
+          verified at approval, not driver-editable here (same lock as
+          category_id). Admin can still correct these from the admin
+          vehicles screen. */}
       <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mv.colorLabel')}</label>
-            <input value={color} onChange={(e) => setColor(e.target.value)} placeholder={t('mv.colorPlaceholder')} className="dp2-input font-sans text-[13.5px]" />
+            <p className="font-sans text-[13.5px] font-semibold text-[#1e293b]">{color || '—'}</p>
           </div>
           <div>
             <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mv.modelLabel')}</label>
-            <input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t('mv.modelPlaceholder')} className="dp2-input font-sans text-[13.5px]" />
+            <p className="font-sans text-[13.5px] font-semibold text-[#1e293b]">{model || '—'}</p>
           </div>
         </div>
-        <label className="flex items-center gap-2 cursor-pointer mt-3">
-          <input type="checkbox" checked={hasAc} onChange={(e) => setHasAc(e.target.checked)} className="accent-[#166534]" />
+        <div className="flex items-center gap-2 mt-3">
+          <input type="checkbox" checked={hasAc} disabled readOnly className="accent-[#166534] opacity-60" />
           <span className="font-sans text-[13.5px] text-[#1e293b]">{t('mv.hasAcLabel')}</span>
-        </label>
+        </div>
+        <div className="flex items-start gap-2 bg-[#F9F9F6] rounded-xl p-3 mt-3">
+          <Lock size={14} className="text-[#64748b] shrink-0 mt-0.5" />
+          <p className="font-sans text-[12px] text-[#64748b] leading-[1.6]">{t('mv.vehicleFactsLockNote')}</p>
+        </div>
       </div>
 
       {/* Hourly opt-in — rate is read-only here, committee-set */}

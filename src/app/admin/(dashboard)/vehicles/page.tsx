@@ -30,7 +30,7 @@ const LeafletSinglePinPicker = dynamic(() => import('@/components/shared/Leaflet
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; owner_whatsapp: string | null
   vehicle_type: string; vehicle_number: string | null; total_seats: number; is_active: boolean
-  category_id: string | null; model: string | null
+  category_id: string | null; model: string | null; color: string | null; has_ac: boolean
   portal_user_id: string | null; commission_mode: string; lumpsum_fee_pkr: number | null; night_booking_enabled: boolean
   allows_out_of_city: boolean; per_km_pkr: number | null; is_online: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
@@ -75,7 +75,7 @@ interface AddaBoard { adda: Adda; pair_adda: Adda | null; entries: AddaBoardEntr
 
 const emptyVehicle = {
   owner_name: '', owner_mobile: '', owner_whatsapp: '', vehicle_type: '', vehicle_number: '', total_seats: 4, is_active: true,
-  category_id: null as string | null, model: '',
+  category_id: null as string | null, model: '', color: '', has_ac: false,
   portal_user_id: null as string | null, commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0, night_booking_enabled: false,
   allows_out_of_city: true, per_km_pkr: null as number | null,
   hourly_rate_pkr: null as number | null, hourly_included_km: null as number | null, hourly_overage_per_km_pkr: null as number | null,
@@ -559,7 +559,7 @@ function AdminVehiclesInner() {
     setVehicleForm({
       owner_name: v.owner_name, owner_mobile: v.owner_mobile ?? '', owner_whatsapp: v.owner_whatsapp ?? '',
       vehicle_type: v.vehicle_type, vehicle_number: v.vehicle_number ?? '', total_seats: v.total_seats, is_active: v.is_active,
-      category_id: v.category_id, model: v.model ?? '',
+      category_id: v.category_id, model: v.model ?? '', color: v.color ?? '', has_ac: v.has_ac,
       portal_user_id: v.portal_user_id, commission_mode: v.commission_mode, lumpsum_fee_pkr: v.lumpsum_fee_pkr ?? 0,
       night_booking_enabled: v.night_booking_enabled, allows_out_of_city: v.allows_out_of_city, per_km_pkr: v.per_km_pkr,
       hourly_rate_pkr: v.hourly_rate_pkr, hourly_included_km: v.hourly_included_km, hourly_overage_per_km_pkr: v.hourly_overage_per_km_pkr,
@@ -1136,6 +1136,13 @@ function AdminVehiclesInner() {
               <div className="grid grid-cols-2 gap-3">
                 <input value={vehicleForm.vehicle_number} onChange={(e) => setVehicleForm({ ...vehicleForm, vehicle_number: e.target.value })} placeholder={t('mk.vehicleNumberPlaceholder')} className="input-field" />
                 <input type="number" value={vehicleForm.total_seats || ''} onChange={(e) => setVehicleForm({ ...vehicleForm, total_seats: +e.target.value })} className="input-field" placeholder={t('mk.totalSeatsLabel')} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input value={vehicleForm.color} onChange={(e) => setVehicleForm({ ...vehicleForm, color: e.target.value })} placeholder={t('mv.colorPlaceholder')} className="input-field" />
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={vehicleForm.has_ac} onChange={(e) => setVehicleForm({ ...vehicleForm, has_ac: e.target.checked })} className="accent-dp-secondary" />
+                  <span className="font-sans text-[13.5px] text-dp-on-surface">{t('mv.hasAcLabel')}</span>
+                </label>
               </div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.is_active} onChange={(e) => setVehicleForm({ ...vehicleForm, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.vehicleActiveLabel')}</span></label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.night_booking_enabled} onChange={(e) => setVehicleForm({ ...vehicleForm, night_booking_enabled: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('af.nightBookingLabel')}</span></label>

@@ -17,7 +17,7 @@
 // the file's own driver:home screen owns that card, not its chrome.
 
 import { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Clock3 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -59,6 +59,7 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
   const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const pathname = usePathname()
+  const router = useRouter()
   const supabase = createClient()
   // The registration form is its own standalone page — a driver with no
   // vehicle yet lands here deliberately, so it must render on its own
@@ -83,7 +84,21 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
     })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (isRegisterPage) return <>{children}</>
+  // Registration is a one-time, admin-reviewed snapshot (category,
+  // color, model, documents) — a driver who already has an approved
+  // vehicle has no in-app link to this URL, but could still land on it
+  // via a stale bookmark/back-button. Without this redirect they'd see
+  // the full blank form again (the backend RPC does reject a resubmit,
+  // but only after they fill it in and hit submit — confusing, and
+  // looks exactly like "the app lets me re-edit my car's category").
+  useEffect(() => {
+    if (isRegisterPage && !loading && vehicle) router.replace('/portal/my-vehicle/vehicle')
+  }, [isRegisterPage, loading, vehicle]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (isRegisterPage) {
+    if (loading || vehicle) return <div className="text-center py-12"><LoadingDots /></div>
+    return <>{children}</>
+  }
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
 

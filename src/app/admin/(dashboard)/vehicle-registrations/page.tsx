@@ -19,7 +19,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Request {
   id: string; owner_name: string; cnic_number: string; father_husband_name: string | null; address: string
-  vehicle_type: string; vehicle_number: string | null; model: string | null; color: string | null; total_seats: number
+  vehicle_type: string; vehicle_number: string | null; model: string | null; color: string | null; has_ac: boolean; total_seats: number
   owner_id_card_url: string; license_url: string; vehicle_doc_url: string; driver_photo_url: string
   wants_delivers: boolean; wants_hourly: boolean; wants_shadi: boolean; wants_out_of_city: boolean; wants_night_booking: boolean
   wants_service_class_ids: string[]
@@ -152,6 +152,7 @@ export default function AdminVehicleRegistrationsPage() {
                   <p><span className="text-dp-on-surface-variant">{t('vr.modelPlaceholder')}:</span> <span className="font-semibold">{r.model ?? '—'}</span></p>
                   <p><span className="text-dp-on-surface-variant">{t('vr.colorPlaceholder')}:</span> <span className="font-semibold">{r.color ?? '—'}</span></p>
                   <p><span className="text-dp-on-surface-variant">{t('vr.totalSeatsPlaceholder')}:</span> <span className="font-semibold ltr-num">{r.total_seats}</span></p>
+                  <p><span className="text-dp-on-surface-variant">{t('mv.hasAcLabel')}:</span> <span className="font-semibold">{r.has_ac ? t('g.yes') : t('g.no')}</span></p>
                   {r.submitter_mobile && <a href={`tel:${r.submitter_mobile}`} className="inline-flex items-center gap-1 text-dp-secondary font-semibold"><Phone size={12} /> {r.submitter_mobile}</a>}
                 </div>
 
