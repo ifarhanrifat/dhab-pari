@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { MapPin, PlusCircle, X, Navigation, CheckCircle2, Ban, Check, XCircle, Megaphone, Clock } from 'lucide-react'
+import { MapPin, PlusCircle, X, Navigation, CheckCircle2, Ban, Check, XCircle, Megaphone, Clock, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -411,6 +411,13 @@ export default function MyVehicleTripsPage() {
                           </div>
                         )
                       })()}
+
+                      {tripBookings.some((tb) => tb.trip_offer_id === tr.id && tb.status === 'confirmed') && (
+                        <Link href={`/portal/marketplace/trip-group/${tr.id}`}
+                          className="flex items-center justify-center gap-1.5 w-full mt-2 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer border border-[#166534] text-[#166534]">
+                          <Users size={13} /> {t('cm.openGroupChatBtn')}
+                        </Link>
+                      )}
 
                       {/* Real ask, 2026-10-21: "make it same like the route
                           creating but this is... for same day return and

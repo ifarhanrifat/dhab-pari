@@ -15,9 +15,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Navigation, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Navigation, AlertTriangle, Users } from 'lucide-react'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
@@ -26,7 +27,7 @@ import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface Booking {
-  id: string; status: string; portal_user_id: string; vehicle_id: string
+  id: string; status: string; portal_user_id: string; vehicle_id: string; trip_offer_id: string
   vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
 }
 
@@ -47,7 +48,7 @@ export default function TripTrackingPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicle_trip_bookings').select('id, status, portal_user_id, vehicle_id, vehicle_trip_offers(origin, origin_ur, destination, destination_ur)')
+    supabase.from('vehicle_trip_bookings').select('id, status, portal_user_id, vehicle_id, trip_offer_id, vehicle_trip_offers(origin, origin_ur, destination, destination_ur)')
       .eq('id', params.bookingId).single().then(async ({ data }) => {
         setBooking(data as unknown as Booking)
         if (data) {
@@ -127,6 +128,10 @@ export default function TripTrackingPage() {
           {!otherPos && (
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-2">{role === 'driver' ? t('cm.waitingForRiderLocation') : t('cm.waitingForDriverLocation')}</p>
           )}
+          <Link href={`/portal/marketplace/trip-group/${booking.trip_offer_id}`}
+            className="flex items-center justify-center gap-1.5 w-full mt-3 py-2.5 rounded-xl text-[13px] font-sans font-bold cursor-pointer border border-dp-secondary text-dp-secondary">
+            <Users size={14} /> {t('cm.openGroupChatBtn')}
+          </Link>
         </>
       )}
       <MobilityBottomNav />

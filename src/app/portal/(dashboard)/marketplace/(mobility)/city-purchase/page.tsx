@@ -37,6 +37,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
+import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -76,6 +77,7 @@ export default function CityPurchasePage() {
   const [showDeliveryPicker, setShowDeliveryPicker] = useState(false)
 
   const [item, setItem] = useState('')
+  const [itemAttachmentPath, setItemAttachmentPath] = useState<string | null>(null)
   const [budget, setBudget] = useState('')
   const [tipPkr, setTipPkr] = useState(0)
   const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().slice(0, 10))
@@ -154,7 +156,7 @@ export default function CityPurchasePage() {
     if (!city) { toast.error(t('vp.pickCityFirstError')); return }
     setPosting(true)
     const { data: requestId, error } = await supabase.rpc('create_city_purchase_request', {
-      p_city_id: city.id, p_item: item.trim(), p_item_attachment_path: null,
+      p_city_id: city.id, p_item: item.trim(), p_item_attachment_path: itemAttachmentPath,
       p_pickup_label: pickupLoc.label, p_pickup_lat: pickupLoc.lat, p_pickup_lng: pickupLoc.lng,
       p_goods_budget_pkr: budget ? Number(budget) : 0, p_target_vehicle_id: null, p_urgency: 'standard',
       p_delivery_label: deliveryLoc.label, p_delivery_lat: deliveryLoc.lat, p_delivery_lng: deliveryLoc.lng,
@@ -275,6 +277,10 @@ export default function CityPurchasePage() {
       <div>
         <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.cityPurchaseItemPlaceholder')}</label>
         <textarea value={item} onChange={(e) => setItem(e.target.value)} placeholder={t('vp.cityPurchaseItemPlaceholder')} rows={3} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] resize-none leading-relaxed mb-2" />
+        <div className="mb-2">
+          <DonationReceiptUpload bucket="city_purchase_attachments" label={t('vp.itemAttachmentLabel')} onUpload={setItemAttachmentPath} />
+          {itemAttachmentPath && <p className="text-[11.5px] text-[#166534] font-semibold mt-1">{t('vp.itemAttachmentAddedNote')}</p>}
+        </div>
         <input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder={t('vp.goodsBudgetPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
       </div>
 

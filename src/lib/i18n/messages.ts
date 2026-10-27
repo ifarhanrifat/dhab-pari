@@ -2729,6 +2729,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'cm.returnDepartureTimeLabel': 'Return departure time (optional)', 'cm.readyForPickupToggleLabel': 'Share my location for pickup', 'cm.readyForPickupHint': 'Turn this on once you’re ready to be picked up — turn it off any time and the driver stops seeing your location.',
     'cm.riderSharingLocationBadge': 'Rider is sharing their pickup location',
     'cm.groupMapHeading': 'You and your riders', 'cm.seeGroupMapHint': 'see the map above',
+    'cm.ongoingFabDriverLabel': 'Your trip', 'cm.ongoingFabRiderLabel': 'Your ride',
+    'cm.tripGroupChatHeading': 'Group chat', 'cm.tripGroupChatSubtitle': 'The driver and everyone confirmed on this trip can see this.', 'cm.noGroupMessagesYet': 'No messages yet — say hello.', 'cm.openGroupChatBtn': 'Chat with your riders',
     'cm.tripsPageTitle': 'Return Trips', 'cm.tripsPageSubtitle': 'One-off trips a driver has room on — offer your own fare, no fixed price.',
     'cm.tripsCardHint': 'Drivers with empty seats on a one-way or return trip — offer your own fare',
     'cm.myFareOffersHeading': 'My Fare Offers', 'cm.yourOffer': 'Your offer:', 'cm.awaitingDriverStatus': 'Awaiting driver',
@@ -5277,6 +5279,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.vehiclesInCityHeading': 'Vehicles currently in that city',
     'vp.noVehiclesPresentNote': 'No vehicle has checked in there right now — try again later, or check the Pro service page for a village-wide fetch.',
     'vp.backAroundLabel': 'Back around', 'vp.askBtn': 'Ask', 'vp.describeItemFirst': 'Describe what you need first.',
+    'vp.itemAttachmentLabel': 'Attach a photo or list (optional)', 'vp.itemAttachmentAddedNote': 'Attached — the driver will see this.',
 
     'vp.pickShopOption': 'Pick a shop...', 'vp.noShopsInCityNote': 'No shops listed for this city yet.',
     'vp.orderItemPlaceholder': 'What are you ordering?', 'vp.deliveryAddressPlaceholder': 'Delivery address in the village',
@@ -8336,6 +8339,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'cm.returnDepartureTimeLabel': 'واپسی کی روانگی کا وقت (اختیاری)', 'cm.readyForPickupToggleLabel': 'پک اپ کے لیے میری لوکیشن شیئر کریں', 'cm.readyForPickupHint': 'جب آپ پک اپ کے لیے تیار ہوں تو اسے آن کریں — کسی بھی وقت آف کر دیں اور ڈرائیور آپ کی لوکیشن دیکھنا بند کر دے گا۔',
     'cm.riderSharingLocationBadge': 'مسافر اپنی پک اپ لوکیشن شیئر کر رہا ہے',
     'cm.groupMapHeading': 'آپ اور آپ کے مسافر', 'cm.seeGroupMapHint': 'اوپر نقشہ دیکھیں',
+    'cm.ongoingFabDriverLabel': 'آپ کا سفر', 'cm.ongoingFabRiderLabel': 'آپ کی سواری',
+    'cm.tripGroupChatHeading': 'گروپ گفتگو', 'cm.tripGroupChatSubtitle': 'ڈرائیور اور اس سفر پر موجود تمام مسافر یہ دیکھ سکتے ہیں۔', 'cm.noGroupMessagesYet': 'ابھی کوئی پیغام نہیں — سلام کہیں۔', 'cm.openGroupChatBtn': 'اپنے مسافروں سے گفتگو کریں',
     'cm.tripsPageTitle': 'واپسی کے سفر', 'cm.tripsPageSubtitle': 'ڈرائیور کے پاس جگہ ہے ایسے یک بارگی سفر — اپنی مرضی کا کرایہ پیش کریں، کوئی مقررہ قیمت نہیں۔',
     'cm.tripsCardHint': 'ڈرائیورز جن کے پاس ایک طرفہ یا واپسی کے سفر میں خالی نشستیں ہیں — اپنا کرایہ پیش کریں',
     'cm.myFareOffersHeading': 'میری کرایہ پیشکشیں', 'cm.yourOffer': 'آپ کی پیشکش:', 'cm.awaitingDriverStatus': 'ڈرائیور کے جواب کا انتظار',
@@ -10876,6 +10881,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.vehiclesInCityHeading': 'اس شہر میں موجود گاڑیاں',
     'vp.noVehiclesPresentNote': 'ابھی وہاں کوئی گاڑی موجود نہیں — بعد میں کوشش کریں، یا پرو سروس صفحہ دیکھیں۔',
     'vp.backAroundLabel': 'واپسی کا وقت', 'vp.askBtn': 'پوچھیں', 'vp.describeItemFirst': 'پہلے بتائیں آپ کو کیا چاہیے۔',
+    'vp.itemAttachmentLabel': 'تصویر یا فہرست منسلک کریں (اختیاری)', 'vp.itemAttachmentAddedNote': 'منسلک ہو گیا — ڈرائیور یہ دیکھ سکے گا۔',
 
     'vp.pickShopOption': 'دکان منتخب کریں...', 'vp.noShopsInCityNote': 'اس شہر میں ابھی کوئی دکان درج نہیں۔',
     'vp.orderItemPlaceholder': 'آپ کیا آرڈر کر رہے ہیں؟', 'vp.deliveryAddressPlaceholder': 'گاؤں میں ڈیلیوری کا پتہ',

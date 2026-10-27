@@ -8,6 +8,7 @@ import { AnnouncementBar } from '@/components/layout/AnnouncementBar'
 import { PoolAppealBanner } from '@/components/portal/PoolAppealBanner'
 import { WelcomeTour } from '@/components/portal/WelcomeTour'
 import { PortalMobileNavProvider } from '@/components/portal/PortalMobileNavContext'
+import { OngoingRideFab } from '@/components/portal/OngoingRideFab'
 
 // The "Dhab Pari Mobility" screens (my-vehicle/* and the marketplace/
 // (mobility)/* route group) render their own MobilityHeader — real bug
@@ -105,6 +106,7 @@ export default function PortalDashboardLayout({ children }: { children: React.Re
           <PortalMobileNavProvider onOpen={() => setMobileOpen(true)}>{children}</PortalMobileNavProvider>
         </main>
       </div>
+      <OngoingRideFab />
     </div>
   )
 }
