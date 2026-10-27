@@ -35,6 +35,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext'
+import { CityReturnDemandCard } from '@/components/mobility/CityReturnDemandCard'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
 import { fetchRoadRoute, type RoadRoute } from '@/lib/roadRoute'
 import { SITE } from '@/lib/constants'
@@ -474,6 +475,8 @@ export default function MyVehicleHomePage() {
           })}
         </div>
       </div>
+
+      <CityReturnDemandCard />
 
       {jobsBadge > 0 && (
         <Link href="/portal/my-vehicle/jobs" onClick={() => refreshBadge()} className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-2xl p-3">

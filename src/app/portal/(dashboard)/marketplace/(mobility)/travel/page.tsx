@@ -32,7 +32,7 @@ import dynamic from 'next/dynamic'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
-import { Search, Home as HomeIcon, Loader2 } from 'lucide-react'
+import { Search, Home as HomeIcon, Loader2, Briefcase } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityServiceTile } from '@/components/mobility/MobilityServiceTile'
@@ -360,6 +360,9 @@ export default function MobilityHomePage() {
                 <HomeIcon size={13} /> {t('mb.goHomeBtn')}
               </button>
             </div>
+            <button onClick={() => router.push('/portal/marketplace/weekly-commute')} className="w-full border border-[#e5e2d0] text-[#166534] rounded-xl py-2 font-bold text-[12.5px] cursor-pointer flex items-center justify-center gap-1.5">
+              <Briefcase size={13} /> {t('mb.weeklyCommuteBtn')}
+            </button>
           </>
         )}
       </div>

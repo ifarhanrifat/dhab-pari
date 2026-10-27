@@ -30,6 +30,7 @@ import { fetchRoadRouteAlternatives, fetchMultiWaypointRoute, type RoadRouteAlte
 import { RouteStopsEditor } from '@/components/mobility/RouteStopsEditor'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
 import { RouteMonthlySubscribersPanel } from '@/components/mobility/RouteMonthlySubscribersPanel'
+import { CityReturnDemandCard } from '@/components/mobility/CityReturnDemandCard'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -388,6 +389,8 @@ export default function MyVehicleRoutesPage() {
       {showForm && (
         <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5 flex flex-col gap-2.5">
           <p className="font-sans text-[13px] font-bold text-[#1e293b]">{t('mv.postRouteHeading')}</p>
+
+          <CityReturnDemandCard limit={6} />
 
           <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1">{t('mv.routeBasicsSectionLabel')}</p>
           <div className="grid grid-cols-2 gap-2">
