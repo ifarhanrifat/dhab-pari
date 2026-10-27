@@ -5523,6 +5523,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.yourFleetClassLabel': 'Your vehicle type (for wedding type-requests)', 'vp.noFleetClassSetHint': 'Not set — ask the committee to assign your vehicle a type.',
     'vp.yourRentalTierLabel': 'Your rental category', 'vp.rentalTier.small_ac': 'Small car — AC', 'vp.rentalTier.small_non_ac': 'Small car — Non-AC', 'vp.rentalTier.big_ac': 'Big car — AC', 'vp.rentalTier.big_non_ac': 'Big car — Non-AC', 'vp.rentalTier.suv': 'SUV', 'vp.rentalTier.luxury': 'Luxury',
     'vp.fleetClassLockedToVehicleNote': 'Only categories matching your registered vehicle ({vehicleType}) are shown.',
+    'vp.rentalTierLockedToAcNote': 'Only categories matching your registered AC status are shown.',
     'vp.noOpenSlotsHint': 'No open wedding slots for your vehicle type right now.',
 
     'vp.shadiEventNotFound': 'Booking not found.', 'vp.requestedVehiclesHeading': 'Requested Vehicles',
@@ -11110,6 +11111,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.yourFleetClassLabel': 'آپ کی گاڑی کی قسم (شادی کی درخواستوں کے لیے)', 'vp.noFleetClassSetHint': 'مقرر نہیں — کمیٹی سے اپنی گاڑی کی قسم مقرر کروائیں۔',
     'vp.yourRentalTierLabel': 'آپ کی رینٹل کیٹیگری', 'vp.rentalTier.small_ac': 'چھوٹی گاڑی — اے سی', 'vp.rentalTier.small_non_ac': 'چھوٹی گاڑی — بغیر اے سی', 'vp.rentalTier.big_ac': 'بڑی گاڑی — اے سی', 'vp.rentalTier.big_non_ac': 'بڑی گاڑی — بغیر اے سی', 'vp.rentalTier.suv': 'ایس یو وی', 'vp.rentalTier.luxury': 'لگژری',
     'vp.fleetClassLockedToVehicleNote': 'صرف وہ قسمیں دکھائی جا رہی ہیں جو آپ کی رجسٹرڈ گاڑی ({vehicleType}) سے میل کھاتی ہیں۔',
+    'vp.rentalTierLockedToAcNote': 'صرف وہ قسمیں دکھائی جا رہی ہیں جو آپ کی رجسٹرڈ اے سی حیثیت سے میل کھاتی ہیں۔',
     'vp.noOpenSlotsHint': 'اس وقت آپ کی گاڑی کی قسم کے لیے کوئی خالی شادی کی جگہ نہیں۔',
 
     'vp.shadiEventNotFound': 'بکنگ نہیں ملی۔', 'vp.requestedVehiclesHeading': 'درخواست شدہ گاڑیاں',
