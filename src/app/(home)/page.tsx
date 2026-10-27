@@ -118,8 +118,31 @@ export default async function HomePage() {
     // burying the newest note behind an older one with a later-looking
     // date); "which one is latest" should never depend on getting that
     // field right.
-    supabase.from('committee_notes').select('id, body_en, body_ur, release_date, linked_project_id, link_url, link_label_en, link_label_ur, projects(title, title_ur, display_name)')
-      .eq('is_published', true).order('created_at', { ascending: false }).limit(6),
+    //
+    // Real bug, reported live 2026-10-27: "committee notification...
+    // sometimes it's displaying and sometimes it's not... even on
+    // localhost." Traced it: confirmed via 5x repeated direct anon
+    // queries that the data itself is completely stable (same 2 rows,
+    // same order, every time) — this was never a data or RLS issue.
+    // The real cause is the exact same one already diagnosed and fixed
+    // for the video query above: this whole 18-query Promise.all runs
+    // fresh on every single visit (cookies() forces the route fully
+    // dynamic, no ISR to fall back on), so a transient Supabase hiccup
+    // on any one query silently empties just that piece of UI — no
+    // error, no retry, the committee note just vanishes for that one
+    // request. The video query got a one-retry-with-logging wrapper for
+    // this exact failure mode already; committee_notes never did, so
+    // the same class of bug kept surfacing here instead, surviving
+    // every "recompile the app" attempt because it was never a build or
+    // cache issue in the first place.
+    (async () => {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const res = await supabase.from('committee_notes').select('id, body_en, body_ur, release_date, linked_project_id, link_url, link_label_en, link_label_ur, projects(title, title_ur, display_name)')
+          .eq('is_published', true).order('created_at', { ascending: false }).limit(6)
+        if (!res.error) return res
+        if (attempt === 2) { console.error('Homepage committee_notes query failed twice', res.error); return res }
+      }
+    })(),
     // Zakat/Kafalat/Wazifa/Esal-e-Sawab card copy — migration 307, editable
     // from Settings. Fetched by exact key list rather than a blanket
     // site_settings select, since this page already avoids reading settings
@@ -190,7 +213,7 @@ export default async function HomePage() {
   // Supabase returns the embedded FK as an object for a to-one relationship,
   // but as an array on some PostgREST versions/configurations — normalising
   // here once rather than at every call site that reads project_title.
-  const committeeNotesRaw = (committeeNotesRes.data ?? []) as unknown as {
+  const committeeNotesRaw = (committeeNotesRes?.data ?? []) as unknown as {
     id: string; body_en: string; body_ur: string; release_date: string; linked_project_id: string | null
     link_url: string | null; link_label_en: string | null; link_label_ur: string | null
     projects: { title: string; title_ur: string | null; display_name: string | null } | { title: string; title_ur: string | null; display_name: string | null }[] | null
