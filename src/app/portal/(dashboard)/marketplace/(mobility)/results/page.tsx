@@ -43,7 +43,7 @@ import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
-interface City { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null }
+interface City { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null; is_home_city: boolean }
 interface TripRow {
   id: string; vehicle_id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null; avg_rating: number | null
   origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -56,7 +56,7 @@ interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_per_seat_pkr: number; vehicle_id: string; owner_name: string
 }
-interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; category_group: 'passenger' | 'equipment' }
+interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; category_group: 'passenger' | 'equipment'; out_of_city_eligible: boolean }
 // Real ask, 2026-10-28: "it should need to replace with the cars,
 // bikes, machinery, loading etc so when user will select the cars so
 // only all kind of cars and SUVs etc will appear and not machines and
@@ -160,7 +160,7 @@ function ResultsPageInner() {
   const [scheduleAt, setScheduleAt] = useState('')
 
   useEffect(() => {
-    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, base_fare_pkr, per_km_pkr, category_group').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
+    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, base_fare_pkr, per_km_pkr, category_group, out_of_city_eligible').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -175,7 +175,7 @@ function ResultsPageInner() {
     setActiveRequest(null)
     setBookingId(null)
     setQuoting(true)
-    const { data, error } = await supabase.rpc('ride_dispatch_quote', { p_category_id: c.id, p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng, p_distance_km: distanceKm })
+    const { data, error } = await supabase.rpc('ride_dispatch_quote', { p_category_id: c.id, p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng, p_distance_km: distanceKm, p_dropoff_city_id: city?.id ?? null })
     setQuoting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); setSheetCategory(null); return }
     setQuote(data as RideQuote)
@@ -190,6 +190,7 @@ function ResultsPageInner() {
       p_category_ids: categoryIds && categoryIds.length > 0 ? categoryIds : null,
       p_include_cross_tenant: true,
       p_scheduled_for: scheduleAt ? new Date(scheduleAt).toISOString() : null,
+      p_dropoff_city_id: city.id,
     })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -205,7 +206,7 @@ function ResultsPageInner() {
       return
     }
     setLoadingFallback(true)
-    supabase.rpc('ride_dispatch_category_options', { p_exclude_category_id: sheetCategory.id, p_distance_km: distanceKm })
+    supabase.rpc('ride_dispatch_category_options', { p_exclude_category_id: sheetCategory.id, p_distance_km: distanceKm, p_is_out_of_city: city ? !city.is_home_city : false })
       .then(({ data }) => { setFallbackOptions((data ?? []) as CategoryOption[]); setLoadingFallback(false) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quote, sheetCategory?.id, distanceKm])
@@ -251,7 +252,7 @@ function ResultsPageInner() {
 
   useEffect(() => {
     if (!toId) { setLoading(false); return }
-    supabase.from('cities').select('id, name, name_ur, lat, lng').eq('id', toId).maybeSingle().then(async ({ data: c }) => {
+    supabase.from('cities').select('id, name, name_ur, lat, lng, is_home_city').eq('id', toId).maybeSingle().then(async ({ data: c }) => {
       setCity(c)
       if (c) await reload(c)
       setLoading(false)
@@ -392,7 +393,7 @@ function ResultsPageInner() {
                   <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-[#166534]" /></div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
-                    {categories.filter((c) => c.category_group === 'passenger').map((c) => {
+                    {categories.filter((c) => c.category_group === 'passenger' && (!city || city.is_home_city || c.out_of_city_eligible)).map((c) => {
                       const fare = Math.round(c.base_fare_pkr + c.per_km_pkr * distanceKm)
                       return (
                         <button key={c.id} onClick={() => openCategorySheet(c)}
@@ -421,7 +422,7 @@ function ResultsPageInner() {
               // tab. EQUIPMENT_HREF now only decides which path a given
               // equipment category takes, not a one-size-fits-all link.
               <div className="grid grid-cols-2 gap-2">
-                {categories.filter((c) => c.category_group === 'equipment').map((c) => {
+                {categories.filter((c) => c.category_group === 'equipment' && (!city || city.is_home_city || c.out_of_city_eligible)).map((c) => {
                   const href = EQUIPMENT_HREF[c.key]
                   if (href) {
                     return (
