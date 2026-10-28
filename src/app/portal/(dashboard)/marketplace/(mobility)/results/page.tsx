@@ -422,7 +422,16 @@ function ResultsPageInner() {
       )}
 
       {sheetCategory && (
-        <MobilityBottomSheet title={`${sheetCategory.emoji} ${isUrdu && sheetCategory.name_ur ? sheetCategory.name_ur : sheetCategory.name}`} onClose={closeSheet}>
+        <MobilityBottomSheet
+          title={`${sheetCategory.emoji} ${isUrdu && sheetCategory.name_ur ? sheetCategory.name_ur : sheetCategory.name}`}
+          onClose={closeSheet}
+          // Real ask, 2026-10-28: "when there is no driver around is too
+          // small it should be display on half or 75% of the screen" —
+          // only the no-immediate-driver states (village/cross-village/
+          // pick-another-type) get the taller floor; the plain "N online,
+          // tap to send" case stays its natural compact size.
+          minHeight={!activeRequest && quote && quote.online_in_city === 0 ? '60vh' : undefined}
+        >
           {quoting ? (
             <div className="flex justify-center py-8"><Loader2 size={22} className="animate-spin text-[#166534]" /></div>
           ) : !activeRequest ? (

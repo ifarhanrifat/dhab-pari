@@ -35,7 +35,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
-import { Receipt, Users, Clock, Wrench, Bus, Sparkles, ShoppingBag, Car, Package, Phone, Store } from 'lucide-react'
+import { Receipt, Users, Clock, Wrench, Bus, Sparkles, ShoppingBag, Car, Package, Phone, Store, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -43,7 +43,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { BookingQuickViewSheet, type QuickViewKind } from '@/components/mobility/BookingQuickViewSheet'
 
-type Kind = 'trip' | 'hourly' | 'equipment' | 'ride' | 'shadi' | 'cityPurchase' | 'rental' | 'parcel' | 'dispatch' | 'shop'
+type Kind = 'trip' | 'hourly' | 'equipment' | 'ride' | 'shadi' | 'cityPurchase' | 'rental' | 'parcel' | 'dispatch' | 'shop' | 'rideDispatch'
 interface BookingRow { id: string; rawId: string; kind: Kind; title: string; subtitle: string; amount: number | null; status: 'pending' | 'confirmed' | 'declined' | 'cancelled' | 'completed'; date: string; href: string | null }
 // Real ask: hourly/equipment/ride rows used to send the rider to a
 // generic, unscoped browse page instead of their own booking — these 3
@@ -63,11 +63,11 @@ const STATUS_STYLE: Record<BookingRow['status'], { bg: string; fg: string }> = {
 // same tint tokens the rest of the app's category belt/service tiles use.
 const KIND_ICON: Record<Kind, typeof Users> = {
   trip: Users, hourly: Clock, equipment: Wrench, ride: Bus, shadi: Sparkles,
-  cityPurchase: ShoppingBag, rental: Car, parcel: Package, dispatch: Phone, shop: Store,
+  cityPurchase: ShoppingBag, rental: Car, parcel: Package, dispatch: Phone, shop: Store, rideDispatch: Navigation,
 }
 const KIND_TINT: Record<Kind, string> = {
   trip: '#e0f2fe', hourly: '#fef9c3', equipment: '#fde68a', ride: '#dcfce7', shadi: '#fce7f3',
-  cityPurchase: '#ffe4e6', rental: '#f3e8ff', parcel: '#ffedd5', dispatch: '#e0e7ff', shop: '#fff7ed',
+  cityPurchase: '#ffe4e6', rental: '#f3e8ff', parcel: '#ffedd5', dispatch: '#e0e7ff', shop: '#fff7ed', rideDispatch: '#dbeafe',
 }
 // Our status model has 3 real stages (pending → confirmed → completed), not the
 // reference's 4 (requested/accepted/ontheway/completed) — every kind here only
@@ -81,7 +81,7 @@ const STEP: Record<BookingRow['status'], number> = { pending: 0, confirmed: 1, c
 function mapStatus(s: string): BookingRow['status'] {
   if (s === 'completed') return 'completed'
   if (s === 'cancelled') return 'cancelled'
-  if (['declined', 'rejected', 'no_answer'].includes(s)) return 'declined'
+  if (['declined', 'rejected', 'no_answer', 'expired'].includes(s)) return 'declined'
   if (['confirmed', 'accepted', 'announced', 'in_progress', 'approved', 'picked_up', 'delivered'].includes(s)) return 'confirmed'
   return 'pending'
 }
@@ -103,7 +103,7 @@ export default function TripsPage() {
   const [seg, setSeg] = useState<'active' | 'past'>('active')
 
   const reloadMine = async () => {
-    const [tripShare, hourly, equipment, ride, shadi, cityPurchase, rental, parcel, dispatch, shop] = await Promise.all([
+    const [tripShare, hourly, equipment, ride, shadi, cityPurchase, rental, parcel, dispatch, shop, rideDispatch] = await Promise.all([
       supabase.rpc('my_trip_bookings'),
       supabase.rpc('my_hourly_bookings'),
       supabase.rpc('my_equipment_bookings'),
@@ -114,6 +114,7 @@ export default function TripsPage() {
       supabase.rpc('my_parcel_deliveries'),
       supabase.rpc('my_dispatch_calls'),
       supabase.from('shop_orders').select('id, status, total_amount_pkr, fulfillment_status, created_at, shops(name, name_ur)').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
+      supabase.from('ride_dispatch_requests').select('id, status, fare_pkr, pickup_label, dropoff_label, created_at').eq('initiator_portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
     ])
     if (tripShare.error) toast.error(friendlyError(tripShare.error, undefined, isUrdu))
 
@@ -148,6 +149,9 @@ export default function TripsPage() {
     }
     for (const o of (shop.data ?? []) as unknown as Array<{ id: string; status: string; total_amount_pkr: number; fulfillment_status: string; created_at: string; shops: { name: string; name_ur: string | null } | null }>) {
       out.push({ id: `shop-${o.id}`, rawId: o.id, kind: 'shop', title: isUrdu && o.shops?.name_ur ? o.shops.name_ur : o.shops?.name ?? '—', subtitle: o.fulfillment_status, amount: o.total_amount_pkr, status: mapStatus(o.status), date: o.created_at, href: `/portal/marketplace/order/${o.id}` })
+    }
+    for (const r of (rideDispatch.data ?? []) as Array<{ id: string; status: string; fare_pkr: number; pickup_label: string; dropoff_label: string; created_at: string }>) {
+      out.push({ id: `rd-${r.id}`, rawId: r.id, kind: 'rideDispatch', title: t('vp.rideDispatchPageTitle'), subtitle: `${r.pickup_label} → ${r.dropoff_label}`, amount: r.fare_pkr, status: mapStatus(r.status), date: r.created_at, href: `/portal/marketplace/ride-dispatch/${r.id}` })
     }
 
     out.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())

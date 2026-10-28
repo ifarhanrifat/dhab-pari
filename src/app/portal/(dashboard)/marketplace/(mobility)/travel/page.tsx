@@ -111,19 +111,30 @@ function useAutoScrollBelt(rtl: boolean) {
     return () => cancelAnimationFrame(raf)
   }, [node, rtl])
 
+  // Real finding, 2026-10-28 (confirmed the hard way: dozens of scripted
+  // taps on a real device kept missing tiles): resuming the instant
+  // touchend fires put the belt moving again right as a tap's click
+  // event was about to land, and even for a real thumb, "paused only
+  // while your finger is literally down" doesn't leave enough room to
+  // register what you're looking at and tap it. Resume now waits for a
+  // few seconds of no further touches, reset on every new one, instead
+  // of snapping back to motion the moment contact ends.
   useEffect(() => {
     if (!node) return
-    const pause = () => { pausedRef.current = true }
-    const resume = () => { pausedRef.current = false }
+    let resumeTimer: ReturnType<typeof setTimeout> | null = null
+    const clearResumeTimer = () => { if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null } }
+    const pause = () => { pausedRef.current = true; clearResumeTimer() }
+    const scheduleResume = () => { clearResumeTimer(); resumeTimer = setTimeout(() => { pausedRef.current = false }, 3000) }
     node.addEventListener('mouseenter', pause)
-    node.addEventListener('mouseleave', resume)
+    node.addEventListener('mouseleave', scheduleResume)
     node.addEventListener('touchstart', pause, { passive: true })
-    node.addEventListener('touchend', resume)
+    node.addEventListener('touchend', scheduleResume)
     return () => {
       node.removeEventListener('mouseenter', pause)
-      node.removeEventListener('mouseleave', resume)
+      node.removeEventListener('mouseleave', scheduleResume)
       node.removeEventListener('touchstart', pause)
-      node.removeEventListener('touchend', resume)
+      node.removeEventListener('touchend', scheduleResume)
+      clearResumeTimer()
     }
   }, [node])
 

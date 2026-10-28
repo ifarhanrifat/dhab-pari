@@ -49,6 +49,7 @@ const EVENT_TO_KIND: Record<string, QuickActionKind> = {
   parcel_delivery_invited: 'parcel',
   route_seat_booked: 'route',
   adda_seat_booked: 'route',
+  ride_dispatch_requested: 'ride_dispatch',
 }
 
 async function fetchPendingRows(supabase: ReturnType<typeof createClient>, kind: QuickActionKind, vehicleId: string): Promise<QuickActionRow[]> {
@@ -91,6 +92,11 @@ async function fetchPendingRows(supabase: ReturnType<typeof createClient>, kind:
     return ((data ?? []) as { delivery_id: string; description: string; pickup_label: string | null }[])
       .map((p) => ({ id: p.delivery_id, type: 'parcel', title: p.description, subtitle: p.pickup_label ?? '', amount: null, href: '/portal/my-vehicle/requests', needsAction: true }))
   }
+  if (kind === 'ride_dispatch') {
+    const { data } = await supabase.rpc('my_pending_ride_dispatch_requests', { p_vehicle_id: vehicleId })
+    return ((data ?? []) as { id: string; pickup_label: string; dropoff_label: string; fare_pkr: number; category_emoji: string; category_name: string }[])
+      .map((r) => ({ id: r.id, type: 'ride_dispatch', title: `${r.category_emoji} ${r.category_name}`, subtitle: `${r.pickup_label} → ${r.dropoff_label}`, amount: r.fare_pkr, href: `/portal/marketplace/ride-dispatch/${r.id}`, needsAction: true }))
+  }
   // 'route' — covers both route-based and adda-based ride_bookings, same
   // two-query split as the Jobs list (see its own comment on why).
   const [routeRes, addaRes] = await Promise.all([
@@ -107,7 +113,7 @@ async function fetchPendingRows(supabase: ReturnType<typeof createClient>, kind:
   return out
 }
 
-const ALL_KINDS: QuickActionKind[] = ['hourly', 'rental', 'equipment', 'shadi', 'dispatch', 'city_purchase', 'parcel', 'route']
+const ALL_KINDS: QuickActionKind[] = ['hourly', 'rental', 'equipment', 'shadi', 'dispatch', 'city_purchase', 'parcel', 'route', 'ride_dispatch']
 
 export function PendingRequestOverlay({ vehicleId, vehicle }: { vehicleId: string; vehicle: VehicleFlags }) {
   const { t } = useLocale()

@@ -29,7 +29,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 
-export type QuickActionKind = 'hourly' | 'rental' | 'equipment' | 'shadi' | 'route' | 'dispatch' | 'city_purchase' | 'parcel' | 'delivery'
+export type QuickActionKind = 'hourly' | 'rental' | 'equipment' | 'shadi' | 'route' | 'dispatch' | 'city_purchase' | 'parcel' | 'delivery' | 'ride_dispatch'
 export interface QuickActionRow {
   id: string
   type: QuickActionKind
@@ -70,6 +70,13 @@ async function respond(kind: QuickActionKind, id: string, vehicleId: string | nu
     case 'city_purchase': return accept
       ? supabase.rpc('accept_city_purchase_request', { p_request_id: id, p_vehicle_id: vehicleId, p_addon_fee_pkr: feePkr })
       : supabase.rpc('decline_city_purchase_invitation', { p_request_id: id, p_vehicle_id: vehicleId })
+    // A broadcast request, not a per-vehicle invitation — there's
+    // nothing to "decline" (other drivers can still take it), so this
+    // is accept-only; dismissing without deciding already means "not
+    // this one," same as every other kind's dismiss-without-decide path.
+    case 'ride_dispatch': return accept
+      ? supabase.rpc('accept_ride_dispatch', { p_request_id: id })
+      : Promise.resolve({ data: null, error: null })
   }
 }
 
@@ -94,6 +101,7 @@ export function JobQuickActionSheet({ row, vehicleId, onClose, onDone }: Props) 
     // requests page (live tracking lives there) — kept consistent
     // regardless of which entry point the driver accepted from.
     if (row.type === 'dispatch' && accept) router.push(`/portal/marketplace/dispatch/${row.id}`)
+    if (row.type === 'ride_dispatch' && accept) router.push('/portal/my-vehicle/trips')
   }
 
   return (
@@ -113,10 +121,12 @@ export function JobQuickActionSheet({ row, vehicleId, onClose, onDone }: Props) 
               </div>
             )}
             <div className="flex items-center gap-2">
-              <button onClick={() => act(false)} disabled={busy !== null}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[#e5e2d0] text-[#b91c1c] font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">
-                {busy === 'decline' ? <Loader2 size={15} className="animate-spin" /> : <XIcon size={15} />} {t('vp.declineBtn')}
-              </button>
+              {row.type !== 'ride_dispatch' && (
+                <button onClick={() => act(false)} disabled={busy !== null}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[#e5e2d0] text-[#b91c1c] font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">
+                  {busy === 'decline' ? <Loader2 size={15} className="animate-spin" /> : <XIcon size={15} />} {t('vp.declineBtn')}
+                </button>
+              )}
               <button onClick={() => act(true)} disabled={busy !== null}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">
                 {busy === 'accept' ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} {t('vp.acceptBtn')}

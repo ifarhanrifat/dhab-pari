@@ -41,6 +41,7 @@ export function DriverJobsBadgeProvider({ vehicleId, vehicle, children }: { vehi
     )
     calls.push(Promise.resolve(supabase.rpc('my_dispatch_invitations', { p_vehicle_id: vehicleId }).then(({ data }) => (data ?? []).length)))
     calls.push(Promise.resolve(supabase.rpc('my_city_purchase_invitations', { p_vehicle_id: vehicleId }).then(({ data }) => (data ?? []).length)))
+    calls.push(Promise.resolve(supabase.rpc('my_pending_ride_dispatch_requests', { p_vehicle_id: vehicleId }).then(({ data }) => (data ?? []).length)))
     if (vehicle.delivers) calls.push(Promise.resolve(supabase.rpc('my_shop_delivery_invitations', { p_vehicle_id: vehicleId }).then(({ data }) => (data ?? []).length)))
 
     const results = await Promise.all(calls)

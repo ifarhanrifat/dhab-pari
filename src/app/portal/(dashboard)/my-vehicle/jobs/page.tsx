@@ -13,7 +13,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { Clock3, Bus, Wrench, Users2, ShoppingBag, Package, Route as RouteIcon, Navigation } from 'lucide-react'
+import { Clock3, Bus, Wrench, Users2, ShoppingBag, Package, Route as RouteIcon, Navigation, Car } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -23,14 +23,16 @@ import { JobQuickActionSheet, type QuickActionKind } from '@/components/mobility
 
 interface Vehicle { id: string; offers_hourly: boolean; offers_shadi: boolean; offers_equipment: boolean; offers_rental: boolean; delivers: boolean }
 interface Row {
-  id: string; type: 'hourly' | 'shadi' | 'equipment' | 'rental' | 'route' | 'dispatch' | 'city_purchase' | 'delivery' | 'parcel'
+  id: string; type: 'hourly' | 'shadi' | 'equipment' | 'rental' | 'route' | 'dispatch' | 'city_purchase' | 'delivery' | 'parcel' | 'ride_dispatch'
   title: string; subtitle: string; amount: number | null; at: string; needsAction: boolean; done: boolean; href: string
 }
 // Every kind here now pops up instead of navigating away — dispatch/
 // parcel/delivery are plain accept/decline same as the first 5;
 // city_purchase gets its own fee-input step inside the same sheet
-// (JobQuickActionSheet handles that one difference).
-const QUICK_ACTION_KINDS = new Set<Row['type']>(['hourly', 'rental', 'equipment', 'shadi', 'route', 'dispatch', 'city_purchase', 'parcel', 'delivery'])
+// (JobQuickActionSheet handles that one difference). ride_dispatch is
+// accept-only (JobQuickActionSheet hides Decline for it) — it's a
+// broadcast, not a per-vehicle invitation.
+const QUICK_ACTION_KINDS = new Set<Row['type']>(['hourly', 'rental', 'equipment', 'shadi', 'route', 'dispatch', 'city_purchase', 'parcel', 'delivery', 'ride_dispatch'])
 function isQuickActionKind(t: Row['type']): t is QuickActionKind { return QUICK_ACTION_KINDS.has(t) }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -109,6 +111,12 @@ export default function MyVehicleJobsPage() {
       }
     }
     {
+      const { data } = await supabase.rpc('my_pending_ride_dispatch_requests', { p_vehicle_id: v.id })
+      for (const r of (data ?? []) as { id: string; pickup_label: string; dropoff_label: string; fare_pkr: number; category_emoji: string; category_name: string; created_at: string }[]) {
+        out.push({ id: r.id, type: 'ride_dispatch', title: `${r.category_emoji} ${r.category_name}`, subtitle: `${r.pickup_label} → ${r.dropoff_label}`, amount: r.fare_pkr, at: r.created_at, needsAction: true, done: false, href: `/portal/marketplace/ride-dispatch/${r.id}` })
+      }
+    }
+    {
       // Real gap found live, 2026-10-26: once a driver accepts a City
       // Purchase invitation above, the request falls out of
       // my_city_purchase_invitations (status moves past 'ringing') but
@@ -159,11 +167,11 @@ export default function MyVehicleJobsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicle])
 
-  const ICONS: Record<Row['type'], typeof Bus> = { hourly: Clock3, shadi: Users2, equipment: Wrench, rental: Navigation, route: RouteIcon, dispatch: ShoppingBag, city_purchase: ShoppingBag, delivery: Package, parcel: Package }
+  const ICONS: Record<Row['type'], typeof Bus> = { hourly: Clock3, shadi: Users2, equipment: Wrench, rental: Navigation, route: RouteIcon, dispatch: ShoppingBag, city_purchase: ShoppingBag, delivery: Package, parcel: Package, ride_dispatch: Car }
   // Was flat #F9F9F6 — identical to the page background, so the icon badge
   // had no visible boundary. Tinted per job type, same pattern already
   // fixed on the equipment browse cards.
-  const TINTS: Record<Row['type'], string> = { hourly: '#fef9c3', shadi: '#fce7f3', equipment: '#fde68a', rental: '#f3e8ff', route: '#dcfce7', dispatch: '#e0e7ff', city_purchase: '#ffe4e6', delivery: '#ffedd5', parcel: '#ffedd5' }
+  const TINTS: Record<Row['type'], string> = { hourly: '#fef9c3', shadi: '#fce7f3', equipment: '#fde68a', rental: '#f3e8ff', route: '#dcfce7', dispatch: '#e0e7ff', city_purchase: '#ffe4e6', delivery: '#ffedd5', parcel: '#ffedd5', ride_dispatch: '#dbeafe' }
 
   const groups = { new: rows.filter((r) => r.needsAction), active: rows.filter((r) => !r.needsAction && !r.done), done: rows.filter((r) => r.done) }
   const list = groups[seg]
