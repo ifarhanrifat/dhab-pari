@@ -142,6 +142,17 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
         ? [{ lat: detail.pickup_lat, lng: detail.pickup_lng, label: detail.pickup_label ?? originLabel, color: '#dc2626' }]
         : []),
   ]
+  // Real bug found live, 2026-10-29: with zero live pins (the normal
+  // state right after accept, before either side's own GPS has synced
+  // yet), LeafletMap's own empty-pins fallback centers on all of
+  // Pakistan at zoom 5 — to a viewer that reads as "there's no map
+  // here at all", not a map that's just waiting for a pin. Centering
+  // on the real pickup/destination point keeps it meaningfully zoomed
+  // in the whole time, pins or not.
+  const mapCenter: [number, number] | undefined =
+    detail.pickup_lat != null && detail.pickup_lng != null ? [detail.pickup_lat, detail.pickup_lng]
+    : detail.dest_lat != null && detail.dest_lng != null ? [detail.dest_lat, detail.dest_lng]
+    : undefined
 
   return (
     <MobilityBottomSheet title={`${originLabel} → ${destLabel}`} onClose={onClose} minHeight="70vh">
@@ -163,7 +174,7 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
               </div>
             )}
 
-            <LeafletMap pins={pins} height={220} className="rounded-xl" />
+            <LeafletMap pins={pins} center={mapCenter} height={220} className="rounded-xl" />
             <p className="font-sans text-[11.5px] text-[#64748b]">{t('cm.locationSharingHint')}</p>
             {!otherPos && (
               <p className="font-sans text-[12px] text-[#64748b]">{detail.role === 'driver' ? t('cm.waitingForRiderLocation') : t('cm.waitingForDriverLocation')}</p>
