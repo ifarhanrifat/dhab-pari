@@ -28,14 +28,14 @@ interface FareBand { flow: 'trip_share' | 'city_fetch' | 'route'; base_pkr: numb
 interface VehicleCategory {
   id: string; key: string; name: string; name_ur: string | null; emoji: string
   base_fare_pkr: number; per_km_pkr: number; intercity_commission_pct: number; out_of_city_commission_pct: number; is_active: boolean
-  category_group: 'passenger' | 'equipment'; out_of_city_eligible: boolean
+  category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean
 }
 
 const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, display_order: 0 }
 const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', base_fare_pkr: 0, per_km_pkr: 0, display_order: 0, delivery_eligible: true, ride_eligible: true, home_city_delivery_eligible: true, outstation_delivery_eligible: true }
 const emptyVillage = { name: '', name_ur: '', delivery_fee_pkr: 0, is_home_village: false, display_order: 0 }
 const emptyFareBand = { base_pkr: 0, per_km_pkr: 0, spread: 0.28 }
-const emptyVehicleCategory = { name: '', name_ur: '', emoji: '', base_fare_pkr: 0, per_km_pkr: 0, intercity_commission_pct: 10, out_of_city_commission_pct: 15, category_group: 'passenger' as 'passenger' | 'equipment', out_of_city_eligible: true }
+const emptyVehicleCategory = { name: '', name_ur: '', emoji: '', base_fare_pkr: 0, per_km_pkr: 0, intercity_commission_pct: 10, out_of_city_commission_pct: 15, category_group: 'passenger' as 'passenger' | 'loading' | 'machinery', out_of_city_eligible: true }
 
 function fmt(n: number) { return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 function flowLabelKey(flow: 'trip_share' | 'city_fetch' | 'route') {
@@ -294,9 +294,10 @@ export default function MarketplaceReferencePage() {
                   <input value={vehicleCategoryForm.name_ur} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" dir="rtl" />
                 </div>
                 <input value={vehicleCategoryForm.emoji} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, emoji: e.target.value })} placeholder={t('mr.emojiPlaceholder')} className="input-field" />
-                <select value={vehicleCategoryForm.category_group} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, category_group: e.target.value as 'passenger' | 'equipment' })} className="input-field">
+                <select value={vehicleCategoryForm.category_group} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, category_group: e.target.value as 'passenger' | 'loading' | 'machinery' })} className="input-field">
                   <option value="passenger">{t('mr.categoryGroupPassenger')}</option>
-                  <option value="equipment">{t('mr.categoryGroupEquipment')}</option>
+                  <option value="loading">{t('mr.categoryGroupLoading')}</option>
+                  <option value="machinery">{t('mr.categoryGroupMachinery')}</option>
                 </select>
                 <label className="flex items-center gap-2 font-sans text-[13px] text-dp-on-surface cursor-pointer">
                   <input type="checkbox" checked={vehicleCategoryForm.out_of_city_eligible} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_eligible: e.target.checked })} className="cursor-pointer" />

@@ -56,7 +56,7 @@ interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_per_seat_pkr: number; vehicle_id: string; owner_name: string
 }
-interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; category_group: 'passenger' | 'equipment'; out_of_city_eligible: boolean }
+interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean }
 // Real ask, 2026-10-28: "it should need to replace with the cars,
 // bikes, machinery, loading etc so when user will select the cars so
 // only all kind of cars and SUVs etc will appear and not machines and
@@ -118,7 +118,7 @@ function ResultsPageInner() {
   const [routes, setRoutes] = useState<RouteRow[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [vehicleView, setVehicleView] = useState<'passenger' | 'equipment'>('passenger')
+  const [vehicleView, setVehicleView] = useState<'passenger' | 'loading' | 'machinery'>('passenger')
 
   // Real ask, 2026-10-27: "no regular rides are listed like catagory
   // wise list... when user will chose one catagory then the request
@@ -367,8 +367,8 @@ function ResultsPageInner() {
               <p className="text-[11.5px] text-[#64748b] mt-0.5">{t('mb.requestAnyDriverHint')}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-[#f2f1e8]">
-              {([['passenger', t('mb.vehicleViewTravel')], ['equipment', t('mb.vehicleViewMachinery')]] as const).map(([key, label]) => {
+            <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-[#f2f1e8]">
+              {([['passenger', t('mb.vehicleViewTravel')], ['loading', t('mb.vehicleViewLoading')], ['machinery', t('mb.vehicleViewMachinery')]] as const).map(([key, label]) => {
                 const on = vehicleView === key
                 return (
                   <button key={key} onClick={() => setVehicleView(key)}
@@ -422,7 +422,7 @@ function ResultsPageInner() {
               // tab. EQUIPMENT_HREF now only decides which path a given
               // equipment category takes, not a one-size-fits-all link.
               <div className="grid grid-cols-2 gap-2">
-                {categories.filter((c) => c.category_group === 'equipment' && (!city || city.is_home_city || c.out_of_city_eligible)).map((c) => {
+                {categories.filter((c) => c.category_group === vehicleView && (!city || city.is_home_city || c.out_of_city_eligible)).map((c) => {
                   const href = EQUIPMENT_HREF[c.key]
                   if (href) {
                     return (
