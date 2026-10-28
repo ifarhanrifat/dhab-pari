@@ -56,8 +56,18 @@ interface RouteRow {
   fare_per_seat_pkr: number; vehicle_id: string; owner_name: string
 }
 interface VehicleCategory { id: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number }
-interface RideQuote { online_count: number; base_fare_pkr: number; village_detour_pkr: number; total_with_village_pkr: number }
-interface DispatchRequest { id: string; status: string; fare_pkr: number; village_detour_pkr: number; used_village_driver: boolean; trip_offer_id: string | null }
+// Real ask, 2026-10-28: the tiered cascade (751) — own village online-
+// in-city (one-way) vs own village active-but-not-nearby (two-way) vs
+// a neighbouring tenant's fleet (via marketplace_share_agreements) vs,
+// if truly nothing anywhere, falling back to a different vehicle TYPE
+// from the rider's own village. Who actually gets notified and what
+// fare gets charged are decoupled — this quote is only ever a preview.
+interface RideQuote {
+  online_in_city: number; active_total: number; base_fare_pkr: number; village_detour_pkr: number; total_with_village_pkr: number
+  cross_tenant: { tenant_id: string; tenant_name: string; active_count: number; detour_pkr: number } | null
+}
+interface DispatchRequest { id: string; status: string; fare_pkr: number; tier_used: string | null; matched_tenant_name: string | null; trip_offer_id: string | null }
+interface CategoryOption { id: string; name: string; name_ur: string | null; emoji: string; fare_pkr: number; active_count: number }
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
@@ -122,6 +132,9 @@ function ResultsPageInner() {
   const [requesting, setRequesting] = useState(false)
   const [activeRequest, setActiveRequest] = useState<DispatchRequest | null>(null)
   const [bookingId, setBookingId] = useState<string | null>(null)
+  const [fallbackOptions, setFallbackOptions] = useState<CategoryOption[] | null>(null)
+  const [loadingFallback, setLoadingFallback] = useState(false)
+  const [selectedFallback, setSelectedFallback] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     supabase.from('vehicle_categories').select('id, name, name_ur, emoji, base_fare_pkr, per_km_pkr').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
@@ -145,18 +158,39 @@ function ResultsPageInner() {
     setQuote(data as RideQuote)
   }
 
-  const sendRequest = async (useVillageDriver: boolean) => {
+  const sendRequest = async (categoryIds?: string[]) => {
     if (!pickup || !city || !sheetCategory || distanceKm == null) return
     setRequesting(true)
     const { data, error } = await supabase.rpc('create_ride_dispatch_request', {
       p_category_id: sheetCategory.id, p_pickup_label: pickup.label || t('mb.fromPlaceholder'), p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng,
       p_dropoff_label: isUrdu && city.name_ur ? city.name_ur : city.name, p_dropoff_lat: city.lat, p_dropoff_lng: city.lng, p_distance_km: distanceKm,
-      p_use_village_driver: useVillageDriver,
+      p_category_ids: categoryIds && categoryIds.length > 0 ? categoryIds : null,
+      p_include_cross_tenant: true,
     })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    setActiveRequest({ id: data as string, status: 'open', fare_pkr: 0, village_detour_pkr: 0, used_village_driver: useVillageDriver, trip_offer_id: null })
+    setActiveRequest({ id: data as string, status: 'open', fare_pkr: 0, tier_used: null, matched_tenant_name: null, trip_offer_id: null })
   }
+
+  // The last resort: own village has nothing (not even the two-way
+  // fallback) AND no neighbouring tenant does either — offer a
+  // different vehicle TYPE from the rider's own village instead.
+  useEffect(() => {
+    if (!quote || !sheetCategory || distanceKm == null || quote.online_in_city > 0 || quote.active_total > 0 || quote.cross_tenant) {
+      setFallbackOptions(null); setSelectedFallback(new Set())
+      return
+    }
+    setLoadingFallback(true)
+    supabase.rpc('ride_dispatch_category_options', { p_exclude_category_id: sheetCategory.id, p_distance_km: distanceKm })
+      .then(({ data }) => { setFallbackOptions((data ?? []) as CategoryOption[]); setLoadingFallback(false) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quote, sheetCategory?.id, distanceKm])
+
+  const toggleFallback = (id: string) => setSelectedFallback((s) => {
+    const next = new Set(s)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
 
   useEffect(() => {
     if (!activeRequest || activeRequest.status !== 'open') return
@@ -178,6 +212,7 @@ function ResultsPageInner() {
       await supabase.rpc('cancel_ride_dispatch_request', { p_request_id: activeRequest.id })
     }
     setSheetCategory(null); setQuote(null); setActiveRequest(null); setBookingId(null)
+    setFallbackOptions(null); setSelectedFallback(new Set())
   }
 
   async function reload(c: City) {
@@ -398,16 +433,16 @@ function ResultsPageInner() {
                   <span className="font-extrabold text-[18px] text-[#166534] ltr-num">{fmt(quote.base_fare_pkr)}</span>
                 </div>
 
-                {quote.online_count > 0 ? (
+                {quote.online_in_city > 0 ? (
                   <>
                     <p className="text-[12px] text-[#166534] font-semibold flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-[#166534] animate-pulse" /> {t('mb.driversOnlineNote').replace('{n}', String(quote.online_count))}
+                      <span className="w-2 h-2 rounded-full bg-[#166534] animate-pulse" /> {t('mb.driversOnlineNote').replace('{n}', String(quote.online_in_city))}
                     </p>
-                    <button onClick={() => sendRequest(false)} disabled={requesting} className="w-full bg-[#166534] text-white rounded-xl py-3 font-bold text-[14px] cursor-pointer disabled:opacity-50">
+                    <button onClick={() => sendRequest()} disabled={requesting} className="w-full bg-[#166534] text-white rounded-xl py-3 font-bold text-[14px] cursor-pointer disabled:opacity-50">
                       {requesting ? t('action.saving') : t('mb.sendRideRequestBtn').replace('{price}', fmt(quote.base_fare_pkr))}
                     </button>
                   </>
-                ) : (
+                ) : quote.active_total > 0 ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-col gap-2">
                     <p className="text-[12.5px] font-bold text-amber-800">{t('mb.noDriverHereNote')}</p>
                     <p className="text-[12px] text-amber-800">{t('mb.askVillageDriverNote')}</p>
@@ -416,9 +451,57 @@ function ResultsPageInner() {
                       <div className="flex justify-between"><span className="text-[#64748b]">{t('mb.villageDetourFeeLabel')}</span><span className="ltr-num text-[#1e293b]">{fmt(quote.village_detour_pkr)}</span></div>
                       <div className="flex justify-between font-bold pt-1 border-t border-[#f1f5f9]"><span className="text-[#1e293b]">{t('vp.totalLabel')}</span><span className="ltr-num text-[#166534]">{fmt(quote.total_with_village_pkr)}</span></div>
                     </div>
-                    <button onClick={() => sendRequest(true)} disabled={requesting} className="w-full bg-[#166534] text-white rounded-xl py-3 font-bold text-[14px] cursor-pointer disabled:opacity-50">
+                    <button onClick={() => sendRequest()} disabled={requesting} className="w-full bg-[#166534] text-white rounded-xl py-3 font-bold text-[14px] cursor-pointer disabled:opacity-50">
                       {requesting ? t('action.saving') : t('mb.callVillageDriverBtn').replace('{price}', fmt(quote.total_with_village_pkr))}
                     </button>
+                  </div>
+                ) : quote.cross_tenant ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-col gap-2">
+                    <p className="text-[12.5px] font-bold text-amber-800">
+                      {t('mb.crossVillageAvailableNote')
+                        .replace('{type}', isUrdu && sheetCategory?.name_ur ? sheetCategory.name_ur : sheetCategory?.name ?? '')
+                        .replace('{n}', String(quote.cross_tenant.active_count))
+                        .replace('{village}', quote.cross_tenant.tenant_name)}
+                    </p>
+                    <div className="flex flex-col gap-1 text-[12px] bg-white rounded-lg p-2.5">
+                      <div className="flex justify-between"><span className="text-[#64748b]">{t('mb.tripFareLabel')}</span><span className="ltr-num text-[#1e293b]">{fmt(quote.base_fare_pkr)}</span></div>
+                      <div className="flex justify-between"><span className="text-[#64748b]">{t('mb.villageDetourFeeLabel')}</span><span className="ltr-num text-[#1e293b]">{fmt(quote.cross_tenant.detour_pkr)}</span></div>
+                      <div className="flex justify-between font-bold pt-1 border-t border-[#f1f5f9]"><span className="text-[#1e293b]">{t('vp.totalLabel')}</span><span className="ltr-num text-[#166534]">{fmt(quote.base_fare_pkr + quote.cross_tenant.detour_pkr)}</span></div>
+                    </div>
+                    <button onClick={() => sendRequest()} disabled={requesting} className="w-full bg-[#166534] text-white rounded-xl py-3 font-bold text-[14px] cursor-pointer disabled:opacity-50">
+                      {requesting ? t('action.saving') : t('mb.callNearbyVillageBtn').replace('{village}', quote.cross_tenant.tenant_name).replace('{price}', fmt(quote.base_fare_pkr + quote.cross_tenant.detour_pkr))}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-col gap-2.5">
+                    <p className="text-[12.5px] font-bold text-amber-800">
+                      {t('mb.noDriverAnywhereNote').replace('{type}', isUrdu && sheetCategory?.name_ur ? sheetCategory.name_ur : sheetCategory?.name ?? '')}
+                    </p>
+                    {loadingFallback ? (
+                      <div className="flex justify-center py-3"><Loader2 size={18} className="animate-spin text-amber-700" /></div>
+                    ) : (fallbackOptions ?? []).length === 0 ? (
+                      <p className="text-[12px] text-amber-800">{t('mb.rideRequestCancelledNote')}</p>
+                    ) : (
+                      <>
+                        <div className="flex flex-col gap-1.5">
+                          {fallbackOptions!.map((c) => {
+                            const checked = selectedFallback.has(c.id)
+                            return (
+                              <label key={c.id} className="flex items-center gap-2.5 bg-white rounded-lg p-2.5 cursor-pointer border" style={{ borderColor: checked ? '#166534' : '#f1f5f9' }}>
+                                <input type="checkbox" checked={checked} onChange={() => toggleFallback(c.id)} className="accent-[#166534] cursor-pointer" />
+                                <span className="text-[17px]">{c.emoji}</span>
+                                <span className="flex-1 text-[12.5px] font-semibold text-[#1e293b]">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
+                                <span className="text-[13px] font-extrabold text-[#166534] ltr-num">{fmt(c.fare_pkr)}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                        <button onClick={() => sendRequest(Array.from(selectedFallback))} disabled={requesting || selectedFallback.size === 0}
+                          className="w-full bg-[#166534] text-white rounded-xl py-3 font-bold text-[14px] cursor-pointer disabled:opacity-50">
+                          {requesting ? t('action.saving') : t('mb.sendToSelectedBtn').replace('{n}', String(selectedFallback.size))}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -427,12 +510,16 @@ function ResultsPageInner() {
             <div className="flex flex-col items-center gap-2 py-4 text-center">
               <Loader2 size={26} className="animate-spin text-[#166534]" />
               <p className="font-bold text-[14px] text-[#1e293b]">{t('mb.waitingForDriverHeading')}</p>
-              <p className="text-[12.5px] text-[#64748b]">{activeRequest.used_village_driver ? t('mb.waitingForVillageDriverHint') : t('mb.waitingForDriverHint')}</p>
+              <p className="text-[12.5px] text-[#64748b]">{t('mb.waitingForDriverHint')}</p>
             </div>
           ) : activeRequest.status === 'accepted' ? (
             <div className="flex flex-col items-center gap-2 py-4 text-center">
               <span className="text-[28px]">✅</span>
               <p className="font-bold text-[14px] text-[#166534]">{t('mb.rideAcceptedHeading')}</p>
+              {activeRequest.tier_used?.startsWith('cross_tenant') && activeRequest.matched_tenant_name && (
+                <p className="text-[12px] text-[#64748b]">{t('mb.acceptedFromVillageNote').replace('{village}', activeRequest.matched_tenant_name)}</p>
+              )}
+              <p className="font-extrabold text-[16px] text-[#166534] ltr-num">{fmt(activeRequest.fare_pkr)}</p>
               {bookingId && (
                 <Link href={`/portal/marketplace/trip/${bookingId}`} onClick={closeSheet} className="mt-1 px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold">
                   {t('cm.trackLocationBtn')}

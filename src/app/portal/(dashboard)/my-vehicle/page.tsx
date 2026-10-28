@@ -35,6 +35,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext'
+import { useVehicleLocationRefresh } from '@/hooks/useVehicleLocationRefresh'
 import { CityReturnDemandCard } from '@/components/mobility/CityReturnDemandCard'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
 import { fetchRoadRoute, type RoadRoute } from '@/lib/roadRoute'
@@ -145,6 +146,8 @@ export default function MyVehicleHomePage() {
       setLoading(false)
     })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useVehicleLocationRefresh(vehicle?.id ?? null, vehicle?.is_online ?? false)
 
   const toggleOnline = async () => {
     if (!vehicle) return
