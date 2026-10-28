@@ -408,14 +408,47 @@ function ResultsPageInner() {
                 )}
               </>
             ) : (
+              // Real bug, 2026-10-28: "click on loading rickshaw, tractor
+              // or loading vehicle it will navigate to marketplace main
+              // page" — tractor/loader/machinery have a real dedicated
+              // page (EquipmentBookingPage, a different hourly/site-based
+              // booking shape entirely); the new goods categories
+              // (loading rickshaw, Ravi Dala, 757) never got one because
+              // they don't actually need one — moving one load A→B is
+              // structurally identical to moving one rider A→B, so they
+              // go through the exact same ride-dispatch sheet every
+              // passenger category already uses, just reached from this
+              // tab. EQUIPMENT_HREF now only decides which path a given
+              // equipment category takes, not a one-size-fits-all link.
               <div className="grid grid-cols-2 gap-2">
-                {categories.filter((c) => c.category_group === 'equipment').map((c) => (
-                  <Link key={c.id} href={EQUIPMENT_HREF[c.key] ?? '/portal/marketplace'}
-                    className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
-                    <span className="text-[20px]">{c.emoji}</span>
-                    <span className="text-[12.5px] font-bold text-[#1e293b]">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
-                  </Link>
-                ))}
+                {categories.filter((c) => c.category_group === 'equipment').map((c) => {
+                  const href = EQUIPMENT_HREF[c.key]
+                  if (href) {
+                    return (
+                      <Link key={c.id} href={href}
+                        className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
+                        <span className="text-[20px]">{c.emoji}</span>
+                        <span className="text-[12.5px] font-bold text-[#1e293b]">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
+                      </Link>
+                    )
+                  }
+                  const fare = pickup && distanceKm != null ? Math.round(c.base_fare_pkr + c.per_km_pkr * distanceKm) : null
+                  return (
+                    <button key={c.id} onClick={() => (pickup ? openCategorySheet(c) : setShowPickupPicker(true))}
+                      className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
+                      <span className="text-[20px]">{c.emoji}</span>
+                      <span className="text-[12.5px] font-bold text-[#1e293b]">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
+                      {fare != null ? (
+                        <>
+                          <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{fmt(fare)}</span>
+                          <span className="text-[10px] text-[#94a3b8] ltr-num">{distanceKm!.toFixed(1)} km</span>
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-[#166534] underline">{t('mb.setPickupToSeeRatesBtn')}</span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
             )}
           </div>
