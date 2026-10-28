@@ -56,7 +56,18 @@ interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_per_seat_pkr: number; vehicle_id: string; owner_name: string
 }
-interface VehicleCategory { id: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number }
+interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; category_group: 'passenger' | 'equipment' }
+// Real ask, 2026-10-28: "it should need to replace with the cars,
+// bikes, machinery, loading etc so when user will select the cars so
+// only all kind of cars and SUVs etc will appear and not machines and
+// loading" — the flat category grid used to mix passenger types (car
+// tiers, bike, rickshaw, van) with goods/equipment types (tractor,
+// loader, machinery) with no way to tell them apart. category_group
+// (756) now drives a real Travel/Machinery split instead of a frontend
+// guess. Equipment categories don't go through the point-to-point
+// ride-dispatch sheet at all — they already have their own dedicated
+// site-based booking pages, same ones the home belt links to.
+const EQUIPMENT_HREF: Record<string, string> = { tractor: '/portal/marketplace/tractor', loader: '/portal/marketplace/loader', machinery: '/portal/marketplace/machinery' }
 // Real ask, 2026-10-28: the tiered cascade (751) — own village online-
 // in-city (one-way) vs own village active-but-not-nearby (two-way) vs
 // a neighbouring tenant's fleet (via marketplace_share_agreements) vs,
@@ -102,7 +113,7 @@ function ResultsPageInner() {
   const [routes, setRoutes] = useState<RouteRow[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | 'adda' | 'shared'>('all')
+  const [vehicleView, setVehicleView] = useState<'passenger' | 'equipment'>('passenger')
 
   // Real ask, 2026-10-27: "no regular rides are listed like catagory
   // wise list... when user will chose one catagory then the request
@@ -138,7 +149,7 @@ function ResultsPageInner() {
   const [selectedFallback, setSelectedFallback] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    supabase.from('vehicle_categories').select('id, name, name_ur, emoji, base_fare_pkr, per_km_pkr').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
+    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, base_fare_pkr, per_km_pkr, category_group').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -301,85 +312,41 @@ function ResultsPageInner() {
             <p className="text-[10.5px] font-bold uppercase tracking-[0.05em] text-white/75">{t('mb.pricesAreEstimates')}</p>
           </div>
 
-          {(() => {
-            const sharedCount = sharedTrips.length + routes.length
-            const totalCount = addaTrips.length + sharedCount
-            const showAdda = filter === 'all' || filter === 'adda'
-            const showShared = filter === 'all' || filter === 'shared'
-            return (
-              <>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[13px] font-extrabold text-[#1e293b]">{t('mb.availableRidesHeading')}</p>
-                  <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534] ltr-num">{t('mb.optionsCountBadge').replace('{n}', String(totalCount))}</span>
-                </div>
+          {/* Adda vans going here — only shown when there actually is one */}
+          {addaTrips.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-[12.5px] font-extrabold text-[#1e293b] flex items-center gap-1.5"><Bus size={14} className="text-[#166534]" /> {t('mb.addaGoingHereHeading')}</p>
+              {addaTrips.map((trip) => (
+                <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} onBookReturnOnly={bookReturnOnly} nm={nm} t={t} isUrdu={isUrdu} />
+              ))}
+            </div>
+          )}
 
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    ['all', t('mb.filterAll'), null, totalCount],
-                    ['adda', t('mb.filterAdda'), Bus, addaTrips.length],
-                    ['shared', t('mb.filterShared'), Users, sharedCount],
-                  ] as const).map(([key, label, ChipIcon, count]) => {
-                    const on = filter === key
-                    return (
-                      <button key={key} onClick={() => setFilter(key)}
-                        className="flex flex-col items-center gap-1 rounded-2xl p-3 text-center cursor-pointer border"
-                        style={{ background: on ? '#166534' : '#fff', color: on ? '#fff' : '#1e293b', borderColor: on ? '#166534' : '#e5e2d0' }}>
-                        {ChipIcon ? <ChipIcon size={18} /> : <span className="text-[18px] leading-none">🔎</span>}
-                        <span className="text-[12px] font-bold">{label}</span>
-                        <span className="text-[10px] font-semibold ltr-num" style={{ color: on ? 'rgba(255,255,255,.75)' : '#94a3b8' }}>{count}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Adda vans going here */}
-                {showAdda && (
-                  <div className="flex flex-col gap-2">
-                    {filter === 'all' && <p className="text-[12.5px] font-extrabold text-[#1e293b] flex items-center gap-1.5"><Bus size={14} className="text-[#166534]" /> {t('mb.addaGoingHereHeading')}</p>}
-                    {addaTrips.length === 0 ? (
-                      <p className="text-[12px] text-[#94a3b8] py-1">{t('mb.noAddaGoingHere')}</p>
-                    ) : (
-                      addaTrips.map((trip) => (
-                        <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} onBookReturnOnly={bookReturnOnly} nm={nm} t={t} isUrdu={isUrdu} />
-                      ))
-                    )}
+          {/* Shared rides going here (one-off trips + weekly routes) — only shown when there's at least one */}
+          {(sharedTrips.length > 0 || routes.length > 0) && (
+            <div className="flex flex-col gap-2">
+              <p className="text-[12.5px] font-extrabold text-[#1e293b] flex items-center gap-1.5"><Users size={14} className="text-[#0369a1]" /> {t('mb.sharedGoingHereHeading')}</p>
+              {sharedTrips.map((trip) => (
+                <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} onBookReturnOnly={bookReturnOnly} nm={nm} t={t} isUrdu={isUrdu} />
+              ))}
+              {routes.map((r) => (
+                <Link key={r.id} href={`/portal/marketplace/route/${r.id}`} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3">
+                  <span className="shrink-0 w-9 h-9 rounded-xl bg-[#dcfce7] flex items-center justify-center"><Bus size={17} className="text-[#166534]" /></span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[13px] font-bold text-[#1e293b]">{nm(r.origin, r.origin_ur)} → {nm(r.destination, r.destination_ur)}</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('mb.weeklyRouteBadge')}</span>
+                    </div>
+                    <p className="text-[11px] text-[#64748b] mt-0.5">{r.owner_name}</p>
                   </div>
-                )}
-
-                {/* Shared rides going here (one-off trips + weekly routes) */}
-                {showShared && (
-                  <div className="flex flex-col gap-2">
-                    {filter === 'all' && <p className="text-[12.5px] font-extrabold text-[#1e293b] flex items-center gap-1.5"><Users size={14} className="text-[#0369a1]" /> {t('mb.sharedGoingHereHeading')}</p>}
-                    {sharedCount === 0 ? (
-                      <p className="text-[12px] text-[#94a3b8] py-1">{t('vp.noOpenTripsToCity')}</p>
-                    ) : (
-                      <>
-                        {sharedTrips.map((trip) => (
-                          <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} onBookReturnOnly={bookReturnOnly} nm={nm} t={t} isUrdu={isUrdu} />
-                        ))}
-                        {routes.map((r) => (
-                          <Link key={r.id} href={`/portal/marketplace/route/${r.id}`} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3">
-                            <span className="shrink-0 w-9 h-9 rounded-xl bg-[#dcfce7] flex items-center justify-center"><Bus size={17} className="text-[#166534]" /></span>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-[13px] font-bold text-[#1e293b]">{nm(r.origin, r.origin_ur)} → {nm(r.destination, r.destination_ur)}</span>
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('mb.weeklyRouteBadge')}</span>
-                              </div>
-                              <p className="text-[11px] text-[#64748b] mt-0.5">{r.owner_name}</p>
-                            </div>
-                            <div className="shrink-0 text-end">
-                              <p className="font-extrabold text-[14px] text-[#005A36]">{fmt(r.fare_per_seat_pkr)}</p>
-                              <p className="text-[9px] text-[#64748b]">{t('mk.perSeat')}</p>
-                            </div>
-                          </Link>
-                        ))}
-                      </>
-                    )}
+                  <div className="shrink-0 text-end">
+                    <p className="font-extrabold text-[14px] text-[#005A36]">{fmt(r.fare_per_seat_pkr)}</p>
+                    <p className="text-[9px] text-[#64748b]">{t('mk.perSeat')}</p>
                   </div>
-                )}
-              </>
-            )
-          })()}
+                </Link>
+              ))}
+            </div>
+          )}
 
           <div className="border-t border-[#e5e2d0] pt-3 flex flex-col gap-2.5">
             <div>
@@ -387,20 +354,33 @@ function ResultsPageInner() {
               <p className="text-[11.5px] text-[#64748b] mt-0.5">{t('mb.requestAnyDriverHint')}</p>
             </div>
 
-            {!pickup ? (
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-[#f2f1e8]">
+              {([['passenger', t('mb.vehicleViewTravel')], ['equipment', t('mb.vehicleViewMachinery')]] as const).map(([key, label]) => {
+                const on = vehicleView === key
+                return (
+                  <button key={key} onClick={() => setVehicleView(key)}
+                    className="rounded-[9px] py-1.5 text-[12.5px] font-bold cursor-pointer"
+                    style={{ background: on ? '#166534' : 'transparent', color: on ? '#fff' : '#64748b', boxShadow: on ? '0 1px 2px rgba(0,0,0,.1)' : 'none' }}>
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {vehicleView === 'passenger' && !pickup ? (
               <button onClick={() => setShowPickupPicker(true)} className="w-full border border-dashed border-[#e5e2d0] rounded-xl py-2.5 text-[12.5px] font-semibold text-[#166534] cursor-pointer">
                 {t('mb.setPickupToSeeRatesBtn')}
               </button>
-            ) : (
+            ) : vehicleView === 'passenger' ? (
               <>
                 <button onClick={() => setShowPickupPicker(true)} className="flex items-center gap-1.5 text-[11.5px] font-semibold text-[#64748b] cursor-pointer w-fit">
-                  📍 {pickup.label || t('mb.fromPlaceholder')} · <span className="text-[#166534] underline">{t('action.edit')}</span>
+                  📍 {pickup!.label || t('mb.fromPlaceholder')} · <span className="text-[#166534] underline">{t('action.edit')}</span>
                 </button>
                 {distanceKm == null ? (
                   <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-[#166534]" /></div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
-                    {categories.map((c) => {
+                    {categories.filter((c) => c.category_group === 'passenger').map((c) => {
                       const fare = Math.round(c.base_fare_pkr + c.per_km_pkr * distanceKm)
                       return (
                         <button key={c.id} onClick={() => openCategorySheet(c)}
@@ -415,6 +395,16 @@ function ResultsPageInner() {
                   </div>
                 )}
               </>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {categories.filter((c) => c.category_group === 'equipment').map((c) => (
+                  <Link key={c.id} href={EQUIPMENT_HREF[c.key] ?? '/portal/marketplace'}
+                    className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
+                    <span className="text-[20px]">{c.emoji}</span>
+                    <span className="text-[12.5px] font-bold text-[#1e293b]">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
+                  </Link>
+                ))}
+              </div>
             )}
           </div>
 
