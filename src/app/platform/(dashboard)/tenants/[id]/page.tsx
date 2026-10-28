@@ -14,8 +14,8 @@ import { passwordMeetsPolicy, PASSWORD_REQUIREMENTS } from '@/lib/passwordPolicy
 const LeafletRadiusPicker = dynamic(() => import('@/components/shared/LeafletRadiusPicker'), { ssr: false })
 
 interface Zone {
-  id: string; zone_kind: 'village' | 'city'; city_id: string | null; city_name: string | null
-  label: string | null; center_lat: number; center_lng: number; radius_km: number
+  id: string; zone_kind: 'village' | 'city'; area_type: 'circle' | 'polygon'; city_id: string | null; city_name: string | null
+  label: string | null; center_lat: number; center_lng: number; radius_km: number | null; points: { lat: number; lng: number }[] | null
 }
 interface OtherZoneRow extends Zone { tenant_id: string; tenant_name: string }
 interface CityOption { id: string; name: string; lat: number | null; lng: number | null }
@@ -84,7 +84,7 @@ export default function PlatformTenantDetailPage() {
   const [otherZones, setOtherZones] = useState<OtherZoneRow[]>([])
   const [cities, setCities] = useState<CityOption[]>([])
   const [zoneModal, setZoneModal] = useState<{ mode: 'village' | 'city'; editingId: string | null } | null>(null)
-  const [zoneForm, setZoneForm] = useState({ city_id: '', lat: 32.9, lng: 72.85, radius_km: 10 })
+  const [zoneForm, setZoneForm] = useState<{ city_id: string; lat: number; lng: number; radius_km: number; areaType: 'circle' | 'polygon'; points: { lat: number; lng: number }[] }>({ city_id: '', lat: 32.9, lng: 72.85, radius_km: 10, areaType: 'circle', points: [] })
   const [zoneSaving, setZoneSaving] = useState(false)
 
   const load = async () => {
@@ -116,15 +116,15 @@ export default function PlatformTenantDetailPage() {
   const cityZones = zones.filter((z) => z.zone_kind === 'city')
 
   const openAddVillageZone = () => {
-    setZoneForm({ city_id: '', lat: 32.9, lng: 72.85, radius_km: 10 })
+    setZoneForm({ city_id: '', lat: 32.9, lng: 72.85, radius_km: 10, areaType: 'circle', points: [] })
     setZoneModal({ mode: 'village', editingId: null })
   }
   const openAddCityZone = () => {
-    setZoneForm({ city_id: '', lat: 32.9, lng: 72.85, radius_km: 15 })
+    setZoneForm({ city_id: '', lat: 32.9, lng: 72.85, radius_km: 15, areaType: 'circle', points: [] })
     setZoneModal({ mode: 'city', editingId: null })
   }
   const openEditZone = (z: Zone) => {
-    setZoneForm({ city_id: z.city_id ?? '', lat: z.center_lat, lng: z.center_lng, radius_km: z.radius_km })
+    setZoneForm({ city_id: z.city_id ?? '', lat: z.center_lat, lng: z.center_lng, radius_km: z.radius_km ?? 10, areaType: z.area_type, points: z.points ?? [] })
     setZoneModal({ mode: z.zone_kind, editingId: z.id })
   }
   const pickZoneCity = (cityId: string) => {
@@ -135,11 +135,14 @@ export default function PlatformTenantDetailPage() {
   const saveZone = async () => {
     if (!zoneModal) return
     if (zoneModal.mode === 'city' && !zoneForm.city_id) { toast.error('Choose a city.'); return }
+    if (zoneForm.areaType === 'polygon' && zoneForm.points.length < 3) { toast.error('Drop at least 3 points to draw a boundary.'); return }
     setZoneSaving(true)
     const cityName = cities.find((c) => c.id === zoneForm.city_id)?.name ?? null
     const { error } = await supabase.rpc('platform_upsert_tenant_zone', {
-      p_tenant_id: id, p_zone_kind: zoneModal.mode, p_center_lat: zoneForm.lat, p_center_lng: zoneForm.lng,
-      p_radius_km: zoneForm.radius_km, p_city_id: zoneModal.mode === 'city' ? zoneForm.city_id : null,
+      p_tenant_id: id, p_zone_kind: zoneModal.mode, p_area_type: zoneForm.areaType, p_center_lat: zoneForm.lat, p_center_lng: zoneForm.lng,
+      p_radius_km: zoneForm.areaType === 'circle' ? zoneForm.radius_km : null,
+      p_points: zoneForm.areaType === 'polygon' ? zoneForm.points : null,
+      p_city_id: zoneModal.mode === 'city' ? zoneForm.city_id : null,
       p_label: zoneModal.mode === 'city' ? cityName : null, p_id: zoneModal.editingId,
     })
     setZoneSaving(false)
@@ -325,7 +328,7 @@ export default function PlatformTenantDetailPage() {
         <div className="flex flex-col gap-2 mb-3">
           {villageZone ? (
             <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-dp-surface-container">
-              <span className="font-sans text-[13.5px] text-dp-on-surface">🏠 Village — {villageZone.radius_km} km radius</span>
+              <span className="font-sans text-[13.5px] text-dp-on-surface">🏠 Village — {villageZone.area_type === 'polygon' ? `drawn boundary (${villageZone.points?.length ?? 0} points)` : `${villageZone.radius_km} km radius`}</span>
               <div className="flex items-center gap-1">
                 <button onClick={() => openEditZone(villageZone)} className="p-1.5 text-dp-primary hover:bg-dp-primary/10 rounded cursor-pointer"><Pencil size={14} /></button>
                 <button onClick={() => deleteZone(villageZone.id)} className="p-1.5 text-dp-error hover:bg-dp-error/10 rounded cursor-pointer"><Trash2 size={14} /></button>
@@ -338,7 +341,7 @@ export default function PlatformTenantDetailPage() {
           )}
           {cityZones.map((z) => (
             <div key={z.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-dp-surface-container">
-              <span className="font-sans text-[13.5px] text-dp-on-surface">🏙️ {z.city_name} — {z.radius_km} km radius</span>
+              <span className="font-sans text-[13.5px] text-dp-on-surface">🏙️ {z.city_name} — {z.area_type === 'polygon' ? `drawn boundary (${z.points?.length ?? 0} points)` : `${z.radius_km} km radius`}</span>
               <div className="flex items-center gap-1">
                 <button onClick={() => openEditZone(z)} className="p-1.5 text-dp-primary hover:bg-dp-primary/10 rounded cursor-pointer"><Pencil size={14} /></button>
                 <button onClick={() => deleteZone(z.id)} className="p-1.5 text-dp-error hover:bg-dp-error/10 rounded cursor-pointer"><Trash2 size={14} /></button>
@@ -560,9 +563,16 @@ export default function PlatformTenantDetailPage() {
               )}
               <LeafletRadiusPicker
                 lat={zoneForm.lat} lng={zoneForm.lng} radiusKm={zoneForm.radius_km}
-                otherZones={otherZones.map((z) => ({ lat: z.center_lat, lng: z.center_lng, radiusKm: z.radius_km, label: `${z.tenant_name} — ${z.zone_kind === 'village' ? 'village' : z.city_name}` }))}
+                areaType={zoneForm.areaType} points={zoneForm.points}
+                cities={cities}
+                otherZones={otherZones.map((z) => ({
+                  lat: z.center_lat, lng: z.center_lng, radiusKm: z.radius_km ?? 0, areaType: z.area_type, points: z.points ?? undefined,
+                  label: `${z.tenant_name} — ${z.zone_kind === 'village' ? 'village' : z.city_name}`,
+                }))}
                 onChange={(p) => setZoneForm((f) => ({ ...f, lat: p.lat, lng: p.lng }))}
                 onRadiusChange={(r) => setZoneForm((f) => ({ ...f, radius_km: r }))}
+                onAreaTypeChange={(t) => setZoneForm((f) => ({ ...f, areaType: t }))}
+                onPointsChange={(pts) => setZoneForm((f) => ({ ...f, points: pts }))}
               />
               <button
                 onClick={saveZone} disabled={zoneSaving}

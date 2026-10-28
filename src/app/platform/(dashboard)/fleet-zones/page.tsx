@@ -16,9 +16,9 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface ZoneRow {
-  id: string; tenant_id: string; tenant_name: string; zone_kind: 'village' | 'city'
+  id: string; tenant_id: string; tenant_name: string; zone_kind: 'village' | 'city'; area_type: 'circle' | 'polygon'
   city_id: string | null; city_name: string | null; label: string | null
-  center_lat: number; center_lng: number; radius_km: number
+  center_lat: number; center_lng: number; radius_km: number | null; points: { lat: number; lng: number }[] | null
 }
 
 const PALETTE = ['#166534', '#1d4ed8', '#b91c1c', '#a16207', '#6d28d9', '#0e7490', '#be185d', '#4d7c0f']
@@ -52,9 +52,13 @@ export default function PlatformFleetZonesPage() {
         <>
           <LeafletMap
             pins={[]}
-            circles={zones.map((z) => ({
-              lat: z.center_lat, lng: z.center_lng, radiusKm: z.radius_km, color: colorFor(z.tenant_id),
+            circles={zones.filter((z) => z.area_type === 'circle').map((z) => ({
+              lat: z.center_lat, lng: z.center_lng, radiusKm: z.radius_km ?? 0, color: colorFor(z.tenant_id),
               popupHtml: `<strong>${z.tenant_name}</strong><br/>${z.zone_kind === 'village' ? '🏠 Village' : `🏙️ ${z.city_name}`} · ${z.radius_km} km`,
+            }))}
+            polygons={zones.filter((z) => z.area_type === 'polygon' && z.points).map((z) => ({
+              points: z.points!, color: colorFor(z.tenant_id),
+              popupHtml: `<strong>${z.tenant_name}</strong><br/>${z.zone_kind === 'village' ? '🏠 Village' : `🏙️ ${z.city_name}`} (drawn boundary)`,
             }))}
             height={480}
             className="rounded-lg border border-dp-outline-variant mb-4"
@@ -71,7 +75,10 @@ export default function PlatformFleetZonesPage() {
                         {tZones[0].tenant_name}
                       </Link>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant truncate">
-                        {tZones.map((z) => (z.zone_kind === 'village' ? `Village (${z.radius_km}km)` : `${z.city_name} (${z.radius_km}km)`)).join(' · ')}
+                        {tZones.map((z) => {
+                          const size = z.area_type === 'polygon' ? 'boundary' : `${z.radius_km}km`
+                          return z.zone_kind === 'village' ? `Village (${size})` : `${z.city_name} (${size})`
+                        }).join(' · ')}
                       </p>
                     </div>
                   </div>
