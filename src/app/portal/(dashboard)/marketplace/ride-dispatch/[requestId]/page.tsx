@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, CheckCircle2, XCircle, MapPin } from 'lucide-react'
+import { ArrowLeft, Loader2, CheckCircle2, XCircle, MapPin, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -23,6 +23,7 @@ import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 
 interface RequestDetail {
   id: string; status: string; pickup_label: string; dropoff_label: string
+  pickup_lat: number; pickup_lng: number
   distance_km: number; fare_pkr: number; reference_village_fare_pkr: number | null; created_at: string
   category_name: string; category_name_ur: string | null; category_emoji: string
   is_mine_as_rider: boolean; trip_offer_id: string | null
@@ -134,15 +135,35 @@ export default function RideDispatchPage() {
               {t('mb.youSavedNote').replace('{amount}', fmt(req.reference_village_fare_pkr - req.fare_pkr))}
             </p>
           )}
-          <div className="flex items-center gap-2 mt-1">
+          {/* Real bug found live, 2026-10-28: a driver who ends up back on
+              this page (e.g. re-opening the original push notification)
+              after already accepting hit a dead end — just this
+              checkmark and a chat button, no way to see where to go or
+              what to do next. router.push already sends a fresh accept
+              straight to my-vehicle/trips (which now has the live map,
+              navigate button and complete-ride action, 763), but this
+              page needs its own way forward too for whenever the driver
+              lands back here directly. */}
+          <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
             {req.is_mine_as_rider && bookingId && (
               <Link href={`/portal/marketplace/trip/${bookingId}`} className="px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold">
                 {t('cm.trackLocationBtn')}
               </Link>
             )}
+            {!req.is_mine_as_rider && (
+              <a href={`https://www.google.com/maps/search/?api=1&query=${req.pickup_lat},${req.pickup_lng}`} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold">
+                <Navigation size={14} /> {t('cm.navigateToPickupBtn')}
+              </a>
+            )}
             {req.trip_offer_id && (
               <Link href={`/portal/marketplace/trip-group/${req.trip_offer_id}`} className="px-4 py-2 border border-[#166534] text-[#166534] rounded-xl text-[13px] font-bold">
                 {t('cm.openGroupChatBtn')}
+              </Link>
+            )}
+            {!req.is_mine_as_rider && (
+              <Link href="/portal/my-vehicle/trips" className="px-4 py-2 border border-[#166534] text-[#166534] rounded-xl text-[13px] font-bold">
+                {t('mb.goToMyTripsBtn')}
               </Link>
             )}
           </div>

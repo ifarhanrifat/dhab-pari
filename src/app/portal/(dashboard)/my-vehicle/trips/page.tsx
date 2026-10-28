@@ -69,6 +69,14 @@ export default function MyVehicleTripsPage() {
   const [tripOffers, setTripOffers] = useState<TripOffer[]>([])
   const [fareOffersByTrip, setFareOffersByTrip] = useState<Record<string, FareOffer[]>>({})
   const [tripBookings, setTripBookings] = useState<TripBooking[]>([])
+  // Real bug found live, 2026-10-28: a driver who accepted a ride-
+  // dispatch request landed on a dead-end "you accepted" screen with
+  // no way to even see where the rider actually is — vehicle_trip_offers
+  // has no pickup coordinates at all (only dest_lat/dest_lng), so a
+  // ride-dispatch trip's real pickup point only exists on its own
+  // ride_dispatch_requests row, which the driver can already read
+  // directly (RLS already lets the accepted vehicle's owner see it).
+  const [pickupByTrip, setPickupByTrip] = useState<Record<string, { lat: number; lng: number }>>({})
   const [showPostTrip, setShowPostTrip] = useState(false)
   const [tripForm, setTripForm] = useState(emptyTripOffer)
   const [posting, setPosting] = useState(false)
@@ -94,6 +102,14 @@ export default function MyVehicleTripsPage() {
     setTripOffers(trips ?? [])
     const bookings = (tripB ?? []) as unknown as Omit<TripBooking, 'offboarded' | 'rider_name'>[]
     setTripBookings(bookings.map((b) => ({ ...b, offboarded: false, rider_name: null })))
+
+    supabase.from('ride_dispatch_requests').select('trip_offer_id, pickup_lat, pickup_lng').eq('accepted_vehicle_id', vehicleId).then(({ data: rds }) => {
+      const map: Record<string, { lat: number; lng: number }> = {}
+      for (const r of (rds ?? []) as { trip_offer_id: string | null; pickup_lat: number; pickup_lng: number }[]) {
+        if (r.trip_offer_id) map[r.trip_offer_id] = { lat: r.pickup_lat, lng: r.pickup_lng }
+      }
+      setPickupByTrip(map)
+    })
 
     // portal_users has no cross-reader RLS policy (rightly — a driver
     // can't just read any rider's profile), so rider names for the
@@ -319,7 +335,9 @@ export default function MyVehicleTripsPage() {
         <div>
           <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('cm.myTripOffersHeading')}</p>
           <div className="flex flex-col gap-3">
-            {tripOffers.map((tr) => (
+            {tripOffers.map((tr) => {
+              const tripActive = tr.status === 'open' || tripBookings.some((tb) => tb.trip_offer_id === tr.id && tb.status === 'confirmed')
+              return (
               <div key={tr.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -328,7 +346,7 @@ export default function MyVehicleTripsPage() {
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${tr.trip_type === 'return' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>{tr.trip_type === 'return' ? t('cm.tripTypeReturn') : t('cm.tripTypeOneway')}</span>
-                    <StatusPill tone={tr.status === 'open' ? 'accepted' : 'completed'} label={tr.status === 'open' ? t('mk.active') : t('mk.inactive')} className="uppercase" />
+                    <StatusPill tone={tripActive ? 'accepted' : 'completed'} label={tripActive ? t('mk.active') : t('mk.inactive')} className="uppercase" />
                   </div>
                 </div>
                 {(fareOffersByTrip[tr.id] ?? []).map((fo) => (
@@ -357,26 +375,46 @@ export default function MyVehicleTripsPage() {
                     )}
                   </div>
                 ))}
-                {tr.status === 'open' && (() => {
+                {/* Real bug found live, 2026-10-28: accept_ride_dispatch
+                    (746-763) always creates its vehicle_trip_offers row as
+                    status='closed' (correct — it's a direct 1:1 accept,
+                    not a browsable multi-seat offer), but this whole block
+                    — live-share toggle, shared map, group chat — used to
+                    only render for status==='open', so a driver who just
+                    accepted a ride landed on a dead screen with no way to
+                    see where to go. A 'closed' trip with a still-confirmed
+                    booking is exactly a ride-dispatch acceptance in
+                    progress, not a finished trip. */}
+                {tripActive && (() => {
+                  const isDispatchAccepted = tr.status !== 'open'
                   const ilan = ilansByTrip[tr.id]
                   const ilanLive = ilan && ilan.status === 'approved' && !ilan.is_paused && new Date(ilan.ends_at).getTime() > Date.now()
                   const ilanPending = ilan && ilan.status === 'pending_approval'
+                  const pickup = pickupByTrip[tr.id]
                   return (
                     <>
-                      <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
-                        {ilanLive ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700"><Megaphone size={12} /> {t('il.adIsRunningLabel')}</span>
-                        ) : ilanPending ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700"><Clock size={12} /> {t('il.statusPending')}</span>
-                        ) : (
-                          <span className="text-[11px] text-[#94a3b8]">{t('il.noAdRunningLabel')}</span>
-                        )}
-                        {!ilanLive && !ilanPending && (
-                          <button onClick={() => openAdSheet(tr.id)} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11.5px] font-sans font-semibold cursor-pointer border border-[#166534] text-[#166534]">
-                            <Megaphone size={12} /> {t('cm.advertiseThisRideBtn')}
-                          </button>
-                        )}
-                      </div>
+                      {!isDispatchAccepted && (
+                        <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
+                          {ilanLive ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700"><Megaphone size={12} /> {t('il.adIsRunningLabel')}</span>
+                          ) : ilanPending ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700"><Clock size={12} /> {t('il.statusPending')}</span>
+                          ) : (
+                            <span className="text-[11px] text-[#94a3b8]">{t('il.noAdRunningLabel')}</span>
+                          )}
+                          {!ilanLive && !ilanPending && (
+                            <button onClick={() => openAdSheet(tr.id)} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11.5px] font-sans font-semibold cursor-pointer border border-[#166534] text-[#166534]">
+                              <Megaphone size={12} /> {t('cm.advertiseThisRideBtn')}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {isDispatchAccepted && pickup && (
+                        <a href={`https://www.google.com/maps/search/?api=1&query=${pickup.lat},${pickup.lng}`} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-1.5 w-full mt-2.5 pt-2.5 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer bg-[#166534] text-white border-t border-[#f1f5f9]">
+                          <Navigation size={13} /> {t('cm.navigateToPickupBtn')}
+                        </a>
+                      )}
                       <TripLiveShareToggle
                         tripOfferId={tr.id}
                         sharing={tr.share_live_location}
@@ -463,14 +501,17 @@ export default function MyVehicleTripsPage() {
                         )
                       })()}
 
-                      <button onClick={() => cancelTripOffer(tr.id)} disabled={actionId === tr.id} className="flex items-center gap-1 font-sans text-[11.5px] font-semibold mt-2 pt-2 border-t border-[#f1f5f9] cursor-pointer disabled:opacity-50 text-[#b91c1c]">
-                        <Ban size={12} /> {t('cm.cancelTripBtn')}
-                      </button>
+                      {!isDispatchAccepted && (
+                        <button onClick={() => cancelTripOffer(tr.id)} disabled={actionId === tr.id} className="flex items-center gap-1 font-sans text-[11.5px] font-semibold mt-2 pt-2 border-t border-[#f1f5f9] cursor-pointer disabled:opacity-50 text-[#b91c1c]">
+                          <Ban size={12} /> {t('cm.cancelTripBtn')}
+                        </button>
+                      )}
                     </>
                   )
                 })()}
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
