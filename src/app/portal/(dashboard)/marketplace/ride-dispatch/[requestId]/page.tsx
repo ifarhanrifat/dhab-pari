@@ -10,7 +10,6 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { ArrowLeft, Loader2, CheckCircle2, XCircle, MapPin, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -20,6 +19,7 @@ import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
+import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
 
 interface RequestDetail {
   id: string; status: string; pickup_label: string; dropoff_label: string
@@ -46,6 +46,7 @@ export default function RideDispatchPage() {
   const [loading, setLoading] = useState(true)
   const [accepting, setAccepting] = useState(false)
   const [bookingId, setBookingId] = useState<string | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const reload = async () => {
     const { data } = await supabase.rpc('ride_dispatch_request_detail', { p_request_id: requestId })
@@ -56,19 +57,26 @@ export default function RideDispatchPage() {
   useEffect(() => { if (user) reload() }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
   useRealtimeRefresh('ride_dispatch_requests', user && req?.status === 'open' ? requestId : null, reload, 15000)
 
+  // Real bug found live, 2026-10-28: this used to only fetch the
+  // booking for the rider (is_mine_as_rider) — a driver landing back on
+  // this page had no bookingId at all, so no way to open the shared
+  // ride-lifecycle popup. A ride-dispatch accept is always exactly one
+  // booking on this trip offer, for either role.
   useEffect(() => {
-    if (!req?.is_mine_as_rider || req.status !== 'accepted' || !req.trip_offer_id) return
+    if (req?.status !== 'accepted' || !req.trip_offer_id) return
     supabase.from('vehicle_trip_bookings').select('id').eq('trip_offer_id', req.trip_offer_id).maybeSingle()
       .then(({ data }) => { if (data) setBookingId(data.id) })
-  }, [req?.is_mine_as_rider, req?.status, req?.trip_offer_id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [req?.status, req?.trip_offer_id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const accept = async () => {
     setAccepting(true)
-    const { error } = await supabase.rpc('accept_ride_dispatch', { p_request_id: requestId })
+    const { data: tripOfferId, error } = await supabase.rpc('accept_ride_dispatch', { p_request_id: requestId })
     setAccepting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); reload(); return }
     toast.success(t('mb.rideAcceptedToast'))
-    router.push('/portal/my-vehicle/trips')
+    reload()
+    const { data: booking } = await supabase.from('vehicle_trip_bookings').select('id').eq('trip_offer_id', tripOfferId as string).maybeSingle()
+    if (booking) { setBookingId(booking.id); setSheetOpen(true) }
   }
 
   const cancel = async () => {
@@ -135,38 +143,19 @@ export default function RideDispatchPage() {
               {t('mb.youSavedNote').replace('{amount}', fmt(req.reference_village_fare_pkr - req.fare_pkr))}
             </p>
           )}
-          {/* Real bug found live, 2026-10-28: a driver who ends up back on
-              this page (e.g. re-opening the original push notification)
-              after already accepting hit a dead end — just this
-              checkmark and a chat button, no way to see where to go or
-              what to do next. router.push already sends a fresh accept
-              straight to my-vehicle/trips (which now has the live map,
-              navigate button and complete-ride action, 763), but this
-              page needs its own way forward too for whenever the driver
-              lands back here directly. */}
-          <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
-            {req.is_mine_as_rider && bookingId && (
-              <Link href={`/portal/marketplace/trip/${bookingId}`} className="px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold">
-                {t('cm.trackLocationBtn')}
-              </Link>
-            )}
-            {!req.is_mine_as_rider && (
-              <a href={`https://www.google.com/maps/search/?api=1&query=${req.pickup_lat},${req.pickup_lng}`} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold">
-                <Navigation size={14} /> {t('cm.navigateToPickupBtn')}
-              </a>
-            )}
-            {req.trip_offer_id && (
-              <Link href={`/portal/marketplace/trip-group/${req.trip_offer_id}`} className="px-4 py-2 border border-[#166534] text-[#166534] rounded-xl text-[13px] font-bold">
-                {t('cm.openGroupChatBtn')}
-              </Link>
-            )}
-            {!req.is_mine_as_rider && (
-              <Link href="/portal/my-vehicle/trips" className="px-4 py-2 border border-[#166534] text-[#166534] rounded-xl text-[13px] font-bold">
-                {t('mb.goToMyTripsBtn')}
-              </Link>
-            )}
-          </div>
+          {/* Real ask, 2026-10-28: "we dont need external map... keep
+              remaining in the app... the system works on popup rather
+              then navigation screens" — one shared popup (both roles,
+              live bilateral map, PIN-gated start, complete) instead of
+              an external Google Maps link or a separate dead-end page.
+              A driver who lands back here directly (e.g. re-opening the
+              original push notification) gets the exact same opener. */}
+          {bookingId && (
+            <button onClick={() => setSheetOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold cursor-pointer mt-1">
+              <Navigation size={14} /> {t('cm.openRideBtn')}
+            </button>
+          )}
         </div>
       )}
 
@@ -176,6 +165,8 @@ export default function RideDispatchPage() {
           <p className="text-[13px] text-[#64748b]">{req.status === 'cancelled' ? t('mb.rideRequestCancelledNote') : t('mb.rideRequestExpiredNote')}</p>
         </div>
       )}
+
+      {sheetOpen && bookingId && <RideLifecycleSheet bookingId={bookingId} onClose={() => setSheetOpen(false)} />}
     </div>
   )
 }

@@ -19,14 +19,16 @@ import { Navigation } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
 
-interface OngoingRide { role: 'driver' | 'rider'; label: string; link: string }
+interface OngoingRide { role: 'driver' | 'rider'; label: string; link: string; booking_id: string | null; is_ride_dispatch: boolean }
 
 export function OngoingRideFab() {
   const { t } = useLocale()
   const { user } = usePortalUser()
   const supabase = createClient()
   const [ride, setRide] = useState<OngoingRide | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   useEffect(() => {
     if (!user) { setRide(null); return }
@@ -41,14 +43,33 @@ export function OngoingRideFab() {
 
   if (!ride) return null
 
-  return (
-    <Link href={ride.link}
-      className="fixed z-[70] bottom-[158px] right-4 md:bottom-[90px] md:right-6 flex items-center gap-2 pl-3 pr-4 h-12 rounded-full bg-[#166534] text-white shadow-lg hover:bg-[#145a2c] hover:scale-105 active:scale-95 transition-all print:hidden max-w-[220px]">
+  // Real ask, 2026-10-28: "the system works on popup rather then
+  // navigation screens" — a ride-dispatch acceptance (always exactly
+  // one booking) opens the shared popup right here instead of
+  // navigating away. Every other booking type (an ordinary route,
+  // where a driver's long-used "Mark Trip Complete" one-tap flow would
+  // otherwise gain a confusing, unnecessary PIN step it never had)
+  // keeps the old link-to-page behavior exactly as before.
+  const useSheet = ride.is_ride_dispatch && ride.booking_id
+  const content = (
+    <>
       <span className="shrink-0 w-6 h-6 rounded-full bg-white/15 flex items-center justify-center animate-pulse"><Navigation size={13} /></span>
       <span className="min-w-0">
         <span className="block font-sans text-[10px] font-bold uppercase tracking-[0.05em] text-white/70 leading-none">{ride.role === 'driver' ? t('cm.ongoingFabDriverLabel') : t('cm.ongoingFabRiderLabel')}</span>
         <span className="block font-sans text-[12px] font-bold truncate leading-tight mt-0.5">{ride.label}</span>
       </span>
-    </Link>
+    </>
+  )
+  const className = "fixed z-[70] bottom-[158px] right-4 md:bottom-[90px] md:right-6 flex items-center gap-2 pl-3 pr-4 h-12 rounded-full bg-[#166534] text-white shadow-lg hover:bg-[#145a2c] hover:scale-105 active:scale-95 transition-all print:hidden max-w-[220px]"
+
+  return (
+    <>
+      {useSheet ? (
+        <button onClick={() => setSheetOpen(true)} className={className}>{content}</button>
+      ) : (
+        <Link href={ride.link} className={className}>{content}</Link>
+      )}
+      {sheetOpen && ride.booking_id && <RideLifecycleSheet bookingId={ride.booking_id} onClose={() => setSheetOpen(false)} />}
+    </>
   )
 }

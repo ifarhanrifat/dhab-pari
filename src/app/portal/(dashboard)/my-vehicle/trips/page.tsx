@@ -16,6 +16,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { TripLiveShareToggle } from '@/components/portal/TripLiveShareToggle'
+import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicker'
@@ -69,14 +70,11 @@ export default function MyVehicleTripsPage() {
   const [tripOffers, setTripOffers] = useState<TripOffer[]>([])
   const [fareOffersByTrip, setFareOffersByTrip] = useState<Record<string, FareOffer[]>>({})
   const [tripBookings, setTripBookings] = useState<TripBooking[]>([])
-  // Real bug found live, 2026-10-28: a driver who accepted a ride-
-  // dispatch request landed on a dead-end "you accepted" screen with
-  // no way to even see where the rider actually is — vehicle_trip_offers
-  // has no pickup coordinates at all (only dest_lat/dest_lng), so a
-  // ride-dispatch trip's real pickup point only exists on its own
-  // ride_dispatch_requests row, which the driver can already read
-  // directly (RLS already lets the accepted vehicle's owner see it).
-  const [pickupByTrip, setPickupByTrip] = useState<Record<string, { lat: number; lng: number }>>({})
+  // Real ask, 2026-10-28: ride-dispatch acceptances now open the shared
+  // RideLifecycleSheet popup (bilateral map + PIN start/complete)
+  // instead of an external Navigate link.
+  const [openRideBookingId, setOpenRideBookingId] = useState<string | null>(null)
+  const [dispatchTripOfferIds, setDispatchTripOfferIds] = useState<Set<string>>(new Set())
   const [showPostTrip, setShowPostTrip] = useState(false)
   const [tripForm, setTripForm] = useState(emptyTripOffer)
   const [posting, setPosting] = useState(false)
@@ -103,13 +101,12 @@ export default function MyVehicleTripsPage() {
     const bookings = (tripB ?? []) as unknown as Omit<TripBooking, 'offboarded' | 'rider_name'>[]
     setTripBookings(bookings.map((b) => ({ ...b, offboarded: false, rider_name: null })))
 
-    supabase.from('ride_dispatch_requests').select('trip_offer_id, pickup_lat, pickup_lng').eq('accepted_vehicle_id', vehicleId).then(({ data: rds }) => {
-      const map: Record<string, { lat: number; lng: number }> = {}
-      for (const r of (rds ?? []) as { trip_offer_id: string | null; pickup_lat: number; pickup_lng: number }[]) {
-        if (r.trip_offer_id) map[r.trip_offer_id] = { lat: r.pickup_lat, lng: r.pickup_lng }
-      }
-      setPickupByTrip(map)
-    })
+    // Marks which bookings came through ride-dispatch (so their row
+    // opens the shared PIN-start/complete popup instead of the ordinary
+    // Track Location/Cancel/Mark Complete actions, which would let a
+    // driver skip the PIN step entirely for these).
+    supabase.from('ride_dispatch_requests').select('trip_offer_id').eq('accepted_vehicle_id', vehicleId).not('trip_offer_id', 'is', null)
+      .then(({ data: rds }) => setDispatchTripOfferIds(new Set((rds ?? []).map((r) => r.trip_offer_id as string))))
 
     // portal_users has no cross-reader RLS policy (rightly — a driver
     // can't just read any rider's profile), so rider names for the
@@ -390,7 +387,7 @@ export default function MyVehicleTripsPage() {
                   const ilan = ilansByTrip[tr.id]
                   const ilanLive = ilan && ilan.status === 'approved' && !ilan.is_paused && new Date(ilan.ends_at).getTime() > Date.now()
                   const ilanPending = ilan && ilan.status === 'pending_approval'
-                  const pickup = pickupByTrip[tr.id]
+                  const dispatchBookingId = isDispatchAccepted ? tripBookings.find((tb) => tb.trip_offer_id === tr.id)?.id : undefined
                   return (
                     <>
                       {!isDispatchAccepted && (
@@ -409,17 +406,28 @@ export default function MyVehicleTripsPage() {
                           )}
                         </div>
                       )}
-                      {isDispatchAccepted && pickup && (
-                        <a href={`https://www.google.com/maps/search/?api=1&query=${pickup.lat},${pickup.lng}`} target="_blank" rel="noopener noreferrer"
+                      {/* Real ask, 2026-10-28: "we dont need external
+                          map... keep remaining in the app... the system
+                          works on popup rather then navigation screens"
+                          — a dispatch-accepted trip now opens the same
+                          shared bilateral-map/PIN-start/complete popup
+                          instead of an external Navigate link plus the
+                          one-way live-share toggle (that toggle/map is
+                          the wrong mechanism for a 1:1 accept; it's for
+                          a route's multi-rider return leg). */}
+                      {isDispatchAccepted && dispatchBookingId && (
+                        <button type="button" onClick={() => setOpenRideBookingId(dispatchBookingId)}
                           className="flex items-center justify-center gap-1.5 w-full mt-2.5 pt-2.5 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer bg-[#166534] text-white border-t border-[#f1f5f9]">
-                          <Navigation size={13} /> {t('cm.navigateToPickupBtn')}
-                        </a>
+                          <Navigation size={13} /> {t('cm.openRideBtn')}
+                        </button>
                       )}
-                      <TripLiveShareToggle
-                        tripOfferId={tr.id}
-                        sharing={tr.share_live_location}
-                        onSharingChange={(on) => setTripOffers((rows) => rows.map((r) => r.id === tr.id ? { ...r, share_live_location: on } : r))}
-                      />
+                      {!isDispatchAccepted && (
+                        <TripLiveShareToggle
+                          tripOfferId={tr.id}
+                          sharing={tr.share_live_location}
+                          onSharingChange={(on) => setTripOffers((rows) => rows.map((r) => r.id === tr.id ? { ...r, share_live_location: on } : r))}
+                        />
+                      )}
 
                       {/* Real ask, 2026-10-27: "he can view his own
                           vehicle and the riders on the map on the same
@@ -432,7 +440,7 @@ export default function MyVehicleTripsPage() {
                           (rider_sharing_location, 706) — a one-way rider
                           boards at the route's own fixed origin, so
                           there's nothing to show a pickup pin for. */}
-                      {(() => {
+                      {!isDispatchAccepted && (() => {
                         const driverPos = driverLocationByTrip[tr.id]
                         const riderPins = tripBookings
                           .filter((tb) => tb.trip_offer_id === tr.id && tb.status === 'confirmed' && tb.leg === 'return' && riderLocationByBooking[tb.id])
@@ -450,7 +458,7 @@ export default function MyVehicleTripsPage() {
                         )
                       })()}
 
-                      {tripBookings.some((tb) => tb.trip_offer_id === tr.id && tb.status === 'confirmed') && (
+                      {!isDispatchAccepted && tripBookings.some((tb) => tb.trip_offer_id === tr.id && tb.status === 'confirmed') && (
                         <Link href={`/portal/marketplace/trip-group/${tr.id}`}
                           className="flex items-center justify-center gap-1.5 w-full mt-2 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer border border-[#166534] text-[#166534]">
                           <Users size={13} /> {t('cm.openGroupChatBtn')}
@@ -530,7 +538,7 @@ export default function MyVehicleTripsPage() {
           </div>
           <div className="flex flex-col gap-2">
             {tripBookings.filter((tb) =>
-              bookingsFilter === 'upcoming' ? tb.status === 'confirmed' : bookingsFilter === 'completed' ? tb.status === 'completed' : tb.status === 'cancelled'
+              bookingsFilter === 'upcoming' ? (tb.status === 'confirmed' || tb.status === 'in_progress') : bookingsFilter === 'completed' ? tb.status === 'completed' : tb.status === 'cancelled'
             ).map((tb) => (
               <div key={tb.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
                 <div className="flex items-start justify-between gap-3">
@@ -557,7 +565,17 @@ export default function MyVehicleTripsPage() {
                 <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
                   {tb.status === 'completed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={11} /> {t('cm.tripCompletedStatus')}</span>}
                   {tb.status === 'cancelled' && <span className="inline-flex items-center gap-1 text-[#64748b] text-[11px] font-bold"><Ban size={11} /> {t('mp.cancelledStatus')}</span>}
-                  {tb.status === 'confirmed' && (
+                  {/* Real ask, 2026-10-28: a ride-dispatch booking now
+                      opens the shared PIN-start/complete popup — the
+                      plain "Mark Trip Complete" button would otherwise
+                      let a driver skip the PIN step entirely. */}
+                  {(tb.status === 'confirmed' || tb.status === 'in_progress') && dispatchTripOfferIds.has(tb.trip_offer_id) && (
+                    <button onClick={() => setOpenRideBookingId(tb.id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-sans font-bold cursor-pointer bg-[#166534] text-white">
+                      <Navigation size={12} /> {t('cm.openRideBtn')}
+                    </button>
+                  )}
+                  {tb.status === 'confirmed' && !dispatchTripOfferIds.has(tb.trip_offer_id) && (
                     <>
                       <Link href={`/portal/marketplace/trip/${tb.id}`} className="inline-flex items-center gap-1 text-[#166534] text-[12px] font-semibold"><Navigation size={12} /> {t('cm.trackLocationBtn')}</Link>
                       <div className="flex items-center gap-1.5">
@@ -691,6 +709,8 @@ export default function MyVehicleTripsPage() {
           </div>
         </MobilityBottomSheet>
       )}
+
+      {openRideBookingId && <RideLifecycleSheet bookingId={openRideBookingId} onClose={() => setOpenRideBookingId(null)} />}
     </div>
   )
 }
