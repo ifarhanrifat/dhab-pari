@@ -38,6 +38,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { fetchRoadRoute } from '@/lib/roadRoute'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -192,13 +193,12 @@ function ResultsPageInner() {
     return next
   })
 
-  useEffect(() => {
-    if (!activeRequest || activeRequest.status !== 'open') return
-    const poll = () => supabase.rpc('ride_dispatch_request_detail', { p_request_id: activeRequest.id }).then(({ data }) => { if (data) setActiveRequest(data as DispatchRequest) })
-    const iv = setInterval(poll, 4000)
-    return () => clearInterval(iv)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeRequest?.id, activeRequest?.status])
+  useRealtimeRefresh(
+    'ride_dispatch_requests',
+    activeRequest?.status === 'open' ? activeRequest.id : null,
+    () => { supabase.rpc('ride_dispatch_request_detail', { p_request_id: activeRequest!.id }).then(({ data }) => { if (data) setActiveRequest(data as DispatchRequest) }) },
+    15000
+  )
 
   useEffect(() => {
     if (activeRequest?.status !== 'accepted' || !activeRequest.trip_offer_id) return

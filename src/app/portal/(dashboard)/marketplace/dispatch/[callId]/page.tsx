@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
@@ -64,6 +65,10 @@ export default function DispatchCallDetailPage() {
   }
 
   useEffect(() => { if (user) reload(true) }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Elapsed-time tier1→tier2→no_answer advancement has no server timer
+  // (see this file's own header comment) — it only happens because
+  // SOME open tab's client keeps nudging it forward, so this interval
+  // stays exactly as it was, unconditioned on Realtime.
   useEffect(() => {
     if (!user || !call) return
     const stillRinging = call.status === 'tier1' || call.status === 'tier2'
@@ -72,6 +77,10 @@ export default function DispatchCallDetailPage() {
     return () => clearInterval(iv)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, call?.status])
+  // Supplementary only: makes another party's accept/decline land
+  // instantly instead of waiting out the 4s sweep above — a plain,
+  // non-advancing read, never the one driving tier progression.
+  useRealtimeRefresh('dispatch_calls', user && call ? callId : null, () => reload(false), 60000)
 
   const myInvitation = invitations.find((i) => myVehicle && i.vehicle_id === myVehicle.id)
   const canRespond = myInvitation?.status === 'ringing'

@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -48,12 +49,7 @@ export default function RideDispatchPage() {
   }
 
   useEffect(() => { if (user) reload() }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!user || !req || req.status !== 'open') return
-    const iv = setInterval(reload, 4000)
-    return () => clearInterval(iv)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, req?.status])
+  useRealtimeRefresh('ride_dispatch_requests', user && req?.status === 'open' ? requestId : null, reload, 15000)
 
   useEffect(() => {
     if (!req?.is_mine_as_rider || req.status !== 'accepted' || !req.trip_offer_id) return
