@@ -82,6 +82,7 @@ interface RideQuote {
 interface DispatchRequest {
   id: string; status: string; fare_pkr: number; reference_village_fare_pkr: number | null
   tier_used: string | null; matched_tenant_name: string | null; trip_offer_id: string | null
+  scheduled_for: string | null; activated_at: string | null
 }
 interface CategoryOption { id: string; name: string; name_ur: string | null; emoji: string; fare_pkr: number; active_count: number }
 
@@ -151,6 +152,12 @@ function ResultsPageInner() {
   const [fallbackOptions, setFallbackOptions] = useState<CategoryOption[] | null>(null)
   const [loadingFallback, setLoadingFallback] = useState(false)
   const [selectedFallback, setSelectedFallback] = useState<Set<string>>(new Set())
+  // Real ask, 2026-10-28: "rider can schedule the ride" — empty string
+  // means "now" (today's behaviour, unchanged); a real future datetime
+  // is passed straight through to create_ride_dispatch_request, which
+  // locks the request in immediately but holds the actual broadcast
+  // until that time (759).
+  const [scheduleAt, setScheduleAt] = useState('')
 
   useEffect(() => {
     supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, base_fare_pkr, per_km_pkr, category_group').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
@@ -182,10 +189,11 @@ function ResultsPageInner() {
       p_dropoff_label: isUrdu && city.name_ur ? city.name_ur : city.name, p_dropoff_lat: city.lat, p_dropoff_lng: city.lng, p_distance_km: distanceKm,
       p_category_ids: categoryIds && categoryIds.length > 0 ? categoryIds : null,
       p_include_cross_tenant: true,
+      p_scheduled_for: scheduleAt ? new Date(scheduleAt).toISOString() : null,
     })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    setActiveRequest({ id: data as string, status: 'open', fare_pkr: 0, reference_village_fare_pkr: null, tier_used: null, matched_tenant_name: null, trip_offer_id: null })
+    setActiveRequest({ id: data as string, status: 'open', fare_pkr: 0, reference_village_fare_pkr: null, tier_used: null, matched_tenant_name: null, trip_offer_id: null, scheduled_for: scheduleAt ? new Date(scheduleAt).toISOString() : null, activated_at: scheduleAt ? null : new Date().toISOString() })
   }
 
   // The last resort: own village has nothing (not even the two-way
@@ -227,7 +235,7 @@ function ResultsPageInner() {
       await supabase.rpc('cancel_ride_dispatch_request', { p_request_id: activeRequest.id })
     }
     setSheetCategory(null); setQuote(null); setActiveRequest(null); setBookingId(null)
-    setFallbackOptions(null); setSelectedFallback(new Set())
+    setFallbackOptions(null); setSelectedFallback(new Set()); setScheduleAt('')
   }
 
   async function reload(c: City) {
@@ -436,6 +444,24 @@ function ResultsPageInner() {
                   <span className="font-extrabold text-[18px] text-[#166534] ltr-num">{fmt(quote.base_fare_pkr)}</span>
                 </div>
 
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setScheduleAt('')}
+                    className="flex-1 py-1.5 rounded-lg text-[12px] font-sans font-bold cursor-pointer"
+                    style={{ background: !scheduleAt ? '#166534' : '#F9F9F6', color: !scheduleAt ? '#fff' : '#64748b' }}>
+                    {t('mb.sendNowBtn')}
+                  </button>
+                  <input
+                    type="datetime-local"
+                    value={scheduleAt}
+                    min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                    max={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                    onChange={(e) => setScheduleAt(e.target.value)}
+                    className="flex-1 px-2 py-1.5 rounded-lg text-[12px] font-sans border"
+                    style={{ borderColor: scheduleAt ? '#166534' : '#e5e2d0', color: scheduleAt ? '#166534' : '#94a3b8' }}
+                  />
+                </div>
+                {scheduleAt && <p className="text-[11px] text-amber-700">{t('mb.scheduledPreviewNote')}</p>}
+
                 {quote.online_in_city > 0 ? (
                   <>
                     <p className="text-[12px] text-[#166534] font-semibold flex items-center gap-1.5">
@@ -509,6 +535,13 @@ function ResultsPageInner() {
                 )}
               </div>
             )
+          ) : activeRequest.status === 'open' && !activeRequest.activated_at && activeRequest.scheduled_for ? (
+            <div className="flex flex-col items-center gap-2 py-4 text-center">
+              <span className="text-[28px]">🕑</span>
+              <p className="font-bold text-[14px] text-[#1e293b]">{t('mb.rideScheduledHeading')}</p>
+              <p className="text-[12.5px] text-[#64748b] ltr-num">{new Date(activeRequest.scheduled_for).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })}</p>
+              <p className="text-[11.5px] text-[#94a3b8] mt-1">{t('mb.rideScheduledHint')}</p>
+            </div>
           ) : activeRequest.status === 'open' ? (
             <div className="flex flex-col items-center gap-2 py-4 text-center">
               <Loader2 size={26} className="animate-spin text-[#166534]" />

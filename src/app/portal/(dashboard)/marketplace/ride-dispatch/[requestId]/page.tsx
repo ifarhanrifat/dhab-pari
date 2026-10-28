@@ -28,6 +28,7 @@ interface RequestDetail {
   is_mine_as_rider: boolean; trip_offer_id: string | null
   tier_used: string | null; matched_tenant_name: string | null
   rider_trust: Trust | null; rider_tenant_name: string
+  scheduled_for: string | null; activated_at: string | null
 }
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -94,7 +95,15 @@ export default function RideDispatchPage() {
         <p className="font-extrabold text-[22px] mt-2 ltr-num">{fmt(req.fare_pkr)}</p>
       </div>
 
-      {req.status === 'open' && req.is_mine_as_rider && (
+      {req.status === 'open' && req.is_mine_as_rider && !req.activated_at && req.scheduled_for ? (
+        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-5 text-center flex flex-col items-center gap-2">
+          <span className="text-[28px]">🕑</span>
+          <p className="font-bold text-[14px] text-[#1e293b]">{t('mb.rideScheduledHeading')}</p>
+          <p className="text-[12.5px] text-[#64748b] ltr-num">{new Date(req.scheduled_for).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })}</p>
+          <p className="text-[11.5px] text-[#94a3b8]">{t('mb.rideScheduledHint')}</p>
+          <button onClick={cancel} className="mt-2 text-[12.5px] font-semibold text-[#b91c1c] cursor-pointer">{t('mb.cancelRideRequestBtn')}</button>
+        </div>
+      ) : req.status === 'open' && req.is_mine_as_rider && (
         <div className="bg-white border border-[#e5e2d0] rounded-2xl p-5 text-center flex flex-col items-center gap-2">
           <Loader2 size={28} className="animate-spin text-[#166534]" />
           <p className="font-bold text-[14px] text-[#1e293b]">{t('mb.waitingForDriverHeading')}</p>
