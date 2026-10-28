@@ -3089,6 +3089,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'np.generalAppeals': 'General Appeals', 'np.generalAppealsDesc': 'Project asks, maintenance notices, and other routine appeals.',
     'np.saved': 'Saved', 'np.saveFailed': 'Could not save, please try again.',
     'np.emergencyNote': 'Emergency broadcasts (blood needed, Help Requests, Death Announcements) always reach you regardless of these settings.',
+    'np.rideToneHeading': 'Ride request tone (for drivers)', 'np.rideToneDesc': 'The sound your phone plays when a new ride request comes in. Takes effect the next time a request arrives.',
+    'np.rideTone.announce': 'Announce', 'np.rideTone.interface': 'Interface', 'np.rideTone.wave': 'Wave', 'np.previewBtn': 'Preview',
 
     'aes.title': 'Alert Expiry Settings', 'aes.intro': 'How long each kind of alert stays on the belt before it automatically disappears. A staff member can always end one earlier with the Close button on the Alerts & Appeals page — this only sets the default when nobody does.',
     'aes.currently': 'Currently', 'aes.invalidHours': 'Enter a number of hours greater than 0', 'aes.saved': 'Saved',
@@ -8724,6 +8726,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'np.generalAppeals': 'عمومی اپیلیں', 'np.generalAppealsDesc': 'منصوبوں کی درخواستیں، دیکھ بھال کے نوٹس، اور دیگر معمول کی اپیلیں۔',
     'np.saved': 'محفوظ ہو گیا', 'np.saveFailed': 'محفوظ نہیں ہو سکا، دوبارہ کوشش کریں۔',
     'np.emergencyNote': 'ہنگامی اعلانات (خون کی ضرورت، مدد کی درخواستیں، وفات کی اطلاعات) ان ترتیبات سے قطع نظر ہمیشہ آپ تک پہنچیں گے۔',
+    'np.rideToneHeading': 'سواری کی درخواست کی آواز (ڈرائیوروں کے لیے)', 'np.rideToneDesc': 'جب نئی سواری کی درخواست آئے تو آپ کا فون جو آواز بجائے گا۔ اگلی درخواست آنے پر لاگو ہوگا۔',
+    'np.rideTone.announce': 'اناؤنس', 'np.rideTone.interface': 'انٹرفیس', 'np.rideTone.wave': 'ویو', 'np.previewBtn': 'سنیں',
 
     'aes.title': 'الرٹ کی میعاد کی ترتیبات', 'aes.intro': 'ہر قسم کا الرٹ خود بخود ختم ہونے سے پہلے کتنی دیر بیلٹ پر رہے گا۔ عملہ ہمیشہ Alerts & Appeals صفحے پر Close بٹن سے اسے جلدی ختم کر سکتا ہے — یہ صرف وہ ڈیفالٹ مقرر کرتا ہے جب کوئی ایسا نہ کرے۔',
     'aes.currently': 'فی الحال', 'aes.invalidHours': 'براہ کرم 0 سے زیادہ گھنٹے درج کریں', 'aes.saved': 'محفوظ ہو گیا',

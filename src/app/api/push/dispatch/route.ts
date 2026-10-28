@@ -92,16 +92,22 @@ export async function POST(req: NextRequest) {
   // rode FCM's own default priority and landed in whatever default
   // channel the plugin auto-creates, which some OEMs throttle or
   // silence under Doze. A dedicated, max-importance, lock-screen-
-  // visible channel for the time-sensitive "something needs your
-  // response right now" events (ride_dispatch_requested foremost —
-  // also the channel the "special tone for drivers" ask needs to
-  // exist before a custom sound can be attached to it) plus explicit
-  // high priority on every push fixes the screen-off case Android's
-  // own way, not by guessing at OEM-specific battery settings.
-  const RIDE_REQUEST_CHANNEL = 'ride_requests'
+  // visible channel fixes the screen-off case Android's own way, not
+  // by guessing at OEM-specific battery settings.
+  //
+  // Three such channels exist, one per bundled tone (762) — Android
+  // locks a channel's sound at creation, so "picking a tone" means
+  // picking which pre-made channel this driver's pushes go to, read
+  // from their own saved preference, not something this route can
+  // change per-message.
   const RIDE_REQUEST_EVENT_TYPES = new Set(['ride_dispatch_requested'])
-  const androidNotification = RIDE_REQUEST_EVENT_TYPES.has(row.event_type)
-    ? { channelId: RIDE_REQUEST_CHANNEL, visibility: 'public' as const, defaultSound: true }
+  let rideRequestTone: string | null = null
+  if (table === 'portal_notifications' && RIDE_REQUEST_EVENT_TYPES.has(row.event_type)) {
+    const { data: pu } = await supabase.from('portal_users').select('ride_request_tone').eq('id', recipientId).maybeSingle()
+    rideRequestTone = pu?.ride_request_tone ?? 'announce'
+  }
+  const androidNotification = rideRequestTone
+    ? { channelId: `ride_requests_${rideRequestTone}`, visibility: 'public' as const }
     : undefined
 
   const messaging = getFirebaseMessaging()

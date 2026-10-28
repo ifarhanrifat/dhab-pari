@@ -30,22 +30,29 @@ const isNativeAndroid = () => Capacitor.isNativePlatform() && Capacitor.getPlatf
 
 // Real bug reported live, 2026-10-28: push notifications weren't
 // showing on the lock screen with the screen off. Android channel
-// importance/sound/visibility are each set ONCE at creation and can
-// never be changed afterward (by design — the OS protects a user's own
-// channel settings from the app silently escalating them later), so
-// this has to exist before the dispatch route can ever target it.
-// importance 5 = MAX (makes sound, peeks/heads-up even locked),
-// visibility 1 = PUBLIC (full content shown on the lock screen) — the
-// same channel id the dispatch route (api/push/dispatch) sends
-// ride_dispatch_requested pushes to.
-const RIDE_REQUEST_CHANNEL_ID = 'ride_requests'
+// importance/sound/visibility — and sound specifically — are each set
+// ONCE at creation and can never be changed afterward (by design — the
+// OS protects a user's own channel settings from the app silently
+// escalating or swapping them later), so these have to exist before
+// the dispatch route (api/push/dispatch) can ever target them, and a
+// real per-tone sound (762) means a real per-tone channel, not one
+// channel whose sound gets edited later. importance 5 = MAX (makes
+// sound, peeks/heads-up even locked), visibility 1 = PUBLIC (full
+// content shown on the lock screen).
+const RIDE_REQUEST_TONES: { id: string; name: string; sound: string }[] = [
+  { id: 'ride_requests_announce', name: 'Ride Request — Announce Tone', sound: 'ride_tone_announce.mp3' },
+  { id: 'ride_requests_interface', name: 'Ride Request — Interface Tone', sound: 'ride_tone_interface.mp3' },
+  { id: 'ride_requests_wave', name: 'Ride Request — Wave Tone', sound: 'ride_tone_wave.mp3' },
+]
 async function ensureRideRequestChannel() {
-  try {
-    await PushNotifications.createChannel({
-      id: RIDE_REQUEST_CHANNEL_ID, name: 'Ride Requests', description: 'A rider is asking for a driver of your vehicle type',
-      importance: 5, visibility: 1, vibration: true, lights: true,
-    })
-  } catch { /* already exists, or not on a real device — harmless either way */ }
+  for (const tone of RIDE_REQUEST_TONES) {
+    try {
+      await PushNotifications.createChannel({
+        id: tone.id, name: tone.name, description: 'A rider is asking for a driver of your vehicle type',
+        sound: tone.sound, importance: 5, visibility: 1, vibration: true, lights: true,
+      })
+    } catch { /* already exists, or not on a real device — harmless either way */ }
+  }
 }
 
 export function usePushNotifications(owner: { adminUserId?: string; portalUserId?: string } | null) {

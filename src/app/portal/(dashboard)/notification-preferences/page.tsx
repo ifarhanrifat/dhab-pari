@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { toast } from 'sonner'
-import { Bell, CloudRain, Megaphone, BellRing } from 'lucide-react'
+import { Bell, CloudRain, Megaphone, BellRing, Volume2 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -30,6 +30,24 @@ export default function NotificationPreferencesPage() {
     toast.success(t('np.saved'))
     refresh()
   }
+
+  // Android locks a notification channel's sound in at creation — a
+  // "tone" here means picking which of 3 pre-made channels
+  // (usePushNotifications' ensureRideRequestChannel) the driver's own
+  // ride_dispatch pushes get routed to (762), not something this save
+  // can change live on the device itself; the phone picks it up the
+  // next time a ride request actually arrives.
+  const setTone = async (tone: string) => {
+    if (!user) return
+    setSaving('ride_request_tone')
+    const supabase = createClient()
+    const { error } = await supabase.from('portal_users').update({ ride_request_tone: tone }).eq('id', user.id)
+    setSaving(null)
+    if (error) { toast.error(t('np.saveFailed')); return }
+    toast.success(t('np.saved'))
+    refresh()
+  }
+  const previewTone = (tone: string) => { new Audio(`/sounds/ride_tone_${tone}.mp3`).play().catch(() => {}) }
 
   if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!user) return null
@@ -75,6 +93,26 @@ export default function NotificationPreferencesPage() {
           <input type="checkbox" defaultChecked={user.notify_general_appeals ?? true} onChange={(e) => toggle('notify_general_appeals', e.target.checked)}
             disabled={saving === 'notify_general_appeals'} className="accent-dp-secondary w-5 h-5 cursor-pointer shrink-0" />
         </label>
+      </div>
+
+      <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-5">
+        <div className="flex items-center gap-3 mb-3">
+          <Volume2 size={20} className="text-dp-secondary shrink-0" />
+          <div>
+            <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('np.rideToneHeading')}</p>
+            <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('np.rideToneDesc')}</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {(['announce', 'interface', 'wave'] as const).map((tone) => (
+            <label key={tone} className={`flex items-center gap-3 border rounded-lg p-3 cursor-pointer ${user.ride_request_tone === tone ? 'border-dp-secondary' : 'border-dp-outline-variant'}`}>
+              <input type="radio" name="ride_request_tone" checked={user.ride_request_tone === tone} onChange={() => setTone(tone)}
+                disabled={saving === 'ride_request_tone'} className="accent-dp-secondary w-4 h-4 cursor-pointer shrink-0" />
+              <span className="font-sans text-[13.5px] text-dp-on-surface flex-1">{t(`np.rideTone.${tone}`)}</span>
+              <button type="button" onClick={() => previewTone(tone)} className="font-sans text-[12px] font-semibold text-dp-secondary hover:underline cursor-pointer shrink-0">{t('np.previewBtn')}</button>
+            </label>
+          ))}
+        </div>
       </div>
 
       <p className="font-sans text-[12px] text-dp-on-surface-variant mt-5">{t('np.emergencyNote')}</p>
