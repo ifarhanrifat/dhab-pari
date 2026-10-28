@@ -20,7 +20,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
+import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 
 interface SearchResult {
   product_id: string; product_name: string; product_name_ur: string | null; flavor: string | null; flavor_ur: string | null; unit_price_pkr: number
@@ -227,7 +227,7 @@ export default function PortalMarketplacePage() {
           <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.conversationsCardHint')}</p>
         </div>
       </Link>
-      <MarketplaceBottomNav />
+      <MobilityBottomNav />
     </div>
   )
 }

@@ -17,7 +17,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
+import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 
 interface City { id: string; name: string; name_ur: string | null; distance_km: number; is_home_city: boolean }
 interface ServiceClass {
@@ -123,7 +123,7 @@ export default function ProServicePage() {
             </div>
           )})}
         </div>
-        <MarketplaceBottomNav />
+        <MobilityBottomNav />
       </div>
     )
   }
@@ -155,7 +155,7 @@ export default function ProServicePage() {
           </button>
         ))}
       </div>
-      <MarketplaceBottomNav />
+      <MobilityBottomNav />
     </div>
   )
 }

@@ -17,7 +17,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
+import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 
 interface Order {
@@ -148,7 +148,7 @@ export default function OrderTrackingPage() {
           <ReportProblemButton refType="shop_order" refId={order.id} kindOptions={['damaged_goods', 'no_show']} />
         </div>
       )}
-      <MarketplaceBottomNav />
+      <MobilityBottomNav />
     </div>
   )
 }

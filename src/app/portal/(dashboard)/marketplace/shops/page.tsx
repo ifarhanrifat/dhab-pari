@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 import { MapPin } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
+import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 
 interface Shop { id: string; name: string; name_ur: string | null; location: string | null; location_ur: string | null; delivery_enabled: boolean }
 
@@ -49,7 +49,7 @@ export default function MarketplaceShopsPage() {
           </Link>
         ))}
       </div>
-      <MarketplaceBottomNav />
+      <MobilityBottomNav />
     </div>
   )
 }

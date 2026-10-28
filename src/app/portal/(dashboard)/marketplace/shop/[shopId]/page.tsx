@@ -36,7 +36,7 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 import { getShopTypeTree } from '@/lib/shopTypes'
 import { DynamicIcon } from '@/components/shared/DynamicIcon'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
+import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 
 interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
@@ -816,7 +816,7 @@ export default function ShopDetailPage() {
           </div>
         </div>
       )}
-      <MarketplaceBottomNav />
+      <MobilityBottomNav />
     </div>
   )
 }
