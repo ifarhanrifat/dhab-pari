@@ -28,6 +28,26 @@ export type PushPermission = 'unsupported' | 'default' | 'granted' | 'denied'
 
 const isNativeAndroid = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 
+// Real bug reported live, 2026-10-28: push notifications weren't
+// showing on the lock screen with the screen off. Android channel
+// importance/sound/visibility are each set ONCE at creation and can
+// never be changed afterward (by design — the OS protects a user's own
+// channel settings from the app silently escalating them later), so
+// this has to exist before the dispatch route can ever target it.
+// importance 5 = MAX (makes sound, peeks/heads-up even locked),
+// visibility 1 = PUBLIC (full content shown on the lock screen) — the
+// same channel id the dispatch route (api/push/dispatch) sends
+// ride_dispatch_requested pushes to.
+const RIDE_REQUEST_CHANNEL_ID = 'ride_requests'
+async function ensureRideRequestChannel() {
+  try {
+    await PushNotifications.createChannel({
+      id: RIDE_REQUEST_CHANNEL_ID, name: 'Ride Requests', description: 'A rider is asking for a driver of your vehicle type',
+      importance: 5, visibility: 1, vibration: true, lights: true,
+    })
+  } catch { /* already exists, or not on a real device — harmless either way */ }
+}
+
 export function usePushNotifications(owner: { adminUserId?: string; portalUserId?: string } | null) {
   const [permission, setPermission] = useState<PushPermission>('default')
   const [isStandalone, setIsStandalone] = useState(false)
@@ -46,6 +66,7 @@ export function usePushNotifications(owner: { adminUserId?: string; portalUserId
       })
       setIsStandalone(true) // an installed app is always "standalone" — no iOS-web Home Screen gate applies here
       setIsIos(false)
+      ensureRideRequestChannel()
 
       const regSub = PushNotifications.addListener('registration', (token) => pendingToken.current?.resolve(token.value))
       const errSub = PushNotifications.addListener('registrationError', () => pendingToken.current?.reject())

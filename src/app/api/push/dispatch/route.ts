@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   // column that doesn't exist on the table fails the whole query (returning
   // data: null), which used to be silently misread here as "no such row".
   const ownerColumn = table === 'notifications' ? 'recipient_id' : 'portal_user_id'
-  const { data: row, error: rowError } = await supabase.from(table).select(`id, title, body, link, ${ownerColumn}`).eq('id', id).maybeSingle()
+  const { data: row, error: rowError } = await supabase.from(table).select(`id, title, body, link, event_type, ${ownerColumn}`).eq('id', id).maybeSingle()
   if (rowError) return NextResponse.json({ error: rowError.message }, { status: 500 })
   if (!row) return NextResponse.json({ ok: true, note: 'row not found' })
 
@@ -86,6 +86,24 @@ export async function POST(req: NextRequest) {
   // delivered through Firebase instead. Same payload, a second real
   // delivery path, not a replacement for the one above (a browser install
   // or iOS Home Screen app still uses Web Push, same as before).
+  // Real bug reported live, 2026-10-28: "push notifications are not
+  // arriving on the top bar when the screen is off" — this call never
+  // set any Android-specific delivery config at all, so every message
+  // rode FCM's own default priority and landed in whatever default
+  // channel the plugin auto-creates, which some OEMs throttle or
+  // silence under Doze. A dedicated, max-importance, lock-screen-
+  // visible channel for the time-sensitive "something needs your
+  // response right now" events (ride_dispatch_requested foremost —
+  // also the channel the "special tone for drivers" ask needs to
+  // exist before a custom sound can be attached to it) plus explicit
+  // high priority on every push fixes the screen-off case Android's
+  // own way, not by guessing at OEM-specific battery settings.
+  const RIDE_REQUEST_CHANNEL = 'ride_requests'
+  const RIDE_REQUEST_EVENT_TYPES = new Set(['ride_dispatch_requested'])
+  const androidNotification = RIDE_REQUEST_EVENT_TYPES.has(row.event_type)
+    ? { channelId: RIDE_REQUEST_CHANNEL, visibility: 'public' as const, defaultSound: true }
+    : undefined
+
   const messaging = getFirebaseMessaging()
   const { data: fcmTokens } = messaging
     ? await supabase.from('fcm_device_tokens').select('id, token').eq(subsColumn, recipientId)
@@ -97,6 +115,7 @@ export async function POST(req: NextRequest) {
             token: t.token,
             notification: { title: row.title, body: row.body ?? '' },
             data: { link: row.link ?? '/' },
+            android: { priority: 'high', notification: androidNotification },
           }).catch(async (err) => {
             // The FCM-side equivalent of a 404/410 — the app was
             // uninstalled or the token rotated, so this one is dead.
