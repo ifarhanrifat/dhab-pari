@@ -28,6 +28,19 @@ export type PushPermission = 'unsupported' | 'default' | 'granted' | 'denied'
 
 const isNativeAndroid = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 
+// TEMP diagnostic, 2026-10-29: console.log never reaches logcat on this
+// release WebView build (confirmed live — zero "chromium"/CONSOLE lines
+// ever show up), so this writes breadcrumbs into the one table this
+// code already has a legitimate, already-proven INSERT path into
+// (fcm_device_tokens) instead of standing up new debug infra. Rows are
+// prefixed DIAG: so they're obviously not real tokens, and get deleted
+// once the real cause is found. To be fully reverted alongside the
+// console.log additions below.
+function diag(portalUserId: string | undefined, note: string) {
+  if (!portalUserId) return
+  createClient().from('fcm_device_tokens').insert({ portal_user_id: portalUserId, token: `DIAG:${Date.now()}:${note}`.slice(0, 500) }).then(() => {})
+}
+
 // Real bug reported live, 2026-10-28: push notifications weren't
 // showing on the lock screen with the screen off. Android channel
 // importance/sound/visibility — and sound specifically — are each set
@@ -75,20 +88,20 @@ export function usePushNotifications(owner: { adminUserId?: string; portalUserId
     // since checkPermissions()/register() had no .catch at all before —
     // a silent rejection would leave `permission` stuck at its initial
     // 'default' forever with zero trace anywhere.
-    console.log('[push-diag] effect start, isNativeAndroid=', isNativeAndroid())
+    diag(owner?.portalUserId, 'effect-start')
     if (isNativeAndroid()) {
       PushNotifications.checkPermissions()
         .then(({ receive }) => {
-          console.log('[push-diag] checkPermissions resolved, receive=', receive)
+          diag(owner?.portalUserId, `checkPerms-resolved:${receive}`)
           setPermission(receive === 'granted' ? 'granted' : receive === 'denied' ? 'denied' : 'default')
         })
-        .catch((err) => console.log('[push-diag] checkPermissions REJECTED', String(err)))
+        .catch((err) => diag(owner?.portalUserId, `checkPerms-REJECTED:${String(err)}`))
       setIsStandalone(true) // an installed app is always "standalone" — no iOS-web Home Screen gate applies here
       setIsIos(false)
       ensureRideRequestChannel()
 
-      const regSub = PushNotifications.addListener('registration', (token) => { console.log('[push-diag] registration event, token len=', token.value?.length); pendingToken.current?.resolve(token.value) })
-      const errSub = PushNotifications.addListener('registrationError', (err) => { console.log('[push-diag] registrationError event', JSON.stringify(err)); pendingToken.current?.reject() })
+      const regSub = PushNotifications.addListener('registration', (token) => { diag(owner?.portalUserId, `registration-event:len${token.value?.length}`); pendingToken.current?.resolve(token.value) })
+      const errSub = PushNotifications.addListener('registrationError', (err) => { diag(owner?.portalUserId, `registrationError-event:${JSON.stringify(err)}`); pendingToken.current?.reject() })
       return () => { regSub.then((h) => h.remove()); errSub.then((h) => h.remove()) }
     }
 
@@ -104,20 +117,20 @@ export function usePushNotifications(owner: { adminUserId?: string; portalUserId
   }, [])
 
   const subscribeNative = useCallback(async () => {
-    console.log('[push-diag] subscribeNative called, owner=', JSON.stringify(owner))
-    if (!owner || (!owner.adminUserId && !owner.portalUserId)) { console.log('[push-diag] subscribeNative bailed — no owner'); return false }
+    diag(owner?.portalUserId, 'subscribeNative-called')
+    if (!owner || (!owner.adminUserId && !owner.portalUserId)) { diag(owner?.portalUserId, 'subscribeNative-bailed-no-owner'); return false }
     setSubscribing(true)
     try {
       const { receive } = await PushNotifications.requestPermissions()
-      console.log('[push-diag] requestPermissions resolved, receive=', receive)
+      diag(owner?.portalUserId, `requestPerms-resolved:${receive}`)
       setPermission(receive === 'granted' ? 'granted' : 'denied')
       if (receive !== 'granted') return false
 
       const token = await new Promise<string>((resolve, reject) => {
         pendingToken.current = { resolve, reject }
-        PushNotifications.register().then(() => console.log('[push-diag] register() call resolved (fire-and-forget)')).catch((err) => { console.log('[push-diag] register() call REJECTED', String(err)); reject(err) })
+        PushNotifications.register().then(() => diag(owner?.portalUserId, 'register-call-resolved')).catch((err) => { diag(owner?.portalUserId, `register-call-REJECTED:${String(err)}`); reject(err) })
       })
-      console.log('[push-diag] got token, len=', token?.length)
+      diag(owner?.portalUserId, `got-token:len${token?.length}`)
 
       const supabase = createClient()
       const { error } = await supabase.from('fcm_device_tokens').upsert({
@@ -125,10 +138,10 @@ export function usePushNotifications(owner: { adminUserId?: string; portalUserId
         portal_user_id: owner.portalUserId ?? null,
         token,
       }, { onConflict: 'token' })
-      console.log('[push-diag] upsert result, error=', error ? JSON.stringify(error) : 'none')
+      diag(owner?.portalUserId, `upsert-result:${error ? JSON.stringify(error) : 'ok'}`)
       return !error
     } catch (err) {
-      console.log('[push-diag] subscribeNative CAUGHT', String(err))
+      diag(owner?.portalUserId, `subscribeNative-CAUGHT:${String(err)}`)
       return false
     } finally {
       setSubscribing(false)
@@ -185,9 +198,9 @@ export function usePushNotifications(owner: { adminUserId?: string; portalUserId
   // launch anyway (register() is cheap and idempotent), so this only
   // matters for the web path's getSubscription() check.
   useEffect(() => {
-    console.log('[push-diag] auto-resubscribe effect, permission=', permission, 'owner=', JSON.stringify(owner))
-    if (permission !== 'granted' || !owner || (!owner.adminUserId && !owner.portalUserId)) { console.log('[push-diag] auto-resubscribe bailed'); return }
-    if (isNativeAndroid()) { console.log('[push-diag] auto-resubscribe calling subscribeNative'); subscribeNative(); return }
+    diag(owner?.portalUserId, `auto-resub-effect:perm${permission}`)
+    if (permission !== 'granted' || !owner || (!owner.adminUserId && !owner.portalUserId)) { diag(owner?.portalUserId, 'auto-resub-bailed'); return }
+    if (isNativeAndroid()) { diag(owner?.portalUserId, 'auto-resub-calling-subscribeNative'); subscribeNative(); return }
     navigator.serviceWorker?.ready.then(async (registration) => {
       const existing = await registration.pushManager.getSubscription()
       if (!existing) subscribeWeb()
