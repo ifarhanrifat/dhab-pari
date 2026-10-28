@@ -68,6 +68,12 @@ interface Props {
   // an actual route anywhere, which read as "not finding the route" —
   // every caller that now has a real road path passes it here.
   route?: { lat: number; lng: number }[]
+  // Real circles drawn to scale in meters (not a fixed-pixel dot) —
+  // added for the platform fleet-zone map (750), which has to show a
+  // territory's actual real-world radius, not a marker. Included in
+  // fitBounds via each circle's own bounding box so a lone circle with
+  // no pins still frames correctly.
+  circles?: { lat: number; lng: number; radiusKm: number; color?: string; popupHtml?: string }[]
 }
 
 // Leaflet's default marker icon references image paths relative to its
@@ -112,11 +118,12 @@ function coloredIcon(L: typeof import('leaflet'), color?: string) {
   })
 }
 
-const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pins, height = 220, zoom = 12, className = '', extraPadding, center, onMapClick, route }, ref) {
+const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pins, height = 220, zoom = 12, className = '', extraPadding, center, onMapClick, route, circles }, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMapType | null>(null)
   const markersRef = useRef<Marker[]>([])
   const routeLineRef = useRef<import('leaflet').Polyline | null>(null)
+  const circlesRef = useRef<import('leaflet').Circle[]>([])
   // Always-current ref so the click listener (bound once, at map
   // creation) never goes stale when the caller passes a fresh closure
   // each render — the map itself is only ever built once per mount.
@@ -149,12 +156,20 @@ const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pin
       markersRef.current = []
       routeLineRef.current?.remove()
       routeLineRef.current = null
+      circlesRef.current.forEach((c) => c.remove())
+      circlesRef.current = []
 
       if (route && route.length > 1) {
         routeLineRef.current = L.polyline(route.map((p) => [p.lat, p.lng]), { color: '#166534', weight: 4, opacity: 0.85 }).addTo(map)
       }
 
-      if (pins.length === 0 && !route?.length) { map.setView(center ?? [30.3753, 69.3451], center ? zoom : 5); return } // Pakistan-wide fallback, or a given center
+      ;(circles ?? []).forEach((c) => {
+        const circle = L.circle([c.lat, c.lng], { radius: c.radiusKm * 1000, color: c.color ?? '#166534', weight: 2, fillOpacity: 0.12 }).addTo(map)
+        if (c.popupHtml) circle.bindPopup(c.popupHtml, { minWidth: 160 })
+        circlesRef.current.push(circle)
+      })
+
+      if (pins.length === 0 && !route?.length && !circles?.length) { map.setView(center ?? [30.3753, 69.3451], center ? zoom : 5); return } // Pakistan-wide fallback, or a given center
       pins.forEach((p) => {
         const marker = L.marker([p.lat, p.lng], { icon: p.emoji ? (p.isVehicle ? vehicleIcon(L, p.emoji) : teardropIcon(L, p.emoji, p.color)) : coloredIcon(L, p.color) }).addTo(map)
         if (p.popupHtml) marker.bindPopup(p.popupHtml, { minWidth: 180 })
@@ -162,7 +177,11 @@ const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pin
         if (p.openPopup) marker.openPopup()
         markersRef.current.push(marker)
       })
-      const boundsPoints = [...pins.map((p) => [p.lat, p.lng] as [number, number]), ...(route ?? []).map((p) => [p.lat, p.lng] as [number, number])]
+      const boundsPoints = [
+        ...pins.map((p) => [p.lat, p.lng] as [number, number]),
+        ...(route ?? []).map((p) => [p.lat, p.lng] as [number, number]),
+        ...circlesRef.current.flatMap((c) => [c.getBounds().getNorthEast(), c.getBounds().getSouthWest()].map((p) => [p.lat, p.lng] as [number, number])),
+      ]
       if (boundsPoints.length === 1) map.setView(boundsPoints[0], zoom)
       else if (boundsPoints.length > 1) map.fitBounds(boundsPoints, {
         paddingTopLeft: [30 + (extraPadding?.left ?? 0), 30 + (extraPadding?.top ?? 0)],
@@ -178,7 +197,7 @@ const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pin
     })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(pins), JSON.stringify(route)])
+  }, [JSON.stringify(pins), JSON.stringify(route), JSON.stringify(circles)])
 
   useEffect(() => () => { mapRef.current?.remove(); mapRef.current = null }, [])
 

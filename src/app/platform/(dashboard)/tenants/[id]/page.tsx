@@ -3,12 +3,22 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Plus, X, UserCircle2, Copy, Eye, EyeOff, Power, CreditCard, Pencil, Settings2 } from 'lucide-react'
+import { ArrowLeft, Plus, X, UserCircle2, Copy, Eye, EyeOff, Power, CreditCard, Pencil, Settings2, MapPinned, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { passwordMeetsPolicy, PASSWORD_REQUIREMENTS } from '@/lib/passwordPolicy'
+
+const LeafletRadiusPicker = dynamic(() => import('@/components/shared/LeafletRadiusPicker'), { ssr: false })
+
+interface Zone {
+  id: string; zone_kind: 'village' | 'city'; city_id: string | null; city_name: string | null
+  label: string | null; center_lat: number; center_lng: number; radius_km: number
+}
+interface OtherZoneRow extends Zone { tenant_id: string; tenant_name: string }
+interface CityOption { id: string; name: string; lat: number | null; lng: number | null }
 
 interface TenantSummary {
   id: string; name: string; name_ur: string | null; slug: string; is_active: boolean
@@ -70,12 +80,22 @@ export default function PlatformTenantDetailPage() {
   const [editForm, setEditForm] = useState({ name: '', name_ur: '', slug: '' })
   const [editSaving, setEditSaving] = useState(false)
 
+  const [zones, setZones] = useState<Zone[]>([])
+  const [otherZones, setOtherZones] = useState<OtherZoneRow[]>([])
+  const [cities, setCities] = useState<CityOption[]>([])
+  const [zoneModal, setZoneModal] = useState<{ mode: 'village' | 'city'; editingId: string | null } | null>(null)
+  const [zoneForm, setZoneForm] = useState({ city_id: '', lat: 32.9, lng: 72.85, radius_km: 10 })
+  const [zoneSaving, setZoneSaving] = useState(false)
+
   const load = async () => {
-    const [{ data: tenants, error: tenantsError }, { data: adminsData, error: adminsError }, { data: plansData }, { data: subData }] = await Promise.all([
+    const [{ data: tenants, error: tenantsError }, { data: adminsData, error: adminsError }, { data: plansData }, { data: subData }, { data: zonesData }, { data: allZonesData }, { data: citiesData }] = await Promise.all([
       supabase.rpc('platform_list_tenants'),
       supabase.rpc('platform_get_tenant_admins', { p_tenant_id: id }),
       supabase.from('subscription_plans').select('id, key, name, monthly_price_pkr, commission_pct').eq('is_active', true).order('monthly_price_pkr'),
       supabase.from('tenant_subscriptions').select('plan:subscription_plans(max_admin_users)').eq('tenant_id', id).in('status', ['active', 'trialing', 'past_due']).maybeSingle(),
+      supabase.rpc('platform_tenant_zones', { p_tenant_id: id }),
+      supabase.rpc('platform_all_tenant_zones'),
+      supabase.from('cities').select('id, name, lat, lng').eq('is_active', true).order('display_order'),
     ])
     if (tenantsError) toast.error(friendlyError(tenantsError))
     else setTenant(((tenants as TenantSummary[]) ?? []).find((t) => t.id === id) ?? null)
@@ -85,9 +105,57 @@ export default function PlatformTenantDetailPage() {
 
     setPlans((plansData as Plan[]) ?? [])
     setPlanLimit((subData as unknown as { plan: CurrentPlanLimit } | null)?.plan ?? null)
+    setZones((zonesData as Zone[]) ?? [])
+    setOtherZones(((allZonesData as OtherZoneRow[]) ?? []).filter((z) => z.tenant_id !== id))
+    setCities((citiesData as CityOption[]) ?? [])
   }
 
   useEffect(() => { load() }, [id])
+
+  const villageZone = zones.find((z) => z.zone_kind === 'village') ?? null
+  const cityZones = zones.filter((z) => z.zone_kind === 'city')
+
+  const openAddVillageZone = () => {
+    setZoneForm({ city_id: '', lat: 32.9, lng: 72.85, radius_km: 10 })
+    setZoneModal({ mode: 'village', editingId: null })
+  }
+  const openAddCityZone = () => {
+    setZoneForm({ city_id: '', lat: 32.9, lng: 72.85, radius_km: 15 })
+    setZoneModal({ mode: 'city', editingId: null })
+  }
+  const openEditZone = (z: Zone) => {
+    setZoneForm({ city_id: z.city_id ?? '', lat: z.center_lat, lng: z.center_lng, radius_km: z.radius_km })
+    setZoneModal({ mode: z.zone_kind, editingId: z.id })
+  }
+  const pickZoneCity = (cityId: string) => {
+    const city = cities.find((c) => c.id === cityId)
+    setZoneForm((f) => ({ ...f, city_id: cityId, lat: city?.lat ?? f.lat, lng: city?.lng ?? f.lng }))
+  }
+
+  const saveZone = async () => {
+    if (!zoneModal) return
+    if (zoneModal.mode === 'city' && !zoneForm.city_id) { toast.error('Choose a city.'); return }
+    setZoneSaving(true)
+    const cityName = cities.find((c) => c.id === zoneForm.city_id)?.name ?? null
+    const { error } = await supabase.rpc('platform_upsert_tenant_zone', {
+      p_tenant_id: id, p_zone_kind: zoneModal.mode, p_center_lat: zoneForm.lat, p_center_lng: zoneForm.lng,
+      p_radius_km: zoneForm.radius_km, p_city_id: zoneModal.mode === 'city' ? zoneForm.city_id : null,
+      p_label: zoneModal.mode === 'city' ? cityName : null, p_id: zoneModal.editingId,
+    })
+    setZoneSaving(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success('Zone saved.')
+    setZoneModal(null)
+    load()
+  }
+
+  const deleteZone = async (zoneId: string) => {
+    if (!confirm('Delete this zone?')) return
+    const { error } = await supabase.rpc('platform_delete_tenant_zone', { p_id: zoneId })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success('Zone deleted.')
+    load()
+  }
 
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -242,6 +310,45 @@ export default function PlatformTenantDetailPage() {
             Donors & Projects
           </label>
         </div>
+      </div>
+
+      {/* Fleet Zones */}
+      <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-sans text-[15px] font-bold text-dp-on-surface flex items-center gap-2">
+            <MapPinned size={16} /> Fleet Zones
+          </h2>
+        </div>
+        <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">
+          One village-territory circle plus any number of city circles this tenant's fleet actually works out of. Used by ride-dispatch to tell "already in the city" apart from "has to drive out from the village."
+        </p>
+        <div className="flex flex-col gap-2 mb-3">
+          {villageZone ? (
+            <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-dp-surface-container">
+              <span className="font-sans text-[13.5px] text-dp-on-surface">🏠 Village — {villageZone.radius_km} km radius</span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => openEditZone(villageZone)} className="p-1.5 text-dp-primary hover:bg-dp-primary/10 rounded cursor-pointer"><Pencil size={14} /></button>
+                <button onClick={() => deleteZone(villageZone.id)} className="p-1.5 text-dp-error hover:bg-dp-error/10 rounded cursor-pointer"><Trash2 size={14} /></button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={openAddVillageZone} className="flex items-center gap-1.5 text-[13px] font-semibold text-dp-secondary hover:underline cursor-pointer self-start">
+              <Plus size={14} /> Add village zone
+            </button>
+          )}
+          {cityZones.map((z) => (
+            <div key={z.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-dp-surface-container">
+              <span className="font-sans text-[13.5px] text-dp-on-surface">🏙️ {z.city_name} — {z.radius_km} km radius</span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => openEditZone(z)} className="p-1.5 text-dp-primary hover:bg-dp-primary/10 rounded cursor-pointer"><Pencil size={14} /></button>
+                <button onClick={() => deleteZone(z.id)} className="p-1.5 text-dp-error hover:bg-dp-error/10 rounded cursor-pointer"><Trash2 size={14} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button onClick={openAddCityZone} className="flex items-center gap-1.5 text-[13px] font-semibold text-dp-secondary hover:underline cursor-pointer">
+          <Plus size={14} /> Add city zone
+        </button>
       </div>
 
       {/* Subscription */}
@@ -424,6 +531,46 @@ export default function PlatformTenantDetailPage() {
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add/edit zone modal */}
+      {zoneModal && (
+        <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setZoneModal(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-sans text-[18px] font-bold text-dp-on-surface">
+                {zoneModal.editingId ? 'Edit' : 'Add'} {zoneModal.mode === 'village' ? 'Village Zone' : 'City Zone'}
+              </h2>
+              <button onClick={() => setZoneModal(null)} className="text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><X size={20} /></button>
+            </div>
+            <div className="space-y-4">
+              {zoneModal.mode === 'city' && (
+                <div>
+                  <label className="block text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 font-sans">City</label>
+                  <select
+                    value={zoneForm.city_id} onChange={(e) => pickZoneCity(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] focus:border-dp-secondary focus:ring-0"
+                  >
+                    <option value="">Choose a city</option>
+                    {cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
+              <LeafletRadiusPicker
+                lat={zoneForm.lat} lng={zoneForm.lng} radiusKm={zoneForm.radius_km}
+                otherZones={otherZones.map((z) => ({ lat: z.center_lat, lng: z.center_lng, radiusKm: z.radius_km, label: `${z.tenant_name} — ${z.zone_kind === 'village' ? 'village' : z.city_name}` }))}
+                onChange={(p) => setZoneForm((f) => ({ ...f, lat: p.lat, lng: p.lng }))}
+                onRadiusChange={(r) => setZoneForm((f) => ({ ...f, radius_km: r }))}
+              />
+              <button
+                onClick={saveZone} disabled={zoneSaving}
+                className="w-full bg-[#1a1f2e] text-white py-2.5 rounded-lg font-sans font-semibold text-[14px] hover:opacity-90 disabled:opacity-50 cursor-pointer"
+              >
+                {zoneSaving ? 'Saving...' : 'Save Zone'}
+              </button>
+            </div>
           </div>
         </div>
       )}

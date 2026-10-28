@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Building2, Receipt, CreditCard, LogOut, ArrowLeftCircle, History, Megaphone, Landmark } from 'lucide-react'
+import { Building2, Receipt, CreditCard, LogOut, ArrowLeftCircle, History, Megaphone, Landmark, MapPinned } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
 const menuItems = [
   { href: '/platform', label: 'Tenants', icon: Building2 },
+  { href: '/platform/fleet-zones', label: 'Fleet Zones', icon: MapPinned },
   { href: '/platform/plans', label: 'Plans', icon: CreditCard },
   { href: '/platform/invoices', label: 'Invoices', icon: Receipt },
   { href: '/platform/finance', label: 'Finance', icon: Landmark },
