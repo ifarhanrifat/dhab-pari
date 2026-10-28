@@ -94,8 +94,12 @@ async function fetchPendingRows(supabase: ReturnType<typeof createClient>, kind:
   }
   if (kind === 'ride_dispatch') {
     const { data } = await supabase.rpc('my_pending_ride_dispatch_requests', { p_vehicle_id: vehicleId })
-    return ((data ?? []) as { id: string; pickup_label: string; dropoff_label: string; fare_pkr: number; category_emoji: string; category_name: string }[])
-      .map((r) => ({ id: r.id, type: 'ride_dispatch', title: `${r.category_emoji} ${r.category_name}`, subtitle: `${r.pickup_label} → ${r.dropoff_label}`, amount: r.fare_pkr, href: `/portal/marketplace/ride-dispatch/${r.id}`, needsAction: true }))
+    return ((data ?? []) as { id: string; pickup_label: string; dropoff_label: string; fare_pkr: number; category_emoji: string; category_name: string; rider_trust: QuickActionRow['riderTrust']; rider_tenant_name: string }[])
+      .map((r) => ({
+        id: r.id, type: 'ride_dispatch', title: `${r.category_emoji} ${r.category_name}`, subtitle: `${r.pickup_label} → ${r.dropoff_label}`,
+        amount: r.fare_pkr, href: `/portal/marketplace/ride-dispatch/${r.id}`, needsAction: true,
+        riderTrust: r.rider_trust, riderVillage: r.rider_tenant_name,
+      }))
   }
   // 'route' — covers both route-based and adda-based ride_bookings, same
   // two-query split as the Jobs list (see its own comment on why).

@@ -19,12 +19,15 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 
 interface RequestDetail {
   id: string; status: string; pickup_label: string; dropoff_label: string
-  distance_km: number; fare_pkr: number; created_at: string
+  distance_km: number; fare_pkr: number; reference_village_fare_pkr: number | null; created_at: string
   category_name: string; category_name_ur: string | null; category_emoji: string
   is_mine_as_rider: boolean; trip_offer_id: string | null
+  tier_used: string | null; matched_tenant_name: string | null
+  rider_trust: Trust | null; rider_tenant_name: string
 }
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -102,6 +105,10 @@ export default function RideDispatchPage() {
 
       {req.status === 'open' && !req.is_mine_as_rider && (
         <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-[12.5px] font-semibold text-[#1e293b]">{t('mb.riderFromVillageLabel').replace('{village}', req.rider_tenant_name)}</span>
+            <TrustPill trust={req.rider_trust} />
+          </div>
           <p className="text-[12.5px] text-[#64748b]">{t('mb.acceptRideHint')}</p>
           <button onClick={accept} disabled={accepting} className="w-full bg-[#166534] text-white rounded-xl py-3 font-bold text-[14px] cursor-pointer disabled:opacity-50">
             {accepting ? t('action.saving') : t('mb.acceptRideBtn').replace('{price}', fmt(req.fare_pkr))}
@@ -113,11 +120,23 @@ export default function RideDispatchPage() {
         <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-2xl p-4 flex flex-col items-center gap-2 text-center">
           <CheckCircle2 size={28} className="text-[#166534]" />
           <p className="font-bold text-[14px] text-[#166534]">{req.is_mine_as_rider ? t('mb.rideAcceptedHeading') : t('mb.youAcceptedThisRideHeading')}</p>
-          {req.is_mine_as_rider && bookingId && (
-            <Link href={`/portal/marketplace/trip/${bookingId}`} className="mt-1 px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold">
-              {t('cm.trackLocationBtn')}
-            </Link>
+          {req.is_mine_as_rider && req.tier_used?.endsWith('in_city') && req.reference_village_fare_pkr != null && req.reference_village_fare_pkr > req.fare_pkr && (
+            <p className="text-[11.5px] font-semibold text-emerald-700 bg-emerald-50 rounded-full px-3 py-1">
+              {t('mb.youSavedNote').replace('{amount}', fmt(req.reference_village_fare_pkr - req.fare_pkr))}
+            </p>
           )}
+          <div className="flex items-center gap-2 mt-1">
+            {req.is_mine_as_rider && bookingId && (
+              <Link href={`/portal/marketplace/trip/${bookingId}`} className="px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold">
+                {t('cm.trackLocationBtn')}
+              </Link>
+            )}
+            {req.trip_offer_id && (
+              <Link href={`/portal/marketplace/trip-group/${req.trip_offer_id}`} className="px-4 py-2 border border-[#166534] text-[#166534] rounded-xl text-[13px] font-bold">
+                {t('cm.openGroupChatBtn')}
+              </Link>
+            )}
+          </div>
         </div>
       )}
 

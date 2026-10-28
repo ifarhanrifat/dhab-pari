@@ -77,8 +77,12 @@ const EQUIPMENT_HREF: Record<string, string> = { tractor: '/portal/marketplace/t
 interface RideQuote {
   online_in_city: number; active_total: number; base_fare_pkr: number; village_detour_pkr: number; total_with_village_pkr: number
   cross_tenant: { tenant_id: string; tenant_name: string; active_count: number; detour_pkr: number } | null
+  own_tenant_name: string
 }
-interface DispatchRequest { id: string; status: string; fare_pkr: number; tier_used: string | null; matched_tenant_name: string | null; trip_offer_id: string | null }
+interface DispatchRequest {
+  id: string; status: string; fare_pkr: number; reference_village_fare_pkr: number | null
+  tier_used: string | null; matched_tenant_name: string | null; trip_offer_id: string | null
+}
 interface CategoryOption { id: string; name: string; name_ur: string | null; emoji: string; fare_pkr: number; active_count: number }
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -181,7 +185,7 @@ function ResultsPageInner() {
     })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    setActiveRequest({ id: data as string, status: 'open', fare_pkr: 0, tier_used: null, matched_tenant_name: null, trip_offer_id: null })
+    setActiveRequest({ id: data as string, status: 'open', fare_pkr: 0, reference_village_fare_pkr: null, tier_used: null, matched_tenant_name: null, trip_offer_id: null })
   }
 
   // The last resort: own village has nothing (not even the two-way
@@ -444,7 +448,7 @@ function ResultsPageInner() {
                 ) : quote.active_total > 0 ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-col gap-2">
                     <p className="text-[12.5px] font-bold text-amber-800">{t('mb.noDriverHereNote')}</p>
-                    <p className="text-[12px] text-amber-800">{t('mb.askVillageDriverNote')}</p>
+                    <p className="text-[12px] text-amber-800">{t('mb.askVillageDriverNote').replace('{village}', quote.own_tenant_name)}</p>
                     <div className="flex flex-col gap-1 text-[12px] bg-white rounded-lg p-2.5">
                       <div className="flex justify-between"><span className="text-[#64748b]">{t('mb.tripFareLabel')}</span><span className="ltr-num text-[#1e293b]">{fmt(quote.base_fare_pkr)}</span></div>
                       <div className="flex justify-between"><span className="text-[#64748b]">{t('mb.villageDetourFeeLabel')}</span><span className="ltr-num text-[#1e293b]">{fmt(quote.village_detour_pkr)}</span></div>
@@ -519,11 +523,23 @@ function ResultsPageInner() {
                 <p className="text-[12px] text-[#64748b]">{t('mb.acceptedFromVillageNote').replace('{village}', activeRequest.matched_tenant_name)}</p>
               )}
               <p className="font-extrabold text-[16px] text-[#166534] ltr-num">{fmt(activeRequest.fare_pkr)}</p>
-              {bookingId && (
-                <Link href={`/portal/marketplace/trip/${bookingId}`} onClick={closeSheet} className="mt-1 px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold">
-                  {t('cm.trackLocationBtn')}
-                </Link>
+              {activeRequest.tier_used?.endsWith('in_city') && activeRequest.reference_village_fare_pkr != null && activeRequest.reference_village_fare_pkr > activeRequest.fare_pkr && (
+                <p className="text-[11.5px] font-semibold text-emerald-700 bg-emerald-50 rounded-full px-3 py-1">
+                  {t('mb.youSavedNote').replace('{amount}', fmt(activeRequest.reference_village_fare_pkr - activeRequest.fare_pkr))}
+                </p>
               )}
+              <div className="flex items-center gap-2 mt-1">
+                {bookingId && (
+                  <Link href={`/portal/marketplace/trip/${bookingId}`} onClick={closeSheet} className="px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold">
+                    {t('cm.trackLocationBtn')}
+                  </Link>
+                )}
+                {activeRequest.trip_offer_id && (
+                  <Link href={`/portal/marketplace/trip-group/${activeRequest.trip_offer_id}`} onClick={closeSheet} className="px-4 py-2 border border-[#166534] text-[#166534] rounded-xl text-[13px] font-bold">
+                    {t('cm.openGroupChatBtn')}
+                  </Link>
+                )}
+              </div>
             </div>
           ) : (
             <p className="text-center text-[12.5px] text-[#64748b] py-6">{t('mb.rideRequestCancelledNote')}</p>

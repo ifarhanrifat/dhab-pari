@@ -19,12 +19,13 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext'
-import { JobQuickActionSheet, type QuickActionKind } from '@/components/mobility/JobQuickActionSheet'
+import { JobQuickActionSheet, type QuickActionKind, type QuickActionRow } from '@/components/mobility/JobQuickActionSheet'
 
 interface Vehicle { id: string; offers_hourly: boolean; offers_shadi: boolean; offers_equipment: boolean; offers_rental: boolean; delivers: boolean }
 interface Row {
   id: string; type: 'hourly' | 'shadi' | 'equipment' | 'rental' | 'route' | 'dispatch' | 'city_purchase' | 'delivery' | 'parcel' | 'ride_dispatch'
   title: string; subtitle: string; amount: number | null; at: string; needsAction: boolean; done: boolean; href: string
+  riderTrust?: QuickActionRow['riderTrust']; riderVillage?: string
 }
 // Every kind here now pops up instead of navigating away — dispatch/
 // parcel/delivery are plain accept/decline same as the first 5;
@@ -112,8 +113,12 @@ export default function MyVehicleJobsPage() {
     }
     {
       const { data } = await supabase.rpc('my_pending_ride_dispatch_requests', { p_vehicle_id: v.id })
-      for (const r of (data ?? []) as { id: string; pickup_label: string; dropoff_label: string; fare_pkr: number; category_emoji: string; category_name: string; created_at: string }[]) {
-        out.push({ id: r.id, type: 'ride_dispatch', title: `${r.category_emoji} ${r.category_name}`, subtitle: `${r.pickup_label} → ${r.dropoff_label}`, amount: r.fare_pkr, at: r.created_at, needsAction: true, done: false, href: `/portal/marketplace/ride-dispatch/${r.id}` })
+      for (const r of (data ?? []) as { id: string; pickup_label: string; dropoff_label: string; fare_pkr: number; category_emoji: string; category_name: string; created_at: string; rider_trust: QuickActionRow['riderTrust']; rider_tenant_name: string }[]) {
+        out.push({
+          id: r.id, type: 'ride_dispatch', title: `${r.category_emoji} ${r.category_name}`, subtitle: `${r.pickup_label} → ${r.dropoff_label}`,
+          amount: r.fare_pkr, at: r.created_at, needsAction: true, done: false, href: `/portal/marketplace/ride-dispatch/${r.id}`,
+          riderTrust: r.rider_trust, riderVillage: r.rider_tenant_name,
+        })
       }
     }
     {
@@ -223,7 +228,7 @@ export default function MyVehicleJobsPage() {
 
       {openJob && isQuickActionKind(openJob.type) && (
         <JobQuickActionSheet
-          row={{ id: openJob.id, type: openJob.type, title: openJob.title, subtitle: openJob.subtitle, amount: openJob.amount, href: openJob.href, needsAction: openJob.needsAction }}
+          row={{ id: openJob.id, type: openJob.type, title: openJob.title, subtitle: openJob.subtitle, amount: openJob.amount, href: openJob.href, needsAction: openJob.needsAction, riderTrust: openJob.riderTrust, riderVillage: openJob.riderVillage }}
           vehicleId={vehicle?.id ?? null}
           onClose={() => setOpenJob(null)}
           onDone={() => vehicle && reload(vehicle)}

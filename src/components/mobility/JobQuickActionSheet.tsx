@@ -28,6 +28,7 @@ import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
+import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 
 export type QuickActionKind = 'hourly' | 'rental' | 'equipment' | 'shadi' | 'route' | 'dispatch' | 'city_purchase' | 'parcel' | 'delivery' | 'ride_dispatch'
 export interface QuickActionRow {
@@ -38,6 +39,11 @@ export interface QuickActionRow {
   amount: number | null
   href: string
   needsAction: boolean
+  // Only populated for 'ride_dispatch' — "who is asking" is the one
+  // real gap this card had for a broadcast request, which never had a
+  // deliberate per-vehicle invite to vet a requester against.
+  riderTrust?: Trust | null
+  riderVillage?: string
 }
 // dispatch/city_purchase/parcel/delivery all gate accept/decline on the
 // caller owning the given vehicle_id — hourly/rental/equipment/shadi/
@@ -108,6 +114,12 @@ export function JobQuickActionSheet({ row, vehicleId, onClose, onDone }: Props) 
     <MobilityBottomSheet title={row.title} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <div className="bg-[#F9F9F6] rounded-xl p-3">
+          {row.type === 'ride_dispatch' && (row.riderVillage || row.riderTrust) && (
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
+              {row.riderVillage && <span className="font-sans text-[11.5px] font-semibold text-[#64748b]">{t('mb.riderFromVillageLabel').replace('{village}', row.riderVillage)}</span>}
+              <TrustPill trust={row.riderTrust} />
+            </div>
+          )}
           <p className="font-sans text-[13.5px] font-semibold text-[#1e293b]">{row.subtitle}</p>
           {row.amount != null && <p className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num mt-1">₨{fmt(row.amount)}</p>}
         </div>
