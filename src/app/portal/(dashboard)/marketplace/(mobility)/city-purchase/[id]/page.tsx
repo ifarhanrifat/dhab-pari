@@ -21,6 +21,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { RateAndReport } from '@/components/portal/RateAndReport'
+import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 
 interface RequestDetail {
   id: string; item: string; has_item_attachment: boolean; pickup_label: string | null
@@ -132,11 +133,21 @@ export default function CityPurchaseDetailPage() {
     reload()
   }
   const cancel = async () => {
-    if (!window.confirm(t('vp.cancelCityPurchaseConfirm'))) return
+    // Real gap fixed, 2026-10-29: this RPC used to let a rider cancel
+    // even after the driver had already purchased the goods (or even
+    // after delivery, now blocked server-side entirely) with zero fee.
+    // Mirrors cancel_trip_booking's warn-before-confirm + toast-the-
+    // returned-fee pattern (770/771).
+    const feeWarning = request?.status === 'purchased'
+      ? t('vp.cancelFeeWarningPurchased').replace('{amount}', String(request.actual_goods_cost_pkr ?? request.goods_budget_pkr ?? 0))
+      : ''
+    if (!window.confirm(`${t('vp.cancelCityPurchaseConfirm')}${feeWarning ? '\n\n' + feeWarning : ''}`)) return
     setBusy(true)
-    const { error } = await supabase.rpc('cancel_city_purchase_request', { p_request_id: requestId })
+    const { data, error } = await supabase.rpc('cancel_city_purchase_request', { p_request_id: requestId })
     setBusy(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    const fee = (data as { fee_pkr?: number } | null)?.fee_pkr
+    toast.success(fee ? t('vp.cancelFeeAppliesToast').replace('{amount}', String(fee)) : t('vp.cityPurchaseCancelledToast'))
     reload()
   }
   const viewAttachment = async (which: 'item' | 'bill') => {
@@ -254,6 +265,14 @@ export default function CityPurchaseDetailPage() {
           {request.status === 'delivered' && isAcceptedDriver && (
             <p className="mt-3 text-[12px] text-[#166534] font-semibold flex items-center gap-1"><Clock size={11} /> {t('vp.awaitingConfirmationNote')}</p>
           )}
+          {/* Real gap fixed, 2026-10-29: once delivered, "cancel" is
+              blocked server-side — this is the real remedy the backend
+              error message now points both sides to instead. */}
+          {request.status === 'delivered' && (
+            <div className="mt-3 flex justify-center">
+              <ReportProblemButton refType="city_purchase_request" refId={requestId} kindOptions={['damaged_goods', 'fare_dispute']} />
+            </div>
+          )}
 
           {request.status === 'completed' && (
             <p className="mt-3 text-[12.5px] text-emerald-700 font-bold flex items-center gap-1"><CheckCircle2 size={13} /> {t('vp.deliveredNote')}</p>
@@ -269,7 +288,14 @@ export default function CityPurchaseDetailPage() {
         />
       )}
 
-      {!isAcceptedDriver && ['ringing', 'priced'].includes(request.status) && (
+      {/* Real gap fixed, 2026-10-29: used to only show up through
+          'priced' — the two states where a real cancellation-fee tier
+          now applies (approved: free, purchased: driver's sunk cost)
+          never had a cancel entry point at all. 'delivered' stays out
+          on purpose — cancelling is blocked server-side there, the
+          ReportProblemButton above is the real path once goods have
+          actually changed hands. */}
+      {!isAcceptedDriver && ['ringing', 'priced', 'approved', 'purchased'].includes(request.status) && (
         <button onClick={cancel} disabled={busy} className="text-[12px] text-[#64748b] cursor-pointer disabled:opacity-50 w-fit">{t('vp.cancelCallBtn')}</button>
       )}
     </div>
