@@ -16,7 +16,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Send, Radio, Users, LogOut, PlayCircle, StopCircle } from 'lucide-react'
+import { Send, Radio, Users, LogOut, PlayCircle, StopCircle, Loader2, MapPin, Flag } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -28,6 +28,14 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
+// A4 polish — this panel's own button treatment (kept local on purpose,
+// not a shared Button component). Matches RideLifecycleSheet: rounded-xl,
+// bold label, inline spinner while busy, and hover/press/disabled states
+// on every control instead of only opacity on some of them.
+const BTN_BASE = 'inline-flex items-center justify-center gap-1.5 rounded-xl font-sans font-bold cursor-pointer transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100'
+const BTN_PRIMARY = `w-full ${BTN_BASE} py-3 text-[14px] bg-[#166534] text-white hover:bg-[#14532d]`
+const HINT = 'font-sans text-[11px] text-[#64748b] leading-snug'
+
 interface Participant { portal_user_id: string; name: string; sharing_location: boolean }
 interface Message { id: string; sender_portal_user_id: string; sender_name: string; is_own: boolean; body: string; created_at: string }
 interface LiveLoc { portal_user_id: string; name: string; is_own: boolean; is_owner: boolean; lat: number; lng: number; updated_at: string }
@@ -36,6 +44,10 @@ interface ActiveRun { id: string; started_at: string; direction: 'outbound' | 'r
 interface TodaysRun { id: string; direction: 'outbound' | 'return'; started_at: string; ended_at: string | null }
 interface RosterRow { subscription_id: string; name: string; present: boolean }
 interface OutboundBookingRow { booking_id: string; name: string; seats: number; offboarded: boolean }
+interface RouteInfo {
+  vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
+  origin_lat: number | null; origin_lng: number | null; destination_lat: number | null; destination_lng: number | null
+}
 interface Detail {
   is_owner: boolean; is_member: boolean; sharing_location: boolean
   owner_portal_user_id: string; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
@@ -123,14 +135,23 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
   // Real ask, 2026-10-26: "this will be notified before he click the
   // save button" — same stake shown on the trip-offer post form, here
   // for starting a route's daily run instead.
+  //
+  // The route's own endpoints are read here too (vehicle_routes is
+  // publicly readable) — route_group_detail returns only via-stops, so a
+  // route with none used to leave the live stop list completely blank.
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null)
   useEffect(() => {
-    if (!detail?.is_owner) return
-    supabase.from('vehicle_routes').select('vehicle_id').eq('id', routeId).single().then(({ data: r }) => {
-      if (!r) return
-      supabase.rpc('vehicle_ride_stake_info', { p_vehicle_id: r.vehicle_id }).then(({ data: s }) => setStakeInfo(s ?? null))
-    })
+    supabase.from('vehicle_routes')
+      .select('vehicle_id, origin, origin_ur, destination, destination_ur, origin_lat, origin_lng, destination_lat, destination_lng')
+      .eq('id', routeId).maybeSingle()
+      .then(({ data }) => setRouteInfo((data as RouteInfo | null) ?? null))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detail?.is_owner, detail?.active_run])
+  }, [routeId])
+  useEffect(() => {
+    if (!detail?.is_owner || !routeInfo?.vehicle_id) return
+    supabase.rpc('vehicle_ride_stake_info', { p_vehicle_id: routeInfo.vehicle_id }).then(({ data: s }) => setStakeInfo(s ?? null))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail?.is_owner, detail?.active_run?.id, routeInfo?.vehicle_id])
 
   // "Now what is the procedure of starting the ride back home?" — a
   // day's return leg is just a second run on the same route, opposite
@@ -233,6 +254,16 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
     load()
   }
 
+  const placeName = (en: string, ur: string | null) => (isUrdu && ur ? ur : en)
+  const activeRun = detail?.active_run ?? null
+  const legLabel = routeInfo && activeRun
+    ? activeRun.direction === 'return'
+      ? `${placeName(routeInfo.destination, routeInfo.destination_ur)} → ${placeName(routeInfo.origin, routeInfo.origin_ur)}`
+      : `${placeName(routeInfo.origin, routeInfo.origin_ur)} → ${placeName(routeInfo.destination, routeInfo.destination_ur)}`
+    : null
+  const liveSince = activeRun ? t('mv.liveSinceLabel').replace('{time}', new Date(activeRun.started_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })) : null
+  const driverPos = detail?.live_locations.find((l) => l.is_owner) ?? null
+
   return (
     <MobilityBottomSheet title={t('mv.routeGroupHeading')} onClose={onClose}>
       {loading ? (
@@ -241,34 +272,59 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
         <div className="flex flex-col items-center gap-2.5 py-4 text-center">
           <Users size={28} className="text-[#166534]" />
           <p className="font-sans text-[13px] text-[#64748b]">{t('mv.joinGroupHint')}</p>
-          <button onClick={join} disabled={joining} className="w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
-            {joining ? t('action.saving') : t('mv.joinGroupBtn')}
+          <button onClick={join} disabled={joining} className={BTN_PRIMARY}>
+            {joining && <Loader2 size={15} className="animate-spin" />} {joining ? t('action.saving') : t('mv.joinGroupBtn')}
           </button>
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
-          <div className="flex items-center justify-between">
-            <p className="font-sans text-[11px] font-bold uppercase tracking-[0.05em] text-[#64748b] flex items-center gap-1"><Users size={12} /> {t('mv.membersLabel')} ({detail.participants.length})</p>
-            <button onClick={leave} disabled={leaving} className="flex items-center gap-1 font-sans text-[11px] font-semibold text-[#b91c1c] cursor-pointer disabled:opacity-50">
-              <LogOut size={11} /> {t('mv.leaveGroupBtn')}
+          <div className="flex items-center justify-between gap-2">
+            <p className="min-w-0 font-sans text-[11px] font-bold uppercase tracking-[0.05em] text-[#64748b] flex items-center gap-1"><Users size={12} className="shrink-0" /> <span className="truncate">{t('mv.membersLabel')} ({detail.participants.length})</span></p>
+            <button onClick={leave} disabled={leaving} className="shrink-0 inline-flex items-center gap-1 min-h-[30px] px-2 -me-2 rounded-lg font-sans text-[11px] font-semibold text-[#b91c1c] cursor-pointer transition hover:bg-rose-50 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed">
+              {leaving ? <Loader2 size={11} className="animate-spin" /> : <LogOut size={11} />} {t('mv.leaveGroupBtn')}
             </button>
           </div>
           <div className="flex gap-1.5 flex-wrap">
             {detail.participants.map((p) => (
-              <span key={p.portal_user_id} className="flex items-center gap-1 px-2 py-1 rounded-full bg-[#F9F9F6] border border-[#e5e2d0] font-sans text-[11px] text-[#334155]">
-                {p.sharing_location && <Radio size={9} className="text-[#166534] animate-pulse" />} {p.name}
+              <span key={p.portal_user_id} className="max-w-full flex items-center gap-1 px-2 py-1 rounded-full bg-[#F9F9F6] border border-[#e5e2d0] font-sans text-[11px] text-[#334155]">
+                {p.sharing_location && <Radio size={9} className="shrink-0 text-[#166534] animate-pulse" />} <span className="truncate">{p.name}</span>
               </span>
             ))}
           </div>
+
+          {/* Real ask, 2026-10-21: "the return ride button... when driver is
+              starting a return ride... it should" show something — the
+              driver (owner) used to get no feedback beyond the button
+              flipping from gold to red. A4: now a real status card shown
+              to everyone in the group, owner included, placed ABOVE the
+              action button (status first, then what you can do about it —
+              same order as RideLifecycleSheet), with which way the van is
+              heading and since when, so "heading back" is unmistakable. */}
+          {activeRun && (
+            <div className="flex items-start gap-2.5 rounded-xl px-3 py-2.5 bg-[#F0FDF4] border border-[#bbf7d0]">
+              <span className="relative shrink-0 mt-[5px] w-2.5 h-2.5">
+                <span className="absolute inset-0 rounded-full bg-[#16a34a] opacity-60 animate-ping" />
+                <span className="absolute inset-0 rounded-full bg-[#16a34a]" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-sans text-[13px] font-bold text-[#166534] leading-snug">
+                  {activeRun.direction === 'return' ? t('mv.rideLiveReturnLabel') : t('mv.rideLiveNowLabel')}
+                </p>
+                <p className="font-sans text-[11px] text-[#475569] mt-0.5 leading-snug break-words">
+                  {legLabel ? `${legLabel} · ` : ''}<span className="ltr-num">{liveSince}</span>
+                </p>
+              </div>
+            </div>
+          )}
 
           {detail.is_owner && showRoster && (
             <div className="flex flex-col gap-1.5 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
               <p className="font-sans text-[11.5px] font-bold text-amber-900">{t('mv.takeAttendanceLabel')}</p>
               {(detail.roster_today ?? []).map((r) => (
-                <label key={r.subscription_id} className="flex items-center gap-2 font-sans text-[12.5px] text-[#1e293b] cursor-pointer">
-                  <input type="checkbox" checked={rosterChecks[r.subscription_id] ?? true}
+                <label key={r.subscription_id} className="flex items-center gap-2 min-h-[32px] font-sans text-[12.5px] text-[#1e293b] cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 accent-[#166534] shrink-0" checked={rosterChecks[r.subscription_id] ?? true}
                     onChange={(e) => setRosterChecks((rows) => ({ ...rows, [r.subscription_id]: e.target.checked }))} />
-                  {r.name}
+                  <span className="min-w-0 truncate">{r.name}</span>
                 </label>
               ))}
               {stakeInfo?.applies && (
@@ -277,39 +333,28 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
                 </p>
               )}
               <div className="flex gap-1.5 mt-1">
-                <button type="button" onClick={() => setShowRoster(false)} className="flex-1 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#64748b]">
+                <button type="button" onClick={() => setShowRoster(false)} className={`flex-1 min-w-0 ${BTN_BASE} py-2.5 text-[13px] font-semibold border border-[#e5e2d0] bg-white text-[#64748b] hover:bg-[#F9F9F6]`}>
                   {t('action.cancel')}
                 </button>
-                <button type="button" onClick={() => startRun('outbound')} disabled={runBusy || (stakeInfo?.applies && !stakeInfo.can_afford)} className="flex-1 py-1.5 rounded-lg text-[12px] font-sans font-bold cursor-pointer bg-[#D4AF37] text-[#0f172a] disabled:opacity-50">
-                  {runBusy ? t('action.saving') : t('mv.confirmAndStartBtn')}
+                <button type="button" onClick={() => startRun('outbound')} disabled={runBusy || (stakeInfo?.applies && !stakeInfo.can_afford)} className={`flex-1 min-w-0 ${BTN_BASE} py-2.5 text-[13px] bg-[#D4AF37] text-[#0f172a] hover:brightness-95`}>
+                  {runBusy && <Loader2 size={14} className="animate-spin" />} <span className="truncate">{runBusy ? t('action.saving') : t('mv.confirmAndStartBtn')}</span>
                 </button>
               </div>
             </div>
           )}
-          {detail.is_owner && !showRoster && !detail.active_run && stakeInfo?.applies && (
+          {detail.is_owner && !showRoster && !activeRun && stakeInfo?.applies && (
             <p className={`font-sans text-[10.5px] rounded-lg px-2.5 py-1.5 ${stakeInfo.can_afford ? 'bg-[#F9F9F6] text-[#64748b]' : 'bg-rose-50 text-rose-700 font-semibold'}`}>
               {t('mv.startingStakeNote').replace('{stake}', String(stakeInfo.stake_pkr)).replace('{balance}', String(Math.round(stakeInfo.balance_pkr)))}
             </p>
           )}
           {detail.is_owner && !showRoster && (
-            <button type="button" onClick={detail.active_run ? endRun : openStartFlow} disabled={runBusy || (!detail.active_run && stakeInfo?.applies && !stakeInfo.can_afford)}
-              className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[13px] font-sans font-bold cursor-pointer disabled:opacity-50 ${detail.active_run ? 'bg-[#b91c1c] text-white' : 'bg-[#D4AF37] text-[#0f172a]'}`}>
-              {detail.active_run ? <StopCircle size={15} /> : <PlayCircle size={15} />}
-              {detail.active_run
+            <button type="button" onClick={activeRun ? endRun : openStartFlow} disabled={runBusy || (!activeRun && stakeInfo?.applies && !stakeInfo.can_afford)}
+              className={`w-full ${BTN_BASE} py-3 text-[14px] ${activeRun ? 'bg-[#b91c1c] text-white hover:bg-[#991b1b]' : 'bg-[#D4AF37] text-[#0f172a] hover:brightness-95'}`}>
+              {runBusy ? <Loader2 size={15} className="animate-spin" /> : activeRun ? <StopCircle size={16} /> : <PlayCircle size={16} />}
+              {activeRun
                 ? t('mv.endRideBtn')
                 : nextDirection === 'return' ? t('mv.startReturnTripBtn') : t('mv.startRideBtn')}
             </button>
-          )}
-          {/* Real ask, 2026-10-21: "the return ride button... when driver is
-              starting a return ride... it should" show something — the
-              driver (owner) used to get NO feedback at all beyond the
-              button itself flipping from gold to red; this same "Live
-              now" status already existed for riders, just never for the
-              one person who most needs to know their own tap registered. */}
-          {detail.active_run && (
-            <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
-              <Radio size={12} className="animate-pulse" /> {detail.active_run.direction === 'return' ? t('mv.rideLiveReturnLabel') : t('mv.rideLiveNowLabel')}
-            </p>
           )}
 
           {/* Real ask, 2026-10-21: "the vehicle will leave on its time and
@@ -317,13 +362,13 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
               owner marks arrival, which opens a wait window (the route's
               own return_wait_minutes), and can release a specific
               outbound rider's seat for the return leg during that window. */}
-          {detail.is_owner && detail.is_two_way && detail.active_run?.direction === 'outbound' && !detail.active_run.outbound_arrived_at && (
-            <button type="button" onClick={markArrived} disabled={runBusy} className="w-full py-2 rounded-xl text-[13px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">
-              {t('mv.markArrivedBtn')}
+          {detail.is_owner && detail.is_two_way && activeRun?.direction === 'outbound' && !activeRun.outbound_arrived_at && (
+            <button type="button" onClick={markArrived} disabled={runBusy} className={`w-full ${BTN_BASE} py-3 text-[14px] border border-[#166534] bg-white text-[#166534] hover:bg-[#F0FDF4]`}>
+              {runBusy ? <Loader2 size={15} className="animate-spin" /> : <Flag size={15} />} {t('mv.markArrivedBtn')}
             </button>
           )}
-          {detail.is_owner && detail.active_run?.direction === 'outbound' && detail.active_run.outbound_arrived_at && (() => {
-            const elapsedMin = (Date.now() - new Date(detail.active_run.outbound_arrived_at).getTime()) / 60000
+          {detail.is_owner && activeRun?.direction === 'outbound' && activeRun.outbound_arrived_at && (() => {
+            const elapsedMin = (Date.now() - new Date(activeRun.outbound_arrived_at).getTime()) / 60000
             const remainingMin = detail.return_wait_minutes != null ? Math.max(0, Math.round(detail.return_wait_minutes - elapsedMin)) : null
             return (
               <div className="flex flex-col gap-1.5">
@@ -336,14 +381,14 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
                   <div className="flex flex-col gap-1">
                     <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b]">{t('mv.offboardRosterLabel')}</p>
                     {detail.todays_outbound_bookings.map((b) => (
-                      <div key={b.booking_id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F9F9F6] px-2.5 py-1.5">
-                        <span className="font-sans text-[12px] font-semibold text-[#1e293b] truncate">{b.name} {b.seats > 1 ? `(${b.seats})` : ''}</span>
+                      <div key={b.booking_id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F9F9F6] ps-2.5 pe-1.5 py-1">
+                        <span className="min-w-0 font-sans text-[12px] font-semibold text-[#1e293b] truncate">{b.name} {b.seats > 1 ? `(${b.seats})` : ''}</span>
                         {b.offboarded ? (
-                          <span className="shrink-0 font-sans text-[11px] text-[#94a3b8]">{t('mv.offboardedLabel')}</span>
+                          <span className="shrink-0 font-sans text-[11px] text-[#94a3b8] px-1.5">{t('mv.offboardedLabel')}</span>
                         ) : (
                           <button type="button" onClick={() => offboard(b.booking_id)} disabled={offboardBusy === b.booking_id}
-                            className="shrink-0 font-sans text-[11px] font-bold text-[#b91c1c] cursor-pointer disabled:opacity-50">
-                            {offboardBusy === b.booking_id ? t('action.saving') : t('mv.offboardBtn')}
+                            className={`shrink-0 ${BTN_BASE} min-h-[30px] px-2.5 text-[11px] border border-[#fecaca] bg-white text-[#b91c1c] hover:bg-rose-50`}>
+                            {offboardBusy === b.booking_id ? <Loader2 size={11} className="animate-spin" /> : null} {offboardBusy === b.booking_id ? t('action.saving') : t('mv.offboardBtn')}
                           </button>
                         )}
                       </div>
@@ -359,28 +404,49 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
             </p>
           )}
 
-          {detail.active_run && detail.stops.length === 0 && (
-            <p className="font-sans text-[11.5px] text-[#94a3b8] text-center py-2">{t('mv.noStopsConfiguredNote')}</p>
-          )}
-          {detail.active_run && detail.stops.length > 0 && (() => {
-            const driverPos = detail.live_locations.find((l) => l.is_owner)
-            const etas = computeLiveEtas(detail.route_path ?? [], detail.route_duration_min, driverPos ? { lat: driverPos.lat, lng: driverPos.lng } : null, detail.stops, detail.active_run.direction)
+          {/* A4: with no via-stops configured this slot used to be empty
+              (or a "no stops" note) — the commonest case for an ordinary
+              route, and a big part of why a started return trip "looked
+              like going back empty". The route's own two endpoints now
+              stand in as a minimal 2-point list, in travel order for this
+              leg, with a live ETA to the far end when one can be worked
+              out. An ETA that can't be computed (driver not sharing yet)
+              now shows "—" instead of a "Loading..." that never ended. */}
+          {activeRun && (() => {
+            const endpoints: StopRow[] = routeInfo ? [
+              { id: '__origin', label: routeInfo.origin, label_ur: routeInfo.origin_ur, lat: Number(routeInfo.origin_lat), lng: Number(routeInfo.origin_lng) },
+              { id: '__destination', label: routeInfo.destination, label_ur: routeInfo.destination_ur, lat: Number(routeInfo.destination_lat), lng: Number(routeInfo.destination_lng) },
+            ] : []
+            const usingEndpoints = detail.stops.length === 0
+            const baseStops = usingEndpoints ? endpoints : detail.stops
+            if (baseStops.length === 0) {
+              return <p className={`${HINT} text-center py-2`}>{t('mv.noStopsConfiguredNote')}</p>
+            }
+            const etaCandidates = baseStops.filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng) && !(s.lat === 0 && s.lng === 0))
+            const etas = computeLiveEtas(detail.route_path ?? [], detail.route_duration_min, driverPos ? { lat: driverPos.lat, lng: driverPos.lng } : null, etaCandidates, activeRun.direction)
             // "the last stop is now its first stop" — same stops, shown
             // in the order they're actually reached on this leg.
-            const orderedStops = detail.active_run.direction === 'return' ? [...detail.stops].reverse() : detail.stops
+            const orderedStops = activeRun.direction === 'return' ? [...baseStops].reverse() : baseStops
             return (
               <div className="flex flex-col gap-1">
-                {orderedStops.map((s) => {
+                {usingEndpoints && <p className={HINT}>{t('mv.directRouteNote')}</p>}
+                {orderedStops.map((s, i) => {
                   const e = etas[s.id]
+                  const isEnd = i === orderedStops.length - 1
                   return (
                     <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F9F9F6] px-2.5 py-1.5">
-                      <span className="font-sans text-[12px] font-semibold text-[#1e293b] truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</span>
+                      <span className="min-w-0 flex items-center gap-1.5">
+                        {usingEndpoints
+                          ? <MapPin size={12} className={`shrink-0 ${isEnd ? 'text-[#D4AF37]' : 'text-[#166534]'}`} />
+                          : <span className="shrink-0 w-4 h-4 rounded-full bg-[#166534] text-white text-[9px] font-bold flex items-center justify-center"><span className="ltr-num leading-none">{i + 1}</span></span>}
+                        <span className="min-w-0 font-sans text-[12px] font-semibold text-[#1e293b] truncate">{placeName(s.label, s.label_ur)}</span>
+                      </span>
                       {e ? (
                         <span className={`shrink-0 font-sans text-[11px] font-bold ltr-num ${e.passed ? 'text-[#94a3b8]' : 'text-[#166534]'}`}>
                           {e.passed ? t('mv.stopPassedLabel') : `${e.minutesAway} ${t('mv.minAwaySuffix')}`}
                         </span>
                       ) : (
-                        <span className="shrink-0 font-sans text-[11px] text-[#94a3b8]">{t('action.loading')}</span>
+                        <span className="shrink-0 font-sans text-[11px] text-[#94a3b8]">—</span>
                       )}
                     </div>
                   )
@@ -389,19 +455,38 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
             )
           })()}
 
-          <button type="button" onClick={toggleSharing} disabled={sharingBusy}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer transition-all disabled:opacity-50 w-fit ${sharing ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>
-            <Radio size={12} className={sharing ? 'animate-pulse' : ''} /> {t('mv.shareMyLocationLabel')}
+          <button type="button" role="switch" aria-checked={sharing} onClick={toggleSharing} disabled={sharingBusy}
+            className={`${BTN_BASE} w-fit max-w-full min-h-[34px] px-3 rounded-full text-[12px] font-semibold ${sharing ? 'bg-[#166534] text-white hover:bg-[#14532d]' : 'border border-[#e5e2d0] bg-white text-[#64748b] hover:border-[#166534]'}`}>
+            {sharingBusy ? <Loader2 size={12} className="animate-spin" /> : <Radio size={12} className={sharing ? 'animate-pulse' : ''} />} <span className="truncate">{t('mv.shareMyLocationLabel')}</span>
           </button>
           {sharing && geoError && <p className="font-sans text-[11px] text-amber-700">{geoError}</p>}
 
+          {/* A4: the map slot used to collapse to nothing for the owner
+              whenever no live position existed yet. It now always says
+              what's missing: the owner gets a direct "turn on sharing"
+              prompt (with the switch right in it) or a "waiting for GPS"
+              note once it's on; a rider sees the same waiting message the
+              1:1 trip popup uses. */}
           {detail.live_locations.length > 0 ? (
             <LeafletMap
               pins={detail.live_locations.map((l) => ({ lat: l.lat, lng: l.lng, label: l.name, color: l.is_own ? '#D4AF37' : '#166534', emoji: '🚗' }))}
               height={150} className="rounded-xl"
             />
-          ) : detail.active_run && !sharing && (
-            <p className="font-sans text-[11.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-2 text-center">{t('mv.turnOnSharingNote')}</p>
+          ) : activeRun && (
+            detail.is_owner && !sharing ? (
+              <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                <Radio size={16} className="shrink-0 text-amber-700" />
+                <p className="flex-1 min-w-0 font-sans text-[12px] font-semibold text-amber-900 leading-snug">{t('mv.turnOnSharingOwnerPrompt')}</p>
+                <button type="button" onClick={toggleSharing} disabled={sharingBusy}
+                  className={`shrink-0 ${BTN_BASE} min-h-[34px] px-3 text-[12px] bg-[#166534] text-white hover:bg-[#14532d] whitespace-nowrap`}>
+                  {sharingBusy && <Loader2 size={12} className="animate-spin" />} {t('mv.turnOnSharingBtn')}
+                </button>
+              </div>
+            ) : (
+              <p className={`${HINT} text-center bg-[#F9F9F6] rounded-xl px-2.5 py-2.5`}>
+                {detail.is_owner ? t('mv.waitingForYourGpsNote') : t('cm.waitingForDriverLocation')}
+              </p>
+            )
           )}
 
           <div className="bg-[#F9F9F6] border border-[#e5e2d0] rounded-2xl p-3 min-h-[220px] max-h-[40vh] overflow-y-auto flex flex-col gap-2">
@@ -410,13 +495,13 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
               const alignEnd = isUrdu ? !m.is_own : m.is_own
               return (
                 <div key={m.id} className={`flex ${alignEnd ? 'justify-end' : 'justify-start'}`}>
-                  <div className="max-w-[78%] px-3 py-2" style={{
+                  <div className="max-w-[78%] min-w-0 px-3 py-2" style={{
                     borderRadius: alignEnd ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
                     background: m.is_own ? '#166534' : '#fff', color: m.is_own ? '#fff' : '#1e293b',
                     border: m.is_own ? 'none' : '1px solid #e5e2d0',
                   }}>
-                    {!m.is_own && <p className="text-[9.5px] font-bold opacity-70 mb-0.5">{m.sender_name}</p>}
-                    <p className="text-[13px]">{m.body}</p>
+                    {!m.is_own && <p className="text-[9.5px] font-bold opacity-70 mb-0.5 truncate">{m.sender_name}</p>}
+                    <p className="text-[13px] break-words [overflow-wrap:anywhere]">{m.body}</p>
                     <p className="text-[9.5px] mt-0.5 opacity-70">{new Date(m.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                 </div>
@@ -427,8 +512,11 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
 
           <div className="flex items-center gap-2">
             <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send() }}
-              placeholder={t('mn.typeMessage')} className="flex-1 dp2-input" />
-            <button onClick={send} disabled={sending || !text.trim()} className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-[#166534] text-white cursor-pointer disabled:opacity-50"><Send size={15} /></button>
+              placeholder={t('mn.typeMessage')} className="flex-1 min-w-0 dp2-input" />
+            <button onClick={send} disabled={sending || !text.trim()} aria-label={t('mn.typeMessage')}
+              className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-[#166534] text-white cursor-pointer transition hover:bg-[#14532d] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">
+              {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+            </button>
           </div>
         </div>
       )}

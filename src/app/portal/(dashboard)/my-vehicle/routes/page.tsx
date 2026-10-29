@@ -17,7 +17,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus, Megaphone, Users, Route as RouteIcon, Pencil } from 'lucide-react'
+import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus, Megaphone, Users, Route as RouteIcon, Pencil, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -72,6 +72,47 @@ function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
+// A4 polish — one set of field/button treatments for this screen only
+// (deliberately local, not a shared Button component: other screens are
+// being restyled in parallel). Mirrors RideLifecycleSheet's bar: full-
+// width py-3 rounded-xl primary, outline secondary, and every control
+// gets hover, press (active:scale) and a real disabled state.
+const INPUT = 'w-full px-3 py-2.5 border border-[#e5e2d0] rounded-xl bg-white font-sans text-[13px] text-[#1e293b] placeholder:text-[#94a3b8] transition-colors focus:outline-none focus:border-[#166534] focus:ring-2 focus:ring-[#166534]/15 disabled:opacity-40 disabled:cursor-not-allowed'
+const LABEL = 'block font-sans text-[11.5px] font-bold text-[#475569] mb-1'
+const HINT = 'font-sans text-[10.5px] text-[#64748b] leading-snug'
+const BTN_PRIMARY = 'w-full flex items-center justify-center gap-1.5 py-3 rounded-xl bg-[#166534] text-white font-sans text-[14px] font-bold cursor-pointer transition hover:bg-[#14532d] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100'
+const BTN_SMALL = 'inline-flex items-center justify-center gap-1 min-h-[34px] px-2.5 py-1.5 rounded-lg border font-sans text-[11.5px] font-semibold whitespace-nowrap cursor-pointer transition active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100'
+const BTN_NEUTRAL = 'border-[#e5e2d0] bg-white text-[#334155] hover:bg-[#F9F9F6]'
+const BTN_GREEN = 'border-[#166534] bg-white text-[#166534] hover:bg-[#F0FDF4]'
+const BTN_SOLID = 'border-[#166534] bg-[#166534] text-white hover:bg-[#14532d]'
+const BTN_DANGER = 'border-[#fecaca] bg-white text-[#b91c1c] hover:bg-rose-50'
+const BTN_AMBER = 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+const chip = (on: boolean) => `inline-flex items-center justify-center min-h-[34px] px-3 py-1.5 rounded-lg border font-sans text-[12px] font-semibold whitespace-nowrap cursor-pointer transition active:scale-[0.96] ${on ? 'bg-[#166534] border-[#166534] text-white' : 'bg-[#F9F9F6] border-[#e5e2d0] text-[#475569] hover:border-[#166534]'}`
+
+function SectionHeading({ n, label, first }: { n: number; label: string; first?: boolean }) {
+  return (
+    <div className={`flex items-center gap-2 ${first ? '' : 'mt-1 pt-3 border-t border-[#f1f5f9]'}`}>
+      <span className="shrink-0 w-5 h-5 rounded-full bg-[#166534] text-white text-[10.5px] font-bold leading-none flex items-center justify-center"><span className="ltr-num leading-none">{n}</span></span>
+      <h2 className="min-w-0 font-sans text-[12.5px] font-bold text-[#005A36]">{label}</h2>
+    </div>
+  )
+}
+
+function SwitchRow({ checked, onChange, label, hint }: { checked: boolean; onChange: (on: boolean) => void; label: string; hint?: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-start cursor-pointer transition active:scale-[0.99] ${checked ? 'border-[#166534] bg-[#F0FDF4]' : 'border-[#e5e2d0] bg-white hover:border-[#166534]'}`}>
+      <span className="flex-1 min-w-0">
+        <span className="block font-sans text-[13px] font-semibold text-[#1e293b] leading-snug">{label}</span>
+        {hint && <span className={`block mt-0.5 ${HINT}`}>{hint}</span>}
+      </span>
+      <span className="relative shrink-0 w-[42px] h-[24px] rounded-full transition-colors" style={{ background: checked ? '#166534' : '#cbd5e1' }}>
+        <span className="absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow transition-all" style={{ insetInlineStart: checked ? '21px' : '3px' }} />
+      </span>
+    </button>
+  )
+}
+
 export default function MyVehicleRoutesPage() {
   const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
@@ -88,7 +129,7 @@ export default function MyVehicleRoutesPage() {
   const [ilansByRoute, setIlansByRoute] = useState<Record<string, RouteIlan>>({})
   const [actionId, setActionId] = useState<string | null>(null)
   const [closingRouteId, setClosingRouteId] = useState<string | null>(null)
-  const [showForm, setShowForm] = useState(false)
+  const [showForm, setShowForm] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('new') === '1')
   const [form, setForm] = useState(emptyRouteForm)
   const [posting, setPosting] = useState(false)
   // Real gap found live, 2026-10-20: this form's distance_km was a bare
@@ -182,6 +223,13 @@ export default function MyVehicleRoutesPage() {
       } else setMonthlyActiveCounts({})
     } else { setIlansByRoute({}); setStopCounts({}); setNextRunSeats({}); setMonthlyActiveCounts({}) }
   }
+
+  // The Home screen's "Post a new route" button links here with ?new=1
+  // so it lands on the open form, not a list the driver must then find
+  // a second button on. Read from window rather than useSearchParams to
+  // avoid forcing a Suspense boundary onto this whole client page (read
+  // once as showForm's initial state above — safe for hydration, since
+  // the first render on both server and client is the loading state).
 
   useEffect(() => {
     if (!user) return
@@ -380,57 +428,43 @@ export default function MyVehicleRoutesPage() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="font-bold text-[20px] text-[#005A36] flex items-center gap-2"><Signpost size={19} /> {t('mp.myRoutesHeading')}</h1>
-        <button onClick={() => setShowForm((v) => !v)} className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-semibold cursor-pointer">
-          <Plus size={14} /> {t('mv.postRouteBtn')}
+        <h1 className="min-w-0 font-bold text-[20px] text-[#005A36] flex items-center gap-2"><Signpost size={19} className="shrink-0" /> <span className="truncate">{t('mp.myRoutesHeading')}</span></h1>
+        <button onClick={() => setShowForm((v) => !v)} className={`${BTN_SMALL} ${showForm ? BTN_NEUTRAL : BTN_SOLID} shrink-0 text-[12.5px] px-3 min-h-[38px]`}>
+          {showForm ? <><X size={14} /> {t('action.cancel')}</> : <><Plus size={14} /> {t('mv.postRouteBtn')}</>}
         </button>
       </div>
 
       {showForm && (
         <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5 flex flex-col gap-2.5">
-          <p className="font-sans text-[13px] font-bold text-[#1e293b]">{t('mv.postRouteHeading')}</p>
+          <p className="font-sans text-[14px] font-bold text-[#1e293b]">{t('mv.postRouteHeading')}</p>
 
           <CityReturnDemandCard limit={6} />
 
-          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1">{t('mv.routeBasicsSectionLabel')}</p>
+          {/* A4: the form used to be one flat stack — origin/destination
+              inputs with no visible label (placeholder only), the fare
+              mode select sitting under "Route basics", the total-fare
+              input stranded after the map with no label, and two-way
+              tucked between the departure time and the days. Now three
+              numbered groups, every field labelled. */}
+          <SectionHeading n={1} label={t('mv.routeBasicsSectionLabel')} first />
           <div className="grid grid-cols-2 gap-2">
-            <input value={form.origin} onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))} placeholder={t('mv.originUrPlaceholder')} dir="rtl" className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-            <input value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} placeholder={t('mv.destinationUrPlaceholder')} dir="rtl" className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            <div className="min-w-0">
+              <label htmlFor="route-origin" className={LABEL}>{t('mv.routeOriginLabel')}</label>
+              <input id="route-origin" value={form.origin} onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))} placeholder={t('mv.originUrPlaceholder')} dir="rtl" className={INPUT} />
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="route-destination" className={LABEL}>{t('mv.routeDestinationLabel')}</label>
+              <input id="route-destination" value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} placeholder={t('mv.destinationUrPlaceholder')} dir="rtl" className={INPUT} />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.classificationLabel')}</label>
-              <select value={form.classification} onChange={(e) => setForm((f) => ({ ...f, classification: e.target.value }))} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
-                <option value="intercity">{t('mv.classification.intercity')}</option>
-                <option value="out_of_city">{t('mv.classification.out_of_city')}</option>
-              </select>
-            </div>
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.fareModeLabel')}</label>
-              <select value={form.fare_mode} onChange={(e) => setForm((f) => ({ ...f, fare_mode: e.target.value }))} disabled={form.is_monthly_fixed} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] disabled:opacity-40">
-                <option value="fixed">{t('mv.fareMode.fixed')}</option>
-                <option value="flex">{t('mv.fareMode.flex')}</option>
-              </select>
-            </div>
+          <div>
+            <label htmlFor="route-classification" className={LABEL}>{t('mv.classificationLabel')}</label>
+            <select id="route-classification" value={form.classification} onChange={(e) => setForm((f) => ({ ...f, classification: e.target.value }))} className={INPUT}>
+              <option value="intercity">{t('mv.classification.intercity')}</option>
+              <option value="out_of_city">{t('mv.classification.out_of_city')}</option>
+            </select>
           </div>
 
-          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1">{t('mv.routePricingSectionLabel')}</p>
-          {/* Real ask, 2026-10-20: "these vehicles can be monthly
-              fixed... fix lumpsum charges per month... whether they
-              travel or no travel, they must need to pay" — a second
-              model alongside the normal per-date open booking above,
-              for a school/teacher van with the same riders every day. */}
-          <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] font-semibold text-[#1e293b] cursor-pointer">
-            <input type="checkbox" checked={form.is_monthly_fixed} onChange={(e) => setForm((f) => ({ ...f, is_monthly_fixed: e.target.checked }))} />
-            {t('mv.monthlyFixedToggleLabel')}
-          </label>
-          {form.is_monthly_fixed && (
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.monthlyReferenceFeeLabel')}</label>
-              <input type="number" value={form.monthly_reference_fee_pkr} onChange={(e) => setForm((f) => ({ ...f, monthly_reference_fee_pkr: e.target.value }))} placeholder={t('mv.monthlyReferenceFeePlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-              <p className="font-sans text-[10.5px] text-[#64748b] mt-1">{t('mv.monthlyReferenceFeeHint')}</p>
-            </div>
-          )}
           {showOriginPicker ? (
             <LocationPickerSheet
               title={t('mv.pickOriginOnMapBtn')}
@@ -458,18 +492,18 @@ export default function MyVehicleRoutesPage() {
             />
           ) : (
             <>
-              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1">{t('mv.routePathSectionLabel')}</p>
+              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mt-1 -mb-1">{t('mv.routePathSectionLabel')}</p>
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setShowOriginPicker(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12px] font-semibold text-start cursor-pointer">
+                <button type="button" onClick={() => setShowOriginPicker(true)} className="min-w-0 flex items-center gap-1.5 px-3 py-2.5 border border-[#e5e2d0] rounded-xl bg-white font-sans text-[12px] font-semibold text-start cursor-pointer transition hover:border-[#166534] active:scale-[0.98]">
                   <MapPin size={13} className="shrink-0 text-[#166534]" />
                   <span className={`truncate ${originPoint ? 'text-[#1e293b]' : 'text-[#94a3b8]'}`}>{originPoint ? originPoint.label : t('mv.pickOriginOnMapBtn')}</span>
                 </button>
-                <button type="button" onClick={() => setShowDestPicker(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12px] font-semibold text-start cursor-pointer">
+                <button type="button" onClick={() => setShowDestPicker(true)} className="min-w-0 flex items-center gap-1.5 px-3 py-2.5 border border-[#e5e2d0] rounded-xl bg-white font-sans text-[12px] font-semibold text-start cursor-pointer transition hover:border-[#166534] active:scale-[0.98]">
                   <MapPin size={13} className="shrink-0 text-[#D4AF37]" />
                   <span className={`truncate ${destPoint ? 'text-[#1e293b]' : 'text-[#94a3b8]'}`}>{destPoint ? destPoint.label : t('mv.pickDestinationOnMapBtn')}</span>
                 </button>
               </div>
-              <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('mv.routeMapPointsHint')}</p>
+              <p className={`${HINT} -mt-1`}>{t('mv.routeMapPointsHint')}</p>
 
               {/* Real ask, 2026-10-20: search each village by name (the
                   search already resolves a real coordinate, confirmed
@@ -478,19 +512,21 @@ export default function MyVehicleRoutesPage() {
                   origin/destination that may not match the real road
                   the van takes through its known villages. */}
               <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.viaStopsLabel')}</label>
+                <p className={LABEL}>{t('mv.viaStopsLabel')}</p>
                 {viaStops.length > 0 && (
                   <div className="flex flex-col gap-1 mb-1.5">
                     {viaStops.map((v, i) => (
-                      <div key={i} className="flex items-center gap-2 rounded-lg bg-[#f0fdf4] px-2.5 py-1.5">
-                        <span className="shrink-0 w-5 h-5 rounded-full bg-[#166534] text-white text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
+                      <div key={i} className="flex items-center gap-2 rounded-lg bg-[#f0fdf4] ps-2.5 pe-1 py-1">
+                        <span className="shrink-0 w-5 h-5 rounded-full bg-[#166534] text-white text-[10px] font-bold flex items-center justify-center"><span className="ltr-num leading-none">{i + 1}</span></span>
                         <span className="flex-1 min-w-0 font-sans text-[12px] font-semibold text-[#166534] truncate">{v.label}</span>
-                        <button type="button" onClick={() => setViaStops((rows) => rows.filter((_, idx) => idx !== i))} className="shrink-0 font-sans text-[11px] font-bold text-[#b91c1c] cursor-pointer">✕</button>
+                        <button type="button" aria-label={t('action.delete')} onClick={() => setViaStops((rows) => rows.filter((_, idx) => idx !== i))} className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[#b91c1c] cursor-pointer transition hover:bg-rose-50 active:scale-95">
+                          <X size={14} />
+                        </button>
                       </div>
                     ))}
                   </div>
                 )}
-                <button type="button" onClick={() => setShowViaPicker(true)} className="flex items-center justify-center gap-1.5 w-full border border-[#e5e2d0] rounded-lg py-2 font-sans text-[12px] font-semibold text-[#166534] cursor-pointer">
+                <button type="button" onClick={() => setShowViaPicker(true)} className={`${BTN_SMALL} ${BTN_GREEN} w-full min-h-[38px] border-dashed`}>
                   <Plus size={13} /> {t('mv.addViaStopBtn')}
                 </button>
               </div>
@@ -507,105 +543,142 @@ export default function MyVehicleRoutesPage() {
                 />
               )}
               {originPoint && destPoint && routeLoading && (
-                <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('action.loading')}</p>
+                <p className={`${HINT} -mt-1`}>{t('action.loading')}</p>
               )}
               {originPoint && destPoint && viaStops.length === 0 && pathOptions.length > 1 && (
                 <div>
                   <p className="font-sans text-[11px] font-bold text-[#005A36]">{t('mv.routePathOptionsHeading')}</p>
-                  <p className="font-sans text-[10px] text-[#64748b] mb-1.5">{t('mv.routePathOptionsHint')}</p>
+                  <p className={`${HINT} mb-1.5`}>{t('mv.routePathOptionsHint')}</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {pathOptions.map((opt, i) => (
-                      <button key={i} type="button" onClick={() => pickPathOption(i)}
-                        className="px-2.5 py-1.5 rounded-full text-[11px] font-sans font-semibold cursor-pointer border"
-                        style={{ background: chosenPathIdx === i ? '#166534' : '#F9F9F6', color: chosenPathIdx === i ? '#fff' : '#334155', borderColor: chosenPathIdx === i ? '#166534' : '#e5e2d0' }}>
-                        {t('mv.routePathOption').replace('{n}', String(i + 1))} · {Math.round(opt.distanceKm)}km
+                      <button key={i} type="button" onClick={() => pickPathOption(i)} className={chip(chosenPathIdx === i)}>
+                        {t('mv.routePathOption').replace('{n}', String(i + 1))} · <span className="ltr-num">{Math.round(opt.distanceKm)}km</span>
                       </button>
                     ))}
                   </div>
                 </div>
               )}
               {originPoint && destPoint && !routeLoading && chosenPath && (
-                <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">🛣️ {Math.round(chosenPath.distanceKm)} km</p>
+                <p className={`${HINT} -mt-1 ltr-num`}>🛣️ {Math.round(chosenPath.distanceKm)} km</p>
               )}
 
               <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.distanceKmOptionalLabel')}</label>
-                <input type="number" value={form.distance_km} onChange={(e) => setForm((f) => ({ ...f, distance_km: e.target.value }))} placeholder={t('cm.distanceKmPlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+                <label htmlFor="route-distance" className={LABEL}>{t('cm.distanceKmOptionalLabel')}</label>
+                <input id="route-distance" type="number" inputMode="numeric" value={form.distance_km} onChange={(e) => setForm((f) => ({ ...f, distance_km: e.target.value }))} placeholder={t('cm.distanceKmPlaceholder')} className={INPUT} />
               </div>
             </>
           )}
-          {!form.is_monthly_fixed && (
-          <input type="number" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+
+          <SectionHeading n={2} label={t('mv.routePricingSectionLabel')} />
+          {/* Real ask, 2026-10-20: "these vehicles can be monthly
+              fixed... fix lumpsum charges per month... whether they
+              travel or no travel, they must need to pay" — a second
+              model alongside the normal per-date open booking, for a
+              school/teacher van with the same riders every day. */}
+          <SwitchRow
+            checked={form.is_monthly_fixed}
+            onChange={(on) => setForm((f) => ({ ...f, is_monthly_fixed: on }))}
+            label={t('mv.monthlyFixedToggleLabel')}
+          />
+          {form.is_monthly_fixed ? (
+            <div>
+              <label htmlFor="route-monthly-fee" className={LABEL}>{t('mv.monthlyReferenceFeeLabel')}</label>
+              <input id="route-monthly-fee" type="number" inputMode="numeric" value={form.monthly_reference_fee_pkr} onChange={(e) => setForm((f) => ({ ...f, monthly_reference_fee_pkr: e.target.value }))} placeholder={t('mv.monthlyReferenceFeePlaceholder')} className={INPUT} />
+              <p className={`${HINT} mt-1`}>{t('mv.monthlyReferenceFeeHint')}</p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label htmlFor="route-fare-mode" className={LABEL}>{t('mv.fareModeLabel')}</label>
+                <select id="route-fare-mode" value={form.fare_mode} onChange={(e) => setForm((f) => ({ ...f, fare_mode: e.target.value }))} className={INPUT}>
+                  <option value="fixed">{t('mv.fareMode.fixed')}</option>
+                  <option value="flex">{t('mv.fareMode.flex')}</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="route-total-fare" className={LABEL}>{t('mk.totalFareLabel')}</label>
+                <input id="route-total-fare" type="number" inputMode="numeric" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className={INPUT} />
+              </div>
+            </>
           )}
           {totalSeats != null && (
-            <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('mv.yourVehicleSeatsNote').replace('{n}', String(totalSeats))}</p>
+            <p className={`${HINT} -mt-1`}>{t('mv.yourVehicleSeatsNote').replace('{n}', String(totalSeats))}</p>
           )}
           {!form.is_monthly_fixed && routeFairPerSeat != null && (
             <p className="font-sans text-[11.5px] text-[#166534] bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg px-2.5 py-1.5">
               {t('mv.routeFairPriceHint').replace('{perSeat}', fmt(Math.round(routeFairPerSeat))).replace('{total}', fmt(Math.round(routeFairPerSeat * (totalSeats ?? 1)))).replace('{n}', String(totalSeats ?? 1))}
             </p>
           )}
-          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1">{t('mv.routeScheduleSectionLabel')}</p>
+
+          <SectionHeading n={3} label={t('mv.routeScheduleSectionLabel')} />
           <div>
-            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
-            <input type="time" value={form.departure_time} onChange={(e) => setForm((f) => ({ ...f, departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+            <label htmlFor="route-departure" className={LABEL}>{t('mv.departureTimeLabel')}</label>
+            <input id="route-departure" type="time" dir="ltr" value={form.departure_time} onChange={(e) => setForm((f) => ({ ...f, departure_time: e.target.value }))} className={INPUT} />
           </div>
-          {/* Real ask, 2026-10-21: "the return ride button is displaying
-              like going back empty? why?" traced back to this form never
-              asking whether a route runs back at all — two-way used to be
-              implied purely by whether the optional return-time field
-              below happened to get filled in, with nothing explaining
-              that connection. An explicit toggle now owns that decision;
-              turning it off always clears return_departure_time. */}
-          <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] font-semibold text-[#1e293b] cursor-pointer">
-            <input type="checkbox" checked={form.is_two_way} onChange={(e) => setForm((f) => ({ ...f, is_two_way: e.target.checked, return_departure_time: e.target.checked ? f.return_departure_time : '' }))} />
-            {t('mv.isTwoWayToggleLabel')}
-          </label>
-          {form.is_two_way && (
-            <>
-              {/* Real ask, 2026-10-21: "it should work like this... it
-                  could be 6 hour waiting time or 5 or 8 hours the vehicle
-                  will leave on its time" — a wait window at the
-                  destination, not a second static clock time. Kept
-                  alongside the existing return-time field as a display
-                  hint ("usually leaves around...") since drivers still
-                  find a clock time easier to picture than a duration. */}
-              <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.returnWaitMinutesLabel')}</label>
-                <div className="flex gap-1.5 flex-wrap">
-                  {[300, 360, 480].map((mins) => (
-                    <button key={mins} type="button" onClick={() => setForm((f) => ({ ...f, return_wait_minutes: mins }))}
-                      className={`px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${form.return_wait_minutes === mins ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
-                      {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
-                    </button>
-                  ))}
-                  <input type="number" min={30} step={30} value={form.return_wait_minutes} onChange={(e) => setForm((f) => ({ ...f, return_wait_minutes: Number(e.target.value) }))}
-                    className="w-24 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" placeholder={t('mv.customMinutesPlaceholder')} />
-                </div>
-              </div>
-              <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
-                <input type="time" value={form.return_departure_time} onChange={(e) => setForm((f) => ({ ...f, return_departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
-              </div>
-            </>
-          )}
           <div>
-            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>
-            <div className="flex gap-1.5 flex-wrap">
+            <p className={LABEL}>{t('mv.daysOfWeekLabel')}</p>
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
               {DAYS.map((d) => (
-                <button key={d} type="button" onClick={() => toggleDay(d)} className={`px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${form.days_of_week.includes(d) ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                <button key={d} type="button" aria-pressed={form.days_of_week.includes(d)} onClick={() => toggleDay(d)} className={`${chip(form.days_of_week.includes(d))} px-1`}>
                   {t(`mv.dayShort.${d}`)}
                 </button>
               ))}
             </div>
           </div>
-          <button onClick={postRoute} disabled={posting} className="mt-1 px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
-            {t('mv.postRouteSubmitBtn')}
+          {/* Real ask, 2026-10-21: "the return ride button is displaying
+              like going back empty? why?" traced back to this form never
+              asking whether a route runs back at all — two-way used to be
+              implied purely by whether the optional return-time field
+              happened to get filled in. This switch owns that decision
+              and is the only thing that reveals the return fields;
+              turning it off always clears return_departure_time. */}
+          <SwitchRow
+            checked={form.is_two_way}
+            onChange={(on) => setForm((f) => ({ ...f, is_two_way: on, return_departure_time: on ? f.return_departure_time : '' }))}
+            label={t('mv.isTwoWayToggleLabel')}
+            hint={form.is_two_way ? t('mv.twoWayOnHint') : t('mv.twoWayOffHint')}
+          />
+          {form.is_two_way && (
+            <div className="flex flex-col gap-2.5 ps-3 border-s-2 border-[#bbf7d0]">
+              {/* Real ask, 2026-10-21: "it could be 6 hour waiting time or
+                  5 or 8 hours the vehicle will leave on its time" — a wait
+                  window at the destination, not a second static clock
+                  time. The return-time field stays as a display hint. */}
+              <div>
+                <p className={LABEL}>{t('mv.returnWaitMinutesLabel')}</p>
+                <div className="flex gap-1.5 flex-wrap items-center">
+                  {[300, 360, 480].map((mins) => (
+                    <button key={mins} type="button" aria-pressed={form.return_wait_minutes === mins} onClick={() => setForm((f) => ({ ...f, return_wait_minutes: mins }))} className={chip(form.return_wait_minutes === mins)}>
+                      <span className="ltr-num">{Math.round(mins / 60)}</span>{t('mv.hoursShortSuffix')}
+                    </button>
+                  ))}
+                  <input type="number" inputMode="numeric" min={30} step={30} value={form.return_wait_minutes} onChange={(e) => setForm((f) => ({ ...f, return_wait_minutes: Number(e.target.value) }))}
+                    aria-label={t('mv.customMinutesPlaceholder')} placeholder={t('mv.customMinutesPlaceholder')} className={`${INPUT} !w-24 !py-1.5 min-h-[34px] text-[12px]`} />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="route-return-time" className={LABEL}>{t('cm.returnDepartureTimeLabel')}</label>
+                <input id="route-return-time" type="time" dir="ltr" value={form.return_departure_time} onChange={(e) => setForm((f) => ({ ...f, return_departure_time: e.target.value }))} className={INPUT} />
+              </div>
+            </div>
+          )}
+
+          <button onClick={postRoute} disabled={posting} className={`${BTN_PRIMARY} mt-1`}>
+            {posting ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+            {posting ? t('action.saving') : t('mv.postRouteSubmitBtn')}
           </button>
         </div>
       )}
 
-      {routes.length === 0 && !showForm && <p className="font-sans text-[13px] text-[#94a3b8] text-center py-6">{t('mv.noRoutesYet')}</p>}
+      {routes.length === 0 && !showForm && (
+        <div className="bg-white border border-dashed border-[#e5e2d0] rounded-2xl p-5 flex flex-col items-center gap-2.5 text-center">
+          <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] flex items-center justify-center"><RouteIcon size={18} className="text-[#166534]" /></span>
+          <p className="font-sans text-[13px] text-[#64748b]">{t('mv.noRoutesYet')}</p>
+          <button onClick={() => setShowForm(true)} className={`${BTN_SMALL} ${BTN_SOLID} text-[12.5px] px-4 min-h-[38px]`}>
+            <Plus size={14} /> {t('mv.postRouteBtn')}
+          </button>
+        </div>
+      )}
 
       {routes.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -617,8 +690,8 @@ export default function MyVehicleRoutesPage() {
             const ilanHref = `/portal/my-vehicle/ilan?route=${r.id}&origin=${encodeURIComponent(isUrdu && r.origin_ur ? r.origin_ur : r.origin)}&destination=${encodeURIComponent(isUrdu && r.destination_ur ? r.destination_ur : r.destination)}`
             return (
               <div key={r.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     <p className="font-sans text-[13.5px] font-semibold text-[#1e293b] truncate flex items-center gap-1"><Signpost size={12} className="shrink-0 text-[#166534]" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
                     <p className="font-sans text-[12px] text-[#64748b] mt-0.5">
                       {r.is_monthly_fixed
@@ -633,7 +706,7 @@ export default function MyVehicleRoutesPage() {
                       </p>
                     )}
                     {r.is_active && (
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
                         {stopCounts[r.id] > 0 && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#F9F9F6] font-sans text-[10px] font-semibold text-[#334155]">
                             📍 {stopCounts[r.id]} {t('mp.routeStopsHeading')}
@@ -652,13 +725,13 @@ export default function MyVehicleRoutesPage() {
                     )}
                   </div>
                   {r.is_active && (
-                    <button onClick={() => closeRoute(r.id)} disabled={closingRouteId === r.id} className="shrink-0 px-2.5 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">
-                      {t('mp.closeRouteBtn')}
+                    <button onClick={() => closeRoute(r.id)} disabled={closingRouteId === r.id} className={`${BTN_SMALL} ${BTN_DANGER} shrink-0`}>
+                      {closingRouteId === r.id ? <Loader2 size={12} className="animate-spin" /> : <Ban size={12} />} {t('mp.closeRouteBtn')}
                     </button>
                   )}
                 </div>
                 {r.is_active && (
-                  <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-[#f1f5f9]">
+                  <div className="flex items-center justify-between gap-2 flex-wrap mt-2 pt-2 border-t border-[#f1f5f9]">
                     {ilanLive ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700"><Megaphone size={12} /> {t('il.adIsRunningLabel')}</span>
                     ) : ilanPending ? (
@@ -669,33 +742,33 @@ export default function MyVehicleRoutesPage() {
                       <span className="text-[11px] text-[#94a3b8]">{t('il.noAdRunningLabel')}</span>
                     )}
                     {ilanPaused ? (
-                      <Link href="/portal/my-vehicle/ilan" className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11.5px] font-sans font-semibold cursor-pointer border border-[#166534] text-[#166534]">
+                      <Link href="/portal/my-vehicle/ilan" className={`${BTN_SMALL} ${BTN_GREEN} shrink-0`}>
                         <Megaphone size={12} /> {t('il.manageAdBtn')}
                       </Link>
                     ) : !ilanLive && !ilanPending && (
-                      <Link href={ilanHref} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11.5px] font-sans font-semibold cursor-pointer border border-[#166534] text-[#166534]">
+                      <Link href={ilanHref} className={`${BTN_SMALL} ${BTN_GREEN} shrink-0`}>
                         <Megaphone size={12} /> {ilan ? t('il.runAdAgainBtn') : t('il.runAdBtn')}
                       </Link>
                     )}
                   </div>
                 )}
                 {r.is_active && (
-                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[#f1f5f9]">
+                  <div className="flex items-center gap-1.5 flex-wrap mt-2 pt-2 border-t border-[#f1f5f9]">
                     <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [] })}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
+                      className={`${BTN_SMALL} ${BTN_NEUTRAL}`}>
                       <Pencil size={11} /> {t('mv.editScheduleBtn')}
                     </button>
                     <button onClick={() => setStopsRouteId(r.id)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
+                      className={`${BTN_SMALL} ${BTN_NEUTRAL}`}>
                       <RouteIcon size={11} /> {t('mv.manageStopsBtn')}
                     </button>
                     <button onClick={() => setGroupRouteId(r.id)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#166534]">
+                      className={`${BTN_SMALL} ${BTN_GREEN}`}>
                       <Users size={11} /> {t('mv.routeGroupBtn')}
                     </button>
                     {r.is_monthly_fixed && (
                       <button onClick={() => setMonthlyRidersRouteId(r.id)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-amber-200 text-amber-700 bg-amber-50">
+                        className={`${BTN_SMALL} ${BTN_AMBER}`}>
                         <Users size={11} /> {t('mv.manageRidersBtn')}
                       </button>
                     )}
@@ -722,7 +795,7 @@ export default function MyVehicleRoutesPage() {
                   <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{new Date(b.travel_date).toLocaleDateString('en-GB')} · {b.seats} {t('mk.seatsLabel')}</p>
                 </div>
                 <div className="text-end shrink-0">
-                  <p className="font-sans text-[14px] font-bold text-[#166534]">{fmt(b.total_amount_pkr)}</p>
+                  <p className="font-sans text-[14px] font-bold text-[#166534] ltr-num">{fmt(b.total_amount_pkr)}</p>
                   {b.status === 'confirmed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={11} /> {t('mp.confirmedStatus')}</span>}
                   {b.status === 'rejected' && <span className="inline-flex items-center gap-1 text-[#b91c1c] text-[11px] font-bold" title={b.rejected_reason ?? undefined}><XCircle size={11} /> {t('mp.rejectedStatus')}</span>}
                   {b.status === 'cancelled' && <span className="inline-flex items-center gap-1 text-[#64748b] text-[11px] font-bold"><Ban size={11} /> {t('mp.cancelledStatus')}</span>}
@@ -730,17 +803,17 @@ export default function MyVehicleRoutesPage() {
                 </div>
               </div>
               {b.status === 'announced' && commissionMode === 'per_order' && (
-                <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
-                  <span className="font-sans text-[11px] text-[#64748b]">{t('cm.markFulfilledHint')}</span>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button onClick={() => cancelBooking(b.id)} disabled={actionId === b.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#64748b] disabled:opacity-50">{t('mp.rejectBtn')}</button>
-                    <button onClick={() => fulfillBooking(b.id)} disabled={actionId === b.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('cm.markFulfilledBtn')}</button>
+                <div className="flex items-center justify-between gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
+                  <span className="min-w-[8rem] flex-1 font-sans text-[11px] text-[#64748b] leading-snug">{t('cm.markFulfilledHint')}</span>
+                  <div className="flex items-center gap-1.5 shrink-0 ms-auto">
+                    <button onClick={() => cancelBooking(b.id)} disabled={actionId === b.id} className={`${BTN_SMALL} ${BTN_NEUTRAL} text-[12px]`}>{t('mp.rejectBtn')}</button>
+                    <button onClick={() => fulfillBooking(b.id)} disabled={actionId === b.id} className={`${BTN_SMALL} ${BTN_SOLID} text-[12px]`}>{actionId === b.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} {t('cm.markFulfilledBtn')}</button>
                   </div>
                 </div>
               )}
               {b.status === 'confirmed' && (
                 <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
-                  <button onClick={() => cancelConfirmedBooking(b.id)} disabled={actionId === b.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
+                  <button onClick={() => cancelConfirmedBooking(b.id)} disabled={actionId === b.id} className={`${BTN_SMALL} ${BTN_DANGER} text-[12px]`}>{t('mp.cancelBookingBtn')}</button>
                 </div>
               )}
             </div>
@@ -781,30 +854,29 @@ export default function MyVehicleRoutesPage() {
         <MobilityBottomSheet title={t('mv.editScheduleHeading')} onClose={() => setEditSchedule(null)}>
           <div className="flex flex-col gap-3">
             <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
-              <input type="time" value={editSchedule.departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+              <label htmlFor="edit-departure" className={LABEL}>{t('mv.departureTimeLabel')}</label>
+              <input id="edit-departure" type="time" dir="ltr" value={editSchedule.departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, departure_time: e.target.value })} className={INPUT} />
             </div>
             <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
-              <input type="time" value={editSchedule.return_departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, return_departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+              <label htmlFor="edit-return" className={LABEL}>{t('cm.returnDepartureTimeLabel')}</label>
+              <input id="edit-return" type="time" dir="ltr" value={editSchedule.return_departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, return_departure_time: e.target.value })} className={INPUT} />
             </div>
             <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>
-              <div className="flex gap-1.5 flex-wrap">
+              <p className={LABEL}>{t('mv.daysOfWeekLabel')}</p>
+              <div className="grid grid-cols-4 gap-1.5">
                 {DAYS.map((d) => {
                   const on = editSchedule.days_of_week.includes(d)
                   return (
                     <button key={d} type="button" onClick={() => setEditSchedule({ ...editSchedule, days_of_week: on ? editSchedule.days_of_week.filter((x) => x !== d) : [...editSchedule.days_of_week, d].sort() })}
-                      className="px-2.5 py-1.5 rounded-full text-[11.5px] font-sans font-semibold cursor-pointer border"
-                      style={{ background: on ? '#166534' : '#F9F9F6', color: on ? '#fff' : '#334155', borderColor: on ? '#166534' : '#e5e2d0' }}>
-                      {t(['af.daySun', 'af.dayMon', 'af.dayTue', 'af.dayWed', 'af.dayThu', 'af.dayFri', 'af.daySat'][d])}
+                      aria-pressed={on} className={`${chip(on)} px-1`}>
+                      {t(`mv.dayShort.${d}`)}
                     </button>
                   )
                 })}
               </div>
             </div>
-            <button onClick={saveSchedule} disabled={savingSchedule} className="w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
-              {savingSchedule ? t('action.saving') : t('action.save')}
+            <button onClick={saveSchedule} disabled={savingSchedule} className={BTN_PRIMARY}>
+              {savingSchedule && <Loader2 size={15} className="animate-spin" />} {savingSchedule ? t('action.saving') : t('action.save')}
             </button>
           </div>
         </MobilityBottomSheet>

@@ -27,7 +27,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { MapPin, Bus, Route as RouteIcon, Users2, CalendarClock, ChevronRight, AlertCircle, Megaphone } from 'lucide-react'
+import { MapPin, Bus, Route as RouteIcon, Users2, CalendarClock, ChevronRight, AlertCircle, Megaphone, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -359,11 +359,11 @@ export default function MyVehicleHomePage() {
               )}
 
               <div className="flex items-center gap-1.5">
-                <button type="button" onClick={() => setTripType('oneway')} className="flex-1 py-1.5 rounded-lg text-[11.5px] font-sans font-bold cursor-pointer border"
+                <button type="button" onClick={() => setTripType('oneway')} className="flex-1 py-1.5 rounded-lg text-[11.5px] font-sans font-bold cursor-pointer border transition active:scale-[0.98] whitespace-nowrap"
                   style={{ background: tripType === 'oneway' ? '#166534' : '#F9F9F6', color: tripType === 'oneway' ? '#fff' : '#64748b', borderColor: tripType === 'oneway' ? '#166534' : '#e5e2d0' }}>
                   {t('cm.tripTypeOneway')}
                 </button>
-                <button type="button" onClick={() => setTripType('return')} className="flex-1 py-1.5 rounded-lg text-[11.5px] font-sans font-bold cursor-pointer border"
+                <button type="button" onClick={() => setTripType('return')} className="flex-1 py-1.5 rounded-lg text-[11.5px] font-sans font-bold cursor-pointer border transition active:scale-[0.98] whitespace-nowrap"
                   style={{ background: tripType === 'return' ? '#166534' : '#F9F9F6', color: tripType === 'return' ? '#fff' : '#64748b', borderColor: tripType === 'return' ? '#166534' : '#e5e2d0' }}>
                   {t('cm.tripTypeReturn')}
                 </button>
@@ -425,7 +425,7 @@ export default function MyVehicleHomePage() {
                 <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('cm.oneWayAutoHalfHint').replace('{price}', String(Math.round(fare / 2)))}</p>
               )}
 
-              <button onClick={publishRide} disabled={publishing || routeLoading} className="rounded-xl py-2 font-sans text-[12.5px] font-extrabold cursor-pointer disabled:opacity-50" style={{ background: '#D4AF37', color: '#0f172a' }}>
+              <button onClick={publishRide} disabled={publishing || routeLoading} className="rounded-xl py-2.5 font-sans text-[13px] font-extrabold cursor-pointer transition hover:brightness-95 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100" style={{ background: '#D4AF37', color: '#0f172a' }}>
                 📢 {publishing ? t('action.saving') : t('cm.postTripBtn')}
               </button>
 
@@ -453,15 +453,32 @@ export default function MyVehicleHomePage() {
           Given its own prominent card here instead, matching the "Publish
           a shared ride" section right above it in weight and style — the
           /routes page itself already has a real, working create form; this
-          just gives it an entry point that looks like it. */}
-      <Link href="/portal/my-vehicle/routes" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3 hover:border-[#166534]">
-        <span className="shrink-0 w-10 h-10 rounded-full bg-[#F0FDF4] flex items-center justify-center"><RouteIcon size={18} className="text-[#166534]" /></span>
-        <span className="flex-1 min-w-0">
-          <span className="block font-sans text-[13px] font-bold text-[#005A36]">{t('mv.postRouteHomeHeading')}</span>
-          <span className="block font-sans text-[10.5px] text-[#64748b] mt-0.5">{t('mv.postRouteHomeHint')}</span>
-        </span>
-        <ChevronRight size={16} className={`shrink-0 text-[#166534] ${isUrdu ? 'rotate-180' : ''}`} />
-      </Link>
+          just gives it an entry point that looks like it.
+          A4 polish: the card was still a single white link row, visually
+          the same family as the Adda/Trips/Weekend tiles below. It now has
+          its own green-tinted treatment, a real action button that opens
+          the create form directly (?new=1), and a secondary link to the
+          existing routes list — the same heading/hint/action rhythm as
+          the "Publish a shared ride" panel above it. */}
+      <section className="rounded-2xl p-3 flex flex-col gap-2.5 border border-[#bbf7d0]" style={{ background: 'linear-gradient(135deg,#F0FDF4 0%,#ffffff 70%)' }}>
+        <div className="flex items-start gap-2.5">
+          <span className="shrink-0 w-10 h-10 rounded-xl bg-[#166534] flex items-center justify-center shadow-sm"><RouteIcon size={18} className="text-white" /></span>
+          <div className="flex-1 min-w-0">
+            <p className="font-sans text-[13px] font-bold text-[#005A36] leading-snug">{t('mv.postRouteHomeHeading')}</p>
+            <p className="font-sans text-[10.5px] text-[#64748b] mt-0.5 leading-snug">{t('mv.postRouteHomeHint')}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/portal/my-vehicle/routes?new=1"
+            className="flex-1 min-w-0 flex items-center justify-center gap-1.5 rounded-xl py-2.5 px-3 bg-[#166534] text-white font-sans text-[12.5px] font-extrabold whitespace-nowrap transition hover:bg-[#14532d] active:scale-[0.98]">
+            <Plus size={15} className="shrink-0" /> <span className="truncate">{t('mv.postRouteBtn')}</span>
+          </Link>
+          <Link href="/portal/my-vehicle/routes"
+            className="shrink-0 flex items-center gap-1 rounded-xl py-2.5 px-3 border border-[#166534] text-[#166534] bg-white font-sans text-[12px] font-bold whitespace-nowrap transition hover:bg-[#F0FDF4] active:scale-[0.98]">
+            {t('mp.myRoutesHeading')} <ChevronRight size={14} className={`shrink-0 ${isUrdu ? 'rotate-180' : ''}`} />
+          </Link>
+        </div>
+      </section>
 
       <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
         <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-1.5">{t('vp.cityPresenceLabel')}</p>
@@ -494,17 +511,17 @@ export default function MyVehicleHomePage() {
 
       <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-[#64748b] mt-1">{t('vp.moreServicesHeading')}</p>
       <div className="grid grid-cols-2 gap-2.5">
-        <Link href="/portal/my-vehicle/adda" className="flex flex-col gap-2 bg-white border border-[#e5e2d0] rounded-2xl p-3">
+        <Link href="/portal/my-vehicle/adda" className="flex flex-col gap-2 bg-white border border-[#e5e2d0] rounded-2xl p-3 transition hover:border-[#166534] active:scale-[0.98]">
           <span className="w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center"><Bus size={16} className="text-[#166534]" /></span>
-          <span className="font-sans text-[12.5px] font-bold text-[#1e293b]">{t('mv.tab.adda')}</span>
+          <span className="font-sans text-[12.5px] font-bold text-[#1e293b] truncate">{t('mv.tab.adda')}</span>
         </Link>
-        <Link href="/portal/my-vehicle/trips" className="flex flex-col gap-2 bg-white border border-[#e5e2d0] rounded-2xl p-3">
+        <Link href="/portal/my-vehicle/trips" className="flex flex-col gap-2 bg-white border border-[#e5e2d0] rounded-2xl p-3 transition hover:border-[#166534] active:scale-[0.98]">
           <span className="w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center"><Users2 size={16} className="text-[#166534]" /></span>
-          <span className="font-sans text-[12.5px] font-bold text-[#1e293b]">{t('mv.tab.trips')}</span>
+          <span className="font-sans text-[12.5px] font-bold text-[#1e293b] truncate">{t('mv.tab.trips')}</span>
         </Link>
-        <Link href="/portal/my-vehicle/weekend" className="flex flex-col gap-2 bg-white border border-[#e5e2d0] rounded-2xl p-3">
+        <Link href="/portal/my-vehicle/weekend" className="flex flex-col gap-2 bg-white border border-[#e5e2d0] rounded-2xl p-3 transition hover:border-[#166534] active:scale-[0.98]">
           <span className="w-9 h-9 rounded-full bg-[#F9F9F6] flex items-center justify-center"><CalendarClock size={16} className="text-[#166534]" /></span>
-          <span className="font-sans text-[12.5px] font-bold text-[#1e293b]">{t('mv.tab.weekend')}</span>
+          <span className="font-sans text-[12.5px] font-bold text-[#1e293b] truncate">{t('mv.tab.weekend')}</span>
         </Link>
       </div>
     </div>
