@@ -31,6 +31,8 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { RateAndReport } from '@/components/portal/RateAndReport'
+import { fetchRoadRoute } from '@/lib/roadRoute'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -40,6 +42,7 @@ interface Detail {
   pickup_lat: number | null; pickup_lng: number | null; pickup_label: string | null
   dest_lat: number | null; dest_lng: number | null
   pin: string | null
+  vehicle_id: string; rider_portal_user_id: string
 }
 
 export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; onClose: () => void }) {
@@ -53,7 +56,10 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
   const [geoError, setGeoError] = useState<string | null>(null)
   const [pinInput, setPinInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [roadPath, setRoadPath] = useState<{ lat: number; lng: number }[] | null>(null)
+  const [driverPhoto, setDriverPhoto] = useState<string | null>(null)
   const lastPingRef = useRef(0)
+  const lastRouteFetchRef = useRef('')
 
   const reload = () => {
     supabase.rpc('trip_booking_lifecycle_detail', { p_trip_booking_id: bookingId }).then(({ data }) => {
@@ -62,6 +68,18 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
     })
   }
   useRealtimeRefresh('vehicle_trip_bookings', bookingId, reload)
+
+  // Real ask, 2026-10-29: "how the rider will verify if this car
+  // driver picture is the one which driver have in his profile" — a
+  // real photo already exists (captured at registration, 491/740),
+  // just never read by anyone but the driver's own profile page and
+  // the admin review queue. driver_photo_for_vehicle (768) is a narrow
+  // read scoped to a genuine booking match, never a blind lookup.
+  useEffect(() => {
+    if (!detail || detail.role !== 'rider' || !detail.vehicle_id) return
+    supabase.rpc('driver_photo_for_vehicle', { p_vehicle_id: detail.vehicle_id }).then(({ data }) => setDriverPhoto((data as string) ?? null))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail?.role, detail?.vehicle_id])
 
   const tracking = detail?.status === 'confirmed' || detail?.status === 'in_progress'
 
@@ -99,6 +117,24 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tracking, detail?.booking_id, detail?.role])
 
+  // Real ask, 2026-10-29: "try to set the map the same as its using by
+  // google route" — a real road-snapped path (OSRM, free, no API key —
+  // already built and proven live elsewhere in this app, src/lib/
+  // roadRoute.ts), not a straight line, from the driver's live position
+  // to the destination once the ride is actually underway. Re-fetched
+  // only when the driver's position has actually moved (~100m), not on
+  // every 12s GPS tick, to stay well inside OSRM's public demo server's
+  // fair-use limits.
+  useEffect(() => {
+    if (!detail || detail.status !== 'in_progress' || detail.dest_lat == null || detail.dest_lng == null) { setRoadPath(null); return }
+    const driverPos = detail.role === 'driver' ? ownPos : otherPos
+    if (!driverPos) return
+    const key = `${driverPos.lat.toFixed(3)},${driverPos.lng.toFixed(3)}`
+    if (key === lastRouteFetchRef.current) return
+    lastRouteFetchRef.current = key
+    fetchRoadRoute(driverPos, { lat: detail.dest_lat, lng: detail.dest_lng }).then((r) => setRoadPath(r.path))
+  }, [detail?.status, detail?.dest_lat, detail?.dest_lng, detail?.role, ownPos, otherPos])
+
   const startRide = async () => {
     setBusy(true)
     const { error } = await supabase.rpc('start_trip_booking', { p_trip_booking_id: bookingId, p_pin: pinInput || null })
@@ -134,14 +170,32 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
 
   const originLabel = isUrdu && detail.origin_ur ? detail.origin_ur : detail.origin
   const destLabel = isUrdu && detail.destination_ur ? detail.destination_ur : detail.destination
+
+  // Real ask, 2026-10-29: "the rider map is showing the destination
+  // mark on his map only... try to set the map the same as its using
+  // by google route" — the rider also needs a fixed pickup landmark
+  // while waiting, and once the driver starts the ride, the real
+  // road-snapped path (roadPath, from OSRM above) toward the
+  // destination instead of two bare dots with no sense of direction.
+  const destPin = detail.dest_lat != null && detail.dest_lng != null
+    ? { lat: detail.dest_lat, lng: detail.dest_lng, label: destLabel, color: '#166534', emoji: '🏁' } : null
+  const pickupPin = detail.pickup_lat != null && detail.pickup_lng != null
+    ? { lat: detail.pickup_lat, lng: detail.pickup_lng, label: detail.pickup_label ?? originLabel, color: '#dc2626', emoji: '📍' } : null
+
   const pins = [
-    ...(ownPos ? [{ lat: ownPos.lat, lng: ownPos.lng, label: t('cm.youLabel'), color: '#2563eb' }] : []),
+    ...(ownPos
+      ? [{ lat: ownPos.lat, lng: ownPos.lng, label: t('cm.youLabel'), color: '#2563eb', emoji: detail.role === 'driver' ? '🚗' : undefined, isVehicle: detail.role === 'driver' }]
+      : []),
     ...(otherPos
-      ? [{ lat: otherPos.lat, lng: otherPos.lng, label: detail.role === 'driver' ? t('cm.riderLabel') : t('cm.driverLabel'), color: '#dc2626' }]
-      : detail.role === 'driver' && detail.pickup_lat != null && detail.pickup_lng != null
-        ? [{ lat: detail.pickup_lat, lng: detail.pickup_lng, label: detail.pickup_label ?? originLabel, color: '#dc2626' }]
-        : []),
+      ? [{ lat: otherPos.lat, lng: otherPos.lng, label: detail.role === 'driver' ? t('cm.riderLabel') : t('cm.driverLabel'), color: '#dc2626', emoji: detail.role === 'rider' ? '🚗' : undefined, isVehicle: detail.role === 'rider' }]
+      : []),
+    // Pickup stays visible as a fixed landmark while still heading
+    // there; once underway, only the destination flag matters.
+    ...(detail.status === 'confirmed' && pickupPin ? [pickupPin] : []),
+    ...(detail.status === 'in_progress' && destPin ? [destPin] : []),
   ]
+  const route = detail.status === 'in_progress' && roadPath ? roadPath : undefined
+
   // Real bug found live, 2026-10-29: with zero live pins (the normal
   // state right after accept, before either side's own GPS has synced
   // yet), LeafletMap's own empty-pins fallback centers on all of
@@ -174,7 +228,15 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
               </div>
             )}
 
-            <LeafletMap pins={pins} center={mapCenter} height={220} className="rounded-xl" />
+            {detail.role === 'rider' && driverPhoto && (
+              <div className="flex items-center gap-3 bg-[#F9F9F6] border border-[#e5e2d0] rounded-xl p-2.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={driverPhoto} alt="" className="w-12 h-12 rounded-full object-cover shrink-0 border border-[#e5e2d0]" />
+                <p className="font-sans text-[11.5px] text-[#64748b]">{t('cm.verifyDriverPhotoHint')}</p>
+              </div>
+            )}
+
+            <LeafletMap pins={pins} route={route} center={mapCenter} height={220} className="rounded-xl" />
             <p className="font-sans text-[11.5px] text-[#64748b]">{t('cm.locationSharingHint')}</p>
             {!otherPos && (
               <p className="font-sans text-[12px] text-[#64748b]">{detail.role === 'driver' ? t('cm.waitingForRiderLocation') : t('cm.waitingForDriverLocation')}</p>
@@ -217,10 +279,25 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
         )}
 
         {detail.status === 'completed' && (
-          <div className="flex flex-col items-center gap-2 py-6 text-center">
-            <CheckCircle2 size={28} className="text-[#166534]" />
-            <p className="font-sans text-[14px] font-bold text-[#166534]">{t('cm.tripCompletedStatus')}</p>
-          </div>
+          <>
+            <div className="flex flex-col items-center gap-2 py-4 text-center">
+              <CheckCircle2 size={28} className="text-[#166534]" />
+              <p className="font-sans text-[14px] font-bold text-[#166534]">{t('cm.tripCompletedStatus')}</p>
+            </div>
+            {/* Real ask, 2026-10-29: "when ride is completed from both
+                end there was no feture appear to give 5 start 4 start
+                award to the driver, this thing we have created long ago
+                but you failed to find what we have built" — correct:
+                submit_rating already covers ref_type='trip_booking'
+                (650) and RateAndReport is the exact shared widget every
+                other completed-booking screen already uses — just
+                never wired in here. */}
+            <RateAndReport
+              refType="trip_booking" refId={bookingId}
+              againstPartyType={detail.role === 'rider' ? 'vehicle' : 'portal_user'}
+              againstPartyId={detail.role === 'rider' ? detail.vehicle_id : detail.rider_portal_user_id}
+            />
+          </>
         )}
 
         {detail.status === 'cancelled' && (

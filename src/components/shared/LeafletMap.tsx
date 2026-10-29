@@ -199,14 +199,25 @@ const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pin
       else if (boundsPoints.length > 1) map.fitBounds(boundsPoints, {
         paddingTopLeft: [30 + (extraPadding?.left ?? 0), 30 + (extraPadding?.top ?? 0)],
         paddingBottomRight: [30 + (extraPadding?.right ?? 0), 30 + (extraPadding?.bottom ?? 0)],
+        // Real bug found live, 2026-10-29: "the drivers map is too much
+        // zoomed i think this is why its showing no map on it" — two
+        // points very close together (a driver right next to the
+        // pickup pin) could make fitBounds zoom in past the point
+        // where any tiles are even loaded at that zoom level for a
+        // rural area, which reads as a blank map. Capped at a
+        // street-block level that always has tiles.
+        maxZoom: 16,
       })
 
       // A full-bleed map container's real pixel size can settle a frame
       // or two after Leaflet's own init measurement (a flex/grid layout
       // resolving, a bottom sheet animating) — without this the tile
       // grid can be born wrong-sized and show grey gaps until the next
-      // manual interaction.
+      // manual interaction. A bottom sheet's own slide-in transition
+      // (250ms) can still be running at the old 100ms mark, so this now
+      // checks again once that's definitely settled too.
       setTimeout(() => map.invalidateSize(), 100)
+      setTimeout(() => map.invalidateSize(), 350)
     })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
