@@ -13,7 +13,7 @@
 
 interface LatLng { lat: number; lng: number }
 
-export interface RoadRoute { distanceKm: number; path: LatLng[]; isRealRoute: boolean }
+export interface RoadRoute { distanceKm: number; durationMin: number; path: LatLng[]; isRealRoute: boolean }
 
 export function haversineKm(a: LatLng, b: LatLng): number {
   const R = 6371, rad = (x: number) => (x * Math.PI) / 180
@@ -26,11 +26,12 @@ export async function fetchRoadRoute(a: LatLng, b: LatLng): Promise<RoadRoute> {
   try {
     const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`)
     if (res.ok) {
-      const data = (await res.json()) as { routes?: Array<{ distance: number; geometry: { coordinates: [number, number][] } }> }
+      const data = (await res.json()) as { routes?: Array<{ distance: number; duration: number; geometry: { coordinates: [number, number][] } }> }
       const route = data.routes?.[0]
       if (route) {
         return {
           distanceKm: route.distance / 1000,
+          durationMin: route.duration / 60,
           path: route.geometry.coordinates.map(([lng, lat]) => ({ lat, lng })),
           isRealRoute: true,
         }
@@ -39,7 +40,8 @@ export async function fetchRoadRoute(a: LatLng, b: LatLng): Promise<RoadRoute> {
   } catch {
     // OSRM unreachable — fall through to the straight-line estimate below.
   }
-  return { distanceKm: haversineKm(a, b) * 1.3, path: [a, b], isRealRoute: false }
+  const distanceKm = haversineKm(a, b) * 1.3
+  return { distanceKm, durationMin: (distanceKm / 40) * 60, path: [a, b], isRealRoute: false }
 }
 
 export interface RoadRouteAlternative { distanceKm: number; durationMin: number; path: LatLng[] }

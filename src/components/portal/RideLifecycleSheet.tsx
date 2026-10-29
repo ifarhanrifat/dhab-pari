@@ -23,7 +23,7 @@
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Loader2, AlertTriangle, Users, CheckCircle2, Ban } from 'lucide-react'
+import { Loader2, AlertTriangle, Users, CheckCircle2, Ban, Maximize2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -43,7 +43,10 @@ interface Detail {
   dest_lat: number | null; dest_lng: number | null
   pin: string | null
   vehicle_id: string; rider_portal_user_id: string
+  total_amount_pkr: number
 }
+
+function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
 export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; onClose: () => void }) {
   const { t, isUrdu } = useLocale()
@@ -57,7 +60,9 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
   const [pinInput, setPinInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [roadPath, setRoadPath] = useState<{ lat: number; lng: number }[] | null>(null)
+  const [roadEta, setRoadEta] = useState<{ distanceKm: number; durationMin: number } | null>(null)
   const [driverPhoto, setDriverPhoto] = useState<string | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
   const lastPingRef = useRef(0)
   const lastRouteFetchRef = useRef('')
 
@@ -118,22 +123,30 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
   }, [tracking, detail?.booking_id, detail?.role])
 
   // Real ask, 2026-10-29: "try to set the map the same as its using by
-  // google route" — a real road-snapped path (OSRM, free, no API key —
-  // already built and proven live elsewhere in this app, src/lib/
-  // roadRoute.ts), not a straight line, from the driver's live position
-  // to the destination once the ride is actually underway. Re-fetched
-  // only when the driver's position has actually moved (~100m), not on
-  // every 12s GPS tick, to stay well inside OSRM's public demo server's
-  // fair-use limits.
+  // google route" + "the rider have no clue how many time the driver
+  // will take to reach them" + "for the driver... no actual ride kms
+  // like details there" — a real road-snapped path and a real ETA
+  // (OSRM, free, no API key — already built and proven live elsewhere
+  // in this app, src/lib/roadRoute.ts), not a straight line and not
+  // silence, for BOTH legs: driver-to-pickup while still 'confirmed',
+  // then driver-to-destination once 'in_progress'. Re-fetched only
+  // when the driver's position has actually moved (~100m), not on
+  // every 12s GPS tick, to stay well inside OSRM's public demo
+  // server's fair-use limits.
   useEffect(() => {
-    if (!detail || detail.status !== 'in_progress' || detail.dest_lat == null || detail.dest_lng == null) { setRoadPath(null); return }
+    if (!detail) { setRoadPath(null); setRoadEta(null); return }
+    const target = detail.status === 'confirmed'
+      ? (detail.pickup_lat != null && detail.pickup_lng != null ? { lat: detail.pickup_lat, lng: detail.pickup_lng } : null)
+      : detail.status === 'in_progress'
+        ? (detail.dest_lat != null && detail.dest_lng != null ? { lat: detail.dest_lat, lng: detail.dest_lng } : null)
+        : null
     const driverPos = detail.role === 'driver' ? ownPos : otherPos
-    if (!driverPos) return
-    const key = `${driverPos.lat.toFixed(3)},${driverPos.lng.toFixed(3)}`
+    if (!target || !driverPos) { setRoadPath(null); setRoadEta(null); return }
+    const key = `${detail.status}:${driverPos.lat.toFixed(3)},${driverPos.lng.toFixed(3)}`
     if (key === lastRouteFetchRef.current) return
     lastRouteFetchRef.current = key
-    fetchRoadRoute(driverPos, { lat: detail.dest_lat, lng: detail.dest_lng }).then((r) => setRoadPath(r.path))
-  }, [detail?.status, detail?.dest_lat, detail?.dest_lng, detail?.role, ownPos, otherPos])
+    fetchRoadRoute(driverPos, target).then((r) => { setRoadPath(r.path); setRoadEta({ distanceKm: r.distanceKm, durationMin: r.durationMin }) })
+  }, [detail?.status, detail?.pickup_lat, detail?.pickup_lng, detail?.dest_lat, detail?.dest_lng, detail?.role, ownPos, otherPos])
 
   const startRide = async () => {
     setBusy(true)
@@ -194,7 +207,7 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
     ...(detail.status === 'confirmed' && pickupPin ? [pickupPin] : []),
     ...(detail.status === 'in_progress' && destPin ? [destPin] : []),
   ]
-  const route = detail.status === 'in_progress' && roadPath ? roadPath : undefined
+  const route = roadPath ?? undefined
 
   // Real bug found live, 2026-10-29: with zero live pins (the normal
   // state right after accept, before either side's own GPS has synced
@@ -208,11 +221,45 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
     : detail.dest_lat != null && detail.dest_lng != null ? [detail.dest_lat, detail.dest_lng]
     : undefined
 
+  if (fullscreen) {
+    return (
+      <div className="fixed inset-0 z-[150] bg-white flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e2d0]" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}>
+          <div className="min-w-0">
+            <p className="font-sans text-[13px] font-bold text-[#1e293b] truncate">{originLabel} → {destLabel}</p>
+            {roadEta && (
+              <p className="font-sans text-[12px] text-[#64748b]">{t('cm.etaAwayLabel').replace('{min}', String(Math.round(roadEta.durationMin))).replace('{km}', roadEta.distanceKm.toFixed(1))}</p>
+            )}
+          </div>
+          <button type="button" onClick={() => setFullscreen(false)} className="shrink-0 p-2 cursor-pointer text-[#1e293b]" aria-label={t('cm.collapseMapBtn')}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="flex-1 min-h-0">
+          <LeafletMap pins={pins} route={route} center={mapCenter} height="100%" zoom={15} />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <MobilityBottomSheet title={`${originLabel} → ${destLabel}`} onClose={onClose} minHeight="70vh">
       <div className="flex flex-col gap-3">
         {(detail.status === 'confirmed' || detail.status === 'in_progress') && (
           <>
+            {/* Real ask, 2026-10-29: "there is no fare to collect or
+                pay from the rider or driver side" — the original
+                accept screen always showed the fare prominently;
+                trip_booking_lifecycle_detail (764) never returned it
+                at all, so the popup that replaced that screen dropped
+                it entirely. Cash collected directly by the driver, same
+                as every other booking type in this app — both sides
+                genuinely need this number on screen the whole time. */}
+            <div className="flex items-center justify-between bg-[#F9F9F6] rounded-xl p-3">
+              <span className="font-sans text-[12.5px] text-[#64748b]">{t('mb.fareForTripLabel')}</span>
+              <span className="font-sans text-[18px] font-extrabold text-[#166534] ltr-num">₨{fmt(detail.total_amount_pkr)}</span>
+            </div>
+
             {geoError && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
                 <AlertTriangle size={15} className="text-amber-700 shrink-0 mt-0.5" />
@@ -236,7 +283,25 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
               </div>
             )}
 
-            <LeafletMap pins={pins} route={route} center={mapCenter} height={220} className="rounded-xl" />
+            {/* Real ask, 2026-10-29: "make this map for the rider full
+                page display... zoomed map with zoomed road detail to
+                find a real way to the destination just like google is
+                helping the driver on the map" — an expand button opens
+                the same live map full-viewport instead of the small
+                220px embedded one, without leaving the popup paradigm
+                (no new page navigation, same live data). */}
+            <div className="relative">
+              <LeafletMap pins={pins} route={route} center={mapCenter} height={220} className="rounded-xl" />
+              <button type="button" onClick={() => setFullscreen(true)}
+                className="absolute top-2 right-2 z-[60] bg-white shadow-md rounded-lg p-2 cursor-pointer" aria-label={t('cm.expandMapBtn')}>
+                <Maximize2 size={15} className="text-[#1e293b]" />
+              </button>
+            </div>
+            {roadEta && (
+              <p className="font-sans text-[12.5px] font-semibold text-[#1e293b]">
+                {t('cm.etaAwayLabel').replace('{min}', String(Math.round(roadEta.durationMin))).replace('{km}', roadEta.distanceKm.toFixed(1))}
+              </p>
+            )}
             <p className="font-sans text-[11.5px] text-[#64748b]">{t('cm.locationSharingHint')}</p>
             {!otherPos && (
               <p className="font-sans text-[12px] text-[#64748b]">{detail.role === 'driver' ? t('cm.waitingForRiderLocation') : t('cm.waitingForDriverLocation')}</p>
@@ -265,10 +330,13 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
             )}
 
             {detail.role === 'driver' && detail.status === 'in_progress' && (
-              <button onClick={completeRide} disabled={busy}
-                className="w-full py-3 rounded-xl text-[14px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50 flex items-center justify-center gap-1.5 mt-1">
-                {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={16} />} {t('cm.completeRideBtn')}
-              </button>
+              <div className="flex flex-col gap-1.5 mt-1">
+                <p className="font-sans text-[12px] text-[#64748b] text-center">{t('cm.collectCashBeforeBtn').replace('{amount}', fmt(detail.total_amount_pkr))}</p>
+                <button onClick={completeRide} disabled={busy}
+                  className="w-full py-3 rounded-xl text-[14px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={16} />} {t('cm.completeRideBtn')}
+                </button>
+              </div>
             )}
 
             <Link href={`/portal/marketplace/trip-group/${detail.trip_offer_id}`}
@@ -283,6 +351,8 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
             <div className="flex flex-col items-center gap-2 py-4 text-center">
               <CheckCircle2 size={28} className="text-[#166534]" />
               <p className="font-sans text-[14px] font-bold text-[#166534]">{t('cm.tripCompletedStatus')}</p>
+              <p className="font-sans text-[20px] font-extrabold text-[#166534] ltr-num">₨{fmt(detail.total_amount_pkr)}</p>
+              <p className="font-sans text-[12px] text-[#64748b]">{detail.role === 'driver' ? t('cm.collectedFromRiderNote') : t('cm.paidToDriverNote')}</p>
             </div>
             {/* Real ask, 2026-10-29: "when ride is completed from both
                 end there was no feture appear to give 5 start 4 start
