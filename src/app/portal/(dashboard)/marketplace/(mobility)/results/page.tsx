@@ -37,6 +37,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
+import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
 import { fetchRoadRoute } from '@/lib/roadRoute'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
@@ -149,6 +150,13 @@ function ResultsPageInner() {
   const [requesting, setRequesting] = useState(false)
   const [activeRequest, setActiveRequest] = useState<DispatchRequest | null>(null)
   const [bookingId, setBookingId] = useState<string | null>(null)
+  // Real bug found live, 2026-10-29: this screen had its own entirely
+  // separate "accepted" card (the old 2-button track-location/chat
+  // design), never updated when RideLifecycleSheet replaced that same
+  // card everywhere else — a third, disconnected copy of the same
+  // screen the user kept running into. Once a real booking exists,
+  // this sheet hands off to the one real popup instead.
+  const [openRideBookingId, setOpenRideBookingId] = useState<string | null>(null)
   const [fallbackOptions, setFallbackOptions] = useState<CategoryOption[] | null>(null)
   const [loadingFallback, setLoadingFallback] = useState(false)
   const [selectedFallback, setSelectedFallback] = useState<Set<string>>(new Set())
@@ -229,6 +237,15 @@ function ResultsPageInner() {
     supabase.from('vehicle_trip_bookings').select('id').eq('trip_offer_id', activeRequest.trip_offer_id).maybeSingle()
       .then(({ data }) => { if (data) setBookingId(data.id) })
   }, [activeRequest?.status, activeRequest?.trip_offer_id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hand off to the one real popup the instant a booking exists — this
+  // sheet's own "accepted" card never actually renders in the normal
+  // path any more.
+  useEffect(() => {
+    if (!bookingId) return
+    setOpenRideBookingId(bookingId)
+    setSheetCategory(null); setQuote(null); setActiveRequest(null); setBookingId(null)
+  }, [bookingId])
 
   const closeSheet = async () => {
     if (activeRequest?.status === 'open') {
@@ -473,6 +490,13 @@ function ResultsPageInner() {
           ) : !activeRequest ? (
             quote && (
               <div className="flex flex-col gap-3">
+                {/* Real ask, 2026-10-29: "was it one way or two way? there
+                    should be clearly mentioned for the both parties" —
+                    ride-dispatch (this instant category-match flow) is
+                    always a direct one-way trip, there's no return-leg
+                    concept here at all (that's the separate Routes
+                    feature) — just never actually said so on screen. */}
+                <span className="self-start text-[10px] font-bold uppercase tracking-[0.05em] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">{t('cm.tripTypeOneway')}</span>
                 <div className="flex items-center justify-between bg-[#F9F9F6] rounded-xl p-3">
                   <span className="text-[12.5px] text-[#64748b]">{t('mb.fareForTripLabel')}</span>
                   <span className="font-extrabold text-[18px] text-[#166534] ltr-num">{fmt(quote.base_fare_pkr)}</span>
@@ -583,36 +607,22 @@ function ResultsPageInner() {
               <p className="text-[12.5px] text-[#64748b]">{t('mb.waitingForDriverHint')}</p>
             </div>
           ) : activeRequest.status === 'accepted' ? (
-            <div className="flex flex-col items-center gap-2 py-4 text-center">
-              <span className="text-[28px]">✅</span>
-              <p className="font-bold text-[14px] text-[#166534]">{t('mb.rideAcceptedHeading')}</p>
-              {activeRequest.tier_used?.startsWith('cross_tenant') && activeRequest.matched_tenant_name && (
-                <p className="text-[12px] text-[#64748b]">{t('mb.acceptedFromVillageNote').replace('{village}', activeRequest.matched_tenant_name)}</p>
-              )}
-              <p className="font-extrabold text-[16px] text-[#166534] ltr-num">{fmt(activeRequest.fare_pkr)}</p>
-              {activeRequest.tier_used?.endsWith('in_city') && activeRequest.reference_village_fare_pkr != null && activeRequest.reference_village_fare_pkr > activeRequest.fare_pkr && (
-                <p className="text-[11.5px] font-semibold text-emerald-700 bg-emerald-50 rounded-full px-3 py-1">
-                  {t('mb.youSavedNote').replace('{amount}', fmt(activeRequest.reference_village_fare_pkr - activeRequest.fare_pkr))}
-                </p>
-              )}
-              <div className="flex items-center gap-2 mt-1">
-                {bookingId && (
-                  <Link href={`/portal/marketplace/trip/${bookingId}`} onClick={closeSheet} className="px-4 py-2 bg-[#166534] text-white rounded-xl text-[13px] font-bold">
-                    {t('cm.trackLocationBtn')}
-                  </Link>
-                )}
-                {activeRequest.trip_offer_id && (
-                  <Link href={`/portal/marketplace/trip-group/${activeRequest.trip_offer_id}`} onClick={closeSheet} className="px-4 py-2 border border-[#166534] text-[#166534] rounded-xl text-[13px] font-bold">
-                    {t('cm.openGroupChatBtn')}
-                  </Link>
-                )}
-              </div>
+            // Real bug found live, 2026-10-29: used to show its own
+            // separate "accepted" card here (old track-location/chat
+            // buttons) — the hand-off effect above opens the one real
+            // popup the instant bookingId arrives, so this only
+            // renders for the brief moment before that fetch resolves.
+            <div className="flex flex-col items-center gap-2 py-6 text-center">
+              <Loader2 size={24} className="animate-spin text-[#166534]" />
+              <p className="font-sans text-[12.5px] text-[#64748b]">{t('mb.rideAcceptedHeading')}</p>
             </div>
           ) : (
             <p className="text-center text-[12.5px] text-[#64748b] py-6">{t('mb.rideRequestCancelledNote')}</p>
           )}
         </MobilityBottomSheet>
       )}
+
+      {openRideBookingId && <RideLifecycleSheet bookingId={openRideBookingId} onClose={() => setOpenRideBookingId(null)} />}
     </div>
   )
 }

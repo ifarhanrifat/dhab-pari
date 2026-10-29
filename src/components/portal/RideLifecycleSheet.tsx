@@ -273,6 +273,7 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
                 it entirely. Cash collected directly by the driver, same
                 as every other booking type in this app — both sides
                 genuinely need this number on screen the whole time. */}
+            <span className="self-start text-[10px] font-bold uppercase tracking-[0.05em] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">{t('cm.tripTypeOneway')}</span>
             <div className="flex items-center justify-between bg-[#F9F9F6] rounded-xl p-3">
               <span className="font-sans text-[12.5px] text-[#64748b]">{t('mb.fareForTripLabel')}</span>
               <span className="font-sans text-[18px] font-extrabold text-[#166534] ltr-num">₨{fmt(detail.total_amount_pkr)}</span>
