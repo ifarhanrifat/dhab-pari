@@ -297,10 +297,11 @@ export default function MyVehicleTripsPage() {
     if (!window.confirm(t('mp.confirmCancelConfirmedHint'))) return
     const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
     setActionId(id)
-    const { error } = await supabase.rpc('cancel_trip_booking', { p_trip_booking_id: id, p_reason: reason || null })
+    const { data, error } = await supabase.rpc('cancel_trip_booking', { p_trip_booking_id: id, p_reason: reason || null })
     setActionId(null)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    toast.success(t('mp.bookingCancelledToast'))
+    const fee = (data as { fee_pkr?: number } | null)?.fee_pkr
+    toast.success(fee ? t('cm.cancelFeeAppliesToast').replace('{amount}', String(fee)) : t('mp.bookingCancelledToast'))
     reload(vehicle.id)
   }
 

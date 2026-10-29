@@ -166,6 +166,24 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
     reload()
   }
 
+  // Real ask, 2026-10-29: "what if he will cancel the ride when driver
+  // reached to rider spot? is the fare cancel policy working?" — a
+  // rider had no cancel option anywhere in this popup at all before
+  // (only the driver's separate Trip Bookings list had one). Warns
+  // about the real fee tier (770) before they commit, not just after.
+  const cancelRide = async () => {
+    if (!detail) return
+    const feeWarning = detail.status === 'in_progress' ? t('cm.cancelFeeWarningInProgress') : detail.status === 'confirmed' ? t('cm.cancelFeeWarningConfirmed') : ''
+    if (!window.confirm(`${t('mp.confirmCancelConfirmedHint')}${feeWarning ? '\n\n' + feeWarning : ''}`)) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('cancel_trip_booking', { p_trip_booking_id: bookingId, p_reason: null })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    const fee = (data as { fee_pkr?: number } | null)?.fee_pkr
+    toast.success(fee ? t('cm.cancelFeeAppliesToast').replace('{amount}', String(fee)) : t('mp.bookingCancelledToast'))
+    reload()
+  }
+
   if (loading) {
     return (
       <MobilityBottomSheet onClose={onClose}>
@@ -343,6 +361,11 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
               className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-[13px] font-sans font-bold cursor-pointer border border-[#166534] text-[#166534]">
               <Users size={14} /> {t('cm.openGroupChatBtn')}
             </Link>
+
+            <button onClick={cancelRide} disabled={busy}
+              className="flex items-center justify-center gap-1 font-sans text-[11.5px] font-semibold cursor-pointer disabled:opacity-50 text-[#b91c1c]">
+              <Ban size={12} /> {t('cm.cancelTripBtn')}
+            </button>
           </>
         )}
 
