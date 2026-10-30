@@ -1,74 +1,82 @@
--- Migration 777: City Purchase — one-way "carry back" pricing for drivers
--- already in / heading to the city, a delivery window, an urgency premium
--- that compensates an early return, round-trip detour fuel only when the
--- shop is off the driver's route, a two-stage deal confirmation, and
--- saved requests that ring the next driver who goes to that city.
+-- Migration 777: City Purchase — rider chooses one way (a driver already
+-- in / going to the city carries it back) or two way (a driver goes from
+-- the village), a committee fee floor per area and delivery time, bike /
+-- car matched to the right drivers, round-trip detour fuel only when the
+-- shop is off the driver's route, a two-stage deal confirmation, saved
+-- requests that ring the next driver who goes to that city, and the
+-- rider can edit a request until a driver accepts it.
 --
--- Real ask, 2026-10-30: "currently the fare is calculated two way — when
--- the driver is already in the city the calculation should be one way;
--- he can wait there, collect as many requests as he can and carry them
--- home, within a maximum of 3-4 hours at the normal fee. If the rider
--- wants urgent delivery he offers more money to convince the driver to
--- come back early... both users should remain happy... for the two-way
--- ride nothing changes (the rider knowingly sends a driver from the
--- village)... a saved/scheduled request is sent to a driver whenever he
--- goes to that city... if the shop is on his route a fixed fee with no
--- fuel, if far from it the fuel is driver destination -> shop -> back to
--- driver destination... both parties must confirm in two stages."
+-- Real asks, 2026-10-30:
+--  * "when the driver is already in the city the calculation should be
+--    one way... a driver goes from the village is two way... the rider
+--    knew the fee before sending."
+--  * "for the in-city purchase the minimum fee will be 250 for 4 hours;
+--    3 hours adds 50, 2 hours another 50, now another 50 — the offer
+--    can't be decreased."  -> fee floor 250 / 300 / 350 / 400.
+--  * "out-of-city is fixed to one day, not hourly; the minimum purchase
+--    fee is 700, which can be increased by the driver when he accepts."
+--  * "the in-city purchase pickup must be in the home city; if the rider
+--    picks another city, suggest the out-of-city option."
+--  * "I chose bike and couldn't choose one way or two way" -> the rider
+--    picks the trip type; two way invites village drivers (it never
+--    invited anyone but a hand-picked vehicle before).
+--  * "show how many bikes and cars are in the city right now (one way)
+--    and in the village (two way)."
+--  * "bike two way was 1100 and car 250" -> the estimate's bike rate can
+--    never exceed the car rate, and riders are matched to vehicles of
+--    the ride type they chose.
+--  * "if the shop is on his route a fixed fee with no fuel, if far from
+--    it, fuel is driver destination -> shop -> back."
+--  * "both parties must confirm in two stages."
+--  * "a saved request is sent to a driver whenever he goes to that city."
+--  * "how can the user edit or cancel the saved request?"
 --
--- Pricing (computed at accept, by the server, per accepting vehicle):
---   leg            = round_to_10(city.distance_km * vehicle.per_km_pkr)
---   trip_mode      = 'carry_back' when the invitation came from the
---                    driver's own route / trip offer / city check-in
---                    (he is going home anyway), else 'dedicated'
---   distance_fare  = carry_back: 1 x leg      dedicated: 2 x leg (unchanged)
---   urgency_premium= carry_back only: leg x setting % (2hr 25 / 1hr 50 /
---                    urgent 75) — pays the driver for cutting his city
---                    stay short and losing the other carries he'd have
---                    collected; a dedicated trip already gets both legs
---   detour_fuel    = distance from the driver's own destination in the
---                    city (his route / trip offer pin, else the city's
---                    reference point) to the shop; within
---                    city_purchase_detour_free_km it is "on his route" =
---                    0, otherwise round_to_10(km x 2 x per_km) — there
---                    and back to his destination (was one-way)
---   total          = distance_fare + urgency_premium + detour_fuel +
---                    driver's service fee (committee band) + rider tip
---
--- Delivery window (deliver_by, set when the deal is locked): standard =
--- city_purchase_carry_max_hours (4), 2hr = 2h, 1hr / urgent = 1h.
---
--- Two-stage confirmation: (1) the driver accepts with his fee -> the
--- rider reviews the full breakdown and approves (approve_city_purchase_
--- price, unchanged); (2) the driver locks the deal
--- (confirm_city_purchase_deal) — only then can he mark it purchased.
---
--- Saved requests: a request nobody could take ('no_answer') is kept, and
--- rings any vehicle that later checks in to that city or opens a trip
--- offer to it (AFTER INSERT triggers), using the same candidate rules
--- (online, delivery-eligible, trust floor, urgency tier).
+-- Price (server-side, per accepting vehicle):
+--   leg          = round_to_10(city.distance_km x vehicle.per_km_pkr)
+--   trip_mode    = carry_back (invited from his own route / trip offer /
+--                  city check-in) = 1 leg; dedicated (village driver or
+--                  hand-picked) = 2 legs
+--   detour_fuel  = 0 if the shop is within city_purchase_detour_free_km
+--                  of the driver's own destination, else km x 2 x per_km
+--   service_fee  = the driver's offer, never below the floor:
+--                  in-city 250 / 300 / 350 / 400 (4h / 3h / 2h / now),
+--                  out-of-city 700 (a one-day job); capped by
+--                  city_purchase_fee_max_pkr
+--   total        = leg(s) + detour_fuel + service_fee + rider tip
+-- Delivery deadline (set when the deal is locked): in-city 4/3/2/1 h;
+-- out-of-city end of the scheduled day.
 --
 -- Dry-run on a local replay inside BEGIN ... ROLLBACK; not applied to
 -- production by the author.
 
--- ─── Columns + settings ────────────────────────────────────────────────
+-- ─── Columns, statuses, settings ───────────────────────────────────────
 
+ALTER TABLE city_purchase_requests ADD COLUMN IF NOT EXISTS trip_preference varchar NOT NULL DEFAULT 'one_way' CHECK (trip_preference IN ('one_way', 'two_way'));
 ALTER TABLE city_purchase_requests ADD COLUMN IF NOT EXISTS trip_mode varchar CHECK (trip_mode IS NULL OR trip_mode IN ('carry_back', 'dedicated'));
-ALTER TABLE city_purchase_requests ADD COLUMN IF NOT EXISTS urgency_premium_pkr numeric NOT NULL DEFAULT 0;
+ALTER TABLE city_purchase_requests ADD COLUMN IF NOT EXISTS service_fee_floor_pkr numeric;
 ALTER TABLE city_purchase_requests ADD COLUMN IF NOT EXISTS detour_km numeric;
 ALTER TABLE city_purchase_requests ADD COLUMN IF NOT EXISTS driver_confirmed_at timestamptz;
 ALTER TABLE city_purchase_requests ADD COLUMN IF NOT EXISTS deliver_by timestamptz;
 ALTER TABLE city_purchase_invitations ADD COLUMN IF NOT EXISTS reference_distance_km numeric;
 
+-- In-city delivery times are 4h (standard) / 3h / 2h / now (urgent).
+ALTER TABLE city_purchase_requests DROP CONSTRAINT IF EXISTS city_purchase_requests_urgency_check;
+ALTER TABLE city_purchase_requests ADD CONSTRAINT city_purchase_requests_urgency_check
+  CHECK (urgency IN ('standard', '3hr', '2hr', '1hr', 'urgent'));
+
 INSERT INTO site_settings (key, value, description, tenant_id)
 SELECT s.key, s.value, s.description, t.id
 FROM tenants t CROSS JOIN (VALUES
-  ('city_purchase_carry_max_hours', '4', 'City purchase: hours a carry-back driver has to deliver at the normal fee'),
-  ('city_purchase_urgency_premium_pct_2hr', '25', 'City purchase: % of one leg added for a 2-hour carry-back (early return)'),
-  ('city_purchase_urgency_premium_pct_1hr', '50', 'City purchase: % of one leg added for a 1-hour carry-back (early return)'),
-  ('city_purchase_urgency_premium_pct_urgent', '75', 'City purchase: % of one leg added for an urgent carry-back (early return)')
+  ('city_purchase_city_fee_4h_pkr', '250', 'In-city purchase: minimum fee, delivery within 4 hours'),
+  ('city_purchase_city_fee_3h_pkr', '300', 'In-city purchase: minimum fee, delivery within 3 hours'),
+  ('city_purchase_city_fee_2h_pkr', '350', 'In-city purchase: minimum fee, delivery within 2 hours'),
+  ('city_purchase_city_fee_now_pkr', '400', 'In-city purchase: minimum fee, delivery now (within 1 hour)'),
+  ('city_purchase_outstation_min_fee_pkr', '700', 'Out-of-city purchase: minimum fee for the one-day job (the driver may offer more)'),
+  ('city_purchase_fee_max_pkr', '5000', 'City purchase: the most a driver may ask as his service fee')
 ) AS s(key, value, description)
 WHERE NOT EXISTS (SELECT 1 FROM site_settings x WHERE x.key = s.key AND x.tenant_id = t.id);
+
+-- ─── Small helpers ─────────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION city_purchase_setting(p_tenant_id uuid, p_key varchar, p_default numeric) RETURNS numeric
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -78,10 +86,64 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
     p_default);
 $$;
 
+-- 'bike' for motorbikes / e-bikes, 'car' for everything else.
+CREATE OR REPLACE FUNCTION vehicle_ride_kind(p_vehicle_id uuid) RETURNS varchar
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT CASE WHEN vc.key IN ('bike', 'electric_bike') OR v.vehicle_type ~* '(bike|motor|honda 125|cd ?70)' THEN 'bike' ELSE 'car' END
+  FROM vehicles v LEFT JOIN vehicle_categories vc ON vc.id = v.category_id
+  WHERE v.id = p_vehicle_id;
+$$;
+
+CREATE OR REPLACE FUNCTION city_purchase_fee_floor(p_tenant_id uuid, p_area varchar, p_urgency varchar) RETURNS numeric
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT CASE WHEN p_area = 'out_of_city' THEN city_purchase_setting(p_tenant_id, 'city_purchase_outstation_min_fee_pkr', 700)
+    ELSE CASE p_urgency
+      WHEN '3hr' THEN city_purchase_setting(p_tenant_id, 'city_purchase_city_fee_3h_pkr', 300)
+      WHEN '2hr' THEN city_purchase_setting(p_tenant_id, 'city_purchase_city_fee_2h_pkr', 350)
+      WHEN '1hr' THEN city_purchase_setting(p_tenant_id, 'city_purchase_city_fee_now_pkr', 400)
+      WHEN 'urgent' THEN city_purchase_setting(p_tenant_id, 'city_purchase_city_fee_now_pkr', 400)
+      ELSE city_purchase_setting(p_tenant_id, 'city_purchase_city_fee_4h_pkr', 250) END
+    END;
+$$;
+
+CREATE OR REPLACE FUNCTION city_purchase_deliver_hours(p_area varchar, p_urgency varchar) RETURNS numeric
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE WHEN p_area = 'out_of_city' THEN NULL
+    ELSE CASE p_urgency WHEN '3hr' THEN 3 WHEN '2hr' THEN 2 WHEN '1hr' THEN 1 WHEN 'urgent' THEN 1 ELSE 4 END END;
+$$;
+
+-- Village drivers for a two-way (special) trip: online, delivery-eligible,
+-- above the trust floor, and not checked in to some city right now.
+CREATE OR REPLACE FUNCTION city_purchase_village_vehicles(p_city_id uuid, p_exclude_portal_user_id uuid)
+RETURNS TABLE (vehicle_id uuid)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT v.id FROM vehicles v, cities ci
+  WHERE ci.id = p_city_id AND v.tenant_id = ci.tenant_id AND v.is_active AND v.is_online
+    AND vehicle_delivery_eligible_for(v.id, ci.is_home_city)
+    AND vehicle_trust_score(v.id) >= COALESCE((SELECT value::int FROM site_settings WHERE key = 'vehicle_trust_floor_score' ORDER BY (tenant_id = ci.tenant_id) DESC LIMIT 1), 15)
+    AND (p_exclude_portal_user_id IS NULL OR v.portal_user_id IS DISTINCT FROM p_exclude_portal_user_id)
+    AND (ci.is_home_city OR COALESCE(v.allows_out_of_city, false))
+    AND NOT EXISTS (SELECT 1 FROM vehicle_city_presence p WHERE p.vehicle_id = v.id AND p.is_active);
+$$;
+
+-- How many bikes / cars could take it right now: in the city (one way)
+-- and in the village (two way).
+CREATE OR REPLACE FUNCTION city_purchase_availability(p_city_id uuid) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  WITH inc AS (SELECT DISTINCT c.vehicle_id FROM city_purchase_candidate_vehicles(p_city_id, NULL, NULL, NULL, current_portal_user_id()) c),
+  vil AS (SELECT vehicle_id FROM city_purchase_village_vehicles(p_city_id, current_portal_user_id()))
+  SELECT jsonb_build_object(
+    'in_city', jsonb_build_object(
+      'bike', (SELECT count(*) FROM inc WHERE vehicle_ride_kind(inc.vehicle_id) = 'bike'),
+      'car', (SELECT count(*) FROM inc WHERE vehicle_ride_kind(inc.vehicle_id) = 'car')),
+    'in_village', jsonb_build_object(
+      'bike', (SELECT count(*) FROM vil WHERE vehicle_ride_kind(vil.vehicle_id) = 'bike'),
+      'car', (SELECT count(*) FROM vil WHERE vehicle_ride_kind(vil.vehicle_id) = 'car')));
+$$;
+REVOKE ALL ON FUNCTION city_purchase_availability(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION city_purchase_availability(uuid) TO authenticated;
+
 -- ─── Where the invited driver is actually headed in the city ───────────
--- Distance from the shop to the driver's own destination (route / trip
--- offer pin) — the "is it on his way" measure. NULL when either side has
--- no pin; pricing then falls back to the city's reference point.
 CREATE OR REPLACE FUNCTION trg_city_purchase_invitation_distance() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE r city_purchase_requests%ROWTYPE; ci cities%ROWTYPE; v_lat numeric; v_lng numeric;
@@ -108,13 +170,56 @@ $$;
 DROP TRIGGER IF EXISTS city_purchase_invitation_distance ON city_purchase_invitations;
 CREATE TRIGGER city_purchase_invitation_distance BEFORE INSERT ON city_purchase_invitations FOR EACH ROW EXECUTE FUNCTION trg_city_purchase_invitation_distance();
 
+-- ─── Inviting drivers (create, edit, saved re-ring) ────────────────────
+-- One way: drivers in / going to the city (their route, trip offer, city
+-- check-in). Two way: village drivers. Always the ride type the rider
+-- chose. Never re-invites a vehicle already invited to this request.
+CREATE OR REPLACE FUNCTION city_purchase_invite(p_request_id uuid) RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE r city_purchase_requests%ROWTYPE; v_count int := 0;
+BEGIN
+  SELECT * INTO r FROM city_purchase_requests WHERE id = p_request_id;
+  IF r.trip_preference = 'two_way' THEN
+    INSERT INTO city_purchase_invitations (request_id, vehicle_id, source, reference_destination)
+    SELECT r.id, vv.vehicle_id, 'direct', NULL
+    FROM city_purchase_village_vehicles(r.city_id, r.initiator_portal_user_id) vv
+    WHERE vehicle_ride_kind(vv.vehicle_id) = r.ride_type
+      AND NOT EXISTS (SELECT 1 FROM city_purchase_invitations i WHERE i.request_id = r.id AND i.vehicle_id = vv.vehicle_id)
+      AND (vehicle_committed_urgency_tier(vv.vehicle_id) IS NULL OR vehicle_committed_urgency_tier(vv.vehicle_id) = r.urgency)
+    ON CONFLICT (request_id, vehicle_id) DO NOTHING;
+  ELSE
+    INSERT INTO city_purchase_invitations (request_id, vehicle_id, source, reference_destination)
+    SELECT r.id, c.vehicle_id, c.source, c.reference_destination
+    FROM city_purchase_candidate_vehicles(r.city_id, r.pickup_lat, r.pickup_lng, r.urgency, r.initiator_portal_user_id) c
+    WHERE vehicle_ride_kind(c.vehicle_id) = r.ride_type
+      AND NOT EXISTS (SELECT 1 FROM city_purchase_invitations i WHERE i.request_id = r.id AND i.vehicle_id = c.vehicle_id)
+    ON CONFLICT (request_id, vehicle_id) DO NOTHING;
+  END IF;
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+
+  IF EXISTS (SELECT 1 FROM city_purchase_invitations WHERE request_id = r.id AND status = 'ringing') THEN
+    UPDATE city_purchase_requests SET status = 'ringing' WHERE id = r.id AND status IN ('ringing', 'no_answer');
+  ELSE
+    UPDATE city_purchase_requests SET status = 'no_answer' WHERE id = r.id AND status IN ('ringing', 'no_answer');
+  END IF;
+
+  IF v_count > 0 THEN
+    INSERT INTO portal_notifications (portal_user_id, event_type, title, body, link)
+    SELECT v.portal_user_id, 'city_purchase_invited', 'City purchase request', r.item, '/portal/marketplace/city-purchase/' || r.id
+    FROM city_purchase_invitations i JOIN vehicles v ON v.id = i.vehicle_id
+    WHERE i.request_id = r.id AND i.status = 'ringing' AND i.invited_at > now() - interval '5 seconds' AND v.portal_user_id IS NOT NULL;
+  END IF;
+  RETURN v_count;
+END;
+$$;
+
 -- ─── The one pricing formula (accept + the driver's preview) ───────────
-CREATE OR REPLACE FUNCTION city_purchase_price(p_request_id uuid, p_vehicle_id uuid, p_addon_fee_pkr numeric) RETURNS jsonb
+CREATE OR REPLACE FUNCTION city_purchase_price(p_request_id uuid, p_vehicle_id uuid, p_fee_pkr numeric) RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   r city_purchase_requests%ROWTYPE; v vehicles%ROWTYPE; ci cities%ROWTYPE; i city_purchase_invitations%ROWTYPE;
-  v_mode varchar; v_leg numeric; v_distance numeric; v_premium_pct numeric := 0; v_premium numeric := 0;
-  v_detour_km numeric; v_free numeric; v_detour numeric := 0; v_tenant uuid;
+  v_mode varchar; v_leg numeric; v_distance numeric; v_detour_km numeric; v_free numeric; v_detour numeric := 0;
+  v_tenant uuid; v_floor numeric; v_max numeric; v_fee numeric;
 BEGIN
   SELECT * INTO r FROM city_purchase_requests WHERE id = p_request_id;
   SELECT * INTO v FROM vehicles WHERE id = p_vehicle_id;
@@ -126,12 +231,6 @@ BEGIN
   v_leg := round_to_10(COALESCE(ci.distance_km, 0) * COALESCE(v.per_km_pkr, 0));
   v_distance := CASE WHEN v_mode = 'carry_back' THEN v_leg ELSE v_leg * 2 END;
 
-  IF v_mode = 'carry_back' AND r.urgency <> 'standard' THEN
-    v_premium_pct := city_purchase_setting(v_tenant, 'city_purchase_urgency_premium_pct_' || r.urgency,
-      CASE r.urgency WHEN '2hr' THEN 25 WHEN '1hr' THEN 50 ELSE 75 END);
-    v_premium := round_to_10(v_leg * v_premium_pct / 100);
-  END IF;
-
   v_detour_km := COALESCE(i.reference_distance_km,
     CASE WHEN r.pickup_lat IS NOT NULL AND ci.lat IS NOT NULL THEN round(haversine_km(r.pickup_lat, r.pickup_lng, ci.lat, ci.lng), 1) END);
   v_free := city_purchase_setting(v_tenant, 'city_purchase_detour_free_km', 2);
@@ -139,22 +238,24 @@ BEGIN
     v_detour := round_to_10(v_detour_km * 2 * COALESCE(v.per_km_pkr, 0));
   END IF;
 
+  v_floor := COALESCE(r.service_fee_floor_pkr, city_purchase_fee_floor(v_tenant, r.area, r.urgency));
+  v_max := GREATEST(v_floor, city_purchase_setting(v_tenant, 'city_purchase_fee_max_pkr', 5000));
+  v_fee := GREATEST(COALESCE(p_fee_pkr, v_floor), v_floor);
+
   RETURN jsonb_build_object(
-    'trip_mode', v_mode, 'source', i.source, 'reference_destination', i.reference_destination,
+    'trip_mode', v_mode, 'source', i.source, 'reference_destination', i.reference_destination, 'area', r.area,
     'leg_pkr', v_leg, 'distance_fare_pkr', v_distance,
-    'urgency_premium_pct', v_premium_pct, 'urgency_premium_pkr', v_premium,
     'detour_km', v_detour_km, 'detour_free_km', v_free, 'on_route', v_detour_km IS NULL OR v_detour_km <= v_free, 'detour_fuel_pkr', v_detour,
-    'addon_fee_pkr', COALESCE(p_addon_fee_pkr, 0), 'tip_pkr', COALESCE(r.tip_pkr, 0),
-    'total_fare_pkr', v_distance + v_premium + v_detour + COALESCE(p_addon_fee_pkr, 0) + COALESCE(r.tip_pkr, 0),
-    'deliver_within_hours', CASE r.urgency WHEN '2hr' THEN 2 WHEN '1hr' THEN 1 WHEN 'urgent' THEN 1
-      ELSE city_purchase_setting(v_tenant, 'city_purchase_carry_max_hours', 4) END,
-    'addon_min_pkr', city_purchase_setting(v_tenant, 'city_purchase_addon_min_pkr', 100),
-    'addon_max_pkr', city_purchase_setting(v_tenant, 'city_purchase_addon_max_pkr', 1000)
+    'fee_floor_pkr', v_floor, 'fee_max_pkr', v_max, 'addon_fee_pkr', v_fee, 'tip_pkr', COALESCE(r.tip_pkr, 0),
+    'total_fare_pkr', v_distance + v_detour + v_fee + COALESCE(r.tip_pkr, 0),
+    'deliver_within_hours', city_purchase_deliver_hours(r.area, r.urgency),
+    'scheduled_date', r.scheduled_date,
+    -- kept for older screens
+    'addon_min_pkr', v_floor, 'addon_max_pkr', v_max, 'urgency_premium_pkr', 0, 'urgency_premium_pct', 0
   );
 END;
 $$;
 
--- The invited driver's own preview before accepting.
 CREATE OR REPLACE FUNCTION city_purchase_quote_for_vehicle(p_request_id uuid, p_vehicle_id uuid, p_addon_fee_pkr numeric DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 BEGIN
@@ -192,8 +293,8 @@ BEGIN
   END IF;
 
   q := city_purchase_price(p_request_id, p_vehicle_id, p_addon_fee_pkr);
-  IF p_addon_fee_pkr IS NULL OR p_addon_fee_pkr < (q->>'addon_min_pkr')::numeric OR p_addon_fee_pkr > (q->>'addon_max_pkr')::numeric THEN
-    RAISE EXCEPTION 'Your service fee must be between % and %.', q->>'addon_min_pkr', q->>'addon_max_pkr' USING ERRCODE = 'P0001';
+  IF p_addon_fee_pkr IS NULL OR p_addon_fee_pkr < (q->>'fee_floor_pkr')::numeric OR p_addon_fee_pkr > (q->>'fee_max_pkr')::numeric THEN
+    RAISE EXCEPTION 'Your service fee must be between % and %.', q->>'fee_floor_pkr', q->>'fee_max_pkr' USING ERRCODE = 'P0001';
   END IF;
 
   v_committed_tier := vehicle_committed_urgency_tier(p_vehicle_id);
@@ -209,14 +310,13 @@ BEGIN
 
   UPDATE city_purchase_requests SET
     status = 'priced', accepted_vehicle_id = p_vehicle_id, trip_mode = q->>'trip_mode',
-    distance_fare_pkr = (q->>'distance_fare_pkr')::numeric, urgency_premium_pkr = (q->>'urgency_premium_pkr')::numeric,
-    detour_km = (q->>'detour_km')::numeric, detour_fuel_pkr = (q->>'detour_fuel_pkr')::numeric,
+    distance_fare_pkr = (q->>'distance_fare_pkr')::numeric, detour_km = (q->>'detour_km')::numeric, detour_fuel_pkr = (q->>'detour_fuel_pkr')::numeric,
     addon_fee_pkr = p_addon_fee_pkr, total_fare_pkr = (q->>'total_fare_pkr')::numeric
   WHERE id = p_request_id;
 
   INSERT INTO portal_notifications (portal_user_id, event_type, title, body, link)
   VALUES (r.initiator_portal_user_id, 'city_purchase_accepted', 'City purchase accepted — please review the price',
-    v.owner_name || ' — Rs ' || round((q->>'total_fare_pkr')::numeric) || CASE WHEN q->>'trip_mode' = 'carry_back' THEN ' (carry back, one way)' ELSE ' (special trip, two way)' END,
+    v.owner_name || ' — Rs ' || round((q->>'total_fare_pkr')::numeric) || CASE WHEN q->>'trip_mode' = 'carry_back' THEN ' (one way)' ELSE ' (two way)' END,
     '/portal/marketplace/city-purchase/' || p_request_id);
 
   RETURN city_purchase_request_detail(p_request_id);
@@ -226,7 +326,7 @@ $function$;
 -- Stage 2: the driver locks the deal after the rider approved the price.
 CREATE OR REPLACE FUNCTION confirm_city_purchase_deal(p_request_id uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE r city_purchase_requests%ROWTYPE; v_hours numeric;
+DECLARE r city_purchase_requests%ROWTYPE; v_hours numeric; v_deadline timestamptz;
 BEGIN
   SELECT * INTO r FROM city_purchase_requests WHERE id = p_request_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Request not found.' USING ERRCODE = 'P0001'; END IF;
@@ -235,12 +335,13 @@ BEGIN
   END IF;
   IF r.status <> 'approved' THEN RAISE EXCEPTION 'The customer has not approved the price yet.' USING ERRCODE = 'P0001'; END IF;
   IF r.driver_confirmed_at IS NOT NULL THEN RAISE EXCEPTION 'You have already confirmed this deal.' USING ERRCODE = 'P0001'; END IF;
-  v_hours := CASE r.urgency WHEN '2hr' THEN 2 WHEN '1hr' THEN 1 WHEN 'urgent' THEN 1
-    ELSE city_purchase_setting(r.tenant_id, 'city_purchase_carry_max_hours', 4) END;
-  UPDATE city_purchase_requests SET driver_confirmed_at = now(), deliver_by = now() + make_interval(mins => (v_hours * 60)::int) WHERE id = p_request_id;
+  v_hours := city_purchase_deliver_hours(r.area, r.urgency);
+  v_deadline := CASE WHEN v_hours IS NOT NULL THEN now() + make_interval(mins => (v_hours * 60)::int)
+    ELSE ((GREATEST(COALESCE(r.scheduled_date, (now() AT TIME ZONE 'Asia/Karachi')::date), (now() AT TIME ZONE 'Asia/Karachi')::date) + time '23:59') AT TIME ZONE 'Asia/Karachi') END;
+  UPDATE city_purchase_requests SET driver_confirmed_at = now(), deliver_by = v_deadline WHERE id = p_request_id;
   INSERT INTO portal_notifications (portal_user_id, event_type, title, body, link)
   VALUES (r.initiator_portal_user_id, 'city_purchase_deal_confirmed', 'Deal confirmed — your purchase is on the way',
-    r.item || ' — delivery within ' || v_hours || ' h', '/portal/marketplace/city-purchase/' || p_request_id);
+    r.item || ' — by ' || to_char(v_deadline AT TIME ZONE 'Asia/Karachi', 'DD Mon HH12:MI AM'), '/portal/marketplace/city-purchase/' || p_request_id);
 END;
 $$;
 REVOKE ALL ON FUNCTION confirm_city_purchase_deal(uuid) FROM PUBLIC, anon;
@@ -267,18 +368,23 @@ BEGIN
 END;
 $function$;
 
--- ─── Rider's two prices before sending ─────────────────────────────────
-CREATE OR REPLACE FUNCTION public.city_purchase_fee_estimate(p_city_id uuid, p_pickup_lat numeric, p_pickup_lng numeric, p_tip_pkr numeric DEFAULT 0, p_ride_type character varying DEFAULT 'bike'::character varying)
- RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public'
-AS $function$
+-- ─── Rider's one-way / two-way prices before sending ───────────────────
+DROP FUNCTION IF EXISTS city_purchase_fee_estimate(uuid, numeric, numeric, numeric, varchar);
+CREATE FUNCTION city_purchase_fee_estimate(
+  p_city_id uuid, p_pickup_lat numeric, p_pickup_lng numeric, p_tip_pkr numeric DEFAULT 0, p_ride_type varchar DEFAULT 'bike',
+  p_urgency varchar DEFAULT 'standard', p_area varchar DEFAULT NULL
+) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  ci cities%ROWTYPE; v_per_km decimal; v_free decimal; v_leg decimal; v_detour_km decimal; v_detour decimal := 0; v_tip decimal;
+  ci cities%ROWTYPE; v_area varchar; v_car decimal; v_bike decimal; v_per_km decimal; v_free decimal; v_leg decimal;
+  v_detour_km decimal; v_detour decimal := 0; v_tip decimal; v_floor decimal;
 BEGIN
   SELECT * INTO ci FROM cities WHERE id = p_city_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'That city is not available.' USING ERRCODE = 'P0001'; END IF;
-  v_per_km := city_purchase_setting(ci.tenant_id,
-    CASE WHEN p_ride_type = 'car' THEN 'city_purchase_typical_per_km_car_pkr' ELSE 'city_purchase_typical_per_km_bike_pkr' END,
-    CASE WHEN p_ride_type = 'car' THEN 20 ELSE 12 END);
+  v_area := COALESCE(p_area, CASE WHEN ci.is_home_city THEN 'city' ELSE 'out_of_city' END);
+  v_car := city_purchase_setting(ci.tenant_id, 'city_purchase_typical_per_km_car_pkr', 20);
+  -- A motorbike never costs more per km than a car, whatever the settings say.
+  v_bike := LEAST(city_purchase_setting(ci.tenant_id, 'city_purchase_typical_per_km_bike_pkr', 12), v_car);
+  v_per_km := CASE WHEN p_ride_type = 'car' THEN v_car ELSE v_bike END;
   v_leg := round_to_10(COALESCE(ci.distance_km, 0) * v_per_km);
   IF p_pickup_lat IS NOT NULL AND p_pickup_lng IS NOT NULL AND ci.lat IS NOT NULL AND ci.lng IS NOT NULL THEN
     v_free := city_purchase_setting(ci.tenant_id, 'city_purchase_detour_free_km', 2);
@@ -286,21 +392,135 @@ BEGIN
     IF v_detour_km > v_free THEN v_detour := round_to_10(v_detour_km * 2 * v_per_km); END IF;
   END IF;
   v_tip := GREATEST(COALESCE(p_tip_pkr, 0), 0);
+  v_floor := city_purchase_fee_floor(ci.tenant_id, v_area, CASE WHEN v_area = 'out_of_city' THEN 'standard' ELSE COALESCE(p_urgency, 'standard') END);
   RETURN jsonb_build_object(
-    -- unchanged keys: the special-trip (two-way) price, the worst case
-    'distance_fare_pkr', v_leg * 2, 'detour_fuel_pkr', v_detour, 'tip_pkr', v_tip,
-    'total_fee_pkr', v_leg * 2 + v_detour + v_tip,
-    -- new: what a driver already there / going there charges
-    'leg_pkr', v_leg, 'carry_total_fee_pkr', v_leg + v_detour + v_tip,
-    'detour_km', v_detour_km,
-    'carry_max_hours', city_purchase_setting(ci.tenant_id, 'city_purchase_carry_max_hours', 4),
-    'premium_pct_2hr', city_purchase_setting(ci.tenant_id, 'city_purchase_urgency_premium_pct_2hr', 25),
-    'premium_pct_1hr', city_purchase_setting(ci.tenant_id, 'city_purchase_urgency_premium_pct_1hr', 50),
-    'premium_pct_urgent', city_purchase_setting(ci.tenant_id, 'city_purchase_urgency_premium_pct_urgent', 75),
-    'present_vehicles', (SELECT count(*) FROM vehicle_city_presence p JOIN vehicles v ON v.id = p.vehicle_id WHERE p.city_id = p_city_id AND p.is_active AND v.is_online)
+    'area', v_area, 'is_home_city', ci.is_home_city, 'leg_pkr', v_leg, 'detour_km', v_detour_km, 'detour_fuel_pkr', v_detour,
+    'fee_floor_pkr', v_floor, 'tip_pkr', v_tip,
+    'one_way_total_pkr', v_leg + v_detour + v_floor + v_tip,
+    'two_way_total_pkr', v_leg * 2 + v_detour + v_floor + v_tip,
+    'fee_4h_pkr', city_purchase_fee_floor(ci.tenant_id, 'city', 'standard'), 'fee_3h_pkr', city_purchase_fee_floor(ci.tenant_id, 'city', '3hr'),
+    'fee_2h_pkr', city_purchase_fee_floor(ci.tenant_id, 'city', '2hr'), 'fee_now_pkr', city_purchase_fee_floor(ci.tenant_id, 'city', 'urgent'),
+    'outstation_fee_pkr', city_purchase_fee_floor(ci.tenant_id, 'out_of_city', 'standard'),
+    'availability', city_purchase_availability(p_city_id),
+    -- kept for older screens
+    'distance_fare_pkr', v_leg * 2, 'total_fee_pkr', v_leg * 2 + v_detour + v_floor + v_tip, 'carry_total_fee_pkr', v_leg + v_detour + v_floor + v_tip
   );
 END;
-$function$;
+$$;
+REVOKE ALL ON FUNCTION city_purchase_fee_estimate(uuid, numeric, numeric, numeric, varchar, varchar, varchar) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION city_purchase_fee_estimate(uuid, numeric, numeric, numeric, varchar, varchar, varchar) TO authenticated;
+
+-- ─── Create (adds the trip preference) ─────────────────────────────────
+DROP FUNCTION IF EXISTS create_city_purchase_request(uuid, text, text, text, numeric, numeric, numeric, uuid, varchar, text, numeric, numeric, varchar, varchar, date, time, numeric, varchar);
+CREATE FUNCTION create_city_purchase_request(
+  p_city_id uuid, p_item text, p_item_attachment_path text DEFAULT NULL, p_pickup_label text DEFAULT NULL, p_pickup_lat numeric DEFAULT NULL,
+  p_pickup_lng numeric DEFAULT NULL, p_goods_budget_pkr numeric DEFAULT 0, p_target_vehicle_id uuid DEFAULT NULL, p_urgency varchar DEFAULT 'standard',
+  p_delivery_label text DEFAULT NULL, p_delivery_lat numeric DEFAULT NULL, p_delivery_lng numeric DEFAULT NULL, p_area varchar DEFAULT 'city',
+  p_ride_type varchar DEFAULT 'bike', p_scheduled_date date DEFAULT NULL, p_scheduled_time time DEFAULT NULL, p_tip_pkr numeric DEFAULT 0,
+  p_payment_method varchar DEFAULT 'cash', p_trip_preference varchar DEFAULT 'one_way'
+) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_portal_user_id uuid := current_portal_user_id(); v_request_id uuid; v_estimate jsonb; ci cities%ROWTYPE; v_urgency varchar;
+BEGIN
+  IF v_portal_user_id IS NULL THEN RAISE EXCEPTION 'Sign in first.' USING ERRCODE = 'P0001'; END IF;
+  IF p_item IS NULL OR trim(p_item) = '' THEN RAISE EXCEPTION 'Describe what you need first.' USING ERRCODE = 'P0001'; END IF;
+  SELECT * INTO ci FROM cities WHERE id = p_city_id AND is_active;
+  IF NOT FOUND THEN RAISE EXCEPTION 'That city is not available.' USING ERRCODE = 'P0001'; END IF;
+  IF p_goods_budget_pkr IS NULL OR p_goods_budget_pkr < 0 THEN RAISE EXCEPTION 'Enter a valid amount, or 0 if unsure.' USING ERRCODE = 'P0001'; END IF;
+  IF p_area NOT IN ('city', 'out_of_city') THEN RAISE EXCEPTION 'Invalid area.' USING ERRCODE = 'P0001'; END IF;
+  IF p_area = 'city' AND NOT ci.is_home_city THEN
+    RAISE EXCEPTION 'This shop is outside the home city — choose "Out of city" to buy from another city.' USING ERRCODE = 'P0001';
+  END IF;
+  IF p_ride_type NOT IN ('bike', 'car') THEN RAISE EXCEPTION 'Invalid ride type.' USING ERRCODE = 'P0001'; END IF;
+  IF p_area = 'out_of_city' AND p_ride_type = 'bike' THEN RAISE EXCEPTION 'A motorbike is not available for an out-of-city delivery — choose a car.' USING ERRCODE = 'P0001'; END IF;
+  IF p_trip_preference NOT IN ('one_way', 'two_way') THEN RAISE EXCEPTION 'Choose one way or two way.' USING ERRCODE = 'P0001'; END IF;
+  IF p_scheduled_date IS NULL THEN RAISE EXCEPTION 'Pick a date for this job.' USING ERRCODE = 'P0001'; END IF;
+  -- Out of city is a one-day job: no hourly delivery tiers.
+  v_urgency := CASE WHEN p_area = 'out_of_city' THEN 'standard' ELSE COALESCE(p_urgency, 'standard') END;
+  IF v_urgency NOT IN ('standard', '3hr', '2hr', '1hr', 'urgent') THEN RAISE EXCEPTION 'Invalid delivery time.' USING ERRCODE = 'P0001'; END IF;
+  IF p_target_vehicle_id IS NOT NULL AND EXISTS (SELECT 1 FROM vehicles WHERE id = p_target_vehicle_id AND portal_user_id = v_portal_user_id) THEN
+    RAISE EXCEPTION 'You cannot request your own vehicle.' USING ERRCODE = 'P0001';
+  END IF;
+
+  v_estimate := city_purchase_fee_estimate(p_city_id, p_pickup_lat, p_pickup_lng, p_tip_pkr, p_ride_type, v_urgency, p_area);
+
+  INSERT INTO city_purchase_requests (
+    initiator_portal_user_id, city_id, item, item_attachment_path, pickup_label, pickup_lat, pickup_lng, goods_budget_pkr, status, urgency,
+    delivery_label, delivery_lat, delivery_lng, area, ride_type, scheduled_date, scheduled_time, tip_pkr, payment_method, estimated_fee_pkr,
+    trip_preference, service_fee_floor_pkr
+  ) VALUES (
+    v_portal_user_id, p_city_id, trim(p_item), NULLIF(p_item_attachment_path, ''), NULLIF(p_pickup_label, ''), p_pickup_lat, p_pickup_lng, p_goods_budget_pkr, 'ringing', v_urgency,
+    NULLIF(p_delivery_label, ''), p_delivery_lat, p_delivery_lng, p_area, p_ride_type, p_scheduled_date, p_scheduled_time, GREATEST(COALESCE(p_tip_pkr, 0), 0), COALESCE(p_payment_method, 'cash'),
+    ((v_estimate->>CASE WHEN p_trip_preference = 'two_way' THEN 'two_way_total_pkr' ELSE 'one_way_total_pkr' END))::decimal,
+    p_trip_preference, (v_estimate->>'fee_floor_pkr')::decimal
+  ) RETURNING id INTO v_request_id;
+
+  IF p_target_vehicle_id IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM vehicles v WHERE v.id = p_target_vehicle_id AND v.is_active AND v.is_online AND vehicle_delivery_eligible_for(v.id, ci.is_home_city)
+    ) THEN
+      RAISE EXCEPTION 'That vehicle is not available right now.' USING ERRCODE = 'P0001';
+    END IF;
+    INSERT INTO city_purchase_invitations (request_id, vehicle_id, source, reference_destination)
+    SELECT v_request_id, c.vehicle_id, c.source, c.reference_destination
+    FROM city_purchase_candidate_vehicles(p_city_id, p_pickup_lat, p_pickup_lng, v_urgency, v_portal_user_id) c WHERE c.vehicle_id = p_target_vehicle_id;
+    IF NOT FOUND THEN
+      INSERT INTO city_purchase_invitations (request_id, vehicle_id, source, reference_destination) VALUES (v_request_id, p_target_vehicle_id, 'direct', NULL);
+    END IF;
+    INSERT INTO portal_notifications (portal_user_id, event_type, title, body, link)
+    SELECT v.portal_user_id, 'city_purchase_invited', 'City purchase request', p_item, '/portal/marketplace/city-purchase/' || v_request_id
+    FROM vehicles v WHERE v.id = p_target_vehicle_id AND v.portal_user_id IS NOT NULL;
+  ELSE
+    PERFORM city_purchase_invite(v_request_id);
+  END IF;
+
+  RETURN v_request_id;
+END;
+$$;
+REVOKE ALL ON FUNCTION create_city_purchase_request(uuid, text, text, text, numeric, numeric, numeric, uuid, varchar, text, numeric, numeric, varchar, varchar, date, time, numeric, varchar, varchar) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION create_city_purchase_request(uuid, text, text, text, numeric, numeric, numeric, uuid, varchar, text, numeric, numeric, varchar, varchar, date, time, numeric, varchar, varchar) TO authenticated;
+
+-- ─── Edit a request until a driver accepts it ──────────────────────────
+CREATE OR REPLACE FUNCTION update_city_purchase_request(
+  p_request_id uuid, p_item text, p_goods_budget_pkr numeric, p_urgency varchar, p_tip_pkr numeric,
+  p_scheduled_date date, p_scheduled_time time, p_trip_preference varchar
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE r city_purchase_requests%ROWTYPE; v_urgency varchar; v_estimate jsonb; v_pref varchar;
+BEGIN
+  SELECT * INTO r FROM city_purchase_requests WHERE id = p_request_id FOR UPDATE;
+  IF NOT FOUND OR r.initiator_portal_user_id IS DISTINCT FROM current_portal_user_id() THEN
+    RAISE EXCEPTION 'You do not manage this request.' USING ERRCODE = 'P0001';
+  END IF;
+  IF r.status NOT IN ('ringing', 'no_answer') THEN
+    RAISE EXCEPTION 'A driver has already accepted this request — cancel it instead if you need changes.' USING ERRCODE = 'P0001';
+  END IF;
+  IF p_item IS NULL OR trim(p_item) = '' THEN RAISE EXCEPTION 'Describe what you need first.' USING ERRCODE = 'P0001'; END IF;
+  IF p_goods_budget_pkr IS NULL OR p_goods_budget_pkr < 0 THEN RAISE EXCEPTION 'Enter a valid amount, or 0 if unsure.' USING ERRCODE = 'P0001'; END IF;
+  IF p_scheduled_date IS NULL OR p_scheduled_date < (now() AT TIME ZONE 'Asia/Karachi')::date THEN
+    RAISE EXCEPTION 'Pick a date that has not already passed.' USING ERRCODE = 'P0001';
+  END IF;
+  v_urgency := CASE WHEN r.area = 'out_of_city' THEN 'standard' ELSE COALESCE(p_urgency, r.urgency) END;
+  IF v_urgency NOT IN ('standard', '3hr', '2hr', '1hr', 'urgent') THEN RAISE EXCEPTION 'Invalid delivery time.' USING ERRCODE = 'P0001'; END IF;
+  v_pref := COALESCE(p_trip_preference, r.trip_preference);
+  IF v_pref NOT IN ('one_way', 'two_way') THEN RAISE EXCEPTION 'Choose one way or two way.' USING ERRCODE = 'P0001'; END IF;
+
+  v_estimate := city_purchase_fee_estimate(r.city_id, r.pickup_lat, r.pickup_lng, p_tip_pkr, r.ride_type, v_urgency, r.area);
+  UPDATE city_purchase_requests SET
+    item = trim(p_item), goods_budget_pkr = p_goods_budget_pkr, urgency = v_urgency, tip_pkr = GREATEST(COALESCE(p_tip_pkr, 0), 0),
+    scheduled_date = p_scheduled_date, scheduled_time = p_scheduled_time, trip_preference = v_pref,
+    service_fee_floor_pkr = (v_estimate->>'fee_floor_pkr')::decimal,
+    estimated_fee_pkr = ((v_estimate->>CASE WHEN v_pref = 'two_way' THEN 'two_way_total_pkr' ELSE 'one_way_total_pkr' END))::decimal
+  WHERE id = p_request_id;
+
+  -- Switching one way <-> two way changes who should hear about it.
+  IF v_pref <> r.trip_preference THEN
+    UPDATE city_purchase_invitations SET status = 'expired', responded_at = now() WHERE request_id = p_request_id AND status = 'ringing';
+  END IF;
+  PERFORM city_purchase_invite(p_request_id);
+END;
+$$;
+REVOKE ALL ON FUNCTION update_city_purchase_request(uuid, text, numeric, varchar, numeric, date, time, varchar) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION update_city_purchase_request(uuid, text, numeric, varchar, numeric, date, time, varchar) TO authenticated;
 
 -- ─── Detail / lists carry the new fields ───────────────────────────────
 CREATE OR REPLACE FUNCTION public.city_purchase_request_detail(p_request_id uuid)
@@ -319,7 +539,7 @@ AS $function$
       'initiator_portal_user_id', r.initiator_portal_user_id,
       'created_at', r.created_at
     ) || jsonb_build_object(
-      'trip_mode', r.trip_mode, 'urgency_premium_pkr', r.urgency_premium_pkr, 'detour_km', r.detour_km,
+      'trip_preference', r.trip_preference, 'trip_mode', r.trip_mode, 'service_fee_floor_pkr', r.service_fee_floor_pkr, 'detour_km', r.detour_km,
       'approved_at', r.approved_at, 'driver_confirmed_at', r.driver_confirmed_at, 'deliver_by', r.deliver_by,
       'scheduled_date', r.scheduled_date, 'scheduled_time', r.scheduled_time
     ),
@@ -345,8 +565,8 @@ AS $function$
     'source', i.source, 'reference_destination', i.reference_destination, 'city_name', ci.name, 'city_name_ur', ci.name_ur, 'invited_at', i.invited_at
   ) || jsonb_build_object(
     'trip_mode', CASE WHEN i.source IN ('presence', 'trip_offer', 'route') THEN 'carry_back' ELSE 'dedicated' END,
-    'reference_distance_km', i.reference_distance_km, 'scheduled_date', r.scheduled_date, 'scheduled_time', r.scheduled_time,
-    'tip_pkr', r.tip_pkr
+    'area', r.area, 'reference_distance_km', i.reference_distance_km, 'scheduled_date', r.scheduled_date, 'scheduled_time', r.scheduled_time,
+    'tip_pkr', r.tip_pkr, 'service_fee_floor_pkr', r.service_fee_floor_pkr
   ) ORDER BY i.invited_at), '[]'::jsonb)
   FROM city_purchase_invitations i
   JOIN city_purchase_requests r ON r.id = i.request_id
@@ -355,34 +575,26 @@ AS $function$
     AND EXISTS (SELECT 1 FROM vehicles v WHERE v.id = p_vehicle_id AND v.portal_user_id = current_portal_user_id());
 $function$;
 
--- ─── Saved requests ring the next driver who goes to that city ─────────
+-- ─── Saved one-way requests ring the next driver who goes to the city ──
 CREATE OR REPLACE FUNCTION ring_saved_city_purchases_for_vehicle(p_vehicle_id uuid) RETURNS int
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE r record; c record; v_count int := 0; v_portal uuid;
+DECLARE r record; v_count int := 0; v_kind varchar; v_tenant uuid;
 BEGIN
-  SELECT portal_user_id INTO v_portal FROM vehicles WHERE id = p_vehicle_id;
+  SELECT tenant_id INTO v_tenant FROM vehicles WHERE id = p_vehicle_id;
+  v_kind := vehicle_ride_kind(p_vehicle_id);
   FOR r IN
-    SELECT q.* FROM city_purchase_requests q
-    WHERE q.status IN ('no_answer', 'ringing')
+    SELECT q.id, q.initiator_portal_user_id FROM city_purchase_requests q
+    WHERE q.status IN ('no_answer', 'ringing') AND q.trip_preference = 'one_way' AND q.ride_type = v_kind
       AND COALESCE(q.scheduled_date, (now() AT TIME ZONE 'Asia/Karachi')::date) <= (now() AT TIME ZONE 'Asia/Karachi')::date + 1
       AND q.created_at > now() - interval '7 days'
+      AND q.tenant_id = v_tenant
       AND NOT EXISTS (SELECT 1 FROM city_purchase_invitations i WHERE i.request_id = q.id AND i.vehicle_id = p_vehicle_id)
-      AND q.tenant_id = (SELECT tenant_id FROM vehicles WHERE id = p_vehicle_id)
   LOOP
-    SELECT * INTO c FROM city_purchase_candidate_vehicles(r.city_id, r.pickup_lat, r.pickup_lng, r.urgency, r.initiator_portal_user_id) x
-    WHERE x.vehicle_id = p_vehicle_id LIMIT 1;
-    IF NOT FOUND THEN CONTINUE; END IF;
-    INSERT INTO city_purchase_invitations (request_id, vehicle_id, source, reference_destination)
-    VALUES (r.id, p_vehicle_id, c.source, c.reference_destination)
-    ON CONFLICT (request_id, vehicle_id) DO NOTHING;
-    UPDATE city_purchase_requests SET status = 'ringing' WHERE id = r.id AND status = 'no_answer';
-    IF v_portal IS NOT NULL THEN
+    IF city_purchase_invite(r.id) > 0 THEN
+      v_count := v_count + 1;
       INSERT INTO portal_notifications (portal_user_id, event_type, title, body, link)
-      VALUES (v_portal, 'city_purchase_invited', 'Saved purchase request for this city', r.item, '/portal/marketplace/city-purchase/' || r.id);
+      VALUES (r.initiator_portal_user_id, 'city_purchase_driver_found', 'A driver is going to the city', 'Your saved request has been sent to a driver.', '/portal/marketplace/city-purchase/' || r.id);
     END IF;
-    INSERT INTO portal_notifications (portal_user_id, event_type, title, body, link)
-    VALUES (r.initiator_portal_user_id, 'city_purchase_driver_found', 'A driver is going to the city', 'Your saved request has been sent to a driver.', '/portal/marketplace/city-purchase/' || r.id);
-    v_count := v_count + 1;
   END LOOP;
   RETURN v_count;
 END;
@@ -408,4 +620,6 @@ CREATE TRIGGER ring_saved_city_purchases AFTER INSERT ON vehicle_trip_offers FOR
 
 -- Internal helpers: not callable from the API directly.
 REVOKE ALL ON FUNCTION city_purchase_price(uuid, uuid, numeric) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION city_purchase_invite(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION ring_saved_city_purchases_for_vehicle(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION city_purchase_village_vehicles(uuid, uuid) FROM PUBLIC, anon, authenticated;
