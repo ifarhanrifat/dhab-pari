@@ -12,7 +12,8 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, MapPin, Phone, Clock, CheckCircle2, XCircle, Truck, PackageCheck, Paperclip, ShoppingBag } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Clock, CheckCircle2, XCircle, Truck, PackageCheck, Paperclip, ShoppingBag, Pencil } from 'lucide-react'
+import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -35,11 +36,13 @@ interface RequestDetail {
   // 777
   urgency?: string; trip_mode?: 'carry_back' | 'dedicated' | null; urgency_premium_pkr?: number; detour_km?: number | null
   approved_at?: string | null; driver_confirmed_at?: string | null; deliver_by?: string | null
+  trip_preference?: 'one_way' | 'two_way'; service_fee_floor_pkr?: number | null; area?: string
+  scheduled_date?: string | null; scheduled_time?: string | null
 }
 interface PriceQuote {
   trip_mode: 'carry_back' | 'dedicated'; leg_pkr: number; distance_fare_pkr: number; urgency_premium_pkr: number; urgency_premium_pct: number
   detour_km: number | null; detour_free_km: number; on_route: boolean; detour_fuel_pkr: number; addon_fee_pkr: number; tip_pkr: number
-  total_fare_pkr: number; deliver_within_hours: number; addon_min_pkr: number; addon_max_pkr: number
+  total_fare_pkr: number; deliver_within_hours: number | null; addon_min_pkr: number; addon_max_pkr: number; fee_floor_pkr?: number
 }
 interface Invitation { vehicle_id: string; owner_name: string; source: string; reference_destination: string | null; status: string; invited_at: string; responded_at: string | null }
 interface MyVehicleLite { id: string; owner_name: string }
@@ -64,6 +67,15 @@ export default function CityPurchaseDetailPage() {
   const [billPath, setBillPath] = useState<string | null>(null)
   const [quote, setQuote] = useState<PriceQuote | null>(null)
   const [riderChecked, setRiderChecked] = useState(false)
+  // Editing a request nobody has accepted yet (777's update_city_purchase_request).
+  const [editing, setEditing] = useState(false)
+  const [eItem, setEItem] = useState('')
+  const [eBudget, setEBudget] = useState('')
+  const [eUrgency, setEUrgency] = useState('standard')
+  const [eTip, setETip] = useState('0')
+  const [eDate, setEDate] = useState('')
+  const [eTime, setETime] = useState('')
+  const [ePref, setEPref] = useState<'one_way' | 'two_way'>('one_way')
 
   useEffect(() => {
     if (!user) return
@@ -95,12 +107,19 @@ export default function CityPurchaseDetailPage() {
     let live = true
     const id = setTimeout(() => {
       supabase.rpc('city_purchase_quote_for_vehicle', { p_request_id: requestId, p_vehicle_id: myVehicle.id, p_addon_fee_pkr: addonInput ? Number(addonInput) : null })
-        .then(({ data }) => { if (live && data) setQuote(data as PriceQuote) })
+        .then(({ data }) => {
+          if (!live || !data) return
+          const q = data as PriceQuote
+          setQuote(q)
+          // Start the driver at the committee's floor — he may ask more.
+          setAddonInput((cur) => cur || String(q.fee_floor_pkr ?? q.addon_min_pkr))
+        })
     }, 300)
     return () => { live = false; clearTimeout(id) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canRespond, myVehicle?.id, addonInput, requestId])
   const isAcceptedDriver = !!(myVehicle && request?.accepted_vehicle_id === myVehicle.id)
+  const isInitiator = !!(user && request?.initiator_portal_user_id === user.id)
 
   const decline = async () => {
     if (!myVehicle) return
@@ -129,6 +148,26 @@ export default function CityPurchaseDetailPage() {
     toast.success(t('vp.priceApprovedToast'))
     reload()
   }
+  const openEdit = () => {
+    if (!request) return
+    setEItem(request.item); setEBudget(String(request.goods_budget_pkr ?? 0)); setEUrgency(request.urgency ?? 'standard')
+    setETip(String(request.tip_pkr ?? 0)); setEDate(request.scheduled_date ?? new Date().toISOString().slice(0, 10))
+    setETime((request.scheduled_time ?? '').slice(0, 5)); setEPref(request.trip_preference ?? 'one_way')
+    setEditing(true)
+  }
+  const saveEdit = async () => {
+    setBusy(true)
+    const { error } = await supabase.rpc('update_city_purchase_request', {
+      p_request_id: requestId, p_item: eItem, p_goods_budget_pkr: Number(eBudget || 0), p_urgency: eUrgency, p_tip_pkr: Number(eTip || 0),
+      p_scheduled_date: eDate, p_scheduled_time: eTime || null, p_trip_preference: ePref,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('cpx.editedToast'))
+    setEditing(false)
+    reload()
+  }
+
   const confirmDeal = async () => {
     setBusy(true)
     const { error } = await supabase.rpc('confirm_city_purchase_deal', { p_request_id: requestId })
@@ -225,6 +264,13 @@ export default function CityPurchaseDetailPage() {
         </div>
       )}
 
+      {isInitiator && (request.status === 'ringing' || request.status === 'no_answer') && (
+        <div className="flex gap-2">
+          <button onClick={openEdit} disabled={busy} className="flex-1 h-11 rounded-2xl bg-white border border-[#e5e2d0] text-[#0f172a] text-[13.5px] font-bold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"><Pencil size={14} /> {t('cpx.editBtn')}</button>
+          <button onClick={cancel} disabled={busy} className="flex-1 h-11 rounded-2xl bg-[#fef2f2] text-[#b91c1c] text-[13.5px] font-bold cursor-pointer disabled:opacity-50">{t('vp.cancelCallBtn')}</button>
+        </div>
+      )}
+
       {request.status === 'ringing' && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
           <p className="text-[13px] font-bold text-amber-800 flex items-center gap-1.5"><Clock size={13} className="animate-pulse" /> {t('vp.ringingCityPurchaseLabel')}</p>
@@ -240,7 +286,7 @@ export default function CityPurchaseDetailPage() {
           {canRespond && (
             <div className="mt-3 pt-3 border-t border-amber-200 flex flex-col gap-2">
               <input type="number" value={addonInput} onChange={(e) => setAddonInput(e.target.value)} placeholder={t('vp.yourServiceFeePlaceholder')} className="dp2-input text-[13.5px] bg-white" />
-              <p className="text-[11px] text-[#64748b]">{t('vp.serviceFeeBandHint')}{quote ? <span className="ltr-num"> ({fmt(quote.addon_min_pkr)}–{fmt(quote.addon_max_pkr)})</span> : null}</p>
+              <p className="text-[11px] text-[#64748b]">{quote ? t('cpx.driverFeeHint').replace('{min}', fmt(quote.fee_floor_pkr ?? quote.addon_min_pkr)) : t('vp.serviceFeeBandHint')}</p>
               {quote && (
                 <div className="rounded-xl bg-white border border-amber-200 p-3 flex flex-col gap-1 text-[12px]">
                   <p className="font-bold text-[12.5px] text-[#1e293b]">{quote.trip_mode === 'carry_back' ? `🚗↩ ${t('cpx.carryTitle')}` : `🚗⇄ ${t('cpx.dedicatedTitle')}`}</p>
@@ -381,8 +427,41 @@ export default function CityPurchaseDetailPage() {
           on purpose — cancelling is blocked server-side there, the
           ReportProblemButton above is the real path once goods have
           actually changed hands. */}
-      {!isAcceptedDriver && ['ringing', 'priced', 'approved', 'purchased'].includes(request.status) && (
+      {isInitiator && ['priced', 'approved', 'purchased'].includes(request.status) && (
         <button onClick={cancel} disabled={busy} className="text-[12px] text-[#64748b] cursor-pointer disabled:opacity-50 w-fit">{t('vp.cancelCallBtn')}</button>
+      )}
+      {editing && (
+        <MobilityBottomSheet title={t('cpx.editTitle')} onClose={() => setEditing(false)}>
+          <div className="flex flex-col gap-2.5">
+            <textarea value={eItem} onChange={(e) => setEItem(e.target.value)} rows={3} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px] resize-none" />
+            <input type="number" value={eBudget} onChange={(e) => setEBudget(e.target.value)} placeholder={t('vp.goodsBudgetPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
+            {request.area !== 'out_of_city' && (
+              <div className="grid grid-cols-4 gap-1.5">
+                {(['standard', '3hr', '2hr', 'urgent'] as const).map((u) => (
+                  <button key={u} onClick={() => setEUrgency(u)} className="py-2 rounded-xl text-[12px] font-bold cursor-pointer border"
+                    style={{ background: eUrgency === u ? '#166534' : '#fff', color: eUrgency === u ? '#fff' : '#334155', borderColor: eUrgency === u ? '#166534' : '#e5e2d0' }}>{t(`cpx.time.${u}`)}</button>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-1.5">
+              {(['one_way', 'two_way'] as const).map((pref) => (
+                <button key={pref} onClick={() => setEPref(pref)} className="py-2 rounded-xl text-[12px] font-bold cursor-pointer border"
+                  style={{ background: ePref === pref ? '#166534' : '#fff', color: ePref === pref ? '#fff' : '#334155', borderColor: ePref === pref ? '#166534' : '#e5e2d0' }}>
+                  {pref === 'one_way' ? t('cpx.carryTitle') : t('cpx.dedicatedTitle')}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="date" value={eDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setEDate(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13px]" />
+              <input type="time" value={eTime} onChange={(e) => setETime(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13px]" />
+            </div>
+            <label className="text-[12px] font-semibold text-[#64748b]">{t('vp.additionalTipLabel')}
+              <input type="number" value={eTip} onChange={(e) => setETip(e.target.value)} className="mt-1 w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
+            </label>
+            <p className="text-[11px] text-[#64748b]">{t('cpx.editHint')}</p>
+            <button onClick={saveEdit} disabled={busy} className="w-full h-12 bg-[#166534] text-white rounded-2xl font-bold text-[14px] cursor-pointer disabled:opacity-50">{t('cpx.saveChanges')}</button>
+          </div>
+        </MobilityBottomSheet>
       )}
     </div>
   )

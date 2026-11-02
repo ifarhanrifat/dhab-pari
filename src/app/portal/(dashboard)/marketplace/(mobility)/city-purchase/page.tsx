@@ -43,14 +43,21 @@ import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface City { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null; is_home_city: boolean }
+interface Counts { bike: number; car: number }
 interface FeeEstimate {
   distance_fare_pkr: number; detour_fuel_pkr: number; tip_pkr: number; total_fee_pkr: number
-  // 777: what a driver already in / going to the city charges (one leg)
-  leg_pkr?: number; carry_total_fee_pkr?: number; detour_km?: number | null; carry_max_hours?: number
-  premium_pct_2hr?: number; premium_pct_1hr?: number; premium_pct_urgent?: number; present_vehicles?: number
+  // 777: the rider picks one way (driver already in / going to the city) or
+  // two way (a driver goes from the village); the service fee has a floor
+  // by area and delivery time.
+  leg_pkr?: number; detour_km?: number | null; fee_floor_pkr?: number; is_home_city?: boolean
+  one_way_total_pkr?: number; two_way_total_pkr?: number
+  fee_4h_pkr?: number; fee_3h_pkr?: number; fee_2h_pkr?: number; fee_now_pkr?: number; outstation_fee_pkr?: number
+  availability?: { in_city: Counts; in_village: Counts }
 }
-type Urgency = 'standard' | '2hr' | '1hr' | 'urgent'
-const URGENCIES: Urgency[] = ['standard', '2hr', '1hr', 'urgent']
+type Urgency = 'standard' | '3hr' | '2hr' | 'urgent'
+const URGENCIES: Urgency[] = ['standard', '3hr', '2hr', 'urgent']
+const URGENCY_FEE_KEY: Record<Urgency, 'fee_4h_pkr' | 'fee_3h_pkr' | 'fee_2h_pkr' | 'fee_now_pkr'> = { standard: 'fee_4h_pkr', '3hr': 'fee_3h_pkr', '2hr': 'fee_2h_pkr', urgent: 'fee_now_pkr' }
+type TripPref = 'one_way' | 'two_way'
 interface MyRequest { id: string; item: string; status: string; total_fare_pkr: number | null; estimated_fee_pkr: number | null; created_at: string; city_name: string; city_name_ur: string | null; as_role: string }
 type Area = 'city' | 'out_of_city'
 type RideType = 'bike' | 'car'
@@ -93,6 +100,7 @@ export default function CityPurchasePage() {
   const [rideType, setRideType] = useState<RideType>('bike')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [urgency, setUrgency] = useState<Urgency>('standard')
+  const [tripPref, setTripPref] = useState<TripPref>('one_way')
   const [posting, setPosting] = useState(false)
 
   useEffect(() => {
@@ -149,19 +157,18 @@ export default function CityPurchasePage() {
     let cancelled = false
     supabase.rpc('city_purchase_fee_estimate', {
       p_city_id: matchedCity.id, p_pickup_lat: pickupLoc.lat, p_pickup_lng: pickupLoc.lng, p_tip_pkr: tipPkr, p_ride_type: rideType,
+      p_urgency: urgency, p_area: area,
     }).then(({ data }) => { if (!cancelled) { setFeeEstimate((data as FeeEstimate) ?? null); setEstimating(false) } })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matchedCity?.id, pickupLoc?.lat, pickupLoc?.lng, tipPkr, rideType])
-  const totalFee = feeEstimate?.total_fee_pkr ?? 0
-  // A driver already in (or going to) the city carries it back on his way
-  // home — one leg; a driver sent specially from the village — both legs.
-  // Urgency only adds a premium to the carry-back price: it pays the
-  // in-city driver for cutting his stay short (777).
-  const premiumPct = urgency === 'standard' ? 0 : Number(feeEstimate?.[`premium_pct_${urgency}` as const] ?? 0)
-  const premium = Math.round(((feeEstimate?.leg_pkr ?? 0) * premiumPct / 100) / 10) * 10
-  const carryFee = (feeEstimate?.carry_total_fee_pkr ?? 0) + premium
-  const deliverHours = urgency === 'standard' ? (feeEstimate?.carry_max_hours ?? 4) : urgency === '2hr' ? 2 : 1
+  }, [matchedCity?.id, pickupLoc?.lat, pickupLoc?.lng, tipPkr, rideType, urgency, area])
+  // The in-city purchase is only for shops in the home city — a shop in
+  // another city is an out-of-city job (different fee and vehicle rules).
+  const wrongCity = area === 'city' && !!matchedCity && !matchedCity.is_home_city
+  const oneWayFee = feeEstimate?.one_way_total_pkr ?? 0
+  const twoWayFee = feeEstimate?.two_way_total_pkr ?? 0
+  const chosenFee = tripPref === 'two_way' ? twoWayFee : oneWayFee
+  const counts = (where: 'in_city' | 'in_village') => feeEstimate?.availability?.[where] ?? { bike: 0, car: 0 }
 
   const post = async () => {
     if (!pickupLoc) { toast.error(t('vp.pickupShopPlaceholder')); return }
@@ -170,14 +177,15 @@ export default function CityPurchasePage() {
     if (!scheduledDate) { toast.error(t('vp.scheduledDateRequired')); return }
     const city = nearestCity(pickupLoc)
     if (!city) { toast.error(t('vp.pickCityFirstError')); return }
+    if (area === 'city' && !city.is_home_city) { toast.error(t('cpx.wrongCity').replace('{city}', isUrdu && city.name_ur ? city.name_ur : city.name)); return }
     setPosting(true)
     const { data: requestId, error } = await supabase.rpc('create_city_purchase_request', {
       p_city_id: city.id, p_item: item.trim(), p_item_attachment_path: itemAttachmentPath,
       p_pickup_label: pickupLoc.label, p_pickup_lat: pickupLoc.lat, p_pickup_lng: pickupLoc.lng,
-      p_goods_budget_pkr: budget ? Number(budget) : 0, p_target_vehicle_id: null, p_urgency: urgency,
+      p_goods_budget_pkr: budget ? Number(budget) : 0, p_target_vehicle_id: null, p_urgency: area === 'out_of_city' ? 'standard' : urgency,
       p_delivery_label: deliveryLoc.label, p_delivery_lat: deliveryLoc.lat, p_delivery_lng: deliveryLoc.lng,
       p_area: area, p_ride_type: rideType, p_scheduled_date: scheduledDate, p_scheduled_time: scheduledTime || null,
-      p_tip_pkr: tipPkr, p_payment_method: paymentMethod,
+      p_tip_pkr: tipPkr, p_payment_method: paymentMethod, p_trip_preference: tripPref,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -300,48 +308,70 @@ export default function CityPurchasePage() {
         <input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder={t('vp.goodsBudgetPlaceholder')} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 text-[13.5px]" />
       </div>
 
-      <div>
-        <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('cpx.urgencyLabel')}</label>
-        <div className="grid grid-cols-4 gap-1.5">
-          {URGENCIES.map((u) => (
-            <button key={u} onClick={() => setUrgency(u)} className="px-1.5 py-2 rounded-xl text-[12px] font-bold cursor-pointer border leading-tight"
-              style={{ background: urgency === u ? (u === 'standard' ? '#166534' : '#b45309') : '#fff', color: urgency === u ? '#fff' : '#334155', borderColor: urgency === u ? 'transparent' : '#e5e2d0' }}>
-              {t(`cpx.urgency.${u}`).replace('{h}', String(feeEstimate?.carry_max_hours ?? 4))}
-            </button>
-          ))}
+      {wrongCity && (
+        <div className="rounded-2xl bg-[#fffbeb] border border-[#fde68a] p-3 flex flex-col gap-2">
+          <p className="text-[12.5px] font-bold text-[#92400e]">{t('cpx.wrongCity').replace('{city}', matchedCity ? (isUrdu && matchedCity.name_ur ? matchedCity.name_ur : matchedCity.name) : '')}</p>
+          <button onClick={() => setArea('out_of_city')} className="self-start px-3 py-1.5 rounded-xl bg-[#166534] text-white text-[12.5px] font-bold cursor-pointer">🚚 {t('cpx.switchOutOfCity')}</button>
         </div>
-        {urgency !== 'standard' && <p className="text-[11px] text-[#b45309] mt-1">{t('cpx.urgencyHint').replace('{pct}', String(premiumPct))}</p>}
-      </div>
+      )}
+
+      {area === 'city' ? (
+        <div>
+          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('cpx.urgencyLabel')}</label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {URGENCIES.map((u) => (
+              <button key={u} onClick={() => setUrgency(u)} className="px-1 py-2 rounded-xl cursor-pointer border leading-tight flex flex-col items-center"
+                style={{ background: urgency === u ? (u === 'standard' ? '#166534' : '#b45309') : '#fff', color: urgency === u ? '#fff' : '#334155', borderColor: urgency === u ? 'transparent' : '#e5e2d0' }}>
+                <span className="text-[12px] font-bold">{t(`cpx.time.${u}`)}</span>
+                <span className="text-[11px] font-semibold opacity-90 ltr-num">₨{fmt(feeEstimate?.[URGENCY_FEE_KEY[u]] ?? 0)}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-[#64748b] mt-1">{t('cpx.cityFeeHint')}</p>
+        </div>
+      ) : (
+        <div className="rounded-2xl bg-[#eff6ff] border border-[#bfdbfe] p-3">
+          <p className="text-[12.5px] font-bold text-[#1e3a8a]">{t('cpx.dayJobTitle')}</p>
+          <p className="text-[11.5px] text-[#1e3a8a] mt-0.5">{t('cpx.dayJobHint').replace('{fee}', fmt(feeEstimate?.outstation_fee_pkr ?? 700))}</p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
-        <p className="text-[12px] font-semibold text-[#64748b]">{estimating ? t('action.loading') : t('cpx.priceHeading').replace('{city}', matchedCity ? (isUrdu && matchedCity.name_ur ? matchedCity.name_ur : matchedCity.name) : '—')}</p>
-        <div className="rounded-2xl border-2 border-[#16a34a] bg-[#f0fdf4] p-3.5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[13.5px] font-extrabold text-[#14532d]">🚗↩ {t('cpx.carryTitle')}</p>
-              <p className="text-[11.5px] text-[#166534] mt-0.5 leading-snug">{t('cpx.carryHint').replace('{h}', String(deliverHours))}</p>
-              {!!feeEstimate?.present_vehicles && <p className="text-[11px] font-bold text-[#16a34a] mt-1">● {t('cpx.presentNow').replace('{n}', String(feeEstimate.present_vehicles))}</p>}
-            </div>
-            <span className="text-[18px] font-black text-[#14532d] shrink-0"><span className="ltr-num">₨{fmt(carryFee)}</span></span>
-          </div>
-          <div className="mt-2 pt-2 border-t border-[#bbf7d0] flex flex-col gap-0.5 text-[11.5px] text-[#166534]">
-            <div className="flex justify-between"><span>{t('cpx.oneLeg')}</span><span className="ltr-num">{fmt(feeEstimate?.leg_pkr ?? 0)}</span></div>
-            {premium > 0 && <div className="flex justify-between text-[#b45309] font-semibold"><span>{t('cpx.urgencyPremium')}</span><span className="ltr-num">{fmt(premium)}</span></div>}
-            {!!feeEstimate?.detour_fuel_pkr && <div className="flex justify-between"><span>{t('cpx.detourLine').replace('{km}', String(feeEstimate.detour_km ?? 0))}</span><span className="ltr-num">{fmt(feeEstimate.detour_fuel_pkr)}</span></div>}
-            {tipPkr > 0 && <div className="flex justify-between"><span>{t('vp.additionalTipLabel')}</span><span className="ltr-num">{fmt(tipPkr)}</span></div>}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-[#e5e2d0] bg-white p-3.5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[13.5px] font-extrabold text-[#1e293b]">🚗⇄ {t('cpx.dedicatedTitle')}</p>
-              <p className="text-[11.5px] text-[#64748b] mt-0.5 leading-snug">{t('cpx.dedicatedHint')}</p>
-            </div>
-            <span className="text-[16px] font-extrabold text-[#1e293b] shrink-0"><span className="ltr-num">₨{fmt(totalFee)}</span></span>
-          </div>
-        </div>
+        <p className="text-[12px] font-semibold text-[#64748b]">{estimating ? t('action.loading') : t('cpx.chooseTrip')}</p>
+        {(['one_way', 'two_way'] as const).map((pref) => {
+          const on = tripPref === pref
+          const c = counts(pref === 'one_way' ? 'in_city' : 'in_village')
+          return (
+            <button key={pref} onClick={() => setTripPref(pref)} className="w-full text-start rounded-2xl p-3.5 cursor-pointer border-2 transition-colors"
+              style={{ borderColor: on ? '#16a34a' : '#e5e2d0', background: on ? '#f0fdf4' : '#fff' }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex items-start gap-2.5">
+                  <span className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 ${on ? 'border-[#16a34a] bg-[#16a34a] shadow-[inset_0_0_0_3px_#f0fdf4]' : 'border-[#cbd5e1]'}`} />
+                  <div className="min-w-0">
+                    <p className="text-[13.5px] font-extrabold text-[#0f172a]">{pref === 'one_way' ? `🚗↩ ${t('cpx.carryTitle')}` : `🚗⇄ ${t('cpx.dedicatedTitle')}`}</p>
+                    <p className="text-[11.5px] text-[#475569] mt-0.5 leading-snug">{pref === 'one_way' ? t('cpx.oneWayHint') : t('cpx.dedicatedHint')}</p>
+                    <p className="text-[11.5px] font-bold mt-1.5 flex gap-3" style={{ color: c.bike + c.car > 0 ? '#15803d' : '#b91c1c' }}>
+                      <span>🏍️ {t('cpx.countBikes').replace('{n}', String(c.bike))}</span>
+                      <span>🚗 {t('cpx.countCars').replace('{n}', String(c.car))}</span>
+                      <span className="font-semibold text-[#64748b]">{pref === 'one_way' ? t('cpx.inCityNow') : t('cpx.inVillageNow')}</span>
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[17px] font-black text-[#14532d] shrink-0"><span className="ltr-num">₨{fmt(pref === 'one_way' ? oneWayFee : twoWayFee)}</span></span>
+              </div>
+              {on && (
+                <div className="mt-2 pt-2 border-t border-[#bbf7d0] flex flex-col gap-0.5 text-[11.5px] text-[#166534]">
+                  <div className="flex justify-between"><span>{pref === 'one_way' ? t('cpx.oneLeg') : t('cpx.twoLegs')}</span><span className="ltr-num">{fmt((feeEstimate?.leg_pkr ?? 0) * (pref === 'one_way' ? 1 : 2))}</span></div>
+                  <div className="flex justify-between"><span>{t('cpx.serviceFee')}</span><span className="ltr-num">{fmt(feeEstimate?.fee_floor_pkr ?? 0)}</span></div>
+                  {!!feeEstimate?.detour_fuel_pkr && <div className="flex justify-between"><span>{t('cpx.detourLine').replace('{km}', String(feeEstimate.detour_km ?? 0))}</span><span className="ltr-num">{fmt(feeEstimate.detour_fuel_pkr)}</span></div>}
+                  {tipPkr > 0 && <div className="flex justify-between"><span>{t('vp.additionalTipLabel')}</span><span className="ltr-num">{fmt(tipPkr)}</span></div>}
+                </div>
+              )}
+            </button>
+          )
+        })}
         <p className="text-[10.5px] text-[#94a3b8]">{t('cpx.detourRule')}</p>
-        <p className="text-[10.5px] text-[#94a3b8]">{t('vp.driverServiceFeeAddedLaterNote')} {t('vp.goodsCostSeparateNote')}</p>
+        <p className="text-[10.5px] text-[#94a3b8]">{area === 'out_of_city' ? t('cpx.driverMayRaise') : t('cpx.feeFixed')} {t('vp.goodsCostSeparateNote')}</p>
       </div>
 
       <div className="flex flex-col gap-1.5 text-[11.5px] text-[#1e3a5f] bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-2.5">
@@ -352,8 +382,8 @@ export default function CityPurchasePage() {
         <p>4. {t('cpx.step4')}</p>
       </div>
 
-      <button onClick={post} disabled={posting} className="w-full bg-[#166534] text-white rounded-xl py-3 font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2">
-        {posting ? t('action.saving') : <>{t('vp.sendRequestBtn')} <span className="ltr-num">· ₨{fmt(carryFee)}–{fmt(totalFee)}</span></>}
+      <button onClick={post} disabled={posting || wrongCity} className="w-full bg-[#166534] text-white rounded-xl py-3 font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2">
+        {posting ? t('action.saving') : <>{t('vp.sendRequestBtn')} <span className="ltr-num">· ₨{fmt(chosenFee)}</span></>}
       </button>
 
       {myRequests.length > 0 && (

@@ -19,7 +19,7 @@ export function MobilityBottomNav() {
 
   const tabs = [
     { key: 'home', href: '/portal/marketplace/travel', emoji: '🏠', label: t('mb.navHome'), active: pathname === '/portal/marketplace/travel' || pathname === '/portal/marketplace/results' },
-    { key: 'bus', href: '/portal/marketplace/buses', emoji: '🚌', label: t('mb.navBuses'), active: pathname.startsWith('/portal/marketplace/buses') || pathname.startsWith('/portal/marketplace/route/') },
+    { key: 'bus', href: '/portal/marketplace/buses', emoji: '🚐', label: t('mb.navBuses'), active: pathname.startsWith('/portal/marketplace/buses') || pathname.startsWith('/portal/marketplace/route/') },
     { key: 'mach', href: '/portal/marketplace/machinery', emoji: '🏗️', label: t('mb.navMachinery'), active: pathname.startsWith('/portal/marketplace/machinery') || pathname.startsWith('/portal/marketplace/tractor') || pathname.startsWith('/portal/marketplace/loader') },
     { key: 'trips', href: '/portal/marketplace/trips', emoji: '🧾', label: t('mb.navBookings'), active: pathname.startsWith('/portal/marketplace/trips') },
     { key: 'chat', href: '/portal/marketplace/negotiations', emoji: '💬', label: t('mb.navChat'), active: pathname.startsWith('/portal/marketplace/negotiations') },
