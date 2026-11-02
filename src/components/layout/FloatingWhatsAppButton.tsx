@@ -7,11 +7,15 @@ import { useSite } from '@/components/layout/SiteProvider'
 // Click-to-chat: opens the visitor's own WhatsApp with our number
 // pre-filled — no third-party service, no backend, same wa.me pattern used
 // everywhere else in this app. Visible on every public/portal page; hidden
-// on /admin since staff already work from inside the dashboard.
+// on /admin since staff already work from inside the dashboard, and on the
+// vehicle/marketplace screens (2026-11-02 ask) where FloatingBookingsHub
+// already owns that same corner — a driver mid-booking doesn't need a
+// second floating control competing for the same spot.
 export function FloatingWhatsAppButton() {
   const pathname = usePathname()
   const site = useSite()
   if (pathname?.startsWith('/admin')) return null
+  if (pathname?.startsWith('/portal/my-vehicle') || pathname?.startsWith('/portal/marketplace')) return null
   // A tenant that hasn't set a WhatsApp number yet gets no floating button
   // at all, rather than a dead link to nowhere.
   if (!site.whatsappLink) return null
