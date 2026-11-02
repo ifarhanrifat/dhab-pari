@@ -1,18 +1,28 @@
--- Migration 779: show the rider's pickup location on the driver's
--- incoming ride-dispatch request card, 2026-11-02 ask — "the location
--- of the rider will be also shown on the request in a clear beautiful
--- stylish way." my_pending_ride_dispatch_requests (758) already hands
--- the driver pickup_label/dropoff_label as plain text; ride_dispatch_
--- requests itself already carries pickup_lat/pickup_lng (used by
--- accept_ride_dispatch's own fare math, 764) — just never surfaced to
--- this RPC's output. Reproduced from its real, current body (758) with
--- the two coordinate fields added to the jsonb object; every other
--- line, join and WHERE clause is untouched.
+-- Migration 779: show the rider's pickup location — and how far it is
+-- from the driver right now — on the driver's incoming ride-dispatch
+-- request card, 2026-11-02 ask — "the location of the rider will be
+-- also shown on the request in a clear beautiful stylish way... can we
+-- add those 6kms into rider fare? how do modern apps handle this?"
+-- Decided against changing the fare (that's not how Uber/Careem/inDrive
+-- do it — they let the driver see the pickup distance and decide
+-- whether to accept, which is what this migration actually enables).
+--
+-- my_pending_ride_dispatch_requests (758) already hands the driver
+-- pickup_label/dropoff_label as plain text; ride_dispatch_requests
+-- itself already carries pickup_lat/pickup_lng (used by accept_ride_
+-- dispatch's own fare math, 764), and vehicles.current_lat/current_lng
+-- (683) already tracks where this exact vehicle last reported itself —
+-- neither was ever surfaced to this RPC's output, and `v` (the caller's
+-- own vehicle row) is already joined here for the eligibility check.
+-- Reproduced from its real, current body (758) with the four
+-- coordinate fields added to the jsonb object; every other line, join
+-- and WHERE clause is untouched.
 
 CREATE OR REPLACE FUNCTION my_pending_ride_dispatch_requests(p_vehicle_id uuid) RETURNS jsonb AS $$
   SELECT COALESCE(jsonb_agg(jsonb_build_object(
     'id', r.id, 'pickup_label', r.pickup_label, 'dropoff_label', r.dropoff_label, 'fare_pkr', r.fare_pkr,
     'pickup_lat', r.pickup_lat, 'pickup_lng', r.pickup_lng,
+    'driver_lat', v.current_lat, 'driver_lng', v.current_lng,
     'category_name', c.name, 'category_name_ur', c.name_ur, 'category_emoji', c.emoji, 'created_at', r.created_at,
     'rider_trust', portal_user_trust(r.initiator_portal_user_id), 'rider_tenant_name', rt.name
   ) ORDER BY r.created_at), '[]'::jsonb)

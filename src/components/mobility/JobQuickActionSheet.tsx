@@ -44,6 +44,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { fetchPendingRequestRows } from '@/lib/driverRequestRows'
 import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
+import { haversineKm } from '@/lib/roadRoute'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -69,9 +70,13 @@ export interface QuickActionRow {
   from?: string
   to?: string
   // ride_dispatch only — the rider's real pickup point, shown as a
-  // small map preview on the request card (2026-11-02 ask).
+  // small map preview on the request card, and the driver's own last-
+  // known position so the card can show how far that pickup actually
+  // is before the driver decides to accept (2026-11-02 ask).
   pickupLat?: number | null
   pickupLng?: number | null
+  driverLat?: number | null
+  driverLng?: number | null
   customerName?: string
   facts?: { icon: QuickActionFactIcon; text: string }[]
   note?: string | null
@@ -241,6 +246,13 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
   // an empty end. The subtitle is only worth a line of its own when it
   // isn't already shown as the route or the headline.
   const singlePlace = route ? null : (row.from || row.to || (row.subtitle && row.subtitle !== row.title ? row.subtitle : null))
+  // Real ask, 2026-11-02: "how far is the rider" should be visible
+  // before the driver decides to accept, not discovered after — decided
+  // against folding it into the fare (not how Uber/Careem/inDrive do
+  // it), so this is purely informational, shown right next to the fare.
+  const pickupDistanceKm = row.pickupLat != null && row.pickupLng != null && row.driverLat != null && row.driverLng != null
+    ? haversineKm({ lat: row.driverLat, lng: row.driverLng }, { lat: row.pickupLat, lng: row.pickupLng })
+    : null
 
   if (rideBookingId) return <RideLifecycleSheet bookingId={rideBookingId} onClose={() => { setRideBookingId(null); onClose() }} />
 
@@ -282,12 +294,19 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
             </div>
           </div>
 
-          {row.amount != null && (
-            <div className="mt-4">
-              <p className="font-sans text-[11.5px] font-semibold text-white/80">{t(theme.amountKey)}</p>
-              <p className="font-sans text-[32px] font-black leading-none mt-1"><span className="ltr-num">₨{fmt(row.amount)}</span></p>
-            </div>
-          )}
+          <div className="flex items-end justify-between mt-4 gap-3">
+            {row.amount != null && (
+              <div className="min-w-0">
+                <p className="font-sans text-[11.5px] font-semibold text-white/80">{t(theme.amountKey)}</p>
+                <p className="font-sans text-[32px] font-black leading-none mt-1"><span className="ltr-num">₨{fmt(row.amount)}</span></p>
+              </div>
+            )}
+            {pickupDistanceKm != null && (
+              <span className="shrink-0 inline-flex items-center gap-1 bg-white/20 backdrop-blur px-2.5 py-1.5 rounded-full font-sans text-[12.5px] font-bold">
+                <MapPin size={13} /> <span className="ltr-num">{pickupDistanceKm < 1 ? `${Math.round(pickupDistanceKm * 1000)} m` : `${pickupDistanceKm.toFixed(1)} km`}</span> {t('rq.pickupDistanceSuffix')}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Body sits over the hero's bottom edge, like a card pulled up */}

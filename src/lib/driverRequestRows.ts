@@ -193,11 +193,11 @@ export async function fetchPendingRequestRows(supabase: Supabase, kind: QuickAct
   }
   if (kind === 'ride_dispatch') {
     const { data } = await supabase.rpc('my_pending_ride_dispatch_requests', { p_vehicle_id: vehicleId })
-    return ((data ?? []) as { id: string; pickup_label: string; dropoff_label: string; fare_pkr: number; pickup_lat: number | null; pickup_lng: number | null; category_emoji: string; category_name: string; category_name_ur: string | null; rider_trust: Trust; rider_tenant_name: string }[])
+    return ((data ?? []) as { id: string; pickup_label: string; dropoff_label: string; fare_pkr: number; pickup_lat: number | null; pickup_lng: number | null; driver_lat: number | null; driver_lng: number | null; category_emoji: string; category_name: string; category_name_ur: string | null; rider_trust: Trust; rider_tenant_name: string }[])
       .map((r) => ({
         id: r.id, type: 'ride_dispatch', title: `${r.category_emoji} ${loc(ctx, r.category_name, r.category_name_ur)}`, subtitle: `${r.pickup_label} → ${r.dropoff_label}`,
         amount: r.fare_pkr, href: `/portal/marketplace/ride-dispatch/${r.id}`, needsAction: true,
-        from: r.pickup_label, to: r.dropoff_label, pickupLat: r.pickup_lat, pickupLng: r.pickup_lng,
+        from: r.pickup_label, to: r.dropoff_label, pickupLat: r.pickup_lat, pickupLng: r.pickup_lng, driverLat: r.driver_lat, driverLng: r.driver_lng,
         riderTrust: r.rider_trust, riderVillage: r.rider_tenant_name, facts: [],
       }))
   }

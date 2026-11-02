@@ -32,8 +32,9 @@ import dynamic from 'next/dynamic'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
-import { Search, Home as HomeIcon, Loader2 } from 'lucide-react'
+import { Search, Home as HomeIcon, Loader2, Pencil } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { usePortalUser } from '@/hooks/usePortalUser'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityServiceTile } from '@/components/mobility/MobilityServiceTile'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
@@ -159,6 +160,7 @@ export default function MobilityHomePage() {
   const router = useRouter()
   const supabase = createClient()
   const beltRef = useAutoScrollBelt(isUrdu)
+  const { user, refresh: refreshUser } = usePortalUser()
 
   const [cities, setCities] = useState<City[]>([])
   const [origin, setOrigin] = useState<{ lat: number; lng: number; name: string; id: string } | null>(null)
@@ -167,6 +169,7 @@ export default function MobilityHomePage() {
   const [destPin, setDestPin] = useState<PickedLocation | null>(null)
   const [showOriginPicker, setShowOriginPicker] = useState(false)
   const [showDestPicker, setShowDestPicker] = useState(false)
+  const [showHomePicker, setShowHomePicker] = useState(false)
 
   // "Go Home" — a separate small flow inside the same card: pick which
   // city you're currently in, see today's return-leg seats going back
@@ -210,6 +213,23 @@ export default function MobilityHomePage() {
     if (withCoords.length === 0) return
     const nearest = withCoords.reduce((best, c) => haversineKm(loc, { lat: c.lat!, lng: c.lng! }) < haversineKm(loc, { lat: best.lat!, lng: best.lng! }) ? c : best)
     setToCity(nearest)
+  }
+
+  // Real ask, 2026-11-02: "ghar" in the destination belt — a personal
+  // saved pin (this rider's own house), separate from the existing
+  // "Go Home" flow (which asks which CITY you're in and finds an
+  // existing return-leg seat; this instead books a direct ride straight
+  // to a specific point, same as picking any other destination).
+  const saveHome = async (loc: PickedLocation) => {
+    setShowHomePicker(false)
+    const { error } = await supabase.from('portal_users').update({ home_lat: loc.lat, home_lng: loc.lng, home_label: loc.label }).eq('id', user!.id)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    await refreshUser()
+    confirmDestPin(loc)
+  }
+  const selectHome = () => {
+    if (user?.home_lat == null || user?.home_lng == null) { setShowHomePicker(true); return }
+    confirmDestPin({ lat: user.home_lat, lng: user.home_lng, label: user.home_label ?? t('mb.gharLabel') })
   }
 
   const openGoHome = () => {
@@ -297,6 +317,15 @@ export default function MobilityHomePage() {
             onClose={() => setShowDestPicker(false)}
             onConfirm={confirmDestPin}
           />
+        ) : showHomePicker ? (
+          <LocationPickerSheet
+            title={t('mb.chooseYourHomeHeading')}
+            initial={user?.home_lat != null && user?.home_lng != null ? { lat: user.home_lat, lng: user.home_lng, label: user.home_label ?? t('mb.gharLabel') } : null}
+            defaultCenter={origin ? [origin.lat, origin.lng] : [SITE.lat, SITE.lng]}
+            inline
+            onClose={() => setShowHomePicker(false)}
+            onConfirm={saveHome}
+          />
         ) : showGoHome ? (
           <>
             <div className="flex items-center justify-between">
@@ -357,6 +386,29 @@ export default function MobilityHomePage() {
 
             <div className="-mx-3.5 px-3.5 overflow-x-auto">
               <div className="flex gap-1.5 w-max">
+                {/* Real ask, 2026-11-02: the separate "Ghar" button folded
+                    into this same belt as its first chip — unset shows
+                    "Choose your home" and opens the picker; once set it
+                    shows "Ghar" and selects it as the destination like any
+                    other chip, with its own small edit icon to re-pick it
+                    without leaving this screen. */}
+                {(() => {
+                  const hasHome = user?.home_lat != null && user?.home_lng != null
+                  const on = hasHome && destPin?.lat === user!.home_lat && destPin?.lng === user!.home_lng
+                  return (
+                    <button onClick={selectHome}
+                      className="shrink-0 pl-2.5 pr-1.5 py-1 rounded-full text-[9.5px] font-semibold whitespace-nowrap cursor-pointer border flex items-center gap-1"
+                      style={{ background: on ? '#166534' : '#fff', color: on ? '#fff' : '#334155', borderColor: on ? '#166534' : '#D4AF37' }}>
+                      <HomeIcon size={10} /> {hasHome ? t('mb.gharLabel') : t('mb.chooseYourHomeLabel')}
+                      {hasHome && (
+                        <span onClick={(e) => { e.stopPropagation(); setShowHomePicker(true) }}
+                          className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ background: on ? 'rgba(255,255,255,0.25)' : '#f1f5f9' }}>
+                          <Pencil size={8} />
+                        </span>
+                      )}
+                    </button>
+                  )
+                })()}
                 {cities.map((c) => {
                   const on = toCity?.id === c.id
                   return (

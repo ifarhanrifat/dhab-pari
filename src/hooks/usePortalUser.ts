@@ -38,6 +38,9 @@ export interface PortalUser {
   notify_weather_alerts: boolean
   notify_general_appeals: boolean
   ride_request_tone: string
+  home_lat: number | null
+  home_lng: number | null
+  home_label: string | null
 }
 
 // Single source of truth for "who is the logged-in portal user" — mirrors
@@ -53,7 +56,7 @@ export function usePortalUser() {
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) { setLoading(false); return }
     const { data } = await supabase.from('portal_users')
-      .select('id, full_name, name_ur, mobile, whatsapp_number, father_husband_name, donor_type, country, sector, avatar_url, username, email, display_name, consumer_id, donor_account_id, donor_link_confirmed_at, gender, profession, profession_other, education_level, education_details, is_currently_studying, seeking_mentorship, is_minor, guardian_name, guardian_mobile, phone_private, mentor_type, mentor_status, mentor_bio, mentor_expertise, mentor_available, notify_weather_alerts, notify_general_appeals, ride_request_tone')
+      .select('id, full_name, name_ur, mobile, whatsapp_number, father_husband_name, donor_type, country, sector, avatar_url, username, email, display_name, consumer_id, donor_account_id, donor_link_confirmed_at, gender, profession, profession_other, education_level, education_details, is_currently_studying, seeking_mentorship, is_minor, guardian_name, guardian_mobile, phone_private, mentor_type, mentor_status, mentor_bio, mentor_expertise, mentor_available, notify_weather_alerts, notify_general_appeals, ride_request_tone, home_lat, home_lng, home_label')
       .eq('auth_user_id', authUser.id).single()
     setUser(data ?? null)
     setLoading(false)
