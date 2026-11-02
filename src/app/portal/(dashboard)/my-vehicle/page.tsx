@@ -35,7 +35,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext'
-import { useVehicleLocationRefresh } from '@/hooks/useVehicleLocationRefresh'
+import { getCurrentPositionOnce } from '@/hooks/useLiveLocation'
 import { CityReturnDemandCard } from '@/components/mobility/CityReturnDemandCard'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
 import { fetchRoadRoute, type RoadRoute } from '@/lib/roadRoute'
@@ -147,7 +147,10 @@ export default function MyVehicleHomePage() {
     })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useVehicleLocationRefresh(vehicle?.id ?? null, vehicle?.is_online ?? false)
+  // Periodic refresh (useVehicleLocationRefresh) now lives at the
+  // my-vehicle/layout.tsx level, not here — see that hook's own header
+  // comment for why it was moved and why it now uses the Capacitor-
+  // aware getCurrentPositionOnce() below instead of raw navigator.geolocation.
 
   const toggleOnline = async () => {
     if (!vehicle) return
@@ -161,13 +164,11 @@ export default function MyVehicleHomePage() {
     // without a location on file for that session (same as before this
     // change existed at all) -- never block the actual toggle on it.
     let lat: number | null = null, lng: number | null = null
-    if (goingOnline && typeof navigator !== 'undefined' && navigator.geolocation) {
+    if (goingOnline) {
       try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, maximumAge: 60000 })
-        )
-        lat = pos.coords.latitude
-        lng = pos.coords.longitude
+        const pos = await getCurrentPositionOnce()
+        lat = pos.lat
+        lng = pos.lng
       } catch { /* denied/unavailable — go online anyway, without a location */ }
     }
 

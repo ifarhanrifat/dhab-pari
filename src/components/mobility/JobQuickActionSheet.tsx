@@ -44,7 +44,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { fetchPendingRequestRows } from '@/lib/driverRequestRows'
 import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
-import { haversineKm } from '@/lib/roadRoute'
+import { haversineKm, fetchRoadRoute } from '@/lib/roadRoute'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -194,6 +194,22 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
   // City purchase: what this driver would actually earn — carry-back
   // (one leg) if he's already going there, else a special trip (777).
   const [cpQuote, setCpQuote] = useState<{ trip_mode: string; total_fare_pkr: number; deliver_within_hours: number; on_route: boolean } | null>(null)
+  // Real ask, 2026-11-03: "there is no distance or route showing on
+  // this request map, driver own location is not visible there too
+  // neither the route map was showing" — the map only ever drew the
+  // rider's pickup pin. Now draws both the driver's last-known position
+  // (vehicles.current_lat/lng, kept fresh by useVehicleLocationRefresh)
+  // and a real OSRM road path between them, same source
+  // results/page.tsx's own trip-preview map already uses.
+  const [driverRoute, setDriverRoute] = useState<{ lat: number; lng: number }[] | null>(null)
+  useEffect(() => {
+    if (baseRow.pickupLat == null || baseRow.pickupLng == null || baseRow.driverLat == null || baseRow.driverLng == null) return
+    let live = true
+    fetchRoadRoute({ lat: baseRow.driverLat, lng: baseRow.driverLng }, { lat: baseRow.pickupLat, lng: baseRow.pickupLng })
+      .then((r) => { if (live) setDriverRoute(r.path) })
+      .catch(() => { if (live) setDriverRoute(null) })
+    return () => { live = false }
+  }, [baseRow.pickupLat, baseRow.pickupLng, baseRow.driverLat, baseRow.driverLng])
   useEffect(() => {
     if (baseRow.type !== 'city_purchase' || !baseRow.needsAction || !vehicleId) return
     let live = true
@@ -354,10 +370,26 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
               its plain text-only card above. */}
           {row.pickupLat != null && row.pickupLng != null && (
             <div className="rounded-2xl overflow-hidden border border-[#e8eaee] relative">
-              <LeafletMap height="120px" pins={[{ lat: row.pickupLat, lng: row.pickupLng, label: t('rq.pickup'), color: '#16a34a' } as LeafletPin]} center={[row.pickupLat, row.pickupLng]} zoom={14} />
+              <LeafletMap
+                height="150px"
+                zoom={14}
+                center={[row.pickupLat, row.pickupLng]}
+                route={driverRoute ?? undefined}
+                pins={[
+                  { lat: row.pickupLat, lng: row.pickupLng, label: t('rq.riderLocationLabel'), emoji: '📍', color: '#16a34a' } as LeafletPin,
+                  ...(row.driverLat != null && row.driverLng != null
+                    ? [{ lat: row.driverLat, lng: row.driverLng, label: t('rq.yourLocationLabel'), isVehicle: true } as LeafletPin]
+                    : []),
+                ]}
+              />
               <span className="absolute top-2 start-2 bg-white/95 backdrop-blur px-2 py-0.5 rounded-full font-sans text-[10.5px] font-bold text-[#166534] shadow-sm flex items-center gap-1">
                 <MapPin size={11} /> {t('rq.riderLocationLabel')}
               </span>
+              {row.driverLat == null && (
+                <span className="absolute bottom-2 start-2 end-2 bg-amber-50/95 backdrop-blur px-2.5 py-1 rounded-lg font-sans text-[10.5px] font-semibold text-amber-800 shadow-sm">
+                  {t('rq.yourLocationUnknownNote')}
+                </span>
+              )}
             </div>
           )}
 

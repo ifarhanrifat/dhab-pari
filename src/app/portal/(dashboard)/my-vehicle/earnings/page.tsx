@@ -7,9 +7,9 @@
 // toy demo number. Moved here unchanged in substance from the old
 // my-vehicle/page.tsx dashboard — only the chrome and classes changed.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 import Link from 'next/link'
-import { Wallet, MessageCircle, Lock } from 'lucide-react'
+import { Wallet, MessageCircle, Lock, Bus, CarFront, Clock, PartyPopper, ShoppingBag, Truck, Tractor, Car, Info } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -19,11 +19,22 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 interface Summary {
   balance_pkr: number; commission_mode: string; lumpsum_fee_pkr: number | null
   today_earnings_pkr: number; month_earnings_pkr: number; today_jobs_count: number; month_jobs_count: number; pending_bookings_count: number
+  commission_pct: number
   last_settlement_date: string | null; last_settlement_amount: number | null
 }
 interface LedgerRow { kind: string; label: string; amount: number; at: string }
 interface PendingTopup { id: string; amount_pkr: number; announced_at: string }
 interface StatementRow { id: string; voucher_no: string; date: string; particular: string; amount_pkr: number; direction: 'debit' | 'credit'; created_at: string }
+interface BreakdownRow { kind: string; count: number; amount_pkr: number }
+interface Breakdown { today: BreakdownRow[]; month: BreakdownRow[] }
+
+// Same job-kind set vehicle_today_ledger/vehicle_earnings_breakdown
+// (782) tag their rows with — one icon per real line of business this
+// vehicle can earn from, not a single generic "job" icon, so a driver
+// can tell at a glance which kind of work paid what.
+const KIND_ICON: Record<string, ComponentType<{ size?: number; className?: string }>> = {
+  route: Bus, trip: CarFront, hourly: Clock, shadi: PartyPopper, delivery: ShoppingBag, dispatch: Truck, equipment: Tractor, rental: Car,
+}
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -44,20 +55,24 @@ export default function MyVehicleEarningsPage() {
   const [negotiationInbox, setNegotiationInbox] = useState<{ id: string; kind: string; status: string; item: string | null; last_message: string | null; as_role: string }[]>([])
   const [statement, setStatement] = useState<StatementRow[]>([])
   const [showStatement, setShowStatement] = useState(false)
+  const [breakdown, setBreakdown] = useState<Breakdown>({ today: [], month: [] })
+  const [period, setPeriod] = useState<'today' | 'month'>('today')
 
   const reload = async (id: string) => {
-    const [{ data: s }, { data: led }, { data: inbox }, { data: topups }, { data: stmt }] = await Promise.all([
+    const [{ data: s }, { data: led }, { data: inbox }, { data: topups }, { data: stmt }, { data: bd }] = await Promise.all([
       supabase.rpc('vehicle_dashboard_summary', { p_vehicle_id: id }),
       supabase.rpc('vehicle_today_ledger', { p_vehicle_id: id }),
       supabase.rpc('my_negotiation_threads'),
       supabase.from('vehicle_wallet_topups').select('id, amount_pkr, announced_at').eq('vehicle_id', id).eq('status', 'announced').order('announced_at', { ascending: false }),
       supabase.rpc('vehicle_wallet_statement', { p_vehicle_id: id }),
+      supabase.rpc('vehicle_earnings_breakdown', { p_vehicle_id: id }),
     ])
     setSummary(s as unknown as Summary)
     setLedger((led ?? []) as LedgerRow[])
     setNegotiationInbox(((inbox ?? []) as typeof negotiationInbox).filter((th) => th.as_role === 'driver'))
     setPendingTopups((topups ?? []) as PendingTopup[])
     setStatement((stmt ?? []) as StatementRow[])
+    setBreakdown((bd as unknown as Breakdown) ?? { today: [], month: [] })
   }
 
   useEffect(() => {
@@ -81,18 +96,58 @@ export default function MyVehicleEarningsPage() {
         <span className="font-sans text-[10.5px] text-[#64748b]">· {t('vp.billingModeLockNote')}</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5">
-        <div className="bg-[#166534] rounded-2xl p-4">
-          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-white/75">{t('mv.thisMonthLabel')}</p>
-          <p className="font-bold text-[22px] text-white mt-1 ltr-num">{fmt(summary?.month_earnings_pkr ?? 0)}</p>
-          <p className="font-sans text-[11.5px] text-white/75 mt-0.5 ltr-num">{summary?.month_jobs_count ?? 0} {t('mv.jobsSuffix')}</p>
+      {/* Real ask, 2026-11-03: "deeply look at this page design... how
+          we will show here for the village driver which mostly are
+          uneducated so they can view easily as per the rides and types
+          we are having here." Two side-by-side numbers never showed
+          WHAT paid — this is a single big total for whichever period
+          is selected, plus the real per-job-type breakdown underneath
+          (vehicle_earnings_breakdown, 782) so a driver can see "3 رائیڈ،
+          1 شادی" instead of just one opaque sum. */}
+      <div className="bg-[#005A36] rounded-2xl p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/15 w-fit">
+          {(['today', 'month'] as const).map((p) => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className="px-3.5 py-1.5 rounded-[9px] font-sans text-[12px] font-bold cursor-pointer"
+              style={{ background: period === p ? '#fff' : 'transparent', color: period === p ? '#005A36' : '#fff' }}>
+              {t(p === 'today' ? 'mv.todayLabel' : 'mv.thisMonthLabel')}
+            </button>
+          ))}
         </div>
-        <div className="bg-[#005A36] rounded-2xl p-4">
-          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-white/75">{t('mv.todayLabel')}</p>
-          <p className="font-bold text-[22px] text-white mt-1 ltr-num">{fmt(summary?.today_earnings_pkr ?? 0)}</p>
-          <p className="font-sans text-[11.5px] text-white/75 mt-0.5 ltr-num">{summary?.today_jobs_count ?? 0} {t('mv.jobsSuffix')}</p>
+        <div>
+          <p className="font-bold text-[34px] text-white leading-none ltr-num">
+            {fmt(period === 'today' ? (summary?.today_earnings_pkr ?? 0) : (summary?.month_earnings_pkr ?? 0))}
+          </p>
+          <p className="font-sans text-[12px] text-white/75 mt-1.5 ltr-num">
+            {period === 'today' ? (summary?.today_jobs_count ?? 0) : (summary?.month_jobs_count ?? 0)} {t('mv.jobsSuffix')}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1.5 bg-white/10 rounded-xl p-2.5">
+          {(period === 'today' ? breakdown.today : breakdown.month).length === 0 ? (
+            <p className="font-sans text-[12px] text-white/70 px-1 py-1">{t('mv.noEarningsYetNote')}</p>
+          ) : (period === 'today' ? breakdown.today : breakdown.month).map((row) => {
+            const KindIcon = KIND_ICON[row.kind] ?? Car
+            return (
+              <div key={row.kind} className="flex items-center gap-2.5 px-1 py-1">
+                <span className="shrink-0 w-8 h-8 rounded-full bg-white/15 flex items-center justify-center"><KindIcon size={15} className="text-white" /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-sans text-[13px] font-bold text-white">{t(`mv.ledgerKind.${row.kind}`)}</p>
+                  <p className="font-sans text-[10.5px] text-white/70 ltr-num">{row.count} {t('mv.jobsSuffix')}</p>
+                </div>
+                <p className="font-sans text-[14px] font-extrabold text-white shrink-0 ltr-num">{fmt(row.amount_pkr)}</p>
+              </div>
+            )
+          })}
         </div>
       </div>
+
+      {summary?.commission_mode === 'per_order' && (
+        <div className="flex items-start gap-2 bg-sky-50 border border-sky-200 rounded-xl p-2.5">
+          <Info size={14} className="text-sky-700 shrink-0 mt-0.5" />
+          <p className="font-sans text-[12px] text-sky-900 leading-[1.6]">{t('mv.commissionOwedExplainer').replace('{pct}', String(summary.commission_pct ?? 0))}</p>
+        </div>
+      )}
 
       <div className="rounded-2xl p-3.5 border" style={{ background: (summary?.balance_pkr ?? 0) < 0 ? '#fffbeb' : '#fff', borderColor: (summary?.balance_pkr ?? 0) < 0 ? '#fde68a' : '#e5e2d0' }}>
         <div className="flex items-center justify-between gap-2">

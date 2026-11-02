@@ -58,7 +58,25 @@ interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_per_seat_pkr: number; vehicle_id: string; owner_name: string
 }
-interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean }
+interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean; ride_group: string | null; variant_filter: string | null }
+// Real ask, 2026-11-03: "this is how the professional apps are showing
+// categories... small cars, cars above 1000cc, suvs, bikes, rickshaws —
+// only 5 or 6 categories will be displayed, there will be no hiace or
+// any other vehicle there in that card." The flat category grid below
+// used to list every raw vehicle_categories row (every car model, both
+// AC tiers, every van) as its own button — see migration 781's header
+// comment for the full real cause. RideGroupOption is the new, coarser
+// rider-facing tile; ride_group_options() (781) is the one place that
+// decides which 5 exist and what filter each one offers, so the
+// mapping never has to be duplicated here.
+interface RideGroupFilterOption { value: string; emoji: string }
+// label/label_ur are only ever set by the Loading tab's synthetic,
+// single-category "group" (rickshaw_loading, suzuki_ravi_dala — real
+// vehicle_categories rows with no dedicated page, self-mapped to their
+// own key in 781 so they share this same sheet) — the real 5-tile
+// passenger groups from ride_group_options() never set them and use
+// the mb.rideGroup.<key> i18n label instead.
+interface RideGroupOption { ride_group: string; emoji: string; filter_dimension: string | null; filter_options: RideGroupFilterOption[]; label?: string; label_ur?: string | null }
 // Real ask, 2026-10-28: "it should need to replace with the cars,
 // bikes, machinery, loading etc so when user will select the cars so
 // only all kind of cars and SUVs etc will appear and not machines and
@@ -133,6 +151,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
   )
   const [showPickupPicker, setShowPickupPicker] = useState(false)
   const [categories, setCategories] = useState<VehicleCategory[]>([])
+  const [rideGroups, setRideGroups] = useState<RideGroupOption[]>([])
   const [distanceKm, setDistanceKm] = useState<number | null>(null)
 
   // Real ask, 2026-10-28: "when i send the request of the ride to a car
@@ -143,7 +162,8 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
   // the request outright (cancel_ride_dispatch_request) rather than
   // leaving an abandoned 'open' row behind — on top of the 20-minute
   // auto-expiry cron (748), this is the deliberate-exit path.
-  const [sheetCategory, setSheetCategory] = useState<VehicleCategory | null>(null)
+  const [sheetGroup, setSheetGroup] = useState<RideGroupOption | null>(null)
+  const [groupFilter, setGroupFilter] = useState<string | null>(null)
   const [quote, setQuote] = useState<RideQuote | null>(null)
   const [quoting, setQuoting] = useState(false)
   const [requesting, setRequesting] = useState(false)
@@ -167,38 +187,78 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
   const [scheduleAt, setScheduleAt] = useState('')
 
   useEffect(() => {
-    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, base_fare_pkr, per_km_pkr, category_group, out_of_city_eligible').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
+    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, base_fare_pkr, per_km_pkr, category_group, out_of_city_eligible, ride_group, variant_filter').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
+    supabase.rpc('ride_group_options').then(({ data }) => setRideGroups((data ?? []) as RideGroupOption[]))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The real category ids a group (+ optional variant filter) resolves
+  // to — reused for the quote's p_exclude_category_id and for the
+  // fallback-picker's representative id. Pure client-side filter over
+  // the flat list already fetched for the Loading/Machinery tab, so no
+  // extra round trip.
+  const groupCategoryIds = (g: RideGroupOption, filter: string | null): string[] =>
+    categories.filter((c) => c.ride_group === g.ride_group && (filter == null || c.variant_filter === filter)).map((c) => c.id)
+
+  const groupLabel = (g: RideGroupOption) => g.label ? (isUrdu && g.label_ur ? g.label_ur : g.label) : t(`mb.rideGroup.${g.ride_group}`)
 
   useEffect(() => {
     if (!pickup || !city?.lat || !city?.lng) { setDistanceKm(null); return }
     fetchRoadRoute(pickup, { lat: city.lat, lng: city.lng }).then((r) => setDistanceKm(r.distanceKm)).catch(() => setDistanceKm(null))
   }, [pickup, city?.lat, city?.lng])
 
-  const openCategorySheet = async (c: VehicleCategory) => {
+  const openGroupSheet = async (g: RideGroupOption) => {
     if (!pickup || distanceKm == null) return
-    setSheetCategory(c)
+    const defaultFilter = g.filter_options[0]?.value ?? null
+    setSheetGroup(g)
+    setGroupFilter(defaultFilter)
     setQuote(null)
     setActiveRequest(null)
     setBookingId(null)
+    await requote(g, defaultFilter)
+  }
+
+  const requote = async (g: RideGroupOption, filter: string | null) => {
+    if (!pickup || distanceKm == null) return
     setQuoting(true)
-    const { data, error } = await supabase.rpc('ride_dispatch_quote', { p_category_id: c.id, p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng, p_distance_km: distanceKm, p_dropoff_city_id: city?.id ?? null })
+    const { data, error } = await supabase.rpc('ride_group_quote', {
+      p_ride_group: g.ride_group, p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng, p_distance_km: distanceKm,
+      p_variant_filter: filter, p_dropoff_city_id: city?.id ?? null,
+    })
     setQuoting(false)
-    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); setSheetCategory(null); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); setSheetGroup(null); return }
     setQuote(data as RideQuote)
   }
 
+  const pickGroupFilter = (value: string) => {
+    if (!sheetGroup || value === groupFilter) return
+    setGroupFilter(value)
+    requote(sheetGroup, value)
+  }
+
+  // categoryIds is only ever passed by the "no driver anywhere" fallback
+  // picker below (raw individual categories, unrelated to ride groups) —
+  // the normal path sends through create_ride_group_dispatch_request,
+  // which resolves (ride_group, variant_filter) into the real category
+  // ids server-side (781) and hands off to the exact same underlying RPC.
   const sendRequest = async (categoryIds?: string[]) => {
-    if (!pickup || !city || !sheetCategory || distanceKm == null) return
+    if (!pickup || !city || !sheetGroup || distanceKm == null) return
     setRequesting(true)
-    const { data, error } = await supabase.rpc('create_ride_dispatch_request', {
-      p_category_id: sheetCategory.id, p_pickup_label: pickup.label || t('mb.fromPlaceholder'), p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng,
-      p_dropoff_label: isUrdu && city.name_ur ? city.name_ur : city.name, p_dropoff_lat: city.lat, p_dropoff_lng: city.lng, p_distance_km: distanceKm,
-      p_category_ids: categoryIds && categoryIds.length > 0 ? categoryIds : null,
-      p_include_cross_tenant: true,
-      p_scheduled_for: scheduleAt ? new Date(scheduleAt).toISOString() : null,
-      p_dropoff_city_id: city.id,
-    })
+    const { data, error } = categoryIds && categoryIds.length > 0
+      ? await supabase.rpc('create_ride_dispatch_request', {
+          p_category_id: categoryIds[0], p_pickup_label: pickup.label || t('mb.fromPlaceholder'), p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng,
+          p_dropoff_label: isUrdu && city.name_ur ? city.name_ur : city.name, p_dropoff_lat: city.lat, p_dropoff_lng: city.lng, p_distance_km: distanceKm,
+          p_category_ids: categoryIds,
+          p_include_cross_tenant: true,
+          p_scheduled_for: scheduleAt ? new Date(scheduleAt).toISOString() : null,
+          p_dropoff_city_id: city.id,
+        })
+      : await supabase.rpc('create_ride_group_dispatch_request', {
+          p_ride_group: sheetGroup.ride_group, p_pickup_label: pickup.label || t('mb.fromPlaceholder'), p_pickup_lat: pickup.lat, p_pickup_lng: pickup.lng,
+          p_dropoff_label: isUrdu && city.name_ur ? city.name_ur : city.name, p_dropoff_lat: city.lat, p_dropoff_lng: city.lng, p_distance_km: distanceKm,
+          p_variant_filter: groupFilter,
+          p_scheduled_for: scheduleAt ? new Date(scheduleAt).toISOString() : null,
+          p_dropoff_city_id: city.id,
+        })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     setActiveRequest({ id: data as string, status: 'open', fare_pkr: 0, reference_village_fare_pkr: null, tier_used: null, matched_tenant_name: null, trip_offer_id: null, scheduled_for: scheduleAt ? new Date(scheduleAt).toISOString() : null, activated_at: scheduleAt ? null : new Date().toISOString() })
@@ -208,15 +268,17 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
   // fallback) AND no neighbouring tenant does either — offer a
   // different vehicle TYPE from the rider's own village instead.
   useEffect(() => {
-    if (!quote || !sheetCategory || distanceKm == null || quote.online_in_city > 0 || quote.active_total > 0 || quote.cross_tenant) {
+    if (!quote || !sheetGroup || distanceKm == null || quote.online_in_city > 0 || quote.active_total > 0 || quote.cross_tenant) {
       setFallbackOptions(null); setSelectedFallback(new Set())
       return
     }
+    const repId = groupCategoryIds(sheetGroup, groupFilter)[0]
+    if (!repId) { setFallbackOptions(null); setSelectedFallback(new Set()); return }
     setLoadingFallback(true)
-    supabase.rpc('ride_dispatch_category_options', { p_exclude_category_id: sheetCategory.id, p_distance_km: distanceKm, p_is_out_of_city: city ? !city.is_home_city : false })
+    supabase.rpc('ride_dispatch_category_options', { p_exclude_category_id: repId, p_distance_km: distanceKm, p_is_out_of_city: city ? !city.is_home_city : false })
       .then(({ data }) => { setFallbackOptions((data ?? []) as CategoryOption[]); setLoadingFallback(false) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quote, sheetCategory?.id, distanceKm])
+  }, [quote, sheetGroup?.ride_group, groupFilter, distanceKm])
 
   const toggleFallback = (id: string) => setSelectedFallback((s) => {
     const next = new Set(s)
@@ -243,7 +305,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
   useEffect(() => {
     if (!bookingId) return
     setOpenRideBookingId(bookingId)
-    setSheetCategory(null); setQuote(null); setActiveRequest(null); setBookingId(null)
+    setSheetGroup(null); setGroupFilter(null); setQuote(null); setActiveRequest(null); setBookingId(null)
   }, [bookingId])
 
   // The searching screen's own two-tap Cancel — no browser confirm()
@@ -253,7 +315,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
       const { error } = await supabase.rpc('cancel_ride_dispatch_request', { p_request_id: activeRequest.id })
       if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     }
-    setSheetCategory(null); setQuote(null); setActiveRequest(null); setBookingId(null)
+    setSheetGroup(null); setGroupFilter(null); setQuote(null); setActiveRequest(null); setBookingId(null)
     setFallbackOptions(null); setSelectedFallback(new Set()); setScheduleAt('')
   }
 
@@ -262,7 +324,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
       if (!window.confirm(t('mb.confirmCancelRideRequest'))) return
       await supabase.rpc('cancel_ride_dispatch_request', { p_request_id: activeRequest.id })
     }
-    setSheetCategory(null); setQuote(null); setActiveRequest(null); setBookingId(null)
+    setSheetGroup(null); setGroupFilter(null); setQuote(null); setActiveRequest(null); setBookingId(null)
     setFallbackOptions(null); setSelectedFallback(new Set()); setScheduleAt('')
   }
 
@@ -420,13 +482,19 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                   <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-[#166534]" /></div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
-                    {categories.filter((c) => c.category_group === 'passenger' && (!city || city.is_home_city || c.out_of_city_eligible)).map((c) => {
-                      const fare = Math.round(c.base_fare_pkr + c.per_km_pkr * distanceKm)
+                    {rideGroups.filter((g) => {
+                      const members = categories.filter((c) => c.ride_group === g.ride_group)
+                      return members.length > 0 && (!city || city.is_home_city || members.some((c) => c.out_of_city_eligible))
+                    }).map((g) => {
+                      const members = categories.filter((c) => c.ride_group === g.ride_group)
+                      const avgBase = members.reduce((s, c) => s + c.base_fare_pkr, 0) / members.length
+                      const avgPerKm = members.reduce((s, c) => s + c.per_km_pkr, 0) / members.length
+                      const fare = Math.round(avgBase + avgPerKm * distanceKm)
                       return (
-                        <button key={c.id} onClick={() => openCategorySheet(c)}
+                        <button key={g.ride_group} onClick={() => openGroupSheet(g)}
                           className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
-                          <span className="text-[20px]">{c.emoji}</span>
-                          <span className="text-[12.5px] font-bold text-[#1e293b]">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
+                          <span className="text-[20px]">{g.emoji}</span>
+                          <span className="text-[12.5px] font-bold text-[#1e293b]">{t(`mb.rideGroup.${g.ride_group}`)}</span>
                           <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{fmt(fare)}</span>
                           <span className="text-[10px] text-[#94a3b8] ltr-num">{distanceKm.toFixed(1)} km</span>
                         </button>
@@ -461,8 +529,9 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                     )
                   }
                   const fare = pickup && distanceKm != null ? Math.round(c.base_fare_pkr + c.per_km_pkr * distanceKm) : null
+                  const syntheticGroup: RideGroupOption = { ride_group: c.key, emoji: c.emoji, filter_dimension: null, filter_options: [], label: c.name, label_ur: c.name_ur }
                   return (
-                    <button key={c.id} onClick={() => (pickup ? openCategorySheet(c) : setShowPickupPicker(true))}
+                    <button key={c.id} onClick={() => (pickup ? openGroupSheet(syntheticGroup) : setShowPickupPicker(true))}
                       className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
                       <span className="text-[20px]">{c.emoji}</span>
                       <span className="text-[12.5px] font-bold text-[#1e293b]">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
@@ -484,10 +553,10 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
         </>
       )}
 
-      {sheetCategory && (
+      {sheetGroup && (
         <RideRequestShell
-          emoji={sheetCategory.emoji}
-          title={isUrdu && sheetCategory.name_ur ? sheetCategory.name_ur : sheetCategory.name}
+          emoji={sheetGroup.filter_options.find((o) => o.value === groupFilter)?.emoji || sheetGroup.emoji}
+          title={groupLabel(sheetGroup)}
           fare={activeRequest?.fare_pkr || quote?.base_fare_pkr || null}
           from={pickup?.label || null}
           to={city ? (isUrdu && city.name_ur ? city.name_ur : city.name) : null}
@@ -501,6 +570,20 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
           onClose={closeSheet}
           onCancel={cancelActiveRequest}
         >
+          {quote && sheetGroup.filter_options.length > 0 && (
+            <div className="flex items-center gap-2 p-1 rounded-xl bg-[#f2f1e8] mb-1">
+              {sheetGroup.filter_options.map((opt) => {
+                const on = groupFilter === opt.value
+                return (
+                  <button key={opt.value} type="button" onClick={() => pickGroupFilter(opt.value)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[9px] text-[12.5px] font-sans font-bold cursor-pointer"
+                    style={{ background: on ? '#166534' : 'transparent', color: on ? '#fff' : '#64748b', boxShadow: on ? '0 1px 2px rgba(0,0,0,.1)' : 'none' }}>
+                    <span>{opt.emoji}</span> {t(`mb.rideFilter.${opt.value}`)}
+                  </button>
+                )
+              })}
+            </div>
+          )}
           {quoting ? (
             <div className="flex justify-center py-8"><Loader2 size={22} className="animate-spin text-[#166534]" /></div>
           ) : quote ? (
@@ -550,7 +633,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                   <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex flex-col gap-2">
                     <p className="text-[12.5px] font-bold text-amber-800">
                       {t('mb.crossVillageAvailableNote')
-                        .replace('{type}', isUrdu && sheetCategory?.name_ur ? sheetCategory.name_ur : sheetCategory?.name ?? '')
+                        .replace('{type}', sheetGroup ? groupLabel(sheetGroup) : '')
                         .replace('{n}', String(quote.cross_tenant.active_count))
                         .replace('{village}', quote.cross_tenant.tenant_name)}
                     </p>
@@ -566,7 +649,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                 ) : (
                   <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex flex-col gap-2.5">
                     <p className="text-[12.5px] font-bold text-amber-800">
-                      {t('mb.noDriverAnywhereNote').replace('{type}', isUrdu && sheetCategory?.name_ur ? sheetCategory.name_ur : sheetCategory?.name ?? '')}
+                      {t('mb.noDriverAnywhereNote').replace('{type}', sheetGroup ? groupLabel(sheetGroup) : '')}
                     </p>
                     {loadingFallback ? (
                       <div className="flex justify-center py-3"><Loader2 size={18} className="animate-spin text-amber-700" /></div>
