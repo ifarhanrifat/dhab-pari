@@ -24,7 +24,7 @@
 // same vehicle/marketplace screens so this is the only floating control
 // a driver or rider sees here.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -73,6 +73,62 @@ function Countdown({ target, now, label }: { target: number; now: number; label:
   )
 }
 
+const DRAG_STORAGE_KEY = 'dp.floatingHub.pos.v1'
+const BUTTON_SIZE = 56
+
+// Real ask, 2026-11-02: "those floating button must be move able up and
+// down etc" — the button can be dragged anywhere on screen; its last
+// spot is remembered per-device (localStorage, a per-viewer convenience,
+// never shared/critical state) so it comes back where it was left. A
+// release that never moved more than a few pixels still counts as a
+// plain tap, not a drag, so the existing open-item/open-list behavior
+// is unaffected for anyone who never touches the drag handle.
+function useDraggablePosition() {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const raw = localStorage.getItem(DRAG_STORAGE_KEY)
+      return raw ? JSON.parse(raw) : null
+    } catch { return null } // private window / blocked storage — falls back to the default corner
+  })
+  const dragging = useRef(false)
+  const moved = useRef(false)
+  const start = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
+
+  const clamp = (x: number, y: number) => {
+    const margin = 8
+    const w = typeof window !== 'undefined' ? window.innerWidth : 400
+    const h = typeof window !== 'undefined' ? window.innerHeight : 800
+    return { x: Math.min(Math.max(x, margin), w - BUTTON_SIZE - margin), y: Math.min(Math.max(y, margin), h - BUTTON_SIZE - margin) }
+  }
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    dragging.current = true
+    moved.current = false
+    const rect = e.currentTarget.getBoundingClientRect()
+    start.current = { x: e.clientX, y: e.clientY, posX: rect.left, posY: rect.top }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current) return
+    const dx = e.clientX - start.current.x
+    const dy = e.clientY - start.current.y
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved.current = true
+    if (moved.current) setPos(clamp(start.current.posX + dx, start.current.posY + dy))
+  }
+  const onPointerUp = () => {
+    dragging.current = false
+    if (moved.current) {
+      setPos((cur) => {
+        try { if (cur) localStorage.setItem(DRAG_STORAGE_KEY, JSON.stringify(cur)) } catch { /* ignore */ }
+        return cur
+      })
+    }
+  }
+
+  return { pos, onPointerDown, onPointerMove, onPointerUp, wasDragged: () => moved.current }
+}
+
 export function FloatingBookingsHub() {
   const { t, isUrdu } = useLocale()
   const { user } = usePortalUser()
@@ -81,6 +137,7 @@ export function FloatingBookingsHub() {
   const [openSheet, setOpenSheet] = useState<HubItem['sheet'] | null>(null)
   const [openRideSheetId, setOpenRideSheetId] = useState<string | null>(null)
   const [listOpen, setListOpen] = useState(false)
+  const drag = useDraggablePosition()
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -99,7 +156,7 @@ export function FloatingBookingsHub() {
     const o = ongoing.data as { role: 'driver' | 'rider'; label: string; link: string; booking_id: string | null; is_ride_dispatch: boolean } | null
     if (o) {
       out.push({
-        key: 'ongoing', emoji: '🧭', label: o.label, state: 'ongoing', since: new Date().toISOString(),
+        key: 'ongoing', emoji: '🚖', label: o.label, state: 'ongoing', since: new Date().toISOString(),
         ...(o.is_ride_dispatch && o.booking_id ? { rideSheetBookingId: o.booking_id } : { href: o.link }),
       })
     }
@@ -207,10 +264,12 @@ export function FloatingBookingsHub() {
 
   return (
     <>
-      <div dir={isUrdu ? 'rtl' : 'ltr'} className="fixed z-[70] bottom-[90px] right-4 md:bottom-6 md:right-6 print:hidden">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className={`fixed z-[70] print:hidden ${drag.pos ? '' : 'bottom-[90px] right-4 md:bottom-6 md:right-6'}`}
+        style={drag.pos ? { left: drag.pos.x, top: drag.pos.y, touchAction: 'none' } : { touchAction: 'none' }}
+        onPointerDown={drag.onPointerDown} onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerUp}>
         <button
-          onClick={() => (total === 1 ? openItem(primary) : setListOpen(true))}
-          className="relative flex items-center gap-2 pl-3 pr-4 h-12 rounded-full text-white shadow-lg hover:scale-105 active:scale-95 transition-all max-w-[230px]"
+          onClick={() => { if (drag.wasDragged()) return; if (total === 1) openItem(primary); else setListOpen(true) }}
+          className="relative flex items-center gap-2 pl-3 pr-4 h-12 rounded-full text-white shadow-lg hover:scale-105 active:scale-95 transition-all max-w-[230px] cursor-grab active:cursor-grabbing"
           style={{ background: primary.state === 'ongoing' ? '#166534' : '#0f172a' }}>
           <span className="shrink-0 w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[14px]">{primary.emoji}</span>
           <span className="min-w-0 text-start">

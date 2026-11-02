@@ -32,12 +32,12 @@ import dynamic from 'next/dynamic'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
-import { Search, Home as HomeIcon, Loader2, Briefcase } from 'lucide-react'
+import { Search, Home as HomeIcon, Loader2 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityServiceTile } from '@/components/mobility/MobilityServiceTile'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
-import { FindRideNearStopSheet } from '@/components/mobility/FindRideNearStopSheet'
+import { TravelResultsPanel } from '@/app/portal/(dashboard)/marketplace/(mobility)/results/page'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 import { SITE } from '@/lib/constants'
 
@@ -167,7 +167,6 @@ export default function MobilityHomePage() {
   const [destPin, setDestPin] = useState<PickedLocation | null>(null)
   const [showOriginPicker, setShowOriginPicker] = useState(false)
   const [showDestPicker, setShowDestPicker] = useState(false)
-  const [showNearStop, setShowNearStop] = useState(false)
 
   // "Go Home" — a separate small flow inside the same card: pick which
   // city you're currently in, see today's return-leg seats going back
@@ -177,6 +176,12 @@ export default function MobilityHomePage() {
   const [goHomeLoading, setGoHomeLoading] = useState(false)
   const [goHomeResults, setGoHomeResults] = useState<GoHomeResult[] | null>(null)
   const [bookingId, setBookingId] = useState<string | null>(null)
+
+  // Real ask, 2026-11-02: "find a ride" used to navigate to a separate
+  // results screen — the list now appears on this same first screen
+  // instead, by mounting TravelResultsPanel in place of the search card
+  // rather than pushing a new route.
+  const [results, setResults] = useState<{ toId: string; fromLat: string | null; fromLng: string | null; fromName: string | null } | null>(null)
 
   useEffect(() => {
     supabase.from('cities').select('id, name, name_ur, lat, lng').eq('is_active', true).order('display_order').then(({ data }) => setCities(data ?? []))
@@ -190,9 +195,7 @@ export default function MobilityHomePage() {
 
   const findVehicles = () => {
     if (!toCity) return
-    const params = new URLSearchParams({ to: toCity.id })
-    if (origin) { params.set('from_lat', String(origin.lat)); params.set('from_lng', String(origin.lng)); params.set('from_name', origin.name) }
-    router.push(`/portal/marketplace/results?${params.toString()}`)
+    setResults({ toId: toCity.id, fromLat: origin ? String(origin.lat) : null, fromLng: origin ? String(origin.lng) : null, fromName: origin?.name ?? null })
   }
 
   const pins: LeafletPin[] = []
@@ -236,6 +239,13 @@ export default function MobilityHomePage() {
   }
 
   if (loading) return <div className="text-center py-12"><LoadingDots /></div>
+
+  if (results) {
+    return (
+      <TravelResultsPanel toId={results.toId} fromLat={results.fromLat} fromLng={results.fromLng} fromName={results.fromName}
+        onBack={() => setResults(null)} />
+    )
+  }
 
   return (
     <div className="flex flex-col gap-0">
@@ -363,21 +373,15 @@ export default function MobilityHomePage() {
             <button onClick={findVehicles} disabled={!toCity} className="w-full bg-[#166534] disabled:bg-[#166534]/40 text-white rounded-xl py-2.5 font-bold text-[13px] cursor-pointer disabled:cursor-not-allowed">
               {t('mb.findVehiclesBtn')}
             </button>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setShowNearStop(true)} className="flex-1 border border-[#e5e2d0] text-[#166534] rounded-xl py-2 font-bold text-[12.5px] cursor-pointer">
-                📍 {t('mv.findRideNearMeBtn')}
-              </button>
-              <button onClick={openGoHome} className="flex-1 border border-[#D4AF37] text-[#0f172a] bg-[#FFFBEB] rounded-xl py-2 font-bold text-[12.5px] cursor-pointer flex items-center justify-center gap-1.5">
-                <HomeIcon size={13} /> {t('mb.goHomeBtn')}
-              </button>
-            </div>
-            <button onClick={() => router.push('/portal/marketplace/weekly-commute')} className="w-full border border-[#e5e2d0] text-[#166534] rounded-xl py-2 font-bold text-[12.5px] cursor-pointer flex items-center justify-center gap-1.5">
-              <Briefcase size={13} /> {t('mb.weeklyCommuteBtn')}
+            {/* Real ask, 2026-11-02: three competing buttons down to one —
+                "find a ride near a stop" removed (shared-ride search
+                already covers it); weekly commute moved to Account. */}
+            <button onClick={openGoHome} className="w-full border border-[#D4AF37] text-[#0f172a] bg-[#FFFBEB] rounded-xl py-2 font-bold text-[12.5px] cursor-pointer flex items-center justify-center gap-1.5">
+              <HomeIcon size={13} /> {t('mb.goHomeBtn')}
             </button>
           </>
         )}
       </div>
-      {showNearStop && <FindRideNearStopSheet onClose={() => setShowNearStop(false)} />}
     </div>
   )
 }

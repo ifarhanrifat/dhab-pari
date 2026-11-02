@@ -30,6 +30,7 @@
 
 import { useEffect, useState, type ComponentType } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import {
   Check, X as XIcon, Loader2, Clock, Car, CarFront, Bus, Tractor, PartyPopper, Truck, ShoppingCart, Package, ShoppingBag,
@@ -42,6 +43,10 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { fetchPendingRequestRows } from '@/lib/driverRequestRows'
+import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
+import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
+
+const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 export type QuickActionKind = 'hourly' | 'rental' | 'equipment' | 'shadi' | 'route' | 'dispatch' | 'city_purchase' | 'parcel' | 'delivery' | 'ride_dispatch'
 export type QuickActionFactIcon = 'clock' | 'calendar' | 'distance' | 'wallet' | 'wait' | 'urgent' | 'shop' | 'repeat' | 'service' | 'rate' | 'truck' | 'seat'
@@ -63,6 +68,10 @@ export interface QuickActionRow {
   // "A → B" subtitle/title, and the facts/note sections just hide.
   from?: string
   to?: string
+  // ride_dispatch only — the rider's real pickup point, shown as a
+  // small map preview on the request card (2026-11-02 ask).
+  pickupLat?: number | null
+  pickupLng?: number | null
   customerName?: string
   facts?: { icon: QuickActionFactIcon; text: string }[]
   note?: string | null
@@ -169,6 +178,14 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
   const router = useRouter()
   const [busy, setBusy] = useState<'accept' | 'decline' | null>(null)
   const [fee, setFee] = useState('')
+  // Real ask, 2026-11-02: accepting a ride-dispatch request used to
+  // navigate to the Trips list, which the driver then had to find the
+  // row on and tap "Open Ride" just to reach this same popup —
+  // completely bypassed now by opening it directly off the back of
+  // accept_ride_dispatch's own result (my_ongoing_ride() resolves to
+  // the booking it just created, same RPC OngoingRideFab/
+  // FloatingBookingsHub already trust for this).
+  const [rideBookingId, setRideBookingId] = useState<string | null>(null)
   // City purchase: what this driver would actually earn — carry-back
   // (one leg) if he's already going there, else a special trip (777).
   const [cpQuote, setCpQuote] = useState<{ trip_mode: string; total_fare_pkr: number; deliver_within_hours: number; on_route: boolean } | null>(null)
@@ -197,12 +214,18 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(accept ? t('vp.jobAcceptedToast') : t('vp.jobDeclinedToast'))
     onDone()
+    // A ride-dispatch acceptance opens its own ride popup directly
+    // below instead of closing — every other kind closes as before.
+    if (row.type === 'ride_dispatch' && accept) {
+      const { data } = await createClient().rpc('my_ongoing_ride')
+      const bookingId = (data as { booking_id: string | null } | null)?.booking_id
+      if (bookingId) { setRideBookingId(bookingId); return }
+    }
     onClose()
     // Dispatch calls already had this redirect when accepted via the
     // requests page (live tracking lives there) — kept consistent
     // regardless of which entry point the driver accepted from.
     if (row.type === 'dispatch' && accept) router.push(`/portal/marketplace/dispatch/${row.id}`)
-    if (row.type === 'ride_dispatch' && accept) router.push('/portal/my-vehicle/trips')
   }
 
   const theme = THEME[row.type]
@@ -218,6 +241,8 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
   // an empty end. The subtitle is only worth a line of its own when it
   // isn't already shown as the route or the headline.
   const singlePlace = route ? null : (row.from || row.to || (row.subtitle && row.subtitle !== row.title ? row.subtitle : null))
+
+  if (rideBookingId) return <RideLifecycleSheet bookingId={rideBookingId} onClose={() => { setRideBookingId(null); onClose() }} />
 
   return (
     <div className="fixed inset-0 bg-black/55 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={onClose}>
@@ -299,6 +324,21 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Real ask, 2026-11-02: "the location of the rider will be
+              also shown on the request in a clear beautiful stylish
+              way" — a real pin beats another line of address text a
+              driver has to read while deciding. Only ride_dispatch
+              carries real coordinates (779); every other kind keeps
+              its plain text-only card above. */}
+          {row.pickupLat != null && row.pickupLng != null && (
+            <div className="rounded-2xl overflow-hidden border border-[#e8eaee] relative">
+              <LeafletMap height="120px" pins={[{ lat: row.pickupLat, lng: row.pickupLng, label: t('rq.pickup'), color: '#16a34a' } as LeafletPin]} center={[row.pickupLat, row.pickupLng]} zoom={14} />
+              <span className="absolute top-2 start-2 bg-white/95 backdrop-blur px-2 py-0.5 rounded-full font-sans text-[10.5px] font-bold text-[#166534] shadow-sm flex items-center gap-1">
+                <MapPin size={11} /> {t('rq.riderLocationLabel')}
+              </span>
             </div>
           )}
 

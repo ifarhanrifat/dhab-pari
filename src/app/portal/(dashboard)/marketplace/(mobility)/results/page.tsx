@@ -28,7 +28,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { ArrowLeft, Bus, Users, Car, Clock, Star, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -98,22 +98,20 @@ function fmtTime(t: string | null, isUrdu: boolean) {
   return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`
 }
 
-export default function ResultsPage() {
-  return (
-    <Suspense fallback={<div className="text-center py-12"><LoadingDots /></div>}>
-      <ResultsPageInner />
-    </Suspense>
-  )
-}
-
-function ResultsPageInner() {
+// Real ask, 2026-11-02: "when we click find a ride then the screen
+// navigated to another screen where we can see the list is appearing,
+// this is wrong way the list should be appearing on the first screen."
+// TravelResultsPanel carries the actual content (unchanged below) with
+// its 4 inputs as plain props instead of URL search params, so
+// travel/page.tsx can mount it inline — same component, same RPCs,
+// same booking flow, just no longer URL-driven. The standalone
+// /results route stays as a thin wrapper below for any existing deep
+// links, now simply forwarding its own searchParams through.
+export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }: {
+  toId: string | null; fromLat: string | null; fromLng: string | null; fromName: string | null; onBack: () => void
+}) {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
-  const searchParams = useSearchParams()
-  const toId = searchParams.get('to')
-  const fromLat = searchParams.get('from_lat')
-  const fromLng = searchParams.get('from_lng')
-  const fromName = searchParams.get('from_name')
 
   const [city, setCity] = useState<City | null>(null)
   const [tripOffers, setTripOffers] = useState<TripRow[]>([])
@@ -330,9 +328,9 @@ function ResultsPageInner() {
 
   return (
     <div className="flex flex-col gap-3">
-      <Link href="/portal/marketplace/travel" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#005A36]">
+      <button onClick={onBack} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#005A36] cursor-pointer">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mb.navHome')}
-      </Link>
+      </button>
 
       {!city ? (
         <p className="text-center py-10 text-[#64748b] text-[14px]">{t('mb.noDestinationYet')}</p>
@@ -692,5 +690,27 @@ function TripCard({ trip, busy, onBook, onBookReturnOnly, nm, t, isUrdu }: {
         </button>
       )}
     </div>
+  )
+}
+
+function ResultsPageRoute() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  return (
+    <TravelResultsPanel
+      toId={searchParams.get('to')}
+      fromLat={searchParams.get('from_lat')}
+      fromLng={searchParams.get('from_lng')}
+      fromName={searchParams.get('from_name')}
+      onBack={() => router.push('/portal/marketplace/travel')}
+    />
+  )
+}
+
+export default function ResultsPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12"><LoadingDots /></div>}>
+      <ResultsPageRoute />
+    </Suspense>
   )
 }

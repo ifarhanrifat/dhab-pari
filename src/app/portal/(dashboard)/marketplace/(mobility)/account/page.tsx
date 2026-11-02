@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, ChevronRight, LogOut, CreditCard, Users, Bus, Wrench, Landmark, MessageCircle } from 'lucide-react'
+import { ChevronDown, ChevronRight, LogOut, CreditCard, Users, Bus, Wrench, Landmark, MessageCircle, Briefcase } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -86,6 +86,17 @@ export default function MobilityAccountPage() {
         <div className="px-3 py-2 flex items-center justify-between gap-2 border-b border-[#f8fafc]"><span className="text-[12.5px] text-[#334155]">📱 {t('mb.payJazzCash')}</span><span className="text-[11.5px] text-[#64748b] ltr-num">{SITE.jazzcash}</span></div>
         <div className="px-3 py-2 flex items-center justify-between gap-2"><span className="text-[12.5px] text-[#334155]">📲 {t('mb.payEasypaisa')}</span><span className="text-[11.5px] text-[#64748b] ltr-num">{SITE.easypaisa}</span></div>
       </section>
+
+      {/* Real ask, 2026-11-02: the home screen had three competing
+          buttons; the weekly-commute shortcut moved here since it's a
+          once-in-a-while setup step, not something a rider reaches for
+          every time they open the app. */}
+      <button onClick={() => router.push('/portal/marketplace/weekly-commute')}
+        className="w-full bg-white border border-[#e5e2d0] rounded-2xl px-3 py-3 flex items-center gap-2.5 cursor-pointer text-start">
+        <span className="shrink-0 w-9 h-9 rounded-full bg-[#e0e7ff] flex items-center justify-center"><Briefcase size={16} className="text-[#1e293b]/70" /></span>
+        <span className="flex-1 min-w-0 text-[13.5px] font-bold text-[#005A36]">{t('mb.weeklyCommuteBtn')}</span>
+        <ChevronRight size={16} className={`text-[#64748b] shrink-0 ${isUrdu ? 'rotate-180' : ''}`} />
+      </button>
 
       <a href={SITE.whatsappLink} target="_blank" rel="noopener noreferrer"
         className="flex items-center justify-center gap-2 bg-[#166534] text-white rounded-2xl py-3 font-bold text-[13.5px]">
