@@ -20,6 +20,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
+import { nextEscalationMinutesRemaining } from '@/lib/rideEscalation'
 
 interface RequestDetail {
   id: string; status: string; pickup_label: string; dropoff_label: string
@@ -30,6 +31,7 @@ interface RequestDetail {
   tier_used: string | null; matched_tenant_name: string | null
   rider_trust: Trust | null; rider_tenant_name: string
   scheduled_for: string | null; activated_at: string | null
+  is_out_of_city: boolean; escalation_count: number
 }
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -47,6 +49,13 @@ export default function RideDispatchPage() {
   const [accepting, setAccepting] = useState(false)
   const [bookingId, setBookingId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (req?.status !== 'open' || !req.activated_at) return
+    const iv = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(iv)
+  }, [req?.status, req?.activated_at])
 
   const reload = async () => {
     const { data } = await supabase.rpc('ride_dispatch_request_detail', { p_request_id: requestId })
@@ -114,9 +123,26 @@ export default function RideDispatchPage() {
         </div>
       ) : req.status === 'open' && req.is_mine_as_rider && (
         <div className="bg-white border border-[#e5e2d0] rounded-2xl p-5 text-center flex flex-col items-center gap-2">
-          <Loader2 size={28} className="animate-spin text-[#166534]" />
+          <div className="relative w-20 h-20 flex items-center justify-center">
+            <span className="absolute inset-0 rounded-full border-2 border-[#166534]/30 animate-ping [animation-duration:2.2s]" />
+            <span className="absolute inset-2 rounded-full border-2 border-[#166534]/25 animate-ping [animation-duration:2.2s] [animation-delay:.7s]" />
+            <Loader2 size={28} className="relative animate-spin text-[#166534]" />
+          </div>
           <p className="font-bold text-[14px] text-[#1e293b]">{t('mb.waitingForDriverHeading')}</p>
           <p className="text-[12.5px] text-[#64748b]">{t('mb.waitingForDriverHint')}</p>
+          {req.activated_at && (() => {
+            const elapsed = Math.max(0, Math.floor((now - new Date(req.activated_at!).getTime()) / 1000))
+            const timer = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`
+            const minsLeft = nextEscalationMinutesRemaining(req.activated_at, req.escalation_count, req.is_out_of_city, now)
+            return (
+              <>
+                <span className="inline-flex items-center gap-1.5 bg-[#f1f5f9] px-3 py-1 rounded-full font-sans text-[12px] font-semibold text-[#334155] ltr-num">{timer}</span>
+                <p className="text-[11.5px] text-[#94a3b8] max-w-[300px] leading-[1.6]">
+                  {minsLeft != null ? t('mb.nextFareStepHint').replace('{minutes}', String(minsLeft)) : t('mb.maxFareReachedHint')}
+                </p>
+              </>
+            )
+          })()}
           <button onClick={cancel} className="mt-2 text-[12.5px] font-semibold text-[#b91c1c] cursor-pointer">{t('mb.cancelRideRequestBtn')}</button>
         </div>
       )}

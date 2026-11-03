@@ -13,16 +13,18 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { X as XIcon, Check, CircleSlash, Clock, Loader2 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { nextEscalationMinutesRemaining } from '@/lib/rideEscalation'
 
 export type RideSheetPhase = 'form' | 'searching' | 'scheduled' | 'found' | 'closed'
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
 export function RideRequestShell({
-  emoji, title, fare, from, to, distanceKm, phase, since, scheduledFor, onClose, onCancel, children,
+  emoji, title, fare, from, to, distanceKm, phase, since, scheduledFor, isOutOfCity, escalationCount, onClose, onCancel, children,
 }: {
   emoji: string; title: string; fare: number | null; from: string | null; to: string | null; distanceKm: number | null
   phase: RideSheetPhase; since?: string | null; scheduledFor?: string | null
+  isOutOfCity?: boolean; escalationCount?: number
   onClose: () => void; onCancel: () => Promise<void> | void; children?: ReactNode
 }) {
   const { t, isUrdu } = useLocale()
@@ -122,9 +124,14 @@ export function RideRequestShell({
                   automatically instead of asking the rider to bid
                   (788), but it should never feel like a silent/sneaky
                   increase — said up front, before it ever happens. */}
-              {phase === 'searching' && (
-                <p className="font-sans text-[11.5px] text-white/70 mt-2 max-w-[280px] text-center leading-[1.6]">{t('rr.autoEscalationNote')}</p>
-              )}
+              {phase === 'searching' && (() => {
+                const minsLeft = since ? nextEscalationMinutesRemaining(since, escalationCount ?? 0, isOutOfCity ?? false, now) : null
+                return (
+                  <p className="font-sans text-[11.5px] text-white/70 mt-2 max-w-[280px] text-center leading-[1.6]">
+                    {minsLeft != null ? t('mb.nextFareStepHint').replace('{minutes}', String(minsLeft)) : (since ? t('mb.maxFareReachedHint') : t('rr.autoEscalationNote'))}
+                  </p>
+                )
+              })()}
             </div>
           )}
         </div>

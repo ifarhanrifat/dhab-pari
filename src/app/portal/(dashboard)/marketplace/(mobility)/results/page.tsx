@@ -103,6 +103,7 @@ interface DispatchRequest {
   id: string; status: string; fare_pkr: number; reference_village_fare_pkr: number | null
   tier_used: string | null; matched_tenant_name: string | null; trip_offer_id: string | null
   scheduled_for: string | null; activated_at: string | null
+  is_out_of_city: boolean; escalation_count: number
 }
 interface CategoryOption { id: string; name: string; name_ur: string | null; emoji: string; fare_pkr: number; active_count: number }
 
@@ -261,7 +262,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
         })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    setActiveRequest({ id: data as string, status: 'open', fare_pkr: 0, reference_village_fare_pkr: null, tier_used: null, matched_tenant_name: null, trip_offer_id: null, scheduled_for: scheduleAt ? new Date(scheduleAt).toISOString() : null, activated_at: scheduleAt ? null : new Date().toISOString() })
+    setActiveRequest({ id: data as string, status: 'open', fare_pkr: 0, reference_village_fare_pkr: null, tier_used: null, matched_tenant_name: null, trip_offer_id: null, scheduled_for: scheduleAt ? new Date(scheduleAt).toISOString() : null, activated_at: scheduleAt ? null : new Date().toISOString(), is_out_of_city: !city.is_home_city, escalation_count: 0 })
   }
 
   // The last resort: own village has nothing (not even the two-way
@@ -582,6 +583,8 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
             : activeRequest.status === 'accepted' ? 'found' : 'closed'}
           since={activeRequest?.activated_at}
           scheduledFor={activeRequest?.scheduled_for}
+          isOutOfCity={activeRequest?.is_out_of_city ?? false}
+          escalationCount={activeRequest?.escalation_count ?? 0}
           onClose={closeSheet}
           onCancel={cancelActiveRequest}
         >
