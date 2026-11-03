@@ -489,7 +489,17 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                       const members = categories.filter((c) => c.ride_group === g.ride_group)
                       const avgBase = members.reduce((s, c) => s + c.base_fare_pkr, 0) / members.length
                       const avgPerKm = members.reduce((s, c) => s + c.per_km_pkr, 0) / members.length
-                      const fare = Math.round(avgBase + avgPerKm * distanceKm)
+                      // Real bug found live, 2026-11-03: "the rate card
+                      // is displaying wrong fare while when rider clicks
+                      // on any of those vehicles the request is
+                      // displaying different fare" — this tile estimate
+                      // was computed locally and never learned about the
+                      // outstation round-trip rule (789/790) the actual
+                      // quote (ride_group_quote, fetched on tap) already
+                      // applies. Same worst-case ×2 estimate here so the
+                      // tile and the sheet always agree.
+                      const isOutOfCity = !!city && !city.is_home_city
+                      const fare = Math.round(avgBase + avgPerKm * distanceKm * (isOutOfCity ? 2 : 1))
                       return (
                         <button key={g.ride_group} onClick={() => openGroupSheet(g)}
                           className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
@@ -528,7 +538,8 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                       </Link>
                     )
                   }
-                  const fare = pickup && distanceKm != null ? Math.round(c.base_fare_pkr + c.per_km_pkr * distanceKm) : null
+                  const isOutOfCityEq = !!city && !city.is_home_city
+                  const fare = pickup && distanceKm != null ? Math.round(c.base_fare_pkr + c.per_km_pkr * distanceKm * (isOutOfCityEq ? 2 : 1)) : null
                   const syntheticGroup: RideGroupOption = { ride_group: c.key, emoji: c.emoji, filter_dimension: null, filter_options: [], label: c.name, label_ur: c.name_ur }
                   return (
                     <button key={c.id} onClick={() => (pickup ? openGroupSheet(syntheticGroup) : setShowPickupPicker(true))}
