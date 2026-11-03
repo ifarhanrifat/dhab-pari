@@ -29,13 +29,14 @@ interface VehicleCategory {
   id: string; key: string; name: string; name_ur: string | null; emoji: string
   base_fare_pkr: number; per_km_pkr: number; intercity_commission_pct: number; out_of_city_commission_pct: number; is_active: boolean
   category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean
+  out_of_city_base_fare_pkr: number | null; out_of_city_per_km_pkr: number | null
 }
 
 const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, display_order: 0 }
 const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', base_fare_pkr: 0, per_km_pkr: 0, display_order: 0, delivery_eligible: true, ride_eligible: true, home_city_delivery_eligible: true, outstation_delivery_eligible: true }
 const emptyVillage = { name: '', name_ur: '', delivery_fee_pkr: 0, is_home_village: false, display_order: 0 }
 const emptyFareBand = { base_pkr: 0, per_km_pkr: 0, spread: 0.28 }
-const emptyVehicleCategory = { name: '', name_ur: '', emoji: '', base_fare_pkr: 0, per_km_pkr: 0, intercity_commission_pct: 10, out_of_city_commission_pct: 15, category_group: 'passenger' as 'passenger' | 'loading' | 'machinery', out_of_city_eligible: true }
+const emptyVehicleCategory = { name: '', name_ur: '', emoji: '', base_fare_pkr: 0, per_km_pkr: 0, intercity_commission_pct: 10, out_of_city_commission_pct: 15, category_group: 'passenger' as 'passenger' | 'loading' | 'machinery', out_of_city_eligible: true, out_of_city_base_fare_pkr: 0, out_of_city_per_km_pkr: 0 }
 
 function fmt(n: number) { return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 function flowLabelKey(flow: 'trip_share' | 'city_fetch' | 'route') {
@@ -92,7 +93,7 @@ export default function MarketplaceReferencePage() {
   const openEditFareBand = (fb: FareBand) => { setEditingFlow(fb.flow); setFareBandForm({ base_pkr: fb.base_pkr, per_km_pkr: fb.per_km_pkr, spread: fb.spread }); setShowForm(true) }
   const openEditVehicleCategory = (vc: VehicleCategory) => {
     setEditingId(vc.id)
-    setVehicleCategoryForm({ name: vc.name, name_ur: vc.name_ur ?? '', emoji: vc.emoji, base_fare_pkr: vc.base_fare_pkr, per_km_pkr: vc.per_km_pkr, intercity_commission_pct: vc.intercity_commission_pct, out_of_city_commission_pct: vc.out_of_city_commission_pct, category_group: vc.category_group, out_of_city_eligible: vc.out_of_city_eligible })
+    setVehicleCategoryForm({ name: vc.name, name_ur: vc.name_ur ?? '', emoji: vc.emoji, base_fare_pkr: vc.base_fare_pkr, per_km_pkr: vc.per_km_pkr, intercity_commission_pct: vc.intercity_commission_pct, out_of_city_commission_pct: vc.out_of_city_commission_pct, category_group: vc.category_group, out_of_city_eligible: vc.out_of_city_eligible, out_of_city_base_fare_pkr: vc.out_of_city_base_fare_pkr ?? 0, out_of_city_per_km_pkr: vc.out_of_city_per_km_pkr ?? 0 })
     setShowForm(true)
   }
 
@@ -221,6 +222,9 @@ export default function MarketplaceReferencePage() {
                   {!vc.out_of_city_eligible && <span className="font-sans text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">{t('mr.homeCityOnlyBadge')}</span>}
                 </p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{fmt(vc.base_fare_pkr)} base + {fmt(vc.per_km_pkr)}/km · {vc.intercity_commission_pct}% / {vc.out_of_city_commission_pct}%</p>
+                {vc.out_of_city_eligible && (
+                  <p className="font-sans text-[12px] text-amber-700 ltr-num">{t('mr.outstationRateLabel')}: {fmt(vc.out_of_city_base_fare_pkr ?? 0)} base + {fmt(vc.out_of_city_per_km_pkr ?? 0)}/km</p>
+                )}
               </div>
               <button onClick={() => openEditVehicleCategory(vc)} className="p-2 rounded text-dp-secondary hover:bg-dp-surface-container cursor-pointer"><Pencil size={14} /></button>
             </div>
@@ -311,6 +315,16 @@ export default function MarketplaceReferencePage() {
                   <input type="number" value={vehicleCategoryForm.intercity_commission_pct || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, intercity_commission_pct: +e.target.value })} placeholder={t('mr.intercityCommissionPlaceholder')} className="input-field" />
                   <input type="number" value={vehicleCategoryForm.out_of_city_commission_pct || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_commission_pct: +e.target.value })} placeholder={t('mr.outOfCityCommissionPlaceholder')} className="input-field" />
                 </div>
+                {vehicleCategoryForm.out_of_city_eligible && (
+                  <div className="pt-2 mt-1 border-t border-dp-outline-variant space-y-1.5">
+                    <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface">{t('mr.outstationRateLabel')}</p>
+                    <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.outstationRateHint')}</p>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <input type="number" value={vehicleCategoryForm.out_of_city_base_fare_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_base_fare_pkr: +e.target.value })} placeholder={t('mr.outstationBasePlaceholder')} className="input-field" />
+                      <input type="number" value={vehicleCategoryForm.out_of_city_per_km_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_per_km_pkr: +e.target.value })} placeholder={t('mr.outstationPerKmPlaceholder')} className="input-field" />
+                    </div>
+                  </div>
+                )}
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.vehicleCategoryEditHint')}</p>
               </div>
             )}

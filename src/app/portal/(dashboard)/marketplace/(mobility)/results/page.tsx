@@ -58,7 +58,7 @@ interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_per_seat_pkr: number; vehicle_id: string; owner_name: string
 }
-interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean; ride_group: string | null; variant_filter: string | null }
+interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; out_of_city_base_fare_pkr: number | null; out_of_city_per_km_pkr: number | null; category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean; ride_group: string | null; variant_filter: string | null }
 // Real ask, 2026-11-03: "this is how the professional apps are showing
 // categories... small cars, cars above 1000cc, suvs, bikes, rickshaws —
 // only 5 or 6 categories will be displayed, there will be no hiace or
@@ -187,7 +187,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
   const [scheduleAt, setScheduleAt] = useState('')
 
   useEffect(() => {
-    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, base_fare_pkr, per_km_pkr, category_group, out_of_city_eligible, ride_group, variant_filter').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
+    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, base_fare_pkr, per_km_pkr, out_of_city_base_fare_pkr, out_of_city_per_km_pkr, category_group, out_of_city_eligible, ride_group, variant_filter').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
     supabase.rpc('ride_group_options').then(({ data }) => setRideGroups((data ?? []) as RideGroupOption[]))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -487,8 +487,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                       return members.length > 0 && (!city || city.is_home_city || members.some((c) => c.out_of_city_eligible))
                     }).map((g) => {
                       const members = categories.filter((c) => c.ride_group === g.ride_group)
-                      const avgBase = members.reduce((s, c) => s + c.base_fare_pkr, 0) / members.length
-                      const avgPerKm = members.reduce((s, c) => s + c.per_km_pkr, 0) / members.length
+                      const isOutOfCity = !!city && !city.is_home_city
                       // Real bug found live, 2026-11-03: "the rate card
                       // is displaying wrong fare while when rider clicks
                       // on any of those vehicles the request is
@@ -497,8 +496,11 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                       // outstation round-trip rule (789/790) the actual
                       // quote (ride_group_quote, fetched on tap) already
                       // applies. Same worst-case ×2 estimate here so the
-                      // tile and the sheet always agree.
-                      const isOutOfCity = !!city && !city.is_home_city
+                      // tile and the sheet always agree. 791: outstation
+                      // trips now use their own dedicated, independently
+                      // committee-set rate card, not the in-city one ×2.
+                      const avgBase = members.reduce((s, c) => s + (isOutOfCity ? (c.out_of_city_base_fare_pkr ?? c.base_fare_pkr) : c.base_fare_pkr), 0) / members.length
+                      const avgPerKm = members.reduce((s, c) => s + (isOutOfCity ? (c.out_of_city_per_km_pkr ?? c.per_km_pkr) : c.per_km_pkr), 0) / members.length
                       const fare = Math.round(avgBase + avgPerKm * distanceKm * (isOutOfCity ? 2 : 1))
                       return (
                         <button key={g.ride_group} onClick={() => openGroupSheet(g)}
@@ -539,7 +541,9 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                     )
                   }
                   const isOutOfCityEq = !!city && !city.is_home_city
-                  const fare = pickup && distanceKm != null ? Math.round(c.base_fare_pkr + c.per_km_pkr * distanceKm * (isOutOfCityEq ? 2 : 1)) : null
+                  const eqBase = isOutOfCityEq ? (c.out_of_city_base_fare_pkr ?? c.base_fare_pkr) : c.base_fare_pkr
+                  const eqPerKm = isOutOfCityEq ? (c.out_of_city_per_km_pkr ?? c.per_km_pkr) : c.per_km_pkr
+                  const fare = pickup && distanceKm != null ? Math.round(eqBase + eqPerKm * distanceKm * (isOutOfCityEq ? 2 : 1)) : null
                   const syntheticGroup: RideGroupOption = { ride_group: c.key, emoji: c.emoji, filter_dimension: null, filter_options: [], label: c.name, label_ur: c.name_ur }
                   return (
                     <button key={c.id} onClick={() => (pickup ? openGroupSheet(syntheticGroup) : setShowPickupPicker(true))}
