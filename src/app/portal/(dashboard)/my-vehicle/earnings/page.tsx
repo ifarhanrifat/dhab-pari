@@ -27,6 +27,7 @@ interface PendingTopup { id: string; amount_pkr: number; announced_at: string }
 interface StatementRow { id: string; voucher_no: string; date: string; particular: string; kind: string; detail: string; amount_pkr: number; direction: 'debit' | 'credit'; created_at: string }
 interface BreakdownRow { kind: string; count: number; amount_pkr: number }
 interface Breakdown { today: BreakdownRow[]; month: BreakdownRow[] }
+interface LifetimeTotals { total_topped_up_pkr: number; total_commission_paid_pkr: number }
 
 // Same job-kind set vehicle_today_ledger/vehicle_earnings_breakdown
 // (782) tag their rows with — one icon per real line of business this
@@ -58,21 +59,24 @@ export default function MyVehicleEarningsPage() {
   const [showStatement, setShowStatement] = useState(false)
   const [breakdown, setBreakdown] = useState<Breakdown>({ today: [], month: [] })
   const [period, setPeriod] = useState<'today' | 'month'>('today')
+  const [lifetimeTotals, setLifetimeTotals] = useState<LifetimeTotals | null>(null)
 
   const reload = async (id: string) => {
-    const [{ data: s }, { data: led }, { data: inbox }, { data: topups }, { data: stmt }, { data: bd }] = await Promise.all([
+    const [{ data: s }, { data: led }, { data: inbox }, { data: topups }, { data: stmt }, { data: bd }, { data: lt }] = await Promise.all([
       supabase.rpc('vehicle_dashboard_summary', { p_vehicle_id: id }),
       supabase.rpc('vehicle_today_ledger', { p_vehicle_id: id }),
       supabase.rpc('my_negotiation_threads'),
       supabase.from('vehicle_wallet_topups').select('id, amount_pkr, announced_at').eq('vehicle_id', id).eq('status', 'announced').order('announced_at', { ascending: false }),
       supabase.rpc('vehicle_wallet_statement', { p_vehicle_id: id }),
       supabase.rpc('vehicle_earnings_breakdown', { p_vehicle_id: id }),
+      supabase.rpc('vehicle_wallet_lifetime_totals', { p_vehicle_id: id }),
     ])
     setSummary(s as unknown as Summary)
     setLedger((led ?? []) as LedgerRow[])
     setNegotiationInbox(((inbox ?? []) as typeof negotiationInbox).filter((th) => th.as_role === 'driver'))
     setPendingTopups((topups ?? []) as PendingTopup[])
     setStatement((stmt ?? []) as StatementRow[])
+    setLifetimeTotals((lt as unknown as LifetimeTotals) ?? null)
     setBreakdown((bd as unknown as Breakdown) ?? { today: [], month: [] })
   }
 
@@ -150,12 +154,33 @@ export default function MyVehicleEarningsPage() {
         </div>
       )}
 
+      {/* Real ask, 2026-11-03: "your received cash is showing 1159 what
+          is it? where is the settlement with committee? what is his
+          dues or receivable or wallet balance? where is his topup
+          money?" — cm.balanceLabel ("Owed to you") is a generic label
+          shared with the shop earnings screen, written for a
+          platform-collects-and-pays-out model. A per_order VEHICLE's
+          balance is the opposite: a prepaid wallet the driver tops up
+          in advance, with commission auto-drawn from it per ride
+          (confirmed from the real voucher directions, 785's own header
+          comment) — a positive number means "you still have prepaid
+          funds," never "the committee owes you this." Mode-aware label
+          + a persistent one-line explanation (not just on negative)
+          + the two real lifetime totals that actually answer "where
+          did the topup money go" replace the old generic card. */}
       <div className="rounded-2xl p-3.5 border" style={{ background: (summary?.balance_pkr ?? 0) < 0 ? '#fffbeb' : '#fff', borderColor: (summary?.balance_pkr ?? 0) < 0 ? '#fde68a' : '#e5e2d0' }}>
         <div className="flex items-center justify-between gap-2">
           {(summary?.balance_pkr ?? 0) < 0 && <span className="font-sans text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900">{summary?.pending_bookings_count ?? 0} {t('cm.pendingOrdersTag')}</span>}
-          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-[#64748b] ms-auto">{t('cm.balanceLabel')}</p>
+          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-[#64748b] ms-auto">
+            {summary?.commission_mode === 'per_order' ? t('mv.walletBalanceLabel') : t('cm.balanceLabel')}
+          </p>
         </div>
         <p className="font-bold text-[24px] mt-1 ltr-num" style={{ color: (summary?.balance_pkr ?? 0) < 0 ? '#92400e' : '#005A36' }}>{fmt(summary?.balance_pkr ?? 0)}</p>
+        {summary?.commission_mode === 'per_order' && (
+          <p className="font-sans text-[11.5px] text-[#64748b] mt-1 leading-[1.6]">
+            {(summary?.balance_pkr ?? 0) < 0 ? t('mv.balanceMeaningNegative') : t('mv.balanceMeaningPositive')}
+          </p>
+        )}
         {summary?.commission_mode === 'per_order' && (
           <button onClick={() => setShowTopup(true)} className="w-full mt-2.5 flex items-center justify-center gap-1.5 py-2.5 bg-[#166534] text-white rounded-xl font-sans text-[13px] font-semibold cursor-pointer">
             <Wallet size={14} /> {t('cm.topupWalletBtn')}
@@ -164,7 +189,26 @@ export default function MyVehicleEarningsPage() {
         {summary?.commission_mode === 'per_order' && (summary?.balance_pkr ?? 0) < 0 && (
           <p className="font-sans text-[12px] text-amber-800 mt-1.5">{t('mv.negativeBalanceNote')}</p>
         )}
+        {summary?.commission_mode === 'per_order' && lifetimeTotals && (
+          <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[#f1f5f9]">
+            <div>
+              <p className="font-sans text-[10.5px] text-[#64748b]">{t('mv.lifetimeToppedUpLabel')}</p>
+              <p className="font-sans text-[15px] font-extrabold text-[#166534] mt-0.5 ltr-num">{fmt(lifetimeTotals.total_topped_up_pkr)}</p>
+            </div>
+            <div>
+              <p className="font-sans text-[10.5px] text-[#64748b]">{t('mv.lifetimeCommissionPaidLabel')}</p>
+              <p className="font-sans text-[15px] font-extrabold text-[#b91c1c] mt-0.5 ltr-num">{fmt(lifetimeTotals.total_commission_paid_pkr)}</p>
+            </div>
+          </div>
+        )}
       </div>
+
+      {summary?.commission_mode === 'per_order' && !summary?.last_settlement_date && (
+        <div className="flex items-start gap-2 bg-[#F9F9F6] border border-[#e5e2d0] rounded-xl p-2.5">
+          <Info size={14} className="text-[#64748b] shrink-0 mt-0.5" />
+          <p className="font-sans text-[11.5px] text-[#64748b] leading-[1.6]">{t('mv.noSeparateSettlementNote')}</p>
+        </div>
+      )}
 
       {pendingTopups.length > 0 && (
         <div className="flex flex-col gap-1.5">
