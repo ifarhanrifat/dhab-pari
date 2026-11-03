@@ -9,7 +9,7 @@
 
 import { useEffect, useState, type ComponentType } from 'react'
 import Link from 'next/link'
-import { Wallet, MessageCircle, Lock, Bus, CarFront, Clock, PartyPopper, ShoppingBag, Truck, Tractor, Car, Info } from 'lucide-react'
+import { Wallet, MessageCircle, Lock, Bus, CarFront, Clock, PartyPopper, ShoppingBag, Truck, Tractor, Car, Info, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -24,7 +24,7 @@ interface Summary {
 }
 interface LedgerRow { kind: string; label: string; amount: number; at: string }
 interface PendingTopup { id: string; amount_pkr: number; announced_at: string }
-interface StatementRow { id: string; voucher_no: string; date: string; particular: string; amount_pkr: number; direction: 'debit' | 'credit'; created_at: string }
+interface StatementRow { id: string; voucher_no: string; date: string; particular: string; kind: string; detail: string; amount_pkr: number; direction: 'debit' | 'credit'; created_at: string }
 interface BreakdownRow { kind: string; count: number; amount_pkr: number }
 interface Breakdown { today: BreakdownRow[]; month: BreakdownRow[] }
 
@@ -52,6 +52,7 @@ export default function MyVehicleEarningsPage() {
   const [ledger, setLedger] = useState<LedgerRow[]>([])
   const [pendingTopups, setPendingTopups] = useState<PendingTopup[]>([])
   const [showTopup, setShowTopup] = useState(false)
+  const [selectedStatementRow, setSelectedStatementRow] = useState<StatementRow | null>(null)
   const [negotiationInbox, setNegotiationInbox] = useState<{ id: string; kind: string; status: string; item: string | null; last_message: string | null; as_role: string }[]>([])
   const [statement, setStatement] = useState<StatementRow[]>([])
   const [showStatement, setShowStatement] = useState(false)
@@ -209,16 +210,29 @@ export default function MyVehicleEarningsPage() {
         ) : (
           <>
             <div className="bg-white border border-[#e5e2d0] rounded-2xl divide-y divide-[#f1f5f9]">
+              {/* Real ask, 2026-11-03: "note down the statement which is
+                  showing in English, make it Urdu with better wording
+                  and make it all the description of it readable when
+                  clicked on it." The raw vouchers.particular text (739)
+                  is real general-ledger wording shared with every other
+                  system in the app — rewriting it at the source would
+                  touch the whole accounting trail, not just this
+                  screen. Instead (784) tags each row with a `kind` for
+                  a short, correctly-worded label here, keeps a cleaned
+                  `detail` line, and still surfaces the full original
+                  text untouched in the tap-through below — nothing
+                  hidden, just not crammed into one truncated line. */}
               {(showStatement ? statement : statement.slice(0, 6)).map((row) => (
-                <div key={row.id} className="flex items-center justify-between gap-3 p-3">
+                <button key={row.id} onClick={() => setSelectedStatementRow(row)} className="w-full flex items-center justify-between gap-3 p-3 text-start cursor-pointer">
                   <div className="min-w-0">
-                    <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{row.particular}</p>
+                    <p className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{t(`mv.statementKind.${row.kind}`)}</p>
+                    <p className="font-sans text-[11px] text-[#64748b] truncate mt-0.5"><bdi>{row.detail}</bdi></p>
                     <p className="font-sans text-[10.5px] text-[#94a3b8] mt-0.5 ltr-num">{row.voucher_no} · {new Date(row.date).toLocaleDateString('en-GB')}</p>
                   </div>
                   <p className={`font-sans text-[13.5px] font-bold shrink-0 ltr-num ${row.direction === 'credit' ? 'text-[#166534]' : 'text-[#b91c1c]'}`}>
                     {row.direction === 'credit' ? '+' : '−'}{fmt(row.amount_pkr)}
                   </p>
-                </div>
+                </button>
               ))}
             </div>
             {statement.length > 6 && (
@@ -272,6 +286,37 @@ export default function MyVehicleEarningsPage() {
 
       {showTopup && vehicleId && (
         <WalletTopupModal kind="vehicle" sellerId={vehicleId} onClose={() => setShowTopup(false)} onSubmitted={() => { setShowTopup(false); reload(vehicleId) }} />
+      )}
+
+      {selectedStatementRow && (
+        <div className="fixed inset-0 bg-black/55 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setSelectedStatementRow(null)}>
+          <div className="bg-white w-full sm:max-w-[400px] rounded-t-[24px] sm:rounded-[24px] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-sans text-[15px] font-extrabold text-[#1e293b]">{t('mv.statementDetailTitle')}</p>
+              <button onClick={() => setSelectedStatementRow(null)} aria-label="Close" className="w-8 h-8 rounded-full bg-[#F9F9F6] flex items-center justify-center cursor-pointer"><X size={16} /></button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="font-sans text-[12px] font-bold text-[#64748b]">{t(`mv.statementKind.${selectedStatementRow.kind}`)}</p>
+                <p className={`font-sans text-[24px] font-black mt-0.5 ltr-num ${selectedStatementRow.direction === 'credit' ? 'text-[#166534]' : 'text-[#b91c1c]'}`}>
+                  {selectedStatementRow.direction === 'credit' ? '+' : '−'}{fmt(selectedStatementRow.amount_pkr)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-[#F9F9F6] p-3">
+                <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-1">{t('mv.statementFullTextLabel')}</p>
+                <p className="font-sans text-[13px] text-[#1e293b] leading-[1.7]"><bdi>{selectedStatementRow.particular}</bdi></p>
+              </div>
+              <div className="flex items-center justify-between font-sans text-[12px] text-[#64748b]">
+                <span>{t('mv.statementVoucherLabel')}</span>
+                <span className="ltr-num font-semibold text-[#1e293b]">{selectedStatementRow.voucher_no}</span>
+              </div>
+              <div className="flex items-center justify-between font-sans text-[12px] text-[#64748b]">
+                <span>{t('mv.statementDateLabel')}</span>
+                <span className="ltr-num font-semibold text-[#1e293b]">{new Date(selectedStatementRow.date).toLocaleDateString('en-GB')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
