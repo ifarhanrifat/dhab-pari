@@ -94,24 +94,37 @@ export function PendingRequestOverlay({ vehicleId, vehicle }: { vehicleId: strin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicleId, isUrdu, vehicle.commission_mode])
 
-  const scanAll = useCallback(async () => {
-    const results = await Promise.all(kindsToScan().map((k) => fetchActionable(k)))
-    const fresh = results.flat()
-    if (fresh.length === 0) return
+  // Real bug found live, 2026-11-03: a ride-dispatch request's fare can
+  // rise on its own while a driver already has its popup open (the
+  // auto-escalation sweep, 789) — the old merge only ever ADDED rows
+  // whose key wasn't already queued, so an already-queued row's amount
+  // (and anything else about it) never actually updated, even though
+  // this scan runs again every 20s and on every matching realtime
+  // notification. Now replaces each scanned kind's queue entries with
+  // the fresh data (same key = updated in place, not re-added; a key
+  // no longer present = removed, e.g. someone else already accepted
+  // it) instead of only ever appending.
+  const mergeQueue = useCallback((kinds: QuickActionKind[], fresh: QuickActionRow[]) => {
     setQueue((cur) => {
-      const curKeys = new Set(cur.map((r) => `${r.type}-${r.id}`))
-      return [...cur, ...fresh.filter((r) => !curKeys.has(`${r.type}-${r.id}`))]
+      const freshKeys = new Set(fresh.map((r) => `${r.type}-${r.id}`))
+      const kept = cur.filter((r) => !kinds.includes(r.type) || freshKeys.has(`${r.type}-${r.id}`))
+      const keptKeys = new Set(kept.map((r) => `${r.type}-${r.id}`))
+      const updated = kept.map((r) => fresh.find((f) => f.type === r.type && f.id === r.id) ?? r)
+      const brandNew = fresh.filter((f) => !keptKeys.has(`${f.type}-${f.id}`))
+      return [...updated, ...brandNew]
     })
-  }, [kindsToScan, fetchActionable])
+  }, [])
+
+  const scanAll = useCallback(async () => {
+    const kinds = kindsToScan()
+    const results = await Promise.all(kinds.map((k) => fetchActionable(k)))
+    mergeQueue(kinds, results.flat())
+  }, [kindsToScan, fetchActionable, mergeQueue])
 
   const scanOneKind = useCallback(async (kind: QuickActionKind) => {
     const fresh = await fetchActionable(kind)
-    if (fresh.length === 0) return
-    setQueue((cur) => {
-      const curKeys = new Set(cur.map((r) => `${r.type}-${r.id}`))
-      return [...cur, ...fresh.filter((r) => !curKeys.has(`${r.type}-${r.id}`))]
-    })
-  }, [fetchActionable])
+    mergeQueue([kind], fresh)
+  }, [fetchActionable, mergeQueue])
 
   // Realtime: near-instant pop the moment a qualifying request lands.
   useEffect(() => {
