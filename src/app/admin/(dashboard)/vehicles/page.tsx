@@ -156,6 +156,16 @@ function AdminVehiclesInner() {
   useEffect(() => {
     supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, per_km_pkr, intercity_commission_pct').eq('is_active', true).order('display_order').then(({ data }) => setCategories(data ?? []))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Real ask, 2026-11-03: "please setup the fare of all categories
+  // according to Pakistani market like base fare, waiting, per km fare
+  // etc." — rental_tier_fare_guides (786) is the real, committee-
+  // editable reference; this just surfaces it as a suggestion next to
+  // the blank rate boxes below instead of a blank box with no context.
+  const [fareGuides, setFareGuides] = useState<{ tier_key: string; hourly_rate_pkr: number; hourly_included_km_per_hour: number; hourly_overage_per_km_pkr: number; rental_base_pkr: number; rental_per_km_pkr: number; rental_wait_hour_pkr: number }[]>([])
+  useEffect(() => {
+    supabase.rpc('rental_tier_fare_guides_list').then(({ data }) => setFareGuides((data ?? []) as typeof fareGuides))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const selectedFareGuide = fareGuides.find((g) => g.tier_key === vehicleForm.rental_tier)
   useEffect(() => {
     const handle = setTimeout(() => {
       if (!modelQuery.trim()) { setModelResults([]); return }
@@ -1222,7 +1232,18 @@ function AdminVehiclesInner() {
                     <option value="big_non_ac">{t('vp.rentalTier.big_non_ac')}</option>
                     <option value="suv">{t('vp.rentalTier.suv')}</option>
                     <option value="luxury">{t('vp.rentalTier.luxury')}</option>
+                    <option value="van">{t('vp.rentalTier.van')}</option>
+                    <option value="hiace">{t('vp.rentalTier.hiace')}</option>
+                    <option value="coaster">{t('vp.rentalTier.coaster')}</option>
+                    <option value="bus">{t('vp.rentalTier.bus')}</option>
                   </select>
+                  {selectedFareGuide && (
+                    <div className="mt-2 rounded-lg bg-dp-surface-variant/40 p-2.5 font-sans text-[11.5px] text-dp-on-surface-variant leading-[1.7]">
+                      <p className="font-semibold text-dp-on-surface mb-0.5">{t('mk.suggestedRateHeading')}</p>
+                      <p>{t('mk.suggestedHourlyLine').replace('{rate}', String(selectedFareGuide.hourly_rate_pkr)).replace('{km}', String(selectedFareGuide.hourly_included_km_per_hour)).replace('{over}', String(selectedFareGuide.hourly_overage_per_km_pkr))}</p>
+                      <p>{t('mk.suggestedRentalLine').replace('{base}', String(selectedFareGuide.rental_base_pkr)).replace('{perkm}', String(selectedFareGuide.rental_per_km_pkr)).replace('{wait}', String(selectedFareGuide.rental_wait_hour_pkr))}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 

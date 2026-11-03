@@ -44,10 +44,18 @@ interface Vehicle {
   rental_base_pkr: number; rental_per_km_pkr: number; rental_wait_hour_pkr: number | null; cover_url: string | null
   shared_from_other_village: boolean; owner_village_name: string | null
 }
+// Real ask, 2026-11-03: "this will also have the same categories but
+// it will add buses, coasters, hiace, meaning all adda vehicle type
+// will be existing in this categories." Van/Hiace/Coaster/Bus added
+// alongside the existing 6 car tiers (786 extends rental_tier's own
+// CHECK constraint to allow them) — the same model-wise picker this
+// page already has, just no longer limited to cars.
 const RENTAL_TIERS = [
   { key: 'small_ac', emoji: '🚗' }, { key: 'small_non_ac', emoji: '🚗' },
   { key: 'big_ac', emoji: '🚐' }, { key: 'big_non_ac', emoji: '🚐' },
   { key: 'suv', emoji: '🚙' }, { key: 'luxury', emoji: '🚘' },
+  { key: 'van', emoji: '🚐' }, { key: 'hiace', emoji: '🚌' },
+  { key: 'coaster', emoji: '🚍' }, { key: 'bus', emoji: '🚌' },
 ] as const
 interface Booking {
   id: string; from_address: string; from_lat: number | null; from_lng: number | null

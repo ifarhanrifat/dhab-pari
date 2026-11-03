@@ -52,13 +52,20 @@ const when = (cond: unknown, f: Fact | Fact[]): Fact[] => (cond ? (Array.isArray
 export async function fetchPendingRequestRows(supabase: Supabase, kind: QuickActionKind, vehicleId: string, ctx: RowCtx): Promise<QuickActionRow[]> {
   if (kind === 'hourly') {
     const { data } = await supabase.rpc('vehicle_hourly_bookings', { p_vehicle_id: vehicleId })
-    return ((data ?? []) as { id: string; status: string; customer_name: string; pickup_address: string; base_amount_pkr: number; total_amount_pkr: number | null; hours: number | null; included_km: number | null; notes: string | null; payment_method: string | null; customer_trust: Trust }[])
+    return ((data ?? []) as { id: string; status: string; customer_name: string; pickup_address: string; destination_address: string | null; is_outstation: boolean; base_amount_pkr: number; total_amount_pkr: number | null; hours: number | null; included_km: number | null; notes: string | null; payment_method: string | null; customer_trust: Trust }[])
       .filter((b) => b.status === 'requested')
       .map((b) => ({
         id: b.id, type: 'hourly', title: b.customer_name, subtitle: b.pickup_address, amount: b.total_amount_pkr ?? b.base_amount_pkr, href: '/portal/my-vehicle/hourly', needsAction: true,
         riderTrust: b.customer_trust ?? null, note: b.notes,
+        // Real ask, 2026-11-03: "where he wants to go... make him
+        // choose the request a comfortable way" — the driver now sees
+        // the rider's intended destination (optional, informational
+        // only — billing is still live-GPS for the whole hired
+        // window) before deciding whether to accept.
         facts: [
           ...when(b.hours, { icon: 'clock', text: n(ctx, 'rq.hours', b.hours!) }),
+          ...when(b.destination_address, { icon: 'distance', text: `→ ${b.destination_address}` }),
+          ...when(b.is_outstation, { icon: 'urgent', text: ctx.t('vp.hourlyOutstationBadge') }),
           ...when(b.included_km, { icon: 'distance', text: n(ctx, 'rq.includedKm', b.included_km!) }),
           ...payFact(ctx, b.payment_method),
         ],

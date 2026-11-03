@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Car, Snowflake, MapPin, Clock3, Loader2, AlertCircle, CheckCircle2, Ban, RotateCcw } from 'lucide-react'
+import { Car, Snowflake, MapPin, Clock3, Loader2, AlertCircle, CheckCircle2, Ban, RotateCcw, Star, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
@@ -36,20 +36,39 @@ import { FarePolicyCard, TravelQuoteLine } from '@/components/mobility/FarePolic
 import { HourlyMeter } from '@/components/mobility/HourlyMeter'
 import type { TravelQuote } from '@/lib/farePolicy'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
+import { CategoryVehiclePicker, type CategoryDef } from '@/components/mobility/CategoryVehiclePicker'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
+
+// Real ask, 2026-11-03: "when i chose this feature its showing the
+// list of all vehicles separately and not in the category shape...
+// this will also have the same categories but it will add buses,
+// coasters, hiace." Reuses the exact same rental_tier + CategoryVehiclePicker
+// mechanism the Car Rental page (653/714) already has, extended to
+// also carry the van/Hiace/Coaster/Bus tiers (786) — not a second,
+// parallel category system.
+const HOURLY_TIERS = [
+  { key: 'small_ac', emoji: '🚗' }, { key: 'small_non_ac', emoji: '🚗' },
+  { key: 'big_ac', emoji: '🚐' }, { key: 'big_non_ac', emoji: '🚐' },
+  { key: 'suv', emoji: '🚙' }, { key: 'luxury', emoji: '🚘' },
+  { key: 'van', emoji: '🚐' }, { key: 'hiace', emoji: '🚌' },
+  { key: 'coaster', emoji: '🚍' }, { key: 'bus', emoji: '🚌' },
+] as const
 
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
   hourly_rate_pkr: number; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null; cover_url: string | null
+  category_name: string | null; category_name_ur: string | null; rental_tier: string | null; avg_rating: number | null
   shared_from_other_village: boolean; owner_village_name: string | null
 }
 interface Booking {
   id: string; hours: number; status: string; pickup_address: string; pickup_lat: number | null; pickup_lng: number | null; decline_reason: string | null
+  destination_address: string | null; is_outstation: boolean
   base_amount_pkr: number; total_amount_pkr: number | null; distance_km: number
   requested_at: string; started_at: string | null; ended_at: string | null; pin: string | null
   notes: string | null; payment_method: string
   vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null; color: string | null
+  category_name: string | null; category_name_ur: string | null
   hourly_rate_pkr?: number; included_km?: number; overage_per_km_pkr?: number; overtime_minutes?: number; overtime_amount_pkr?: number
 }
 
@@ -81,7 +100,16 @@ export default function HourlyRentalPage() {
   const [openVehicle, setOpenVehicle] = useState<Vehicle | null>(null)
   const [hours, setHours] = useState(1)
   const [pickupLoc, setPickupLoc] = useState<PickedLocation | null>(null)
-  const [showPicker, setShowPicker] = useState(false)
+  const [showPicker, setShowPicker] = useState<'pickup' | 'destination' | false>(false)
+  // Real ask, 2026-11-03: "check the request procedure... where he
+  // wants to go, how many hours he wants to book... make him choose
+  // the request a comfortable way." Purely informational — billing
+  // stays live-GPS for the whole hired window exactly as before
+  // (786's own header comment) — but the driver's request card can now
+  // show the rider's real plan before deciding, instead of a bare
+  // pickup point and an hour count.
+  const [destinationLoc, setDestinationLoc] = useState<PickedLocation | null>(null)
+  const [isOutstation, setIsOutstation] = useState(false)
   const [notes, setNotes] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [requesting, setRequesting] = useState(false)
@@ -135,13 +163,60 @@ export default function HourlyRentalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, bookings])
 
-  const openBooking = (v: Vehicle) => { setOpenVehicle(v); setHours(1); setPickupLoc(null); setNotes(''); setPaymentMethod('cash') }
+  const openBooking = (v: Vehicle) => { setOpenVehicle(v); setHours(1); setPickupLoc(null); setDestinationLoc(null); setIsOutstation(false); setNotes(''); setPaymentMethod('cash') }
 
   const bookAgain = (vehicleId: string) => {
     setTab('browse')
     const v = vehicles.find((x) => x.id === vehicleId)
     if (v) openBooking(v)
   }
+
+  const tierVehicleCard = (v: Vehicle) => {
+    const Wrapper = v.shared_from_other_village ? 'div' : 'button'
+    return (
+      <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => openBooking(v) })}
+        className={`flex flex-col gap-1.5 bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden text-start ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}>
+        <div className="w-full aspect-square bg-[#F9F9F6] shrink-0 flex items-center justify-center overflow-hidden">
+          {v.cover_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
+          ) : <Car size={26} className="text-[#94a3b8]" />}
+        </div>
+        <div className="px-2 pb-2">
+          <p className="text-[12px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(v.vehicle_type, v.model)}</p>
+          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+            {v.color && <span className="text-[9.5px] text-[#64748b]">{v.color}</span>}
+            {v.has_ac && <span className="flex items-center gap-0.5 text-[8.5px] px-1 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={8} /> {t('mv.hasAcLabel')}</span>}
+            {v.avg_rating != null && <span className="flex items-center gap-0.5 text-[8.5px] text-amber-700"><Star size={8} className="fill-amber-400 text-amber-400" /> {v.avg_rating}</span>}
+          </div>
+          <p className="font-extrabold text-[13px] text-[#166534] ltr-num mt-0.5">{fmt(v.hourly_rate_pkr)} <span className="font-sans text-[9px] font-bold text-[#64748b]">{t('mv.perHourLabel')}</span></p>
+          {v.hourly_included_km != null && <p className="text-[9.5px] text-[#64748b] ltr-num">{fmt(v.hourly_included_km)}km {t('mv.includedShort')}</p>}
+          {v.shared_from_other_village && (
+            <div className="flex items-center justify-between gap-1 mt-1">
+              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800">{t('vp.sharedFromVillageBadge').replace('{village}', v.owner_village_name ?? '')}</span>
+              <CallButton phone={v.owner_mobile} className="inline-flex items-center gap-1 text-[8px] font-bold text-[#166534]" />
+            </div>
+          )}
+        </div>
+      </Wrapper>
+    )
+  }
+  const classifiedHourlyTierKeys = new Set(HOURLY_TIERS.map((rt) => rt.key))
+  const otherHourlyTierVehicles = vehicles.filter((v) => !v.rental_tier || !classifiedHourlyTierKeys.has(v.rental_tier as typeof HOURLY_TIERS[number]['key']))
+  const hourlyTierCategoryDefs: CategoryDef[] = [
+    ...HOURLY_TIERS.map((rt) => {
+      const inTier = vehicles.filter((v) => v.rental_tier === rt.key)
+      return {
+        key: rt.key, emoji: rt.emoji, name: t(`vp.rentalTier.${rt.key}`), vehicleCount: inTier.length,
+        fromPricePkr: inTier.length > 0 ? Math.min(...inTier.map((v) => v.hourly_rate_pkr)) : null,
+        selectedCount: 0, children: inTier.map(tierVehicleCard),
+      }
+    }),
+    ...(otherHourlyTierVehicles.length > 0 ? [{
+      key: 'other', emoji: '🚗', name: t('vp.otherVehiclesCategory'), vehicleCount: otherHourlyTierVehicles.length,
+      fromPricePkr: Math.min(...otherHourlyTierVehicles.map((v) => v.hourly_rate_pkr)), selectedCount: 0, children: otherHourlyTierVehicles.map(tierVehicleCard),
+    }] : []),
+  ]
 
   const submitRequest = async () => {
     if (!openVehicle) return
@@ -151,6 +226,8 @@ export default function HourlyRentalPage() {
       p_vehicle_id: openVehicle.id, p_hours: hours, p_pickup_address: pickupLoc.label,
       p_pickup_lat: pickupLoc.lat, p_pickup_lng: pickupLoc.lng,
       p_notes: notes.trim() || null, p_payment_method: paymentMethod,
+      p_destination_address: destinationLoc?.label || null, p_destination_lat: destinationLoc?.lat ?? null, p_destination_lng: destinationLoc?.lng ?? null,
+      p_is_outstation: isOutstation,
     })
     setRequesting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -194,43 +271,12 @@ export default function HourlyRentalPage() {
           <div className="bg-[#005A36] rounded-2xl p-3">
             <p className="text-[10.5px] font-bold uppercase tracking-[0.05em] text-white/75">{t('vp.committeeRateHeading')}</p>
             <p className="text-[12.5px] text-white/90 mt-1 leading-[1.6]">{t('vp.hourlyFormulaNote')}</p>
+            <p className="text-[11.5px] text-white/80 mt-1.5 leading-[1.6]">{t('vp.hourlyTwoWayNote')}</p>
           </div>
           {vehicles.length === 0 ? (
             <p className="text-center py-10 text-[#94a3b8] text-[14px]">{t('vp.noHourlyVehiclesHint')}</p>
           ) : (
-            <div className="flex flex-col gap-2">
-              {vehicles.map((v) => {
-                const Wrapper = v.shared_from_other_village ? 'div' : 'button'
-                return (
-                <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => openBooking(v) })}
-                  className={`w-full flex items-center gap-3 bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden text-start ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}>
-                  <div className="w-16 h-16 bg-[#F9F9F6] shrink-0 flex items-center justify-center overflow-hidden">
-                    {v.cover_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
-                    ) : <Car size={22} className="text-[#94a3b8]" />}
-                  </div>
-                  <div className="py-2.5 pe-1 shrink-0 min-w-[72px]">
-                    <p className="font-extrabold text-[16px] text-[#166534] ltr-num leading-tight">{fmt(v.hourly_rate_pkr)}</p>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('mv.perHourLabel')}</p>
-                  </div>
-                  <div className="flex-1 min-w-0 py-2.5 pe-3 border-s border-[#f1f5f9] ps-3">
-                    <p className="text-[13.5px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(v.vehicle_type, v.model)}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                      {v.color && <span className="text-[11px] text-[#64748b]">{v.color}</span>}
-                      {v.has_ac && <span className="flex items-center gap-0.5 text-[9.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={9} /> {t('mv.hasAcLabel')}</span>}
-                    </div>
-                    {v.hourly_included_km != null && <p className="text-[10.5px] text-[#64748b] mt-0.5 ltr-num">{fmt(v.hourly_included_km)}km {t('mv.includedShort')}</p>}
-                    {v.shared_from_other_village && (
-                      <div className="flex items-center justify-between gap-2 mt-1">
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800">{t('vp.sharedFromVillageBadge').replace('{village}', v.owner_village_name ?? '')}</span>
-                        <CallButton phone={v.owner_mobile} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#166534]" />
-                      </div>
-                    )}
-                  </div>
-                </Wrapper>
-              )})}
-            </div>
+            <CategoryVehiclePicker categories={hourlyTierCategoryDefs} availableLabel={t('mb.availableLabel')} fromLabel={t('mb.fromPriceLabel')} />
           )}
         </>
       ) : (
@@ -244,6 +290,12 @@ export default function HourlyRentalPage() {
                   <div className="min-w-0">
                     <p className="text-[14px] font-bold text-[#1e293b]">{vehicleDisplayName(b.vehicle_type, b.model)} — {b.owner_name}</p>
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {b.pickup_address}</p>
+                    {b.destination_address && (
+                      <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1">
+                        <Navigation size={11} className="shrink-0 mt-0.5 text-[#b91c1c]" /> {b.destination_address}
+                        {b.is_outstation && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800">{t('vp.hourlyOutstationBadge')}</span>}
+                      </p>
+                    )}
                     <p className="text-[11.5px] text-[#64748b] mt-0.5 ltr-num">{b.hours} {t('vp.hoursShort')} · {fmt(b.base_amount_pkr)}{t('vp.baseAmountSuffix')}</p>
                     {b.notes && <p className="text-[11.5px] text-[#64748b] mt-0.5 italic">&ldquo;{b.notes}&rdquo;</p>}
                     {(b.status === 'accepted' || b.status === 'in_progress') && (
@@ -332,21 +384,37 @@ export default function HourlyRentalPage() {
           {showPicker ? (
             <div className="mb-3">
               <LocationPickerSheet
-                title={t('vp.pickupAddressLabel')}
-                initial={pickupLoc}
+                title={showPicker === 'pickup' ? t('vp.pickupAddressLabel') : t('vp.hourlyDestinationLabel')}
+                initial={showPicker === 'pickup' ? pickupLoc : destinationLoc}
                 inline
                 onClose={() => setShowPicker(false)}
-                onConfirm={(loc) => { setPickupLoc(loc); setShowPicker(false) }}
+                onConfirm={(loc) => { if (showPicker === 'pickup') setPickupLoc(loc); else setDestinationLoc(loc); setShowPicker(false) }}
               />
             </div>
           ) : (
             <>
               <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.pickupAddressLabel')}</label>
               {pickupLoc && <LeafletMap pins={[{ lat: pickupLoc.lat, lng: pickupLoc.lng, color: '#166534' }]} height={140} className="rounded-xl mb-2" />}
-              <button onClick={() => setShowPicker(true)} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
+              <button onClick={() => setShowPicker('pickup')} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-3">
                 <MapPin size={15} className="text-[#166534] shrink-0" />
                 <span className={`text-[13.5px] truncate ${pickupLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{pickupLoc ? pickupLoc.label : t('vp.pickupAddressPlaceholder')}</span>
               </button>
+
+              {/* Real ask, 2026-11-03: "where he wants to go... make
+                  him choose the request a comfortable way" — optional
+                  (billing stays GPS-based regardless), but tells the
+                  driver the rider's real plan before they decide. */}
+              <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.hourlyDestinationLabel')} <span className="font-normal text-[#94a3b8]">({t('action.optional')})</span></label>
+              <button onClick={() => setShowPicker('destination')} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-2">
+                <Navigation size={15} className="text-[#b91c1c] shrink-0" />
+                <span className={`text-[13.5px] truncate ${destinationLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{destinationLoc ? destinationLoc.label : t('vp.hourlyDestinationPlaceholder')}</span>
+              </button>
+              {destinationLoc && (
+                <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                  <input type="checkbox" checked={isOutstation} onChange={(e) => setIsOutstation(e.target.checked)} className="accent-[#166534]" />
+                  <span className="font-sans text-[12.5px] text-[#1e293b]">{t('vp.hourlyIsOutstationLabel')}</span>
+                </label>
+              )}
             </>
           )}
 
@@ -373,6 +441,7 @@ export default function HourlyRentalPage() {
             <p className="text-[11px] text-[#64748b] mt-1">
               {t('vp.includedThenOverage').replace('{km}', fmt(estimatedIncludedKm)).replace('{rate}', fmt(openVehicle.hourly_overage_per_km_pkr ?? 0))}
             </p>
+            <p className="text-[10.5px] text-[#64748b] mt-1 leading-[1.6]">{t('vp.hourlyTwoWayNote')}</p>
           </div>
 
           <div className="flex flex-col gap-2 mb-3">
