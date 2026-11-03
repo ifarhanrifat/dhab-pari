@@ -22,7 +22,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Vehicle {
-  id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
+  id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean; model_year: number | null
   offers_hourly: boolean; offers_shadi: boolean; offers_rental: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
   shadi_full_day_rate_pkr: number | null; shadi_vehicle_class: string | null
@@ -62,6 +62,7 @@ export default function MyVehicleCatalogPage() {
 
   const [color, setColor] = useState('')
   const [model, setModel] = useState('')
+  const [modelYear, setModelYear] = useState<number | null>(null)
   const [hasAc, setHasAc] = useState(false)
   const [offersHourly, setOffersHourly] = useState(false)
   const [offersShadi, setOffersShadi] = useState(false)
@@ -77,11 +78,11 @@ export default function MyVehicleCatalogPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, vehicle_type, color, model, has_ac, offers_hourly, offers_shadi, offers_rental, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_base_pkr, rental_per_km_pkr, rental_wait_hour_pkr, rental_tier')
+    supabase.from('vehicles').select('id, owner_name, vehicle_type, color, model, model_year, has_ac, offers_hourly, offers_shadi, offers_rental, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_base_pkr, rental_per_km_pkr, rental_wait_hour_pkr, rental_tier')
       .eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
         setVehicle(data)
         if (data) {
-          setColor(data.color ?? ''); setModel(data.model ?? ''); setHasAc(data.has_ac)
+          setColor(data.color ?? ''); setModel(data.model ?? ''); setModelYear(data.model_year ?? null); setHasAc(data.has_ac)
           setOffersHourly(data.offers_hourly); setOffersShadi(data.offers_shadi); setOffersRental(data.offers_rental)
           setShadiVehicleClass(data.shadi_vehicle_class ?? '')
           setRentalTier(data.rental_tier ?? '')
@@ -98,12 +99,12 @@ export default function MyVehicleCatalogPage() {
     setSaving(true)
     const { error } = await supabase.rpc('set_vehicle_catalog_prefs', {
       p_vehicle_id: vehicle.id, p_color: color, p_model: model, p_has_ac: hasAc, p_offers_hourly: offersHourly, p_offers_shadi: offersShadi, p_offers_rental: offersRental,
-      p_shadi_vehicle_class: shadiVehicleClass || null, p_rental_tier: rentalTier || null,
+      p_shadi_vehicle_class: shadiVehicleClass || null, p_rental_tier: rentalTier || null, p_model_year: modelYear,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('g.saveChanges'))
-    setVehicle((v) => v ? { ...v, color: color.trim() || null, model: model.trim() || null, has_ac: hasAc, offers_hourly: offersHourly, offers_shadi: offersShadi, offers_rental: offersRental, shadi_vehicle_class: shadiVehicleClass || v.shadi_vehicle_class, rental_tier: rentalTier || v.rental_tier } : v)
+    setVehicle((v) => v ? { ...v, color: color.trim() || null, model: model.trim() || null, model_year: modelYear, has_ac: hasAc, offers_hourly: offersHourly, offers_shadi: offersShadi, offers_rental: offersRental, shadi_vehicle_class: shadiVehicleClass || v.shadi_vehicle_class, rental_tier: rentalTier || v.rental_tier } : v)
   }
 
   const uploadPhoto = async (file: File) => {
@@ -197,6 +198,15 @@ export default function MyVehicleCatalogPage() {
           <div>
             <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mv.modelLabel')}</label>
             <p className="font-sans text-[13.5px] font-semibold text-[#1e293b]">{model || '—'}</p>
+          </div>
+          {/* Real ask, 2026-11-03: "there is no model year picker for
+              the rider... we can choose a model year" — needs a real
+              model_year on file to match against (787). Same lock as
+              color/model/AC above: verified once at registration, not
+              driver-editable here. */}
+          <div>
+            <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('mv.modelYearLabel')}</label>
+            <p className="font-sans text-[13.5px] font-semibold text-[#1e293b] ltr-num">{modelYear ?? '—'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 mt-3">

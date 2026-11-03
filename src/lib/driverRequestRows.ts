@@ -52,11 +52,11 @@ const when = (cond: unknown, f: Fact | Fact[]): Fact[] => (cond ? (Array.isArray
 export async function fetchPendingRequestRows(supabase: Supabase, kind: QuickActionKind, vehicleId: string, ctx: RowCtx): Promise<QuickActionRow[]> {
   if (kind === 'hourly') {
     const { data } = await supabase.rpc('vehicle_hourly_bookings', { p_vehicle_id: vehicleId })
-    return ((data ?? []) as { id: string; status: string; customer_name: string; pickup_address: string; destination_address: string | null; is_outstation: boolean; base_amount_pkr: number; total_amount_pkr: number | null; hours: number | null; included_km: number | null; notes: string | null; payment_method: string | null; customer_trust: Trust }[])
+    return ((data ?? []) as { id: string; status: string; customer_name: string; pickup_address: string; destination_address: string | null; is_outstation: boolean; vehicle_id: string | null; base_amount_pkr: number; total_amount_pkr: number | null; hours: number | null; included_km: number | null; notes: string | null; payment_method: string | null; customer_trust: Trust }[])
       .filter((b) => b.status === 'requested')
       .map((b) => ({
         id: b.id, type: 'hourly', title: b.customer_name, subtitle: b.pickup_address, amount: b.total_amount_pkr ?? b.base_amount_pkr, href: '/portal/my-vehicle/hourly', needsAction: true,
-        riderTrust: b.customer_trust ?? null, note: b.notes,
+        riderTrust: b.customer_trust ?? null, note: b.notes, isBroadcast: b.vehicle_id == null,
         // Real ask, 2026-11-03: "where he wants to go... make him
         // choose the request a comfortable way" — the driver now sees
         // the rider's intended destination (optional, informational
@@ -73,11 +73,11 @@ export async function fetchPendingRequestRows(supabase: Supabase, kind: QuickAct
   }
   if (kind === 'rental') {
     const { data } = await supabase.rpc('vehicle_rental_bookings', { p_vehicle_id: vehicleId })
-    return ((data ?? []) as { id: string; status: string; customer_name: string; from_address: string; to_address: string; total_amount_pkr: number; trip_type: string | null; km: number | null; wait_hours: number | null; notes: string | null; payment_method: string | null; customer_trust: Trust }[])
+    return ((data ?? []) as { id: string; status: string; customer_name: string; from_address: string; to_address: string; vehicle_id: string | null; total_amount_pkr: number; trip_type: string | null; km: number | null; wait_hours: number | null; notes: string | null; payment_method: string | null; customer_trust: Trust }[])
       .filter((b) => b.status === 'requested')
       .map((b) => ({
         id: b.id, type: 'rental', title: b.customer_name, subtitle: `${b.from_address} → ${b.to_address}`, amount: b.total_amount_pkr, href: '/portal/my-vehicle/rental', needsAction: true,
-        from: b.from_address, to: b.to_address, riderTrust: b.customer_trust ?? null, note: b.notes,
+        from: b.from_address, to: b.to_address, riderTrust: b.customer_trust ?? null, note: b.notes, isBroadcast: b.vehicle_id == null,
         facts: [
           { icon: 'repeat', text: ctx.t(b.trip_type === 'return' ? 'rq.returnTrip' : 'rq.oneWay') },
           ...when(b.km, { icon: 'distance', text: n(ctx, 'rq.km', Math.round(b.km ?? 0)) }),

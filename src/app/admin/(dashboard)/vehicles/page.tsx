@@ -30,7 +30,7 @@ const LeafletSinglePinPicker = dynamic(() => import('@/components/shared/Leaflet
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; owner_whatsapp: string | null
   vehicle_type: string; vehicle_number: string | null; total_seats: number; is_active: boolean
-  category_id: string | null; model: string | null; color: string | null; has_ac: boolean
+  category_id: string | null; model: string | null; color: string | null; has_ac: boolean; model_year: number | null
   portal_user_id: string | null; commission_mode: string; lumpsum_fee_pkr: number | null; night_booking_enabled: boolean
   allows_out_of_city: boolean; per_km_pkr: number | null; is_online: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
@@ -75,7 +75,7 @@ interface AddaBoard { adda: Adda; pair_adda: Adda | null; entries: AddaBoardEntr
 
 const emptyVehicle = {
   owner_name: '', owner_mobile: '', owner_whatsapp: '', vehicle_type: '', vehicle_number: '', total_seats: 4, is_active: true,
-  category_id: null as string | null, model: '', color: '', has_ac: false,
+  category_id: null as string | null, model: '', color: '', has_ac: false, model_year: null as number | null,
   portal_user_id: null as string | null, commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0, night_booking_enabled: false,
   allows_out_of_city: true, per_km_pkr: null as number | null,
   hourly_rate_pkr: null as number | null, hourly_included_km: null as number | null, hourly_overage_per_km_pkr: null as number | null,
@@ -107,6 +107,8 @@ export default function AdminVehiclesPage() {
     </Suspense>
   )
 }
+
+const MODEL_YEAR_OPTIONS = Array.from({ length: 27 }, (_, i) => new Date().getFullYear() + 1 - i)
 
 function AdminVehiclesInner() {
   const { t, isUrdu } = useLocale()
@@ -569,7 +571,7 @@ function AdminVehiclesInner() {
     setVehicleForm({
       owner_name: v.owner_name, owner_mobile: v.owner_mobile ?? '', owner_whatsapp: v.owner_whatsapp ?? '',
       vehicle_type: v.vehicle_type, vehicle_number: v.vehicle_number ?? '', total_seats: v.total_seats, is_active: v.is_active,
-      category_id: v.category_id, model: v.model ?? '', color: v.color ?? '', has_ac: v.has_ac,
+      category_id: v.category_id, model: v.model ?? '', color: v.color ?? '', has_ac: v.has_ac, model_year: v.model_year ?? null,
       portal_user_id: v.portal_user_id, commission_mode: v.commission_mode, lumpsum_fee_pkr: v.lumpsum_fee_pkr ?? 0,
       night_booking_enabled: v.night_booking_enabled, allows_out_of_city: v.allows_out_of_city, per_km_pkr: v.per_km_pkr,
       hourly_rate_pkr: v.hourly_rate_pkr, hourly_included_km: v.hourly_included_km, hourly_overage_per_km_pkr: v.hourly_overage_per_km_pkr,
@@ -1236,6 +1238,19 @@ function AdminVehiclesInner() {
                     <option value="hiace">{t('vp.rentalTier.hiace')}</option>
                     <option value="coaster">{t('vp.rentalTier.coaster')}</option>
                     <option value="bus">{t('vp.rentalTier.bus')}</option>
+                  </select>
+                </div>
+                {/* Real ask, 2026-11-03: "there is no model year picker
+                    for the rider... we can choose a model year" — 787
+                    broadcasts an hourly/rental request to vehicles of a
+                    matching model_year first, falling back to the
+                    whole category otherwise. Nothing to match against
+                    without this on file. */}
+                <div className="mt-2">
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('mv.modelYearLabel')}</label>
+                  <select value={vehicleForm.model_year ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, model_year: e.target.value ? Number(e.target.value) : null })} className="input-field">
+                    <option value="">—</option>
+                    {MODEL_YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
                   </select>
                   {selectedFareGuide && (
                     <div className="mt-2 rounded-lg bg-dp-surface-variant/40 p-2.5 font-sans text-[11.5px] text-dp-on-surface-variant leading-[1.7]">

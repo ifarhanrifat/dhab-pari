@@ -1,22 +1,32 @@
 'use client'
 
-// Hourly rental — browse vehicles that opted in (offers_hourly, 474),
-// book by the hour, and track the request through the full accept/
-// decline/in-progress/completed lifecycle (475/477). Price is formulaic
-// (rate × hours, locked in at request time) — nothing to negotiate, so
-// this is a direct booking like ride_bookings, not a chat thread.
+// Hourly rental — broadcast to every active vehicle in a category,
+// book by the hour, track the request through the full accept/
+// in-progress/completed lifecycle (475/477). Price is formulaic (the
+// category's own fare-guide rate × hours, locked in at request time)
+// — nothing to negotiate, so this is a direct booking, not a chat
+// thread.
+//
+// Real ask, 2026-11-03: "when i chose a vehicle category then there
+// will be dozens or maybe hundreds of vehicles on that catalog, how
+// will the rider choose between them? ... the purpose of these online
+// taxi systems is to send the calls to all drivers who are nearby so
+// everyone gets a chance for their jobs ... we can't allow the rider
+// to pick up a separate vehicle from the catalog, it will be
+// unjustifying — only shadi vehicles work this way." This page no
+// longer lets a rider browse and pick one specific vehicle at all —
+// picking a category tile + an optional preferred model year goes
+// straight to the booking form, and the request (787) broadcasts to
+// every matching vehicle; whoever accepts first gets the job.
 //
 // The "My Bookings" tab doubles as the whole post-request experience:
-// a still-pending request can be cancelled, a declined one shows why,
-// an in-progress trip shows the live distance ticking up, and a
-// completed one shows the final breakdown.
-//
-// Phase 4: re-skinned to the new design + moved under marketplace/
-// (mobility)/ — the booking sheet now reuses MobilityBottomSheet.
+// a still-open (unassigned) request can be cancelled, an in-progress
+// trip shows the live distance ticking up, and a completed one shows
+// the final breakdown.
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Car, Snowflake, MapPin, Clock3, Loader2, AlertCircle, CheckCircle2, Ban, RotateCcw, Star, Navigation } from 'lucide-react'
+import { MapPin, Clock3, Loader2, AlertCircle, CheckCircle2, Ban, RotateCcw, Navigation, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
@@ -36,40 +46,29 @@ import { FarePolicyCard, TravelQuoteLine } from '@/components/mobility/FarePolic
 import { HourlyMeter } from '@/components/mobility/HourlyMeter'
 import type { TravelQuote } from '@/lib/farePolicy'
 import { LocationPickerSheet, type PickedLocation } from '@/components/mobility/LocationPickerSheet'
-import { CategoryVehiclePicker, type CategoryDef } from '@/components/mobility/CategoryVehiclePicker'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
-// Real ask, 2026-11-03: "when i chose this feature its showing the
-// list of all vehicles separately and not in the category shape...
-// this will also have the same categories but it will add buses,
-// coasters, hiace." Reuses the exact same rental_tier + CategoryVehiclePicker
-// mechanism the Car Rental page (653/714) already has, extended to
-// also carry the van/Hiace/Coaster/Bus tiers (786) — not a second,
-// parallel category system.
-const HOURLY_TIERS = [
-  { key: 'small_ac', emoji: '🚗' }, { key: 'small_non_ac', emoji: '🚗' },
-  { key: 'big_ac', emoji: '🚐' }, { key: 'big_non_ac', emoji: '🚐' },
-  { key: 'suv', emoji: '🚙' }, { key: 'luxury', emoji: '🚘' },
-  { key: 'van', emoji: '🚐' }, { key: 'hiace', emoji: '🚌' },
-  { key: 'coaster', emoji: '🚍' }, { key: 'bus', emoji: '🚌' },
-] as const
+const TIER_EMOJI: Record<string, string> = {
+  small_ac: '🚗', small_non_ac: '🚗', big_ac: '🚘', big_non_ac: '🚖', suv: '🚙', luxury: '🏎️',
+  van: '🚐', hiace: '🚌', coaster: '🚍', bus: '🚌',
+}
+const TIER_ORDER = ['small_ac', 'small_non_ac', 'big_ac', 'big_non_ac', 'suv', 'luxury', 'van', 'hiace', 'coaster', 'bus']
+const CURRENT_YEAR = new Date().getFullYear()
+const YEAR_OPTIONS = Array.from({ length: 26 }, (_, i) => CURRENT_YEAR - i)
 
-interface Vehicle {
-  id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
-  hourly_rate_pkr: number; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null; cover_url: string | null
-  category_name: string | null; category_name_ur: string | null; rental_tier: string | null; avg_rating: number | null
-  shared_from_other_village: boolean; owner_village_name: string | null
+interface TierOption {
+  tier_key: string; vehicle_count: number
+  hourly_rate_pkr: number; hourly_included_km_per_hour: number; hourly_overage_per_km_pkr: number
 }
 interface Booking {
   id: string; hours: number; status: string; pickup_address: string; pickup_lat: number | null; pickup_lng: number | null; decline_reason: string | null
-  destination_address: string | null; is_outstation: boolean
+  destination_address: string | null; is_outstation: boolean; vehicle_id: string | null; rental_tier: string | null
   base_amount_pkr: number; total_amount_pkr: number | null; distance_km: number
   requested_at: string; started_at: string | null; ended_at: string | null; pin: string | null
   notes: string | null; payment_method: string
-  vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null; color: string | null
+  owner_name: string | null; owner_mobile: string | null; vehicle_type: string | null; model: string | null; color: string | null
   category_name: string | null; category_name_ur: string | null
-  hourly_rate_pkr?: number; included_km?: number; overage_per_km_pkr?: number; overtime_minutes?: number; overtime_amount_pkr?: number
 }
 
 const PAYMENT_METHODS: { key: string; emoji: string; labelKey: string }[] = [
@@ -93,21 +92,15 @@ export default function HourlyRentalPage() {
   const supabase = createClient()
 
   const [tab, setTab] = useState<'browse' | 'mine'>('browse')
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [tiers, setTiers] = useState<TierOption[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [openVehicle, setOpenVehicle] = useState<Vehicle | null>(null)
+  const [openTier, setOpenTier] = useState<TierOption | null>(null)
   const [hours, setHours] = useState(1)
+  const [preferredYear, setPreferredYear] = useState<number | null>(null)
   const [pickupLoc, setPickupLoc] = useState<PickedLocation | null>(null)
   const [showPicker, setShowPicker] = useState<'pickup' | 'destination' | false>(false)
-  // Real ask, 2026-11-03: "check the request procedure... where he
-  // wants to go, how many hours he wants to book... make him choose
-  // the request a comfortable way." Purely informational — billing
-  // stays live-GPS for the whole hired window exactly as before
-  // (786's own header comment) — but the driver's request card can now
-  // show the rider's real plan before deciding, instead of a bare
-  // pickup point and an hour count.
   const [destinationLoc, setDestinationLoc] = useState<PickedLocation | null>(null)
   const [isOutstation, setIsOutstation] = useState(false)
   const [notes, setNotes] = useState('')
@@ -116,20 +109,21 @@ export default function HourlyRentalPage() {
   const [pickupQuote, setPickupQuote] = useState<TravelQuote | null>(null)
   const [waiting, setWaiting] = useState<{ id: string; summary: WaitingSummary; since: string | null } | null>(null)
 
-  const loadVehicles = () => supabase.rpc('hourly_bookable_vehicles').then(({ data }) => setVehicles((data ?? []) as Vehicle[]))
+  const loadTiers = () => supabase.rpc('hourly_tier_options').then(({ data }) => setTiers((data ?? []) as TierOption[]))
   const loadBookings = () => supabase.rpc('my_hourly_bookings').then(({ data }) => { const rows = (data ?? []) as Booking[]; setBookings(rows); return rows })
   const hoursFact = (h: number) => t('rw.hours').replace('{n}', String(h))
   const waitingFor = (b: Booking) => ({
     id: b.id, since: b.requested_at,
-    summary: { vehicleLabel: vehicleDisplayName(b.vehicle_type, b.model), driverName: b.owner_name, from: b.pickup_address, amount: b.total_amount_pkr ?? b.base_amount_pkr, facts: [hoursFact(b.hours)] },
+    summary: {
+      vehicleLabel: b.vehicle_type ? vehicleDisplayName(b.vehicle_type, b.model) : t(`vp.rentalTier.${b.rental_tier}`),
+      driverName: b.owner_name, from: b.pickup_address, amount: b.total_amount_pkr ?? b.base_amount_pkr, facts: [hoursFact(b.hours)],
+    },
   })
 
   useEffect(() => {
     if (!user) return
-    Promise.all([loadVehicles(), loadBookings()]).then(([, rows]) => {
+    Promise.all([loadTiers(), loadBookings()]).then(([, rows]) => {
       setLoading(false)
-      // A request still waiting on its driver reopens its waiting
-      // popup — reloading the page shouldn't lose the "waiting" screen.
       const pending = rows.filter((b) => b.status === 'requested').sort((a, b) => b.requested_at.localeCompare(a.requested_at))[0]
       if (pending) setWaiting(waitingFor(pending))
     })
@@ -137,7 +131,7 @@ export default function HourlyRentalPage() {
   }, [user])
 
   useEffect(() => {
-    if (tab !== 'mine' || !bookings.some((b) => b.status === 'in_progress')) return
+    if (tab !== 'mine' || !bookings.some((b) => b.status === 'in_progress' || b.status === 'requested')) return
     const id = setInterval(loadBookings, 10000)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,68 +157,23 @@ export default function HourlyRentalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, bookings])
 
-  const openBooking = (v: Vehicle) => { setOpenVehicle(v); setHours(1); setPickupLoc(null); setDestinationLoc(null); setIsOutstation(false); setNotes(''); setPaymentMethod('cash') }
+  const openBooking = (tier: TierOption) => {
+    setOpenTier(tier); setHours(1); setPreferredYear(null); setPickupLoc(null); setDestinationLoc(null); setIsOutstation(false); setNotes(''); setPaymentMethod('cash')
+  }
 
-  const bookAgain = (vehicleId: string) => {
+  const bookAgain = (tierKey: string | null) => {
     setTab('browse')
-    const v = vehicles.find((x) => x.id === vehicleId)
-    if (v) openBooking(v)
+    const tier = tiers.find((x) => x.tier_key === tierKey)
+    if (tier) openBooking(tier)
   }
-
-  const tierVehicleCard = (v: Vehicle) => {
-    const Wrapper = v.shared_from_other_village ? 'div' : 'button'
-    return (
-      <Wrapper key={v.id} {...(v.shared_from_other_village ? {} : { onClick: () => openBooking(v) })}
-        className={`flex flex-col gap-1.5 bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden text-start ${v.shared_from_other_village ? '' : 'cursor-pointer'}`}>
-        <div className="w-full aspect-square bg-[#F9F9F6] shrink-0 flex items-center justify-center overflow-hidden">
-          {v.cover_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
-          ) : <Car size={26} className="text-[#94a3b8]" />}
-        </div>
-        <div className="px-2 pb-2">
-          <p className="text-[12px] font-bold text-[#1e293b] truncate">{vehicleDisplayName(v.vehicle_type, v.model)}</p>
-          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-            {v.color && <span className="text-[9.5px] text-[#64748b]">{v.color}</span>}
-            {v.has_ac && <span className="flex items-center gap-0.5 text-[8.5px] px-1 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={8} /> {t('mv.hasAcLabel')}</span>}
-            {v.avg_rating != null && <span className="flex items-center gap-0.5 text-[8.5px] text-amber-700"><Star size={8} className="fill-amber-400 text-amber-400" /> {v.avg_rating}</span>}
-          </div>
-          <p className="font-extrabold text-[13px] text-[#166534] ltr-num mt-0.5">{fmt(v.hourly_rate_pkr)} <span className="font-sans text-[9px] font-bold text-[#64748b]">{t('mv.perHourLabel')}</span></p>
-          {v.hourly_included_km != null && <p className="text-[9.5px] text-[#64748b] ltr-num">{fmt(v.hourly_included_km)}km {t('mv.includedShort')}</p>}
-          {v.shared_from_other_village && (
-            <div className="flex items-center justify-between gap-1 mt-1">
-              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800">{t('vp.sharedFromVillageBadge').replace('{village}', v.owner_village_name ?? '')}</span>
-              <CallButton phone={v.owner_mobile} className="inline-flex items-center gap-1 text-[8px] font-bold text-[#166534]" />
-            </div>
-          )}
-        </div>
-      </Wrapper>
-    )
-  }
-  const classifiedHourlyTierKeys = new Set(HOURLY_TIERS.map((rt) => rt.key))
-  const otherHourlyTierVehicles = vehicles.filter((v) => !v.rental_tier || !classifiedHourlyTierKeys.has(v.rental_tier as typeof HOURLY_TIERS[number]['key']))
-  const hourlyTierCategoryDefs: CategoryDef[] = [
-    ...HOURLY_TIERS.map((rt) => {
-      const inTier = vehicles.filter((v) => v.rental_tier === rt.key)
-      return {
-        key: rt.key, emoji: rt.emoji, name: t(`vp.rentalTier.${rt.key}`), vehicleCount: inTier.length,
-        fromPricePkr: inTier.length > 0 ? Math.min(...inTier.map((v) => v.hourly_rate_pkr)) : null,
-        selectedCount: 0, children: inTier.map(tierVehicleCard),
-      }
-    }),
-    ...(otherHourlyTierVehicles.length > 0 ? [{
-      key: 'other', emoji: '🚗', name: t('vp.otherVehiclesCategory'), vehicleCount: otherHourlyTierVehicles.length,
-      fromPricePkr: Math.min(...otherHourlyTierVehicles.map((v) => v.hourly_rate_pkr)), selectedCount: 0, children: otherHourlyTierVehicles.map(tierVehicleCard),
-    }] : []),
-  ]
 
   const submitRequest = async () => {
-    if (!openVehicle) return
+    if (!openTier) return
     if (!pickupLoc) { toast.error(t('vp.hourlyAddressRequired')); return }
     setRequesting(true)
     const { data: bookingId, error } = await supabase.rpc('create_hourly_booking', {
-      p_vehicle_id: openVehicle.id, p_hours: hours, p_pickup_address: pickupLoc.label,
-      p_pickup_lat: pickupLoc.lat, p_pickup_lng: pickupLoc.lng,
+      p_rental_tier: openTier.tier_key, p_hours: hours, p_pickup_address: pickupLoc.label,
+      p_pickup_lat: pickupLoc.lat, p_pickup_lng: pickupLoc.lng, p_preferred_year: preferredYear,
       p_notes: notes.trim() || null, p_payment_method: paymentMethod,
       p_destination_address: destinationLoc?.label || null, p_destination_lat: destinationLoc?.lat ?? null, p_destination_lng: destinationLoc?.lng ?? null,
       p_is_outstation: isOutstation,
@@ -233,9 +182,9 @@ export default function HourlyRentalPage() {
     if (error) { toast.error(friendlyError(error)); return }
     setWaiting({
       id: bookingId as string, since: null,
-      summary: { vehicleLabel: vehicleDisplayName(openVehicle.vehicle_type, openVehicle.model), driverName: openVehicle.owner_name, from: pickupLoc.label, amount: estimatedTotal, facts: [hoursFact(hours)] },
+      summary: { vehicleLabel: t(`vp.rentalTier.${openTier.tier_key}`), from: pickupLoc.label, amount: estimatedTotal, facts: [hoursFact(hours)] },
     })
-    setOpenVehicle(null)
+    setOpenTier(null)
     loadBookings()
   }
 
@@ -246,10 +195,12 @@ export default function HourlyRentalPage() {
     loadBookings()
   }
 
-  const estimatedTotal = openVehicle ? openVehicle.hourly_rate_pkr * hours : 0
-  const estimatedIncludedKm = openVehicle ? (openVehicle.hourly_included_km ?? 0) * hours : 0
+  const estimatedTotal = openTier ? openTier.hourly_rate_pkr * hours : 0
+  const estimatedIncludedKm = openTier ? openTier.hourly_included_km_per_hour * hours : 0
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
+
+  const sortedTiers = [...tiers].sort((a, b) => TIER_ORDER.indexOf(a.tier_key) - TIER_ORDER.indexOf(b.tier_key))
 
   return (
     <div className="flex flex-col gap-3">
@@ -273,10 +224,20 @@ export default function HourlyRentalPage() {
             <p className="text-[12.5px] text-white/90 mt-1 leading-[1.6]">{t('vp.hourlyFormulaNote')}</p>
             <p className="text-[11.5px] text-white/80 mt-1.5 leading-[1.6]">{t('vp.hourlyTwoWayNote')}</p>
           </div>
-          {vehicles.length === 0 ? (
+          {sortedTiers.length === 0 ? (
             <p className="text-center py-10 text-[#94a3b8] text-[14px]">{t('vp.noHourlyVehiclesHint')}</p>
           ) : (
-            <CategoryVehiclePicker categories={hourlyTierCategoryDefs} availableLabel={t('mb.availableLabel')} fromLabel={t('mb.fromPriceLabel')} />
+            <div className="grid grid-cols-2 gap-2.5">
+              {sortedTiers.map((tier) => (
+                <button key={tier.tier_key} onClick={() => openBooking(tier)}
+                  className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
+                  <span className="text-[22px]">{TIER_EMOJI[tier.tier_key] ?? '🚗'}</span>
+                  <span className="text-[13px] font-bold text-[#1e293b]">{t(`vp.rentalTier.${tier.tier_key}`)}</span>
+                  <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{fmt(tier.hourly_rate_pkr)} <span className="font-sans text-[9.5px] font-bold text-[#64748b]">{t('mv.perHourLabel')}</span></span>
+                  <span className="flex items-center gap-1 text-[10px] text-[#94a3b8] ltr-num"><Users size={10} /> {tier.vehicle_count} {t('mb.availableLabel')}</span>
+                </button>
+              ))}
+            </div>
           )}
         </>
       ) : (
@@ -288,7 +249,12 @@ export default function HourlyRentalPage() {
               <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[14px] font-bold text-[#1e293b]">{vehicleDisplayName(b.vehicle_type, b.model)} — {b.owner_name}</p>
+                    {/* Real ask: a still-open broadcast request has no
+                        assigned vehicle yet — show "waiting for a
+                        driver" instead of a blank/broken vehicle name. */}
+                    <p className="text-[14px] font-bold text-[#1e293b]">
+                      {b.vehicle_type ? `${vehicleDisplayName(b.vehicle_type, b.model)} — ${b.owner_name}` : t('vp.hourlySearchingLabel').replace('{tier}', t(`vp.rentalTier.${b.rental_tier}`))}
+                    </p>
                     <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {b.pickup_address}</p>
                     {b.destination_address && (
                       <p className="text-[12px] text-[#64748b] mt-0.5 flex items-start gap-1">
@@ -332,7 +298,7 @@ export default function HourlyRentalPage() {
                     </div>
                     <div className="mt-2"><HourlyMeter row={b} /></div>
                     {livePos[b.id] && (
-                      <LeafletMap pins={[{ lat: livePos[b.id].lat, lng: livePos[b.id].lng, label: b.owner_name, emoji: '🚐' }]} height={160} className="rounded-xl mt-2" />
+                      <LeafletMap pins={[{ lat: livePos[b.id].lat, lng: livePos[b.id].lng, label: b.owner_name ?? '', emoji: '🚐' }]} height={160} className="rounded-xl mt-2" />
                     )}
                   </div>
                 )}
@@ -345,13 +311,15 @@ export default function HourlyRentalPage() {
                     <div className="mt-1.5 flex items-center justify-between">
                       <ShareBookingButton
                         title={`${isUrdu ? site.nameUrdu : site.name} ${t('mb.portalSuffix')}`}
-                        lines={[`${vehicleDisplayName(b.vehicle_type, b.model)} — ${b.owner_name}`, b.pickup_address, `${t('vp.totalLabel')}: ${fmt(b.total_amount_pkr ?? b.base_amount_pkr)}`]}
+                        lines={[`${b.vehicle_type ? vehicleDisplayName(b.vehicle_type, b.model) : ''} — ${b.owner_name ?? ''}`, b.pickup_address, `${t('vp.totalLabel')}: ${fmt(b.total_amount_pkr ?? b.base_amount_pkr)}`]}
                       />
                       <ReportProblemButton refType="hourly_booking" refId={b.id} kindOptions={['hourly_overage', 'no_show']} />
                     </div>
-                    <div className="mt-2">
-                      <RateAndReport refType="hourly_booking" refId={b.id} againstPartyType="vehicle" againstPartyId={b.vehicle_id} showComplaint={false} />
-                    </div>
+                    {b.vehicle_id && (
+                      <div className="mt-2">
+                        <RateAndReport refType="hourly_booking" refId={b.id} againstPartyType="vehicle" againstPartyId={b.vehicle_id} showComplaint={false} />
+                      </div>
+                    )}
                   </>
                 )}
                 {(b.status === 'requested' || b.status === 'accepted') && (
@@ -360,7 +328,7 @@ export default function HourlyRentalPage() {
                   </button>
                 )}
                 {(b.status === 'declined' || b.status === 'cancelled' || b.status === 'completed') && (
-                  <button onClick={() => bookAgain(b.vehicle_id)} className="flex items-center gap-1.5 text-[11.5px] font-semibold mt-2 pt-2 border-t border-[#f1f5f9] cursor-pointer text-[#166534]">
+                  <button onClick={() => bookAgain(b.rental_tier)} className="flex items-center gap-1.5 text-[11.5px] font-semibold mt-2 pt-2 border-t border-[#f1f5f9] cursor-pointer text-[#166534]">
                     <RotateCcw size={12} /> {t('vp.bookAgainBtn')}
                   </button>
                 )}
@@ -370,16 +338,27 @@ export default function HourlyRentalPage() {
         )
       )}
 
-      {openVehicle && (
-        <MobilityBottomSheet title={vehicleDisplayName(openVehicle.vehicle_type, openVehicle.model)} onClose={() => setOpenVehicle(null)}>
-          <p className="text-[12px] text-[#64748b] -mt-2 mb-3">{openVehicle.color}{openVehicle.has_ac ? ` · ${t('mv.hasAcLabel')}` : ''}</p>
-
+      {openTier && (
+        <MobilityBottomSheet title={t(`vp.rentalTier.${openTier.tier_key}`)} onClose={() => setOpenTier(null)}>
           <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.hoursLabel')}</label>
           <div className="flex items-center gap-2 mb-3">
             <button onClick={() => setHours((h) => Math.max(1, h - 1))} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">−</button>
             <span className="font-extrabold text-[18px] w-10 text-center ltr-num">{hours}</span>
             <button onClick={() => setHours((h) => h + 1)} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">+</button>
           </div>
+
+          {/* Real ask, 2026-11-03: "there is no model year picker for
+              the rider... we can choose a model year what the user
+              wants to book and all the models of those vehicles will
+              get the call." Optional — "any year" broadcasts to the
+              whole category; a specific year narrows the broadcast to
+              vehicles of that year if any exist, else falls back to
+              the whole category automatically (787). */}
+          <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.preferredYearLabel')}</label>
+          <select value={preferredYear ?? ''} onChange={(e) => setPreferredYear(e.target.value ? Number(e.target.value) : null)} className="dp2-input text-[13.5px] mb-3">
+            <option value="">{t('vp.anyYearOption')}</option>
+            {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
 
           {showPicker ? (
             <div className="mb-3">
@@ -400,10 +379,6 @@ export default function HourlyRentalPage() {
                 <span className={`text-[13.5px] truncate ${pickupLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{pickupLoc ? pickupLoc.label : t('vp.pickupAddressPlaceholder')}</span>
               </button>
 
-              {/* Real ask, 2026-11-03: "where he wants to go... make
-                  him choose the request a comfortable way" — optional
-                  (billing stays GPS-based regardless), but tells the
-                  driver the rider's real plan before they decide. */}
               <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.hourlyDestinationLabel')} <span className="font-normal text-[#94a3b8]">({t('action.optional')})</span></label>
               <button onClick={() => setShowPicker('destination')} className="w-full flex items-center gap-2 border border-[#e5e2d0] rounded-xl p-2.5 text-start cursor-pointer mb-2">
                 <Navigation size={15} className="text-[#b91c1c] shrink-0" />
@@ -435,18 +410,18 @@ export default function HourlyRentalPage() {
 
           <div className="bg-[#F9F9F6] rounded-xl p-3 mb-3">
             <div className="flex items-center justify-between text-[13px]">
-              <span className="text-[#64748b]">{fmt(openVehicle.hourly_rate_pkr)} × {hours}{t('vp.hoursShort')}</span>
+              <span className="text-[#64748b]">{fmt(openTier.hourly_rate_pkr)} × {hours}{t('vp.hoursShort')}</span>
               <span className="font-bold text-[#1e293b] ltr-num">{fmt(estimatedTotal)}</span>
             </div>
             <p className="text-[11px] text-[#64748b] mt-1">
-              {t('vp.includedThenOverage').replace('{km}', fmt(estimatedIncludedKm)).replace('{rate}', fmt(openVehicle.hourly_overage_per_km_pkr ?? 0))}
+              {t('vp.includedThenOverage').replace('{km}', fmt(estimatedIncludedKm)).replace('{rate}', fmt(openTier.hourly_overage_per_km_pkr))}
             </p>
             <p className="text-[10.5px] text-[#64748b] mt-1 leading-[1.6]">{t('vp.hourlyTwoWayNote')}</p>
           </div>
 
           <div className="flex flex-col gap-2 mb-3">
-            <TravelQuoteLine service="hourly" vehicleId={openVehicle.id} lat={pickupLoc?.lat} lng={pickupLoc?.lng} onQuote={setPickupQuote} />
-            <FarePolicyCard service="hourly" vehicle={{ hourlyRate: openVehicle.hourly_rate_pkr, includedKmPerHour: openVehicle.hourly_included_km, overagePerKm: openVehicle.hourly_overage_per_km_pkr }} />
+            <TravelQuoteLine service="hourly" vehicleId={null} lat={pickupLoc?.lat} lng={pickupLoc?.lng} onQuote={setPickupQuote} />
+            <FarePolicyCard service="hourly" vehicle={{ hourlyRate: openTier.hourly_rate_pkr, includedKmPerHour: openTier.hourly_included_km_per_hour, overagePerKm: openTier.hourly_overage_per_km_pkr }} />
           </div>
 
           <p className="flex items-start gap-1.5 text-[11px] text-[#64748b] mb-3"><AlertCircle size={12} className="shrink-0 mt-0.5 text-[#166534]" /> {t('vp.noAdvanceExplainer')}</p>

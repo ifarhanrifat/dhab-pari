@@ -87,6 +87,14 @@ export interface QuickActionRow {
   // decides (e.g. a lump-sum vehicle's seat booking, which the
   // committee confirms after checking the rider's payment).
   infoNote?: string | null
+  // Real ask, 2026-11-03: "we can't allow the rider to pick up a
+  // separate vehicle from the catalog... send the calls to all drivers
+  // nearby so everyone gets a chance." hourly/rental requests now
+  // broadcast to every matching vehicle (787) — set when this row is
+  // still unassigned, so there's an Accept but no Decline (declining
+  // an open broadcast just means another driver gets it, nothing to
+  // "decline" specifically).
+  isBroadcast?: boolean
 }
 // dispatch/city_purchase/parcel/delivery all gate accept/decline on the
 // caller owning the given vehicle_id — hourly/rental/equipment/shadi/
@@ -443,7 +451,7 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
                 </div>
               )}
               <div className="flex items-center gap-2.5">
-                {row.type !== 'ride_dispatch' && (
+                {row.type !== 'ride_dispatch' && !row.isBroadcast && (
                   <button onClick={() => act(false)} disabled={busy !== null}
                     className="flex-1 h-[52px] flex items-center justify-center gap-1.5 rounded-2xl bg-[#fef2f2] text-[#b91c1c] font-sans text-[14.5px] font-bold cursor-pointer active:scale-[0.98] transition-transform disabled:opacity-50">
                     {busy === 'decline' ? <Loader2 size={17} className="animate-spin" /> : <XIcon size={17} />} {t('vp.declineBtn')}

@@ -38,6 +38,14 @@ export type LifecycleKind = 'hourly' | 'rental' | 'equipment'
 // The three verticals' vehicle_*_bookings rows, read through one shape.
 interface Row {
   id: string; status: string; status_confirmed: boolean; decline_reason: string | null
+  // Real ask, 2026-11-03: "we can't allow the rider to pick up a
+  // separate vehicle from the catalog... send the calls to all drivers
+  // nearby so everyone gets a chance." Hourly/rental requests now
+  // broadcast to every matching vehicle (787) — vehicle_id stays null
+  // until someone accepts, so a still-open row has nothing to
+  // "decline" (declining would just mean another driver gets it
+  // instead, not that the request goes away).
+  vehicle_id?: string | null
   requested_at: string; started_at: string | null; ended_at: string | null
   notes: string | null; payment_method: string
   customer_portal_user_id: string; customer_name: string; customer_mobile: string | null; customer_trust?: Trust | null
@@ -244,7 +252,7 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
           </div>
         )}
 
-        {row.status === 'requested' && (
+        {row.status === 'requested' && (kind === 'equipment' || row.vehicle_id) ? (
           declining ? (
             <div className="flex flex-col gap-2 pt-1">
               <input value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} placeholder={t('vp.declineReasonPlaceholder')}
@@ -264,7 +272,11 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
               </button>
             </div>
           )
-        )}
+        ) : row.status === 'requested' ? (
+          <button onClick={() => respond(true)} disabled={busy} className="w-full flex items-center justify-center gap-1.5 py-3 bg-[#166534] text-white rounded-xl font-sans text-[14px] font-bold cursor-pointer disabled:opacity-50">
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} {t('vp.acceptBtn')}
+          </button>
+        ) : null}
 
         {row.status === 'accepted' && advancePending && (
           <div className="rounded-xl bg-[#fffbeb] border border-[#fde68a] p-3">
