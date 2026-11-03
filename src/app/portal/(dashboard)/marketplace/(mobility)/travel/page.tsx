@@ -167,6 +167,7 @@ export default function MobilityHomePage() {
   const [toCity, setToCity] = useState<City | null>(null)
   const [loading, setLoading] = useState(true)
   const [destPin, setDestPin] = useState<PickedLocation | null>(null)
+  const [destFarFromCity, setDestFarFromCity] = useState(false)
   const [showOriginPicker, setShowOriginPicker] = useState(false)
   const [showDestPicker, setShowDestPicker] = useState(false)
   const [showHomePicker, setShowHomePicker] = useState(false)
@@ -206,13 +207,25 @@ export default function MobilityHomePage() {
   for (const c of cities) if (c.lat != null && c.lng != null) pins.push({ lat: c.lat, lng: c.lng, label: isUrdu && c.name_ur ? c.name_ur : c.name, color: c.id === toCity?.id ? '#D4AF37' : '#166534' })
   if (destPin) pins.push({ lat: destPin.lat, lng: destPin.lng, label: destPin.label, color: '#D4AF37' })
 
+  // Real ask, 2026-11-03: "how will the rider know which system to
+  // choose between Travel and Rental?" — Travel quietly snaps any pin
+  // to the nearest configured city for pricing, which is honest for a
+  // trip that really is "to that city" but silently wrong for a
+  // specific venue (a wedding hall, a hospital) that just happens to be
+  // near one. Catch that case right where the rider expresses it —
+  // picking a destination that is genuinely far from every known city —
+  // and point them at Rental (door-to-door, can wait for them) instead
+  // of letting them book a city-level ride to the wrong effective
+  // address and be confused later.
+  const FAR_FROM_CITY_KM = 8
   const confirmDestPin = (loc: PickedLocation) => {
     setDestPin(loc)
     setShowDestPicker(false)
     const withCoords = cities.filter((c) => c.lat != null && c.lng != null)
-    if (withCoords.length === 0) return
+    if (withCoords.length === 0) { setDestFarFromCity(false); return }
     const nearest = withCoords.reduce((best, c) => haversineKm(loc, { lat: c.lat!, lng: c.lng! }) < haversineKm(loc, { lat: best.lat!, lng: best.lng! }) ? c : best)
     setToCity(nearest)
+    setDestFarFromCity(haversineKm(loc, { lat: nearest.lat!, lng: nearest.lng! }) > FAR_FROM_CITY_KM)
   }
 
   // Real ask, 2026-11-02: "ghar" in the destination belt — a personal
@@ -412,7 +425,7 @@ export default function MobilityHomePage() {
                 {cities.map((c) => {
                   const on = toCity?.id === c.id
                   return (
-                    <button key={c.id} onClick={() => { setToCity(c); setDestPin(null) }}
+                    <button key={c.id} onClick={() => { setToCity(c); setDestPin(null); setDestFarFromCity(false) }}
                       className="shrink-0 px-2.5 py-1 rounded-full text-[9.5px] font-semibold whitespace-nowrap cursor-pointer border"
                       style={{ background: on ? '#166534' : '#fff', color: on ? '#fff' : '#334155', borderColor: on ? '#166534' : '#e2e8f0' }}>
                       📍 {isUrdu && c.name_ur ? c.name_ur : c.name}
@@ -421,6 +434,13 @@ export default function MobilityHomePage() {
                 })}
               </div>
             </div>
+
+            {destFarFromCity && (
+              <button onClick={() => router.push('/portal/marketplace/rental')}
+                className="w-full text-start bg-[#FFFBEB] border border-[#D4AF37]/50 rounded-xl p-2.5 text-[11.5px] text-[#92400e] leading-[1.5] cursor-pointer">
+                {t('mb.farDestinationNudge')}
+              </button>
+            )}
 
             <button onClick={findVehicles} disabled={!toCity} className="w-full bg-[#166534] disabled:bg-[#166534]/40 text-white rounded-xl py-2.5 font-bold text-[13px] cursor-pointer disabled:cursor-not-allowed">
               {t('mb.findVehiclesBtn')}

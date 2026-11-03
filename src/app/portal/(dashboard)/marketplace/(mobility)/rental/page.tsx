@@ -184,7 +184,15 @@ export default function RentalPage() {
     <div className="flex flex-col gap-3">
       <div>
         <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Navigation size={19} /> {t('vp.rentalPageTitle')}</h1>
-        <p className="text-[12.5px] text-[#64748b] mt-0.5">{t('vp.rentalPageSubtitle')}</p>
+        {/* Real ask, 2026-11-03: "how will the rider know which system
+            to choose between Travel and Rental?" — a generic one-line
+            subtitle read the same as Travel's own pitch. These three
+            are the actual, concrete things only Rental offers. */}
+        <ul className="text-[12px] text-[#64748b] mt-1 flex flex-col gap-0.5">
+          <li>📍 {t('vp.rentalBenefitAnyAddress')}</li>
+          <li>⏱️ {t('vp.rentalBenefitWait')}</li>
+          <li>🚐 {t('vp.rentalBenefitBigVehicles')}</li>
+        </ul>
       </div>
 
       <div className="flex items-center gap-1 bg-white border border-[#e5e2d0] rounded-full p-1 w-fit">
