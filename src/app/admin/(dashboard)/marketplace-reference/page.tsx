@@ -7,8 +7,18 @@
 // simple tabbed CRUD screen for all three, since they're all the same
 // shape (a short reference list the committee occasionally corrects),
 // not worth three separate pages.
+//
+// Real cleanup, 2026-11-03: "almost all tabs are having base fares and
+// duplicate functions" — service_classes' base_fare_pkr/per_km_pkr only
+// ever fed the old "Pro Service" charter-booking flow (426), which is
+// unreachable from any nav today — every real ride/delivery/equipment
+// flow now prices off vehicle_categories (707+) or service_fare_policies
+// (776). This tab's only LIVE purpose left is the eligibility gate
+// (ride_eligible/delivery_eligible/...), so the price fields are dropped
+// from the form entirely rather than left to confuse the committee.
 
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
@@ -20,7 +30,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 interface City { id: string; name: string; name_ur: string | null; distance_km: number; is_home_city: boolean; is_active: boolean; display_order: number }
 interface ServiceClass {
   id: string; name: string; name_ur: string | null; category: string; capacity_label: string | null; capacity_label_ur: string | null
-  note: string | null; note_ur: string | null; base_fare_pkr: number; per_km_pkr: number; is_active: boolean; display_order: number
+  note: string | null; note_ur: string | null; is_active: boolean; display_order: number
   delivery_eligible: boolean; ride_eligible: boolean; home_city_delivery_eligible: boolean; outstation_delivery_eligible: boolean
 }
 interface Village { id: string; name: string; name_ur: string | null; delivery_fee_pkr: number; is_home_village: boolean; is_active: boolean; display_order: number }
@@ -33,7 +43,7 @@ interface VehicleCategory {
 }
 
 const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, display_order: 0 }
-const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', base_fare_pkr: 0, per_km_pkr: 0, display_order: 0, delivery_eligible: true, ride_eligible: true, home_city_delivery_eligible: true, outstation_delivery_eligible: true }
+const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', display_order: 0, delivery_eligible: true, ride_eligible: true, home_city_delivery_eligible: true, outstation_delivery_eligible: true }
 const emptyVillage = { name: '', name_ur: '', delivery_fee_pkr: 0, is_home_village: false, display_order: 0 }
 const emptyFareBand = { base_pkr: 0, per_km_pkr: 0, spread: 0.28 }
 const emptyVehicleCategory = { name: '', name_ur: '', emoji: '', base_fare_pkr: 0, per_km_pkr: 0, intercity_commission_pct: 10, out_of_city_commission_pct: 15, category_group: 'passenger' as 'passenger' | 'loading' | 'machinery', out_of_city_eligible: true, out_of_city_base_fare_pkr: 0, out_of_city_per_km_pkr: 0 }
@@ -41,6 +51,18 @@ const emptyVehicleCategory = { name: '', name_ur: '', emoji: '', base_fare_pkr: 
 function fmt(n: number) { return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 function flowLabelKey(flow: 'trip_share' | 'city_fetch' | 'route') {
   return flow === 'trip_share' ? 'mr.flowTripShare' : flow === 'route' ? 'mr.flowRoute' : 'mr.flowCityFetch'
+}
+
+// Every input in these forms gets a real label above it now — "the
+// admin staff can't define what we need to put there" when the only
+// hint was a placeholder that vanishes the moment they click in.
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="font-sans text-[11.5px] font-semibold text-dp-on-surface-variant">{label}</span>
+      {children}
+    </label>
+  )
 }
 
 export default function MarketplaceReferencePage() {
@@ -129,13 +151,17 @@ export default function MarketplaceReferencePage() {
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('mr.pageSubtitle')}</p>
       </div>
 
-      <div className="flex items-center gap-1 bg-dp-surface-container rounded-lg p-1 mb-5 w-fit">
+      <div className="flex items-center gap-1 bg-dp-surface-container rounded-lg p-1 mb-5 w-fit flex-wrap">
         <button onClick={() => { setTab('cities'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'cities' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><MapPin size={14} /> {t('mr.citiesTab')}</button>
         <button onClick={() => { setTab('services'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'services' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Truck size={14} /> {t('mr.servicesTab')}</button>
         <button onClick={() => { setTab('villages'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'villages' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Home size={14} /> {t('mr.villagesTab')}</button>
         <button onClick={() => { setTab('fareBands'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'fareBands' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Gauge size={14} /> {t('mr.fareBandsTab')}</button>
         <button onClick={() => { setTab('vehicleCategories'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'vehicleCategories' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Truck size={14} /> {t('mr.vehicleCategoriesTab')}</button>
       </div>
+
+      {tab === 'cities' && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('mr.citiesHint')}</p>}
+      {tab === 'services' && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('mr.servicesHint')}</p>}
+      {tab === 'villages' && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('mr.villagesHint')}</p>}
 
       {tab !== 'fareBands' && tab !== 'vehicleCategories' && (
         <button onClick={openNew} className="flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all mb-4"><Plus size={14} /> {t('mr.addNewBtn')}</button>
@@ -168,7 +194,7 @@ export default function MarketplaceReferencePage() {
                   {s.delivery_eligible && <span className="font-sans text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container">{t('mr.deliveryEligibleBadge')}</span>}
                   {s.ride_eligible && <span className="font-sans text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container">{t('mr.rideEligibleBadge')}</span>}
                 </p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{fmt(s.base_fare_pkr)} base + {fmt(s.per_km_pkr)}/km · {s.capacity_label}</p>
+                {s.capacity_label && <p className="font-sans text-[12px] text-dp-on-surface-variant">{s.capacity_label}</p>}
               </div>
               <div className="flex items-center gap-1.5">
                 <button onClick={() => toggleActive('service_classes', s.id, s.is_active)} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">{s.is_active ? t('mr.deactivateBtn') : t('mr.activateBtn')}</button>
@@ -214,7 +240,7 @@ export default function MarketplaceReferencePage() {
       {tab === 'vehicleCategories' && (
         <div className="space-y-2">
           <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2">{t('mr.vehicleCategoriesHint')}</p>
-          {vehicleCategories.map((vc) => (
+          {vehicleCategories.filter((vc) => vc.is_active).map((vc) => (
             <div key={vc.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex items-center justify-between gap-3">
               <div>
                 <p className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-1.5">
@@ -226,44 +252,60 @@ export default function MarketplaceReferencePage() {
                   <p className="font-sans text-[12px] text-amber-700 ltr-num">{t('mr.outstationRateLabel')}: {fmt(vc.out_of_city_base_fare_pkr ?? 0)} base + {fmt(vc.out_of_city_per_km_pkr ?? 0)}/km</p>
                 )}
               </div>
-              <button onClick={() => openEditVehicleCategory(vc)} className="p-2 rounded text-dp-secondary hover:bg-dp-surface-container cursor-pointer"><Pencil size={14} /></button>
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => toggleActive('vehicle_categories', vc.id, vc.is_active)} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">{t('mr.deactivateBtn')}</button>
+                <button onClick={() => openEditVehicleCategory(vc)} className="p-2 rounded text-dp-secondary hover:bg-dp-surface-container cursor-pointer"><Pencil size={14} /></button>
+              </div>
             </div>
           ))}
+          {vehicleCategories.some((vc) => !vc.is_active) && (
+            <details className="mt-2">
+              <summary className="font-sans text-[12px] text-dp-on-surface-variant cursor-pointer">{t('mr.inactiveCategoriesToggle')}</summary>
+              <div className="space-y-2 mt-2">
+                {vehicleCategories.filter((vc) => !vc.is_active).map((vc) => (
+                  <div key={vc.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex items-center justify-between gap-3 opacity-50">
+                    <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{vc.emoji} {isUrdu && vc.name_ur ? vc.name_ur : vc.name}</p>
+                    <button onClick={() => toggleActive('vehicle_categories', vc.id, vc.is_active)} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">{t('mr.activateBtn')}</button>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
         </div>
       )}
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-lg p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-5 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{tab === 'fareBands' ? (editingFlow ? t(flowLabelKey(editingFlow)) : '') : tab === 'vehicleCategories' ? vehicleCategoryForm.name : editingId ? t('mr.editTitle') : t('mr.addTitle')}</h2>
 
             {tab === 'cities' && (
               <div className="space-y-2.5">
-                <input value={cityForm.name} onChange={(e) => setCityForm({ ...cityForm, name: e.target.value })} placeholder={t('mr.namePlaceholder')} className="input-field" />
-                <input value={cityForm.name_ur} onChange={(e) => setCityForm({ ...cityForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" dir="rtl" />
-                <input type="number" value={cityForm.distance_km || ''} onChange={(e) => setCityForm({ ...cityForm, distance_km: +e.target.value })} placeholder={t('mr.distanceKmPlaceholder')} className="input-field" />
+                <Field label={t('mr.nameLabel')}><input value={cityForm.name} onChange={(e) => setCityForm({ ...cityForm, name: e.target.value })} placeholder={t('mr.namePlaceholder')} className="input-field" /></Field>
+                <Field label={t('mr.nameUrLabel')}><input value={cityForm.name_ur} onChange={(e) => setCityForm({ ...cityForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" dir="rtl" /></Field>
+                <Field label={t('mr.distanceKmLabel')}><input type="number" value={cityForm.distance_km || ''} onChange={(e) => setCityForm({ ...cityForm, distance_km: +e.target.value })} placeholder={t('mr.distanceKmPlaceholder')} className="input-field" /></Field>
                 <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={cityForm.is_home_city} onChange={(e) => setCityForm({ ...cityForm, is_home_city: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.isHomeCityLabel')}</span></label>
               </div>
             )}
 
             {tab === 'services' && (
               <div className="space-y-2.5">
-                <input value={serviceForm.name} onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })} placeholder={t('mr.namePlaceholder')} className="input-field" />
-                <input value={serviceForm.name_ur} onChange={(e) => setServiceForm({ ...serviceForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" dir="rtl" />
-                <select value={serviceForm.category} onChange={(e) => setServiceForm({ ...serviceForm, category: e.target.value })} className="input-field">
-                  <option value="passenger">{t('mr.passengerOption')}</option>
-                  <option value="loading">{t('mr.loadingOption')}</option>
-                </select>
-                <input value={serviceForm.capacity_label ?? ''} onChange={(e) => setServiceForm({ ...serviceForm, capacity_label: e.target.value })} placeholder={t('mr.capacityLabelPlaceholder')} className="input-field" />
-                <div className="grid grid-cols-2 gap-2.5">
-                  <input type="number" value={serviceForm.base_fare_pkr || ''} onChange={(e) => setServiceForm({ ...serviceForm, base_fare_pkr: +e.target.value })} placeholder={t('mr.baseFarePlaceholder')} className="input-field" />
-                  <input type="number" value={serviceForm.per_km_pkr || ''} onChange={(e) => setServiceForm({ ...serviceForm, per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPlaceholder')} className="input-field" />
-                </div>
+                <Field label={t('mr.nameLabel')}><input value={serviceForm.name} onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })} placeholder={t('mr.namePlaceholder')} className="input-field" /></Field>
+                <Field label={t('mr.nameUrLabel')}><input value={serviceForm.name_ur} onChange={(e) => setServiceForm({ ...serviceForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" dir="rtl" /></Field>
+                <Field label={t('mr.categoryLabel')}>
+                  <select value={serviceForm.category} onChange={(e) => setServiceForm({ ...serviceForm, category: e.target.value })} className="input-field">
+                    <option value="passenger">{t('mr.passengerOption')}</option>
+                    <option value="loading">{t('mr.loadingOption')}</option>
+                  </select>
+                </Field>
+                <Field label={t('mr.capacityLabelLabel')}><input value={serviceForm.capacity_label ?? ''} onChange={(e) => setServiceForm({ ...serviceForm, capacity_label: e.target.value })} placeholder={t('mr.capacityLabelPlaceholder')} className="input-field" /></Field>
                 <div className="pt-1 space-y-1.5">
+                  <p className="font-sans text-[11.5px] font-semibold text-dp-on-surface-variant">{t('mr.rideDeliveryEligibilityHeading')}</p>
                   <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={serviceForm.delivery_eligible} onChange={(e) => setServiceForm({ ...serviceForm, delivery_eligible: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.deliveryEligibleLabel')}</span></label>
                   <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={serviceForm.ride_eligible} onChange={(e) => setServiceForm({ ...serviceForm, ride_eligible: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.rideEligibleLabel')}</span></label>
                   <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.eligibilityHint')}</p>
                   <div className="pt-1.5 mt-1.5 border-t border-dp-outline-variant space-y-1.5">
+                    <p className="font-sans text-[11.5px] font-semibold text-dp-on-surface-variant">{t('mr.deliveryZoneEligibilityHeading')}</p>
                     <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={serviceForm.home_city_delivery_eligible} onChange={(e) => setServiceForm({ ...serviceForm, home_city_delivery_eligible: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.homeCityDeliveryEligibleLabel')}</span></label>
                     <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={serviceForm.outstation_delivery_eligible} onChange={(e) => setServiceForm({ ...serviceForm, outstation_delivery_eligible: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.outstationDeliveryEligibleLabel')}</span></label>
                     <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.categoryEligibilityHint')}</p>
@@ -274,9 +316,9 @@ export default function MarketplaceReferencePage() {
 
             {tab === 'villages' && (
               <div className="space-y-2.5">
-                <input value={villageForm.name} onChange={(e) => setVillageForm({ ...villageForm, name: e.target.value })} placeholder={t('mr.namePlaceholder')} className="input-field" />
-                <input value={villageForm.name_ur} onChange={(e) => setVillageForm({ ...villageForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" dir="rtl" />
-                <input type="number" value={villageForm.delivery_fee_pkr || ''} onChange={(e) => setVillageForm({ ...villageForm, delivery_fee_pkr: +e.target.value })} placeholder={t('mr.deliveryFeePlaceholder')} className="input-field" />
+                <Field label={t('mr.nameLabel')}><input value={villageForm.name} onChange={(e) => setVillageForm({ ...villageForm, name: e.target.value })} placeholder={t('mr.namePlaceholder')} className="input-field" /></Field>
+                <Field label={t('mr.nameUrLabel')}><input value={villageForm.name_ur} onChange={(e) => setVillageForm({ ...villageForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" dir="rtl" /></Field>
+                <Field label={t('mr.deliveryFeeLabel')}><input type="number" value={villageForm.delivery_fee_pkr || ''} onChange={(e) => setVillageForm({ ...villageForm, delivery_fee_pkr: +e.target.value })} placeholder={t('mr.deliveryFeePlaceholder')} className="input-field" /></Field>
                 <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={villageForm.is_home_village} onChange={(e) => setVillageForm({ ...villageForm, is_home_village: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.isHomeVillageLabel')}</span></label>
               </div>
             )}
@@ -284,44 +326,47 @@ export default function MarketplaceReferencePage() {
             {tab === 'fareBands' && (
               <div className="space-y-2.5">
                 <div className="grid grid-cols-2 gap-2.5">
-                  <input type="number" value={fareBandForm.base_pkr || ''} onChange={(e) => setFareBandForm({ ...fareBandForm, base_pkr: +e.target.value })} placeholder={t('mr.basePkrPlaceholder')} className="input-field" />
-                  <input type="number" value={fareBandForm.per_km_pkr || ''} onChange={(e) => setFareBandForm({ ...fareBandForm, per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" />
+                  <Field label={t('mr.basePkrLabel')}><input type="number" value={fareBandForm.base_pkr || ''} onChange={(e) => setFareBandForm({ ...fareBandForm, base_pkr: +e.target.value })} placeholder={t('mr.basePkrPlaceholder')} className="input-field" /></Field>
+                  <Field label={t('mr.perKmPkrLabel')}><input type="number" value={fareBandForm.per_km_pkr || ''} onChange={(e) => setFareBandForm({ ...fareBandForm, per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" /></Field>
                 </div>
-                <input type="number" step="0.01" min="0.01" max="0.99" value={fareBandForm.spread || ''} onChange={(e) => setFareBandForm({ ...fareBandForm, spread: +e.target.value })} placeholder={t('mr.spreadPlaceholder')} className="input-field" />
+                <Field label={t('mr.spreadLabel')}><input type="number" step="0.01" min="0.01" max="0.99" value={fareBandForm.spread || ''} onChange={(e) => setFareBandForm({ ...fareBandForm, spread: +e.target.value })} placeholder={t('mr.spreadPlaceholder')} className="input-field" /></Field>
               </div>
             )}
 
             {tab === 'vehicleCategories' && (
               <div className="space-y-2.5">
                 <div className="grid grid-cols-2 gap-2.5">
-                  <input value={vehicleCategoryForm.name} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, name: e.target.value })} placeholder={t('mr.namePlaceholder')} className="input-field" />
-                  <input value={vehicleCategoryForm.name_ur} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" dir="rtl" />
+                  <Field label={t('mr.nameLabel')}><input value={vehicleCategoryForm.name} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, name: e.target.value })} placeholder={t('mr.namePlaceholder')} className="input-field" /></Field>
+                  <Field label={t('mr.nameUrLabel')}><input value={vehicleCategoryForm.name_ur} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" dir="rtl" /></Field>
                 </div>
-                <input value={vehicleCategoryForm.emoji} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, emoji: e.target.value })} placeholder={t('mr.emojiPlaceholder')} className="input-field" />
-                <select value={vehicleCategoryForm.category_group} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, category_group: e.target.value as 'passenger' | 'loading' | 'machinery' })} className="input-field">
-                  <option value="passenger">{t('mr.categoryGroupPassenger')}</option>
-                  <option value="loading">{t('mr.categoryGroupLoading')}</option>
-                  <option value="machinery">{t('mr.categoryGroupMachinery')}</option>
-                </select>
+                <Field label={t('mr.emojiLabel')}><input value={vehicleCategoryForm.emoji} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, emoji: e.target.value })} placeholder={t('mr.emojiPlaceholder')} className="input-field" /></Field>
+                <Field label={t('mr.categoryGroupLabel')}>
+                  <select value={vehicleCategoryForm.category_group} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, category_group: e.target.value as 'passenger' | 'loading' | 'machinery' })} className="input-field">
+                    <option value="passenger">{t('mr.categoryGroupPassenger')}</option>
+                    <option value="loading">{t('mr.categoryGroupLoading')}</option>
+                    <option value="machinery">{t('mr.categoryGroupMachinery')}</option>
+                  </select>
+                </Field>
                 <label className="flex items-center gap-2 font-sans text-[13px] text-dp-on-surface cursor-pointer">
                   <input type="checkbox" checked={vehicleCategoryForm.out_of_city_eligible} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_eligible: e.target.checked })} className="cursor-pointer" />
                   {t('mr.outOfCityEligibleLabel')}
                 </label>
+                <p className="font-sans text-[11.5px] font-semibold text-dp-on-surface-variant pt-1">{t('mr.inCityRateHeading')}</p>
                 <div className="grid grid-cols-2 gap-2.5">
-                  <input type="number" value={vehicleCategoryForm.base_fare_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, base_fare_pkr: +e.target.value })} placeholder={t('mr.basePkrPlaceholder')} className="input-field" />
-                  <input type="number" value={vehicleCategoryForm.per_km_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" />
+                  <Field label={t('mr.basePkrLabel')}><input type="number" value={vehicleCategoryForm.base_fare_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, base_fare_pkr: +e.target.value })} placeholder={t('mr.basePkrPlaceholder')} className="input-field" /></Field>
+                  <Field label={t('mr.perKmPkrLabel')}><input type="number" value={vehicleCategoryForm.per_km_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" /></Field>
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
-                  <input type="number" value={vehicleCategoryForm.intercity_commission_pct || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, intercity_commission_pct: +e.target.value })} placeholder={t('mr.intercityCommissionPlaceholder')} className="input-field" />
-                  <input type="number" value={vehicleCategoryForm.out_of_city_commission_pct || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_commission_pct: +e.target.value })} placeholder={t('mr.outOfCityCommissionPlaceholder')} className="input-field" />
+                  <Field label={t('mr.intercityCommissionLabel')}><input type="number" value={vehicleCategoryForm.intercity_commission_pct || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, intercity_commission_pct: +e.target.value })} placeholder={t('mr.intercityCommissionPlaceholder')} className="input-field" /></Field>
+                  <Field label={t('mr.outOfCityCommissionLabel')}><input type="number" value={vehicleCategoryForm.out_of_city_commission_pct || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_commission_pct: +e.target.value })} placeholder={t('mr.outOfCityCommissionPlaceholder')} className="input-field" /></Field>
                 </div>
                 {vehicleCategoryForm.out_of_city_eligible && (
                   <div className="pt-2 mt-1 border-t border-dp-outline-variant space-y-1.5">
                     <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface">{t('mr.outstationRateLabel')}</p>
                     <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.outstationRateHint')}</p>
                     <div className="grid grid-cols-2 gap-2.5">
-                      <input type="number" value={vehicleCategoryForm.out_of_city_base_fare_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_base_fare_pkr: +e.target.value })} placeholder={t('mr.outstationBasePlaceholder')} className="input-field" />
-                      <input type="number" value={vehicleCategoryForm.out_of_city_per_km_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_per_km_pkr: +e.target.value })} placeholder={t('mr.outstationPerKmPlaceholder')} className="input-field" />
+                      <Field label={t('mr.outstationBaseLabel')}><input type="number" value={vehicleCategoryForm.out_of_city_base_fare_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_base_fare_pkr: +e.target.value })} placeholder={t('mr.outstationBasePlaceholder')} className="input-field" /></Field>
+                      <Field label={t('mr.outstationPerKmLabel')}><input type="number" value={vehicleCategoryForm.out_of_city_per_km_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, out_of_city_per_km_pkr: +e.target.value })} placeholder={t('mr.outstationPerKmPlaceholder')} className="input-field" /></Field>
                     </div>
                   </div>
                 )}
