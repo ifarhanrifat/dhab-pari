@@ -117,6 +117,14 @@ export function RideRequestShell({
                   <Loader2 size={13} className="animate-spin" /> <span className="ltr-num">{timer}</span>
                 </span>
               )}
+              {/* Real ask, 2026-11-03: "bykea keeps saying no drivers,
+                  increase your offer" — our system steps the fare up
+                  automatically instead of asking the rider to bid
+                  (788), but it should never feel like a silent/sneaky
+                  increase — said up front, before it ever happens. */}
+              {phase === 'searching' && (
+                <p className="font-sans text-[11.5px] text-white/70 mt-2 max-w-[280px] text-center leading-[1.6]">{t('rr.autoEscalationNote')}</p>
+              )}
             </div>
           )}
         </div>
