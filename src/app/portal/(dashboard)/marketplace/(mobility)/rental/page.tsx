@@ -25,6 +25,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { friendlyError } from '@/lib/errors'
+import { haversineKm } from '@/lib/roadRoute'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useSite } from '@/components/layout/SiteProvider'
@@ -52,6 +53,7 @@ const YEAR_OPTIONS = Array.from({ length: 26 }, (_, i) => CURRENT_YEAR - i)
 interface TierOption {
   tier_key: string; vehicle_count: number
   rental_base_pkr: number; rental_per_km_pkr: number; rental_wait_hour_pkr: number
+  out_of_city_base_pkr: number; out_of_city_per_km_pkr: number
 }
 interface Booking {
   id: string; from_address: string; from_lat: number | null; from_lng: number | null
@@ -87,10 +89,23 @@ function kmBetween(a: PickedLocation, b: PickedLocation) {
   const s = Math.sin(dl / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dn / 2) ** 2
   return Math.max(1, Math.round(6371 * 2 * Math.asin(Math.sqrt(s)) * 1.3))
 }
-function tripTotalFor(tier: TierOption, km: number, tripType: 'one' | 'return', waitHours: number) {
-  const trip = tripType === 'return' ? km * 2 * tier.rental_per_km_pkr : km * tier.rental_per_km_pkr * 1.5
+// Real ask, 2026-11-04: Rental's one flat per-km rate was calibrated
+// for short in-city hire-and-wait use and silently applied to highway
+// trips too, pricing a village-to-outstation-city trip at roughly half
+// of what the identical trip costs through Travel. Mirrors Travel's
+// own "how far is this pin from the home city" check (destFarFromCity,
+// 8km threshold) to pick the tier's out-of-city rate instead.
+const OUT_OF_CITY_KM = 8
+function isOutOfCityTrip(home: { lat: number; lng: number } | null, from: PickedLocation, to: PickedLocation) {
+  if (!home) return false
+  return haversineKm(home, from) > OUT_OF_CITY_KM || haversineKm(home, to) > OUT_OF_CITY_KM
+}
+function tripTotalFor(tier: TierOption, km: number, tripType: 'one' | 'return', waitHours: number, isOutOfCity: boolean) {
+  const base = isOutOfCity ? tier.out_of_city_base_pkr : tier.rental_base_pkr
+  const perKm = isOutOfCity ? tier.out_of_city_per_km_pkr : tier.rental_per_km_pkr
+  const trip = tripType === 'return' ? km * 2 * perKm : km * perKm * 1.5
   const wait = tripType === 'return' ? waitHours * (tier.rental_wait_hour_pkr ?? 0) : 0
-  return tier.rental_base_pkr + trip + wait
+  return base + trip + wait
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -106,6 +121,7 @@ export default function RentalPage() {
   const [tab, setTab] = useState<'browse' | 'mine'>('browse')
   const [tiers, setTiers] = useState<TierOption[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [homeCity, setHomeCity] = useState<{ lat: number; lng: number } | null>(null)
   const [loading, setLoading] = useState(true)
 
   const [openTier, setOpenTier] = useState<TierOption | null>(null)
@@ -138,6 +154,8 @@ export default function RentalPage() {
 
   useEffect(() => {
     if (!user) return
+    supabase.from('cities').select('lat, lng').eq('is_home_city', true).limit(1).maybeSingle()
+      .then(({ data }) => { if (data?.lat != null && data?.lng != null) setHomeCity({ lat: data.lat, lng: data.lng }) })
     Promise.all([loadTiers(), loadBookings()]).then(([, rows]) => {
       setLoading(false)
       const pending = rows.filter((b) => b.status === 'requested').sort((a, b) => b.requested_at.localeCompare(a.requested_at))[0]
@@ -167,9 +185,13 @@ export default function RentalPage() {
     const s = Math.sin(dl / 2) ** 2 + Math.cos(rad(fromLoc.lat)) * Math.cos(rad(toLoc.lat)) * Math.sin(dn / 2) ** 2
     return Math.max(1, Math.round(6371 * 2 * Math.asin(Math.sqrt(s)) * 1.3))
   })()
-  const tripFareFor = (tier: TierOption) => (tripType === 'return' ? km * 2 * tier.rental_per_km_pkr : km * tier.rental_per_km_pkr * 1.5)
+  const isOutOfCity = !!fromLoc && !!toLoc && isOutOfCityTrip(homeCity, fromLoc, toLoc)
+  const rateFor = (tier: TierOption) => (isOutOfCity
+    ? { base: tier.out_of_city_base_pkr, perKm: tier.out_of_city_per_km_pkr }
+    : { base: tier.rental_base_pkr, perKm: tier.rental_per_km_pkr })
+  const tripFareFor = (tier: TierOption) => { const r = rateFor(tier); return tripType === 'return' ? km * 2 * r.perKm : km * r.perKm * 1.5 }
   const waitFareFor = (tier: TierOption) => (tripType === 'return' ? waitHours * (tier.rental_wait_hour_pkr ?? 0) : 0)
-  const totalFor = (tier: TierOption) => tier.rental_base_pkr + tripFareFor(tier) + waitFareFor(tier)
+  const totalFor = (tier: TierOption) => rateFor(tier).base + tripFareFor(tier) + waitFareFor(tier)
   const estimatedTrip = openTier ? tripFareFor(openTier) : 0
   const estimatedWait = openTier ? waitFareFor(openTier) : 0
   const estimatedTotal = openTier ? totalFor(openTier) : 0
@@ -214,7 +236,7 @@ export default function RentalPage() {
     const km = kmBetween(f, tLoc)
     setWaiting({
       id: newId as string, since: null,
-      summary: { vehicleLabel: t(`vp.rentalTier.${tier.tier_key}`), from: f.label, to: tLoc.label, amount: tripTotalFor(tier, km, 'return', 0), facts: tripFacts('return', 0) },
+      summary: { vehicleLabel: t(`vp.rentalTier.${tier.tier_key}`), from: f.label, to: tLoc.label, amount: tripTotalFor(tier, km, 'return', 0, isOutOfCityTrip(homeCity, f, tLoc)), facts: tripFacts('return', 0) },
       extra: { tripType: 'return', rentalTier: tier.tier_key, fromLoc: f, toLoc: tLoc },
     })
     toast.success(t('rw.switchedToReturnToast'))
@@ -451,8 +473,9 @@ export default function RentalPage() {
           <div className="bg-[#F9F9F6] rounded-xl p-3 mb-3">
             <div className="flex items-center justify-between text-[13px]">
               <span className="text-[#64748b]">{t('vp.rentalBaseFareLabel')}</span>
-              <span className="font-bold text-[#1e293b] ltr-num">{fmt(openTier.rental_base_pkr)}</span>
+              <span className="font-bold text-[#1e293b] ltr-num">{fmt(rateFor(openTier).base)}</span>
             </div>
+            {isOutOfCity && <p className="text-[11px] text-[#166534] font-semibold mt-1">{t('vp.outstationRateAppliedHint')}</p>}
             {fromLoc && toLoc && (
               <div className="flex items-center justify-between text-[13px] mt-1">
                 <span className="text-[#64748b]">{t('vp.rentalDistanceFareLabel')} ({fmt(km)}km)</span>

@@ -44,6 +44,7 @@ interface VehicleCategory {
 interface RentalTierGuide {
   tier_key: string; hourly_rate_pkr: number; hourly_included_km_per_hour: number; hourly_overage_per_km_pkr: number
   rental_base_pkr: number; rental_per_km_pkr: number; rental_wait_hour_pkr: number
+  out_of_city_base_pkr: number; out_of_city_per_km_pkr: number
 }
 
 const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, display_order: 0 }
@@ -51,7 +52,7 @@ const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capaci
 const emptyVillage = { name: '', name_ur: '', delivery_fee_pkr: 0, is_home_village: false, display_order: 0 }
 const emptyFareBand = { base_pkr: 0, per_km_pkr: 0, spread: 0.28 }
 const emptyVehicleCategory = { name: '', name_ur: '', emoji: '', base_fare_pkr: 0, per_km_pkr: 0, intercity_commission_pct: 10, out_of_city_commission_pct: 15, category_group: 'passenger' as 'passenger' | 'loading' | 'machinery', out_of_city_eligible: true, out_of_city_base_fare_pkr: 0, out_of_city_per_km_pkr: 0 }
-const emptyRentalTierGuide = { tier_key: '', hourly_rate_pkr: 0, hourly_included_km_per_hour: 0, hourly_overage_per_km_pkr: 0, rental_base_pkr: 0, rental_per_km_pkr: 0, rental_wait_hour_pkr: 0 }
+const emptyRentalTierGuide = { tier_key: '', hourly_rate_pkr: 0, hourly_included_km_per_hour: 0, hourly_overage_per_km_pkr: 0, rental_base_pkr: 0, rental_per_km_pkr: 0, rental_wait_hour_pkr: 0, out_of_city_base_pkr: 0, out_of_city_per_km_pkr: 0 }
 
 function fmt(n: number) { return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 function flowLabelKey(flow: 'trip_share' | 'city_fetch' | 'route') {
@@ -141,6 +142,7 @@ export default function MarketplaceReferencePage() {
           p_tier_key: editingTierKey, p_hourly_rate_pkr: rentalTierForm.hourly_rate_pkr, p_hourly_included_km_per_hour: rentalTierForm.hourly_included_km_per_hour,
           p_hourly_overage_per_km_pkr: rentalTierForm.hourly_overage_per_km_pkr, p_rental_base_pkr: rentalTierForm.rental_base_pkr,
           p_rental_per_km_pkr: rentalTierForm.rental_per_km_pkr, p_rental_wait_hour_pkr: rentalTierForm.rental_wait_hour_pkr,
+          p_out_of_city_base_pkr: rentalTierForm.out_of_city_base_pkr, p_out_of_city_per_km_pkr: rentalTierForm.out_of_city_per_km_pkr,
         })
       : await supabase.from('fare_bands').update(fareBandForm).eq('flow', editingFlow)
     setSaving(false)
@@ -300,6 +302,7 @@ export default function MarketplaceReferencePage() {
                 <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{t(`vp.rentalTier.${g.tier_key}`)}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{t('mr.hourlyRatesHeading')}: {fmt(g.hourly_rate_pkr)}/hr · {fmt(g.hourly_included_km_per_hour)}km {t('mr.includedLabel')} · {fmt(g.hourly_overage_per_km_pkr)}/km {t('mr.overageLabel')}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{t('mr.rentalRatesHeading')}: {fmt(g.rental_base_pkr)} base + {fmt(g.rental_per_km_pkr)}/km + {fmt(g.rental_wait_hour_pkr)}/hr {t('mr.waitLabel')}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{t('mr.outstationRateLabel')}: {fmt(g.out_of_city_base_pkr)} base + {fmt(g.out_of_city_per_km_pkr)}/km</p>
               </div>
               <button onClick={() => openEditRentalTier(g)} className="p-2 rounded text-dp-secondary hover:bg-dp-surface-container cursor-pointer"><Pencil size={14} /></button>
             </div>
@@ -422,6 +425,13 @@ export default function MarketplaceReferencePage() {
                   <Field label={t('mr.perKmPkrLabel')}><input type="number" value={rentalTierForm.rental_per_km_pkr || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, rental_per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" /></Field>
                 </div>
                 <Field label={t('mr.rentalWaitHourLabel')}><input type="number" value={rentalTierForm.rental_wait_hour_pkr || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, rental_wait_hour_pkr: +e.target.value })} className="input-field" /></Field>
+
+                <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface pt-1">{t('mr.outstationRateLabel')}</p>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.outstationRateHint')}</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <Field label={t('mr.outstationBaseLabel')}><input type="number" value={rentalTierForm.out_of_city_base_pkr || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, out_of_city_base_pkr: +e.target.value })} placeholder={t('mr.outstationBasePlaceholder')} className="input-field" /></Field>
+                  <Field label={t('mr.outstationPerKmLabel')}><input type="number" value={rentalTierForm.out_of_city_per_km_pkr || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, out_of_city_per_km_pkr: +e.target.value })} placeholder={t('mr.outstationPerKmPlaceholder')} className="input-field" /></Field>
+                </div>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.rentalTierEditHint')}</p>
               </div>
             )}
