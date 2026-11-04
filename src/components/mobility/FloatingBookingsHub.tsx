@@ -147,8 +147,8 @@ export function FloatingBookingsHub() {
 
   const load = useCallback(async () => {
     const supabase = createClient()
-    const [vehicleRes, ongoing, hourly, rental, equipment, seats, rides, purchases] = await Promise.all([
-      supabase.from('vehicles').select('id, commission_mode, offers_hourly, offers_rental, offers_machinery, offers_tractor, offers_loader').eq('portal_user_id', user!.id).maybeSingle(),
+    const [vehicleRes, ongoing, hourly, rental, equipment, seats, rides, purchases, parcels] = await Promise.all([
+      supabase.from('vehicles').select('id, commission_mode, offers_hourly, offers_rental, offers_shadi, offers_machinery, offers_tractor, offers_loader').eq('portal_user_id', user!.id).maybeSingle(),
       supabase.rpc('my_ongoing_ride'),
       supabase.rpc('my_hourly_bookings'),
       supabase.rpc('my_rental_bookings'),
@@ -156,6 +156,7 @@ export function FloatingBookingsHub() {
       supabase.from('ride_bookings').select('id, seats, travel_date, total_amount_pkr, created_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time), adda_queue_entries(addas(name, name_ur))').eq('portal_user_id', user!.id).eq('status', 'announced'),
       supabase.from('ride_dispatch_requests').select('id, pickup_label, dropoff_label, fare_pkr, created_at').eq('initiator_portal_user_id', user!.id).eq('status', 'open'),
       supabase.rpc('my_city_purchase_requests'),
+      supabase.rpc('my_parcel_deliveries'),
     ])
     const out: HubItem[] = []
     const nm = (en: string | null | undefined, ur: string | null | undefined) => (isUrdu && ur ? ur : en) ?? ''
@@ -170,12 +171,13 @@ export function FloatingBookingsHub() {
     // job here at all. Mirrors that same dual-role coverage for these
     // three, opening the driver's own BookingLifecycleSheet instead of
     // the rider-facing RequestWaitingSheet.
-    const vehicle = vehicleRes.data as { id: string; commission_mode: string; offers_hourly: boolean; offers_rental: boolean; offers_machinery: boolean; offers_tractor: boolean; offers_loader: boolean } | null
-    const [driverHourly, driverRental, driverEquipment] = vehicle ? await Promise.all([
+    const vehicle = vehicleRes.data as { id: string; commission_mode: string; offers_hourly: boolean; offers_rental: boolean; offers_shadi: boolean; offers_machinery: boolean; offers_tractor: boolean; offers_loader: boolean } | null
+    const [driverHourly, driverRental, driverEquipment, driverShadi] = vehicle ? await Promise.all([
       vehicle.offers_hourly ? supabase.rpc('vehicle_hourly_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
       vehicle.offers_rental ? supabase.rpc('vehicle_rental_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
       (vehicle.offers_machinery || vehicle.offers_tractor || vehicle.offers_loader) ? supabase.rpc('vehicle_equipment_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
-    ]) : [{ data: [] }, { data: [] }, { data: [] }]
+      vehicle.offers_shadi ? supabase.rpc('vehicle_shadi_requests', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
+    ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }]
 
     if (vehicle) {
       for (const b of (driverHourly.data ?? []) as { id: string; status: string; hours: number; customer_name: string; requested_at: string }[]) {
@@ -192,6 +194,41 @@ export function FloatingBookingsHub() {
         if (!['accepted', 'in_progress'].includes(b.status)) continue
         out.push({ key: `de-${b.id}`, emoji: b.kind === 'tractor' ? '🚜' : b.kind === 'loader' ? '🚚' : '🏗️', label: `${t(`rq.kind.equipment.${b.kind}`)} · ${b.customer_name}`, state: 'ongoing', since: b.requested_at,
           driverLifecycle: { kind: 'equipment', id: b.id, vehicleId: vehicle.id, commissionMode: vehicle.commission_mode } })
+      }
+      // Shadi has no shared BookingLifecycleSheet (its own dedicated
+      // my-vehicle/shadi page handles start/finish) — same href-based
+      // pattern the hub already uses for ride_dispatch/city_purchase
+      // rather than another sheet integration.
+      for (const r of (driverShadi.data ?? []) as { id: string; status: string; customer_name: string; event_date: string }[]) {
+        if (r.status !== 'accepted') continue
+        out.push({ key: `ds-${r.id}`, emoji: '💐', label: `${t('rq.kind.shadi')} · ${r.customer_name}`, state: 'ongoing', since: r.event_date, href: '/portal/my-vehicle/shadi' })
+      }
+    }
+
+    // city_purchase and parcel delivery: both already have a dual-role
+    // RPC (as_role keyed off accepted_vehicle_id ownership, same shape
+    // my_ongoing_ride() uses for ride_dispatch) — covers the driver
+    // actually doing the job, not just whoever requested it.
+    for (const c of (purchases.data ?? []) as { id: string; item: string; status: string; created_at: string; as_role: string }[]) {
+      if (c.as_role === 'user') {
+        if (!['ringing', 'no_answer', 'priced', 'approved', 'purchased', 'delivered'].includes(c.status)) continue
+        const ongoing = ['approved', 'purchased', 'delivered'].includes(c.status)
+        out.push({ key: `c-${c.id}`, emoji: '🛍️', label: `${t('rq.kind.city_purchase')} · ${c.item}`,
+          state: ongoing ? 'ongoing' : c.status === 'priced' ? 'action' : c.status === 'no_answer' ? 'waiting' : 'searching',
+          since: c.created_at, href: `/portal/marketplace/city-purchase/${c.id}` })
+      } else if (vehicle && ['approved', 'purchased', 'delivered'].includes(c.status)) {
+        out.push({ key: `dc-${c.id}`, emoji: '🛍️', label: `${t('rq.kind.city_purchase')} · ${c.item}`, state: 'ongoing', since: c.created_at, href: `/portal/marketplace/city-purchase/${c.id}` })
+      }
+    }
+    for (const p of (parcels.data ?? []) as { id: string; description: string; status: string; created_at: string; as_role: string }[]) {
+      if (p.as_role === 'user') {
+        if (!['ringing', 'no_answer', 'approved', 'picked_up', 'delivered'].includes(p.status)) continue
+        const ongoing = ['approved', 'picked_up', 'delivered'].includes(p.status)
+        out.push({ key: `pc-${p.id}`, emoji: '📦', label: `${t('rq.kind.parcel')} · ${p.description}`,
+          state: ongoing ? 'ongoing' : p.status === 'no_answer' ? 'waiting' : 'searching',
+          since: p.created_at, href: `/portal/marketplace/parcel/${p.id}` })
+      } else if (vehicle && ['approved', 'picked_up', 'delivered'].includes(p.status)) {
+        out.push({ key: `dp-${p.id}`, emoji: '📦', label: `${t('rq.kind.parcel')} · ${p.description}`, state: 'ongoing', since: p.created_at, href: `/portal/marketplace/parcel/${p.id}` })
       }
     }
 
@@ -240,11 +277,6 @@ export function FloatingBookingsHub() {
     }
     for (const d of (rides.data ?? []) as { id: string; pickup_label: string; dropoff_label: string; fare_pkr: number; created_at: string }[]) {
       out.push({ key: `d-${d.id}`, emoji: '🚕', label: `${t('rq.kind.ride_dispatch')} · ${d.dropoff_label}`, state: 'searching', since: d.created_at, href: `/portal/marketplace/ride-dispatch/${d.id}` })
-    }
-    for (const c of (purchases.data ?? []) as { id: string; item: string; status: string; created_at: string; as_role: string }[]) {
-      if (c.as_role !== 'user' || !['ringing', 'no_answer', 'priced'].includes(c.status)) continue
-      out.push({ key: `c-${c.id}`, emoji: '🛍️', label: `${t('rq.kind.city_purchase')} · ${c.item}`, state: c.status === 'priced' ? 'action' : c.status === 'no_answer' ? 'waiting' : 'searching',
-        since: c.created_at, href: `/portal/marketplace/city-purchase/${c.id}` })
     }
     // Live-now first, then needs-you, then newest.
     out.sort((a, b) =>
