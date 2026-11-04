@@ -17,7 +17,7 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Loader2, AlertTriangle, CheckCircle2, Ban, Navigation, Phone, Radio, X, Check, Wallet, Play, Square } from 'lucide-react'
+import { Loader2, AlertTriangle, CheckCircle2, Ban, Navigation, Phone, Radio, X, Check, Wallet, Play, Square, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -28,7 +28,7 @@ import { useLiveLocation } from '@/hooks/useLiveLocation'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { RateAndReport } from '@/components/portal/RateAndReport'
-import { ChatButton } from '@/components/portal/ChatButton'
+import { BookingChatPanel } from '@/components/mobility/BookingChatPanel'
 import { TrustStrip, type Trust } from '@/components/shared/TrustBadge'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -94,6 +94,7 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
   const [busy, setBusy] = useState(false)
   const [declining, setDeclining] = useState(false)
   const [declineReason, setDeclineReason] = useState('')
+  const [showChat, setShowChat] = useState(false)
   const [pin, setPin] = useState('')
   const [now, setNow] = useState(() => Date.now())
 
@@ -194,6 +195,7 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
   ]
 
   return (
+    <>
     <MobilityBottomSheet title={row.customer_name} onClose={onClose} minHeight="60vh">
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
@@ -241,8 +243,9 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
                 <Phone size={14} /> {t('vp.callBtn')}
               </a>
             ) : <span />}
-            <ChatButton refType={REF_TYPE[kind]} refId={row.id} basePath="/portal/my-vehicle/chat"
-              className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#e5e2d0] font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer" />
+            <button onClick={() => setShowChat(true)} className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#e5e2d0] font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer">
+              <MessageCircle size={14} /> {t('vp.chatBtn')}
+            </button>
             {navTarget && navTarget.lat != null && navTarget.lng != null ? (
               <a href={mapsLink(navTarget.lat, navTarget.lng)} target="_blank" rel="noopener noreferrer"
                 className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#e5e2d0] font-sans text-[12.5px] font-semibold text-[#166534]">
@@ -362,5 +365,9 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
         )}
       </div>
     </MobilityBottomSheet>
+    {showChat && (
+      <BookingChatPanel refType={REF_TYPE[kind]} refId={row.id} otherPartyName={row.customer_name} onClose={() => setShowChat(false)} />
+    )}
+    </>
   )
 }

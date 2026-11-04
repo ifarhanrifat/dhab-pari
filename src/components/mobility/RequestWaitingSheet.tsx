@@ -20,14 +20,19 @@
 // poll underneath.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Car, Clock, Tractor, Bus, Check, X as XIcon, Phone, Loader2, CircleSlash, type LucideIcon } from 'lucide-react'
+import { Car, Clock, Tractor, Bus, Check, X as XIcon, Phone, Loader2, CircleSlash, MessageCircle, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
+import { BookingChatPanel, type BookingChatRefType } from '@/components/mobility/BookingChatPanel'
 
 export type WaitingKind = 'hourly' | 'rental' | 'equipment' | 'seat'
+// Only these three have a real negotiation thread (422/658) — seat
+// (route/adda) bookings don't, same scoping as the chat panel's own
+// first slice.
+const CHAT_REF_TYPE: Partial<Record<WaitingKind, BookingChatRefType>> = { hourly: 'hourly_booking', rental: 'rental_booking', equipment: 'equipment_booking' }
 
 export interface WaitingSummary {
   vehicleLabel: string
@@ -121,6 +126,7 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
   const [live, setLive] = useState<Live | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [showChat, setShowChat] = useState(false)
   const [showReturnWaitPicker, setShowReturnWaitPicker] = useState(false)
   const [returnWaitHours, setReturnWaitHours] = useState(0)
   const [switchingReturn, setSwitchingReturn] = useState(false)
@@ -172,6 +178,7 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
   const elapsed = Math.max(0, Math.floor((now - startedAt) / 1000))
   const elapsedText = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`
   const driver = live?.driverName ?? summary.driverName ?? null
+  const chatRefType = CHAT_REF_TYPE[kind]
 
   return (
     <div className="fixed inset-0 bg-black/55 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
@@ -314,6 +321,11 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
                   <Phone size={17} /> {t('vp.callBtn')}
                 </a>
               )}
+              {chatRefType && (
+                <button onClick={() => setShowChat(true)} aria-label={t('vp.chatBtn')} className="shrink-0 w-[50px] h-[50px] rounded-2xl bg-[#f1f5f9] text-[#166534] flex items-center justify-center cursor-pointer">
+                  <MessageCircle size={18} />
+                </button>
+              )}
               <button onClick={onViewBooking} className="flex-[1.6] h-[50px] rounded-2xl bg-[#15803d] text-white font-sans text-[14.5px] font-bold shadow-[0_8px_20px_-6px_rgba(21,128,61,0.6)] cursor-pointer active:scale-[0.98] transition-transform">
                 {live?.advanceDue != null ? t('eqa.payBtn') : t('rw.viewBookingBtn')}
               </button>
@@ -321,9 +333,16 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
           )}
 
           {phase === 'completed' && (
-            <button onClick={onViewBooking} className="h-[50px] rounded-2xl bg-[#15803d] text-white font-sans text-[14.5px] font-bold cursor-pointer active:scale-[0.98] transition-transform">
-              {t('rw.viewBookingBtn')}
-            </button>
+            <div className="flex gap-2.5">
+              {chatRefType && (
+                <button onClick={() => setShowChat(true)} aria-label={t('vp.chatBtn')} className="shrink-0 w-[50px] h-[50px] rounded-2xl bg-[#f1f5f9] text-[#166534] flex items-center justify-center cursor-pointer">
+                  <MessageCircle size={18} />
+                </button>
+              )}
+              <button onClick={onViewBooking} className="flex-1 h-[50px] rounded-2xl bg-[#15803d] text-white font-sans text-[14.5px] font-bold cursor-pointer active:scale-[0.98] transition-transform">
+                {t('rw.viewBookingBtn')}
+              </button>
+            </div>
           )}
 
           {(phase === 'declined' || phase === 'cancelled') && (
@@ -333,6 +352,9 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
           )}
         </div>
       </div>
+      {showChat && chatRefType && (
+        <BookingChatPanel refType={chatRefType} refId={bookingId} otherPartyName={driver} onClose={() => setShowChat(false)} />
+      )}
     </div>
   )
 }
