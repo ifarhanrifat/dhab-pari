@@ -126,19 +126,24 @@ function useDraggablePosition() {
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved.current = true
     if (moved.current) setPos(clamp(start.current.posX + dx, start.current.posY + dy))
   }
-  // Real bug found live, 2026-11-04: worked in the native app (a
-  // Chromium WebView), not in a Firefox tab — same production JS both
-  // places. setPointerCapture() on this div (above) redirects every
-  // subsequent pointer event, the synthetic click included, to this
-  // element; Firefox enforces that strictly and the button's own
-  // onClick (on the child <button>) never fires, while Chromium is more
-  // lenient and still dispatches it. Fix is to stop depending on the
-  // browser's synthetic click at all — decide tap-vs-drag right here,
-  // in the pointer events this hook already owns, and call the caller's
-  // handler directly. tapRef is updated on every render (a plain
-  // assignment during render, not a hook) so it always calls with this
-  // render's latest closure, no stale total/primary/openItem.
-  const tapRef = useRef<() => void>(() => {})
+  // Real bug found live, 2026-11-04, two rounds: first in a Firefox tab
+  // (worked in the native app, not there), then — after moving the tap
+  // action into the pointer-events handlers themselves to dodge that —
+  // in the native Android app itself, confirmed with a zero-movement
+  // synthetic tap via adb (ruling out touch-jitter thresholds
+  // entirely): Pointer Events plainly aren't reaching this handler
+  // reliably in that Capacitor WebView, so a tap-action built purely on
+  // onPointerUp has no safety net there at all.
+  //
+  // The actually robust fix: stop trying to make Pointer Events solely
+  // responsible for the tap, and go back to the one event every engine
+  // (WebView included) reliably delivers — onClick — but attach it to
+  // THIS div (the one that calls setPointerCapture), not a descendant
+  // button. Firefox retargets a captured pointer's synthetic click to
+  // the capturing element itself, so a handler sitting on a child never
+  // sees it; a handler sitting on the capturing element does. Pointer
+  // events now only ever drive the optional drag-reposition feature;
+  // they're no longer load-bearing for "did the user tap this."
   const finishDrag = () => {
     dragging.current = false
     if (moved.current) {
@@ -148,16 +153,12 @@ function useDraggablePosition() {
       })
     }
   }
-  const onPointerUp = () => {
-    const tapped = !moved.current
-    finishDrag()
-    if (tapped) tapRef.current()
-  }
+  const onPointerUp = () => finishDrag()
   // A cancelled gesture (browser took over, multi-touch, etc.) is never
   // a tap, regardless of how little the pointer moved before cancelling.
   const onPointerCancel = () => finishDrag()
 
-  return { pos, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, setTap: (fn: () => void) => { tapRef.current = fn } }
+  return { pos, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, wasDragged: () => moved.current }
 }
 
 export function FloatingBookingsHub() {
@@ -378,16 +379,12 @@ export function FloatingBookingsHub() {
 
   const total = items.length
   const primary = items[0]
-  // Plain assignment during render, not a hook — always sees this
-  // render's current total/primary/openItem by the time a real tap
-  // resolves them (see the hook's own comment for why this exists).
-  drag.setTap(() => { if (total === 1) openItem(primary); else setListOpen(true) })
-
   return (
     <>
       <div dir={isUrdu ? 'rtl' : 'ltr'} className={`fixed z-[70] print:hidden ${drag.pos ? '' : 'bottom-[90px] right-4 md:bottom-6 md:right-6'}`}
         style={drag.pos ? { left: drag.pos.x, top: drag.pos.y, touchAction: 'none' } : { touchAction: 'none' }}
-        onPointerDown={drag.onPointerDown} onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerCancel}>
+        onPointerDown={drag.onPointerDown} onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerCancel}
+        onClick={() => { if (drag.wasDragged()) return; if (total === 1) openItem(primary); else setListOpen(true) }}>
         <button
           className="relative flex items-center gap-2 pl-3 pr-4 h-12 rounded-full text-white shadow-lg hover:scale-105 active:scale-95 transition-all max-w-[230px] cursor-grab active:cursor-grabbing"
           style={{ background: primary.state === 'ongoing' ? '#166534' : '#0f172a' }}>
