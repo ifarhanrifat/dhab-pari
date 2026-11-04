@@ -11,7 +11,7 @@
 // from the Home screen's quick link.
 
 import { useEffect, useState } from 'react'
-import { MapPin, Signpost, LogOut, SkipForward, Timer, Trophy, Pencil, ListOrdered } from 'lucide-react'
+import { MapPin, Signpost, LogOut, SkipForward, Timer, Trophy, Pencil, ListOrdered, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -20,6 +20,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { getCurrentPositionOnce, classifyLocationError, type LocationErrorReason } from '@/hooks/useLiveLocation'
 import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { GroupChatPanel } from '@/components/mobility/GroupChatPanel'
 
 interface Adda { id: string; name: string; name_ur: string | null; pair_adda_id: string | null; fixed_fare_per_seat_pkr: number | null }
 interface AddaBoardEntry {
@@ -56,6 +57,7 @@ export default function MyVehicleAddaPage() {
   const [checkInShareLocation, setCheckInShareLocation] = useState(true)
   const [checkingLocation, setCheckingLocation] = useState(false)
   const [locationModalReason, setLocationModalReason] = useState<Extract<LocationErrorReason, 'services_disabled' | 'permission_denied'> | null>(null)
+  const [showGroupChat, setShowGroupChat] = useState(false)
   const [editingSeats, setEditingSeats] = useState(false)
   const [seatsEditValue, setSeatsEditValue] = useState(0)
 
@@ -243,6 +245,9 @@ export default function MyVehicleAddaPage() {
               <button onClick={() => setEditingSeats(false)} disabled={addaActionLoading} className="px-2.5 py-1 border border-[#e5e2d0] rounded-lg text-[12px] font-sans font-semibold cursor-pointer disabled:opacity-50">{t('action.cancel')}</button>
             </div>
           )}
+          <button onClick={() => setShowGroupChat(true)} className="mt-2 flex items-center gap-1 font-sans text-[12px] font-semibold text-[#166534] cursor-pointer">
+            <Users size={12} /> {t('cm.openGroupChatBtn')}
+          </button>
           {myEntry.status === 'current' ? (
             <div className="bg-[#166534]/10 rounded-xl p-2.5 mt-2">
               <div className="flex items-center justify-between gap-2">
@@ -306,6 +311,9 @@ export default function MyVehicleAddaPage() {
       )}
 
       {locationModalReason && <LocationSettingsModal reason={locationModalReason} onClose={() => setLocationModalReason(null)} />}
+      {showGroupChat && myEntry && (
+        <GroupChatPanel refType="adda" refId={myEntry.entry_id} title={isUrdu && myEntry.adda_name_ur ? myEntry.adda_name_ur : myEntry.adda_name} onClose={() => setShowGroupChat(false)} />
+      )}
     </div>
   )
 }

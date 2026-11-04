@@ -22,7 +22,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import Link from 'next/link'
 import { Loader2, AlertTriangle, Users, CheckCircle2, Ban, Maximize2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -30,6 +29,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
+import { GroupChatPanel } from '@/components/mobility/GroupChatPanel'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { RateAndReport } from '@/components/portal/RateAndReport'
 import { fetchRoadRoute } from '@/lib/roadRoute'
@@ -62,6 +62,7 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
   const [roadPath, setRoadPath] = useState<{ lat: number; lng: number }[] | null>(null)
   const [roadEta, setRoadEta] = useState<{ distanceKm: number; durationMin: number } | null>(null)
   const [driverPhoto, setDriverPhoto] = useState<string | null>(null)
+  const [showGroupChat, setShowGroupChat] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const lastPingRef = useRef(0)
   const lastRouteFetchRef = useRef('')
@@ -261,6 +262,7 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
   }
 
   return (
+    <>
     <MobilityBottomSheet title={`${originLabel} → ${destLabel}`} onClose={onClose} minHeight="70vh">
       <div className="flex flex-col gap-3">
         {(detail.status === 'confirmed' || detail.status === 'in_progress') && (
@@ -358,10 +360,10 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
               </div>
             )}
 
-            <Link href={`/portal/marketplace/trip-group/${detail.trip_offer_id}`}
+            <button onClick={() => setShowGroupChat(true)}
               className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-[13px] font-sans font-bold cursor-pointer border border-[#166534] text-[#166534]">
               <Users size={14} /> {t('cm.openGroupChatBtn')}
-            </Link>
+            </button>
 
             <button onClick={cancelRide} disabled={busy}
               className="flex items-center justify-center gap-1 font-sans text-[11.5px] font-semibold cursor-pointer disabled:opacity-50 text-[#b91c1c]">
@@ -402,5 +404,9 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
         )}
       </div>
     </MobilityBottomSheet>
+    {showGroupChat && (
+      <GroupChatPanel refType="trip" refId={detail.trip_offer_id} title={`${originLabel} → ${destLabel}`} onClose={() => setShowGroupChat(false)} />
+    )}
+    </>
   )
 }

@@ -15,7 +15,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Navigation, AlertTriangle, Users } from 'lucide-react'
@@ -23,6 +22,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
+import { GroupChatPanel } from '@/components/mobility/GroupChatPanel'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -44,6 +44,7 @@ export default function TripTrackingPage() {
   const [ownPos, setOwnPos] = useState<{ lat: number; lng: number } | null>(null)
   const [otherPos, setOtherPos] = useState<{ lat: number; lng: number } | null>(null)
   const [geoError, setGeoError] = useState<string | null>(null)
+  const [showGroupChat, setShowGroupChat] = useState(false)
   const lastPingRef = useRef(0)
 
   useEffect(() => {
@@ -128,13 +129,16 @@ export default function TripTrackingPage() {
           {!otherPos && (
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-2">{role === 'driver' ? t('cm.waitingForRiderLocation') : t('cm.waitingForDriverLocation')}</p>
           )}
-          <Link href={`/portal/marketplace/trip-group/${booking.trip_offer_id}`}
+          <button onClick={() => setShowGroupChat(true)}
             className="flex items-center justify-center gap-1.5 w-full mt-3 py-2.5 rounded-xl text-[13px] font-sans font-bold cursor-pointer border border-dp-secondary text-dp-secondary">
             <Users size={14} /> {t('cm.openGroupChatBtn')}
-          </Link>
+          </button>
         </>
       )}
       <MobilityBottomNav />
+      {showGroupChat && booking && (
+        <GroupChatPanel refType="trip" refId={booking.trip_offer_id} onClose={() => setShowGroupChat(false)} />
+      )}
     </div>
   )
 }

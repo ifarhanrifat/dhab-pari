@@ -17,6 +17,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { TripLiveShareToggle } from '@/components/portal/TripLiveShareToggle'
 import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
+import { GroupChatPanel } from '@/components/mobility/GroupChatPanel'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicker'
@@ -88,6 +89,7 @@ export default function MyVehicleTripsPage() {
   const [driverLocationByTrip, setDriverLocationByTrip] = useState<Record<string, RiderLocation>>({})
   const [adSheetTrip, setAdSheetTrip] = useState<string | null>(null)
   const [adQuote, setAdQuote] = useState<IlanQuote | null>(null)
+  const [showGroupChatFor, setShowGroupChatFor] = useState<string | null>(null)
   const [adQuoting, setAdQuoting] = useState(false)
   const [adRequesting, setAdRequesting] = useState(false)
 
@@ -460,10 +462,10 @@ export default function MyVehicleTripsPage() {
                       })()}
 
                       {!isDispatchAccepted && tripBookings.some((tb) => tb.trip_offer_id === tr.id && tb.status === 'confirmed') && (
-                        <Link href={`/portal/marketplace/trip-group/${tr.id}`}
+                        <button onClick={() => setShowGroupChatFor(tr.id)}
                           className="flex items-center justify-center gap-1.5 w-full mt-2 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer border border-[#166534] text-[#166534]">
                           <Users size={13} /> {t('cm.openGroupChatBtn')}
-                        </Link>
+                        </button>
                       )}
 
                       {/* Real ask, 2026-10-21: "make it same like the route
@@ -712,6 +714,7 @@ export default function MyVehicleTripsPage() {
       )}
 
       {openRideBookingId && <RideLifecycleSheet bookingId={openRideBookingId} onClose={() => setOpenRideBookingId(null)} />}
+      {showGroupChatFor && <GroupChatPanel refType="trip" refId={showGroupChatFor} onClose={() => setShowGroupChatFor(null)} />}
     </div>
   )
 }

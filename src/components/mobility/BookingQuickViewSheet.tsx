@@ -21,7 +21,7 @@
 // own parties (hourly_bookings_parties_read etc.) — no new backend.
 
 import { useState } from 'react'
-import { Loader2, Ban, Radio, XCircle } from 'lucide-react'
+import { Loader2, Ban, Radio, XCircle, MessageCircle, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -30,7 +30,8 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useBookingLiveStatus } from '@/hooks/useBookingLiveStatus'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { CallButton } from '@/components/portal/CallButton'
-import { ChatButton } from '@/components/portal/ChatButton'
+import { BookingChatPanel, type BookingChatRefType } from '@/components/mobility/BookingChatPanel'
+import { GroupChatPanel } from '@/components/mobility/GroupChatPanel'
 
 export type QuickViewKind = 'hourly' | 'equipment' | 'ride' | 'rental'
 interface Props { kind: QuickViewKind; rawId: string; onClose: () => void; onChanged: () => void }
@@ -60,6 +61,7 @@ interface RideDetail {
   // came back null — same blind spot already fixed on the driver-side
   // jobs list for the same reason. Both join paths are fetched; the
   // render picks whichever one actually resolved.
+  route_id: string | null; adda_queue_entry_id: string | null
   vehicle_routes: {
     origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null
     vehicles: RideVehicle | null
@@ -111,12 +113,13 @@ function StatusBanner({ t, status, declineReason }: { t: (k: string, f?: string)
 const HOURLY_SELECT = 'id, status, pickup_address, decline_reason, total_amount_pkr, base_amount_pkr, pin, vehicle_id, vehicles(owner_name, owner_mobile, vehicle_type, model)'
 const RENTAL_SELECT = 'id, status, from_address, to_address, decline_reason, total_amount_pkr, base_amount_pkr, pin, vehicle_id, vehicles(owner_name, owner_mobile, vehicle_type, model)'
 const EQUIPMENT_SELECT = 'id, kind, status, site_address, decline_reason, total_amount_pkr, rate_pkr, pin, vehicle_id, vehicles(owner_name, owner_mobile, vehicle_type, model)'
-const RIDE_SELECT = 'id, status, total_amount_pkr, rejected_reason, seats, travel_date, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time, vehicles(owner_name, owner_mobile, vehicle_type, model, vehicle_number)), adda_queue_entries(vehicles(owner_name, owner_mobile, vehicle_type, model, vehicle_number), addas(name, name_ur))'
+const RIDE_SELECT = 'id, status, total_amount_pkr, rejected_reason, seats, travel_date, route_id, adda_queue_entry_id, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time, vehicles(owner_name, owner_mobile, vehicle_type, model, vehicle_number)), adda_queue_entries(vehicles(owner_name, owner_mobile, vehicle_type, model, vehicle_number), addas(name, name_ur))'
 
 export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props) {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [busy, setBusy] = useState(false)
+  const [showChat, setShowChat] = useState(false)
 
   // All four always called (hooks can't be conditional) — only the one
   // matching `kind` gets a real id, the other three stay idle (id=null).
@@ -140,6 +143,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
   const title = kind === 'hourly' ? t('vp.hourlyPageTitle') : kind === 'equipment' ? t(`vp.${equipment?.kind ?? 'machinery'}PageTitle`) : kind === 'rental' ? t('vp.rentalPageTitle') : t('af.addaBoardPageTitle')
 
   return (
+    <>
     <MobilityBottomSheet title={title} onClose={onClose}>
       {loading ? (
         <div className="py-8 text-center"><Loader2 size={20} className="animate-spin text-[#166534] mx-auto" /></div>
@@ -159,7 +163,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
           {(hourly.status === 'accepted' || hourly.status === 'in_progress') && (
             <div className="flex items-center gap-3">
               <CallButton phone={hourly.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
-              <ChatButton refType="hourly_booking" refId={hourly.id} basePath="/portal/marketplace/negotiations" className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer" />
+              <button onClick={() => setShowChat(true)} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><MessageCircle size={13} /> {t('vp.chatBtn')}</button>
             </div>
           )}
           {(hourly.status === 'requested' || hourly.status === 'accepted') && (
@@ -184,7 +188,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
           {(equipment.status === 'accepted' || equipment.status === 'in_progress') && (
             <div className="flex items-center gap-3">
               <CallButton phone={equipment.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
-              <ChatButton refType="equipment_booking" refId={equipment.id} basePath="/portal/marketplace/negotiations" className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer" />
+              <button onClick={() => setShowChat(true)} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><MessageCircle size={13} /> {t('vp.chatBtn')}</button>
             </div>
           )}
           {(equipment.status === 'requested' || equipment.status === 'accepted') && (
@@ -209,7 +213,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
           {(rental.status === 'accepted' || rental.status === 'in_progress') && (
             <div className="flex items-center gap-3">
               <CallButton phone={rental.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
-              <ChatButton refType="rental_booking" refId={rental.id} basePath="/portal/marketplace/negotiations" className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer" />
+              <button onClick={() => setShowChat(true)} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><MessageCircle size={13} /> {t('vp.chatBtn')}</button>
             </div>
           )}
           {(rental.status === 'requested' || rental.status === 'accepted') && (
@@ -243,7 +247,16 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
                 </div>
                 <p className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num">₨{fmt(ride.total_amount_pkr)}</p>
                 {ride.status === 'confirmed' && vehicle && (
-                  <CallButton phone={vehicle.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
+                  <div className="flex items-center gap-3">
+                    <CallButton phone={vehicle.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
+                    {/* Route-based rides already have their own real
+                        group chat (RouteGroupPanel, reached from the
+                        route's own detail page) — only adda bookings
+                        were missing one at all. */}
+                    {ride.adda_queue_entry_id && (
+                      <button onClick={() => setShowChat(true)} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><Users size={13} /> {t('cm.openGroupChatBtn')}</button>
+                    )}
+                  </div>
                 )}
               </>
             )
@@ -258,5 +271,18 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
         <p className="text-center py-6 text-[#94a3b8] text-[13.5px]">{t('p.couldNotLoad')}</p>
       )}
     </MobilityBottomSheet>
+    {showChat && kind === 'hourly' && hourly && (
+      <BookingChatPanel refType="hourly_booking" refId={hourly.id} otherPartyName={hourly.vehicles.owner_name} onClose={() => setShowChat(false)} />
+    )}
+    {showChat && kind === 'equipment' && equipment && (
+      <BookingChatPanel refType="equipment_booking" refId={equipment.id} otherPartyName={equipment.vehicles.owner_name} onClose={() => setShowChat(false)} />
+    )}
+    {showChat && kind === 'rental' && rental && (
+      <BookingChatPanel refType="rental_booking" refId={rental.id} otherPartyName={rental.vehicles.owner_name} onClose={() => setShowChat(false)} />
+    )}
+    {showChat && kind === 'ride' && ride?.adda_queue_entry_id && (
+      <GroupChatPanel refType="adda" refId={ride.adda_queue_entry_id} onClose={() => setShowChat(false)} />
+    )}
+    </>
   )
 }
