@@ -104,7 +104,11 @@ interface Props {
   // offer a way out instead of leaving the rider stuck watching a spinner.
   // Only Rental's one-way flow passes this; every other booking kind
   // behaves exactly as before.
-  oneWayFallback?: { afterSeconds: number; onSwitchShared: () => void; onSwitchReturn: () => void | Promise<void> }
+  //
+  // Real ask, 2026-11-04: "when I chose two-way there I can't pick the
+  // waiting time" — onSwitchReturn now takes the chosen wait hours
+  // instead of always resubmitting at 0.
+  oneWayFallback?: { afterSeconds: number; onSwitchShared: () => void; onSwitchReturn: (waitHours: number) => void | Promise<void> }
 }
 
 export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, onViewBooking, oneWayFallback }: Props) {
@@ -112,6 +116,9 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
   const [live, setLive] = useState<Live | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [showReturnWaitPicker, setShowReturnWaitPicker] = useState(false)
+  const [returnWaitHours, setReturnWaitHours] = useState(0)
+  const [switchingReturn, setSwitchingReturn] = useState(false)
   const [startedAt] = useState(() => (since ? new Date(since).getTime() : Date.now()))
   const [now, setNow] = useState(() => Date.now())
 
@@ -141,6 +148,13 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); setConfirmCancel(false); return }
     toast.success(t('rw.cancelledToast'))
     onClose()
+  }
+
+  const confirmSwitchToReturn = async () => {
+    if (!oneWayFallback) return
+    setSwitchingReturn(true)
+    await oneWayFallback.onSwitchReturn(returnWaitHours)
+    setSwitchingReturn(false)
   }
 
   const Icon = ICON[kind]
@@ -247,10 +261,29 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
             <div className="rounded-2xl bg-[#fffbeb] border border-[#fde68a] p-3.5 flex flex-col gap-2.5">
               <p className="font-sans text-[13px] font-bold text-[#92400e]">{t('rw.noOneWayDriverHeading')}</p>
               <p className="font-sans text-[12px] text-[#92400e]/80 leading-snug">{t('rw.noOneWayDriverHint')}</p>
-              <div className="flex gap-2">
-                <button onClick={oneWayFallback.onSwitchShared} className="flex-1 py-2 rounded-xl bg-white border border-[#fde68a] text-[#92400e] font-sans text-[12.5px] font-bold cursor-pointer">{t('rw.switchToSharedBtn')}</button>
-                <button onClick={oneWayFallback.onSwitchReturn} className="flex-1 py-2 rounded-xl bg-[#92400e] text-white font-sans text-[12.5px] font-bold cursor-pointer">{t('rw.switchToReturnBtn')}</button>
-              </div>
+              {!showReturnWaitPicker ? (
+                <div className="flex gap-2">
+                  <button onClick={oneWayFallback.onSwitchShared} className="flex-1 py-2 rounded-xl bg-white border border-[#fde68a] text-[#92400e] font-sans text-[12.5px] font-bold cursor-pointer">{t('rw.switchToSharedBtn')}</button>
+                  <button onClick={() => setShowReturnWaitPicker(true)} className="flex-1 py-2 rounded-xl bg-[#92400e] text-white font-sans text-[12.5px] font-bold cursor-pointer">{t('rw.switchToReturnBtn')}</button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  <div>
+                    <label className="block font-sans text-[11.5px] font-semibold text-[#92400e]/80 mb-1">{t('vp.waitHoursLabel')}</label>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setReturnWaitHours((h) => Math.max(0, h - 1))} className="w-9 h-9 bg-white border border-[#fde68a] rounded-xl cursor-pointer text-[16px] text-[#92400e]">−</button>
+                      <span className="font-extrabold text-[17px] w-10 text-center ltr-num text-[#92400e]">{returnWaitHours}</span>
+                      <button onClick={() => setReturnWaitHours((h) => h + 1)} className="w-9 h-9 bg-white border border-[#fde68a] rounded-xl cursor-pointer text-[16px] text-[#92400e]">+</button>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowReturnWaitPicker(false)} disabled={switchingReturn} className="flex-1 py-2 rounded-xl bg-white border border-[#fde68a] text-[#92400e] font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">{t('action.back')}</button>
+                    <button onClick={confirmSwitchToReturn} disabled={switchingReturn} className="flex-1 py-2 rounded-xl bg-[#92400e] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5">
+                      {switchingReturn && <Loader2 size={13} className="animate-spin" />} {t('action.confirm')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

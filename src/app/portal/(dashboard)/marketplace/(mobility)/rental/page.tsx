@@ -221,7 +221,7 @@ export default function RentalPage() {
   // driver in 5 minutes" fallback — cancel the stuck one-way request
   // and resubmit the exact same trip as a return, since drivers
   // actually want those (no deadhead to eat).
-  const switchToReturn = async () => {
+  const switchToReturn = async (waitHoursChosen: number) => {
     if (!waiting?.extra) return
     const tier = tiers.find((x) => x.tier_key === waiting.extra!.rentalTier)
     if (!tier) return
@@ -229,14 +229,14 @@ export default function RentalPage() {
     await supabase.rpc('cancel_rental_booking', { p_booking_id: waiting.id })
     const { data: newId, error } = await supabase.rpc('create_rental_booking', {
       p_rental_tier: tier.tier_key, p_from_address: f.label, p_from_lat: f.lat, p_from_lng: f.lng,
-      p_to_address: tLoc.label, p_to_lat: tLoc.lat, p_to_lng: tLoc.lng, p_trip_type: 'return', p_wait_hours: 0,
+      p_to_address: tLoc.label, p_to_lat: tLoc.lat, p_to_lng: tLoc.lng, p_trip_type: 'return', p_wait_hours: waitHoursChosen,
       p_payment_method: 'cash',
     })
     if (error) { toast.error(friendlyError(error)); return }
     const km = kmBetween(f, tLoc)
     setWaiting({
       id: newId as string, since: null,
-      summary: { vehicleLabel: t(`vp.rentalTier.${tier.tier_key}`), from: f.label, to: tLoc.label, amount: tripTotalFor(tier, km, 'return', 0, isOutOfCityTrip(homeCity, f, tLoc)), facts: tripFacts('return', 0) },
+      summary: { vehicleLabel: t(`vp.rentalTier.${tier.tier_key}`), from: f.label, to: tLoc.label, amount: tripTotalFor(tier, km, 'return', waitHoursChosen, isOutOfCityTrip(homeCity, f, tLoc)), facts: tripFacts('return', waitHoursChosen) },
       extra: { tripType: 'return', rentalTier: tier.tier_key, fromLoc: f, toLoc: tLoc },
     })
     toast.success(t('rw.switchedToReturnToast'))
