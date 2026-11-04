@@ -20,7 +20,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { MapPin, Navigation, Loader2, AlertCircle, CheckCircle2, Ban, RotateCcw, Users } from 'lucide-react'
+import { MapPin, Navigation, Loader2, AlertCircle, CheckCircle2, Ban, RotateCcw, Users, Home as HomeIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
@@ -58,7 +58,7 @@ interface TierOption {
 interface Booking {
   id: string; from_address: string; from_lat: number | null; from_lng: number | null
   to_address: string; to_lat: number | null; to_lng: number | null
-  trip_type: 'one' | 'return'; wait_hours: number; km: number; status: string; decline_reason: string | null; pin: string | null
+  trip_type: 'one' | 'return'; wait_hours: number; km: number; status: string; decline_reason: string | null; pin: string | null; is_out_of_city?: boolean
   base_amount_pkr: number; trip_amount_pkr: number; wait_amount_pkr: number; total_amount_pkr: number
   requested_at: string; started_at: string | null; ended_at: string | null
   notes: string | null; payment_method: string; vehicle_id: string | null; rental_tier: string | null
@@ -419,6 +419,13 @@ export default function RentalPage() {
                       />
                       <ReportProblemButton refType="rental_booking" refId={b.id} kindOptions={['fare_dispute', 'no_show']} />
                     </div>
+                    {b.is_out_of_city && b.trip_type === 'one' && (
+                      <button onClick={() => router.push('/portal/marketplace/travel?openGoHome=1')}
+                        className="flex items-center gap-2 w-full mt-2 p-2.5 rounded-xl bg-[#FFFBEB] border border-[#D4AF37] text-start cursor-pointer">
+                        <HomeIcon size={15} className="text-[#92400e] shrink-0" />
+                        <span className="font-sans text-[12px] font-semibold text-[#92400e]">{t('vp.wantRideHomePrompt')}</span>
+                      </button>
+                    )}
                     {b.vehicle_id && (
                       <div className="mt-2">
                         <RateAndReport refType="rental_booking" refId={b.id} againstPartyType="vehicle" againstPartyId={b.vehicle_id} showComplaint={false} />

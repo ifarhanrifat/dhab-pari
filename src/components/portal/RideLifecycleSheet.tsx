@@ -21,8 +21,9 @@
 // own comment requires.
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { Loader2, AlertTriangle, Users, CheckCircle2, Ban, Maximize2, X } from 'lucide-react'
+import { Loader2, AlertTriangle, Users, CheckCircle2, Ban, Maximize2, X, Home as HomeIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -45,13 +46,14 @@ interface Detail {
   dest_lat: number | null; dest_lng: number | null
   pin: string | null
   vehicle_id: string; rider_portal_user_id: string
-  total_amount_pkr: number
+  total_amount_pkr: number; is_out_of_city?: boolean
 }
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
 export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; onClose: () => void }) {
   const { t, isUrdu } = useLocale()
+  const router = useRouter()
   const supabase = createClient()
 
   const [detail, setDetail] = useState<Detail | null>(null)
@@ -392,6 +394,13 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
                 (650) and RateAndReport is the exact shared widget every
                 other completed-booking screen already uses — just
                 never wired in here. */}
+            {detail.role === 'rider' && detail.is_out_of_city && (
+              <button onClick={() => { onClose(); router.push('/portal/marketplace/travel?openGoHome=1') }}
+                className="flex items-center gap-2 w-full p-2.5 rounded-xl bg-[#FFFBEB] border border-[#D4AF37] text-start cursor-pointer">
+                <HomeIcon size={15} className="text-[#92400e] shrink-0" />
+                <span className="font-sans text-[12px] font-semibold text-[#92400e]">{t('vp.wantRideHomePrompt')}</span>
+              </button>
+            )}
             <RateAndReport
               refType="trip_booking" refId={bookingId}
               againstPartyType={detail.role === 'rider' ? 'vehicle' : 'portal_user'}

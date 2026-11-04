@@ -27,7 +27,7 @@
 // configured stop).
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -158,6 +158,7 @@ const SERVICES = [
 export default function MobilityHomePage() {
   const { t, isUrdu } = useLocale()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const beltRef = useAutoScrollBelt(isUrdu)
   const { user, refresh: refreshUser } = usePortalUser()
@@ -250,6 +251,18 @@ export default function MobilityHomePage() {
     setGoHomeCity(null)
     setGoHomeResults(null)
   }
+
+  // Real ask, 2026-11-04: "when the one-way ride is finished in the
+  // destination city, on the rate-the-driver screen show a link to go
+  // back home" — that screen deep-links here with ?openGoHome=1 instead
+  // of making the rider find this flow themselves. Fires once; the
+  // param is stripped right after so a back/refresh doesn't reopen it.
+  useEffect(() => {
+    if (searchParams.get('openGoHome') !== '1') return
+    openGoHome()
+    router.replace('/portal/marketplace/travel')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
   const pickGoHomeCity = async (c: City) => {
     setGoHomeCity(c)
     setGoHomeLoading(true)

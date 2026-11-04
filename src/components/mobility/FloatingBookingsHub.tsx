@@ -199,12 +199,13 @@ export function FloatingBookingsHub() {
     // three, opening the driver's own BookingLifecycleSheet instead of
     // the rider-facing RequestWaitingSheet.
     const vehicle = vehicleRes.data as { id: string; commission_mode: string; offers_hourly: boolean; offers_rental: boolean; offers_shadi: boolean; offers_machinery: boolean; offers_tractor: boolean; offers_loader: boolean } | null
-    const [driverHourly, driverRental, driverEquipment, driverShadi] = vehicle ? await Promise.all([
+    const [driverHourly, driverRental, driverEquipment, driverShadi, driverReturnOffers] = vehicle ? await Promise.all([
       vehicle.offers_hourly ? supabase.rpc('vehicle_hourly_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
       vehicle.offers_rental ? supabase.rpc('vehicle_rental_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
       (vehicle.offers_machinery || vehicle.offers_tractor || vehicle.offers_loader) ? supabase.rpc('vehicle_equipment_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
       vehicle.offers_shadi ? supabase.rpc('vehicle_shadi_requests', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
-    ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }]
+      vehicle.offers_rental ? supabase.rpc('vehicle_rental_return_offers', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
+    ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }]
 
     if (vehicle) {
       for (const b of (driverHourly.data ?? []) as { id: string; status: string; hours: number; customer_name: string; requested_at: string }[]) {
@@ -229,6 +230,25 @@ export function FloatingBookingsHub() {
       for (const r of (driverShadi.data ?? []) as { id: string; status: string; customer_name: string; event_date: string }[]) {
         if (r.status !== 'accepted') continue
         out.push({ key: `ds-${r.id}`, emoji: '💐', label: `${t('rq.kind.shadi')} · ${r.customer_name}`, state: 'ongoing', since: r.event_date, href: '/portal/my-vehicle/shadi' })
+      }
+      // Real ask, 2026-11-04: "when we have a floating button then why
+      // not we used it for this purpose too" — a driver's own return-leg
+      // offer (796/797) only ever lived on my-vehicle/rental's own
+      // banner; it never showed up here even though it's exactly the
+      // same "something needs you" shape as every other row in this
+      // hub. 'pending' counts down to the moment it activates (the
+      // original one-way trip finishing); 'activated' is already live,
+      // so it's 'ongoing' — the driver should be heading back now.
+      for (const o of (driverReturnOffers.data ?? []) as { id: string; status: string; to_address: string; expected_arrival_at: string; bookings: { id: string }[] }[]) {
+        const seatsBooked = o.bookings.length
+        out.push({
+          key: `dro-${o.id}`, emoji: '🔄',
+          label: `${t('rq.kind.rentalReturn')} · ${o.to_address}${seatsBooked > 0 ? ` · ${seatsBooked}` : ''}`,
+          state: o.status === 'activated' ? 'ongoing' : 'waiting',
+          since: o.expected_arrival_at,
+          countdownTarget: o.status === 'pending' ? new Date(o.expected_arrival_at).getTime() : undefined,
+          href: '/portal/my-vehicle/rental',
+        })
       }
     }
 
@@ -372,7 +392,7 @@ export function FloatingBookingsHub() {
         </span>
         <span className="block font-sans text-[13px] font-semibold text-[#0f172a] truncate leading-tight mt-0.5"><bdi>{it.label}</bdi></span>
       </span>
-      {it.countdownTarget != null && <Countdown target={it.countdownTarget} now={now} label={t('dock.departed') || 'Departed'} />}
+      {it.countdownTarget != null && <Countdown target={it.countdownTarget} now={now} label={it.key.startsWith('dro-') ? t('dock.readyNow') : t('dock.departed')} />}
       {it.state === 'action' && it.countdownTarget == null && <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b] shrink-0" />}
     </button>
   )
