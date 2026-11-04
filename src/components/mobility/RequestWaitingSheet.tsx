@@ -38,7 +38,7 @@ export interface WaitingSummary {
   facts?: string[]
 }
 
-type Phase = 'waiting' | 'accepted' | 'declined' | 'cancelled'
+type Phase = 'waiting' | 'accepted' | 'completed' | 'declined' | 'cancelled'
 interface Live { phase: Phase; reason: string | null; pin: string | null; driverName: string | null; driverMobile: string | null; advanceDue?: number; advancePct?: number }
 
 const TABLE: Record<WaitingKind, string> = { hourly: 'hourly_bookings', rental: 'rental_bookings', equipment: 'equipment_bookings', seat: 'ride_bookings' }
@@ -54,6 +54,11 @@ function phaseOf(kind: WaitingKind, status: string): Phase {
   if (status === 'requested') return 'waiting'
   if (status === 'declined') return 'declined'
   if (status === 'cancelled') return 'cancelled'
+  // Real bug found live, 2026-11-04: without this, a completed trip
+  // fell into the catch-all below and rendered identically to
+  // 'accepted' — PIN still shown, "call driver" still offered, on a
+  // ride that already ended.
+  if (status === 'completed') return 'completed'
   return 'accepted'
 }
 
@@ -126,7 +131,13 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
     loadLive(kind, bookingId).then((l) => { if (l) setLive(l) })
   }, [kind, bookingId])
   const phase: Phase = live?.phase ?? 'waiting'
-  useRealtimeRefresh(TABLE[kind], phase === 'waiting' ? bookingId : null, reload, 5000)
+  // Real bug found live, 2026-11-04: this only stayed subscribed while
+  // 'waiting', so a sheet left open past acceptance never heard about
+  // the trip starting or finishing — it just sat on whatever `live`
+  // was at the moment of acceptance. Stays live through every
+  // non-terminal phase now; only a real end state stops it.
+  const isTerminal = phase === 'declined' || phase === 'cancelled' || phase === 'completed'
+  useRealtimeRefresh(TABLE[kind], isTerminal ? null : bookingId, reload, 5000)
 
   useEffect(() => {
     if (phase !== 'waiting') return
@@ -170,7 +181,7 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
 
         {/* Status hero */}
         <div className="relative px-5 pt-8 pb-7 flex flex-col items-center text-center text-white transition-colors duration-500"
-          style={{ backgroundImage: phase === 'accepted' ? 'linear-gradient(160deg,#065f46,#16a34a)' : phase === 'declined' || phase === 'cancelled' ? 'linear-gradient(160deg,#475569,#64748b)' : 'linear-gradient(160deg,#0f3d2e,#166534)' }}>
+          style={{ backgroundImage: phase === 'accepted' || phase === 'completed' ? 'linear-gradient(160deg,#065f46,#16a34a)' : phase === 'declined' || phase === 'cancelled' ? 'linear-gradient(160deg,#475569,#64748b)' : 'linear-gradient(160deg,#0f3d2e,#166534)' }}>
           <div className="relative w-28 h-28 flex items-center justify-center">
             {phase === 'waiting' && (
               <>
@@ -181,18 +192,19 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
             )}
             <div className={`relative w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${phase === 'waiting' ? 'bg-white text-[#166534]' : 'bg-white/95'} ${phase !== 'waiting' ? 'animate-in zoom-in-50 duration-300' : ''}`}>
               {phase === 'waiting' && <Icon size={30} />}
-              {phase === 'accepted' && <Check size={34} strokeWidth={3} className="text-[#16a34a]" />}
+              {(phase === 'accepted' || phase === 'completed') && <Check size={34} strokeWidth={3} className="text-[#16a34a]" />}
               {phase === 'declined' && <XIcon size={32} strokeWidth={3} className="text-[#b91c1c]" />}
               {phase === 'cancelled' && <CircleSlash size={30} className="text-[#475569]" />}
             </div>
           </div>
           <p className="font-sans text-[19px] font-extrabold mt-3 leading-tight">
-            {phase === 'waiting' ? t('rw.waitingHeading') : phase === 'accepted' ? t('rw.acceptedHeading') : phase === 'declined' ? t('rw.declinedHeading') : t('rw.cancelledHeading')}
+            {phase === 'waiting' ? t('rw.waitingHeading') : phase === 'accepted' ? t('rw.acceptedHeading') : phase === 'completed' ? t('rw.completedHeading') : phase === 'declined' ? t('rw.declinedHeading') : t('rw.cancelledHeading')}
           </p>
           <p className="font-sans text-[13px] text-white/85 mt-1 max-w-[300px]">
             {phase === 'waiting'
               ? (driver ? t('rw.waitingHintNamed').replace('{driver}', driver) : t('rw.waitingHint'))
               : phase === 'accepted' ? (driver ? t('rw.acceptedHintNamed').replace('{driver}', driver) : t('rw.acceptedHint'))
+              : phase === 'completed' ? t('rw.completedHint')
               : phase === 'declined' ? t('rw.declinedHint') : t('rw.cancelledHint')}
           </p>
           {phase === 'waiting' && (
@@ -306,6 +318,12 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
                 {live?.advanceDue != null ? t('eqa.payBtn') : t('rw.viewBookingBtn')}
               </button>
             </div>
+          )}
+
+          {phase === 'completed' && (
+            <button onClick={onViewBooking} className="h-[50px] rounded-2xl bg-[#15803d] text-white font-sans text-[14.5px] font-bold cursor-pointer active:scale-[0.98] transition-transform">
+              {t('rw.viewBookingBtn')}
+            </button>
           )}
 
           {(phase === 'declined' || phase === 'cancelled') && (
