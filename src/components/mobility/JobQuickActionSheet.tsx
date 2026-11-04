@@ -189,9 +189,14 @@ interface Props {
   // original self-contained behavior when omitted (the Jobs list's own
   // direct use of this component, which has no such pollable queue).
   onAcceptedLifecycle?: (kind: LifecycleKind, id: string) => void
+  // Real bug found live, 2026-11-04: ride_dispatch's own "stay open"
+  // sheet (rideBookingId below) has this exact same bug — it's been
+  // live since before tonight, just never reported until now. Same
+  // fix, same reasoning as onAcceptedLifecycle above.
+  onAcceptedRide?: (bookingId: string) => void
 }
 
-export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone, onAcceptedLifecycle }: Props) {
+export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone, onAcceptedLifecycle, onAcceptedRide }: Props) {
   const { t, isUrdu } = useLocale()
   // Opened from the Jobs or Requests list, a row only carries its title
   // and amount — fetch the same full details the incoming-request popup
@@ -275,7 +280,11 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone, 
     if (row.type === 'ride_dispatch' && accept) {
       const { data } = await createClient().rpc('my_ongoing_ride')
       const bookingId = (data as { booking_id: string | null } | null)?.booking_id
-      if (bookingId) { setRideBookingId(bookingId); return }
+      if (bookingId) {
+        if (onAcceptedRide) { onAcceptedRide(bookingId); onClose(); return }
+        setRideBookingId(bookingId)
+        return
+      }
     }
     if (LIFECYCLE_KINDS.has(row.type) && accept) {
       if (onAcceptedLifecycle) { onAcceptedLifecycle(row.type as LifecycleKind, row.id); onClose(); return }
