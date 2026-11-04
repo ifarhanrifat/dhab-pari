@@ -53,7 +53,7 @@ const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr
 interface City { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null }
 interface Adda { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null }
 interface GoHomeResult {
-  kind: 'route' | 'trip'; id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null
+  kind: 'route' | 'trip' | 'rental_return'; id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null
   origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   approx_fare_pkr: number; seats_available: number; departure_time: string | null; travel_date: string
 }
@@ -262,12 +262,25 @@ export default function MobilityHomePage() {
     setBookingId(r.id)
     const { data, error } = r.kind === 'route'
       ? await supabase.rpc('book_standalone_return_seat', { p_route_id: r.id, p_travel_date: r.travel_date, p_method: 'cash' })
-      : await supabase.rpc('book_trip_return_only_seat', { p_trip_offer_id: r.id })
+      : r.kind === 'trip'
+      ? await supabase.rpc('book_trip_return_only_seat', { p_trip_offer_id: r.id })
+      : await supabase.rpc('book_rental_return_seat', { p_offer_id: r.id })
     setBookingId(null)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     const total = (data as { total?: number; fare_per_seat?: number })?.total ?? (data as { fare_per_seat?: number })?.fare_per_seat ?? r.approx_fare_pkr
-    toast.success(t('mv.returnSeatBookedToast').replace('{amount}', fmt(total)))
     setShowGoHome(false)
+    // Real ask, 2026-11-03: a rental return seat is pre-booked — the
+    // driver may still be hours away, and the same confirmation (with
+    // the PIN and where to meet) can't yet surface on My Trips the way
+    // a route/trip booking does, so it's shown right here instead of
+    // redirecting somewhere that would look empty.
+    if (r.kind === 'rental_return') {
+      const d = data as { pin?: string; from_address?: string }
+      toast.success(t('mv.returnSeatBookedToast').replace('{amount}', fmt(total)), { duration: 8000,
+        description: d.from_address ? `${t('rq.pickup')}: ${d.from_address} · PIN ${d.pin}` : `PIN ${d.pin}` })
+      return
+    }
+    toast.success(t('mv.returnSeatBookedToast').replace('{amount}', fmt(total)))
     router.push('/portal/marketplace/trips')
   }
 

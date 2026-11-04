@@ -96,9 +96,18 @@ interface Props {
   since?: string | null
   onClose: () => void
   onViewBooking: () => void
+  // Real ask, 2026-11-03: "when the oneway searching will be finished
+  // for a certain time period... pause the oneway button and ask the
+  // rider to choose ride sharing or two-way instead" — a one-way Rental
+  // request specifically has few willing drivers (deadhead return with
+  // no built-in compensation), so after a few minutes with no driver,
+  // offer a way out instead of leaving the rider stuck watching a spinner.
+  // Only Rental's one-way flow passes this; every other booking kind
+  // behaves exactly as before.
+  oneWayFallback?: { afterSeconds: number; onSwitchShared: () => void; onSwitchReturn: () => void | Promise<void> }
 }
 
-export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, onViewBooking }: Props) {
+export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, onViewBooking, oneWayFallback }: Props) {
   const { t, isUrdu } = useLocale()
   const [live, setLive] = useState<Live | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
@@ -233,6 +242,17 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
               </div>
             )}
           </div>
+
+          {phase === 'waiting' && oneWayFallback && elapsed >= oneWayFallback.afterSeconds && (
+            <div className="rounded-2xl bg-[#fffbeb] border border-[#fde68a] p-3.5 flex flex-col gap-2.5">
+              <p className="font-sans text-[13px] font-bold text-[#92400e]">{t('rw.noOneWayDriverHeading')}</p>
+              <p className="font-sans text-[12px] text-[#92400e]/80 leading-snug">{t('rw.noOneWayDriverHint')}</p>
+              <div className="flex gap-2">
+                <button onClick={oneWayFallback.onSwitchShared} className="flex-1 py-2 rounded-xl bg-white border border-[#fde68a] text-[#92400e] font-sans text-[12.5px] font-bold cursor-pointer">{t('rw.switchToSharedBtn')}</button>
+                <button onClick={oneWayFallback.onSwitchReturn} className="flex-1 py-2 rounded-xl bg-[#92400e] text-white font-sans text-[12.5px] font-bold cursor-pointer">{t('rw.switchToReturnBtn')}</button>
+              </div>
+            </div>
+          )}
 
           {phase === 'waiting' && (
             <button onClick={doCancel} disabled={cancelling}

@@ -18,6 +18,7 @@
 // progress.
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { MapPin, Navigation, Loader2, AlertCircle, CheckCircle2, Ban, RotateCcw, Users } from 'lucide-react'
 import { toast } from 'sonner'
@@ -62,6 +63,10 @@ interface Booking {
   owner_name: string | null; owner_mobile: string | null; vehicle_type: string | null; model: string | null; color: string | null
   category_name: string | null; category_name_ur: string | null
 }
+interface WaitingExtra {
+  tripType: 'one' | 'return'; rentalTier: string
+  fromLoc: PickedLocation; toLoc: PickedLocation
+}
 
 const PAYMENT_METHODS: { key: string; emoji: string; labelKey: string }[] = [
   { key: 'cash', emoji: '💵', labelKey: 'mb.payCash' },
@@ -71,6 +76,21 @@ const PAYMENT_METHODS: { key: string; emoji: string; labelKey: string }[] = [
 
 function fmt(n: number) {
   return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
+}
+
+// Standalone (not dependent on component state) so the "switch to
+// return" fallback can recompute a fare for a booking that no longer
+// matches whatever's currently sitting in the open form's fields.
+function kmBetween(a: PickedLocation, b: PickedLocation) {
+  const rad = (x: number) => (x * Math.PI) / 180
+  const dl = rad(b.lat - a.lat), dn = rad(b.lng - a.lng)
+  const s = Math.sin(dl / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dn / 2) ** 2
+  return Math.max(1, Math.round(6371 * 2 * Math.asin(Math.sqrt(s)) * 1.3))
+}
+function tripTotalFor(tier: TierOption, km: number, tripType: 'one' | 'return', waitHours: number) {
+  const trip = tripType === 'return' ? km * 2 * tier.rental_per_km_pkr : km * tier.rental_per_km_pkr * 1.5
+  const wait = tripType === 'return' ? waitHours * (tier.rental_wait_hour_pkr ?? 0) : 0
+  return tier.rental_base_pkr + trip + wait
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -98,7 +118,8 @@ export default function RentalPage() {
   const [notes, setNotes] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [requesting, setRequesting] = useState(false)
-  const [waiting, setWaiting] = useState<{ id: string; summary: WaitingSummary; since: string | null } | null>(null)
+  const [waiting, setWaiting] = useState<{ id: string; summary: WaitingSummary; since: string | null; extra: WaitingExtra | null } | null>(null)
+  const router = useRouter()
 
   const loadTiers = () => supabase.rpc('rental_tier_options').then(({ data }) => setTiers((data ?? []) as TierOption[]))
   const loadBookings = () => supabase.rpc('my_rental_bookings').then(({ data }) => { const rows = (data ?? []) as Booking[]; setBookings(rows); return rows })
@@ -109,6 +130,10 @@ export default function RentalPage() {
       vehicleLabel: b.vehicle_type ? vehicleDisplayName(b.vehicle_type, b.model, isUrdu && b.category_name_ur ? b.category_name_ur : b.category_name) : t(`vp.rentalTier.${b.rental_tier}`),
       driverName: b.owner_name, from: b.from_address, to: b.to_address, amount: b.total_amount_pkr, facts: tripFacts(b.trip_type, b.wait_hours),
     },
+    extra: (b.rental_tier && b.from_lat != null && b.from_lng != null && b.to_lat != null && b.to_lng != null) ? {
+      tripType: b.trip_type, rentalTier: b.rental_tier,
+      fromLoc: { lat: b.from_lat, lng: b.from_lng, label: b.from_address }, toLoc: { lat: b.to_lat, lng: b.to_lng, label: b.to_address },
+    } as WaitingExtra : null,
   })
 
   useEffect(() => {
@@ -164,10 +189,38 @@ export default function RentalPage() {
     setWaiting({
       id: bookingId as string, since: null,
       summary: { vehicleLabel: t(`vp.rentalTier.${openTier.tier_key}`), from: fromLoc.label, to: toLoc.label, amount: estimatedTotal, facts: tripFacts(tripType, tripType === 'return' ? waitHours : 0) },
+      extra: { tripType, rentalTier: openTier.tier_key, fromLoc, toLoc },
     })
     setOpenTier(null)
     loadBookings()
   }
+
+  // Real ask, 2026-11-03: the rider-facing half of the "no one-way
+  // driver in 5 minutes" fallback — cancel the stuck one-way request
+  // and resubmit the exact same trip as a return, since drivers
+  // actually want those (no deadhead to eat).
+  const switchToReturn = async () => {
+    if (!waiting?.extra) return
+    const tier = tiers.find((x) => x.tier_key === waiting.extra!.rentalTier)
+    if (!tier) return
+    const { fromLoc: f, toLoc: tLoc } = waiting.extra
+    await supabase.rpc('cancel_rental_booking', { p_booking_id: waiting.id })
+    const { data: newId, error } = await supabase.rpc('create_rental_booking', {
+      p_rental_tier: tier.tier_key, p_from_address: f.label, p_from_lat: f.lat, p_from_lng: f.lng,
+      p_to_address: tLoc.label, p_to_lat: tLoc.lat, p_to_lng: tLoc.lng, p_trip_type: 'return', p_wait_hours: 0,
+      p_payment_method: 'cash',
+    })
+    if (error) { toast.error(friendlyError(error)); return }
+    const km = kmBetween(f, tLoc)
+    setWaiting({
+      id: newId as string, since: null,
+      summary: { vehicleLabel: t(`vp.rentalTier.${tier.tier_key}`), from: f.label, to: tLoc.label, amount: tripTotalFor(tier, km, 'return', 0), facts: tripFacts('return', 0) },
+      extra: { tripType: 'return', rentalTier: tier.tier_key, fromLoc: f, toLoc: tLoc },
+    })
+    toast.success(t('rw.switchedToReturnToast'))
+    loadBookings()
+  }
+  const switchToShared = () => { setWaiting(null); router.push('/portal/marketplace/shared') }
 
   const cancelBooking = async (id: string) => {
     if (!confirm(t('vp.confirmCancelRental'))) return
@@ -431,7 +484,8 @@ export default function RentalPage() {
       {waiting && (
         <RequestWaitingSheet kind="rental" bookingId={waiting.id} summary={waiting.summary} since={waiting.since}
           onClose={() => { setWaiting(null); loadBookings() }}
-          onViewBooking={() => { setWaiting(null); loadBookings(); setTab('mine') }} />
+          onViewBooking={() => { setWaiting(null); loadBookings(); setTab('mine') }}
+          oneWayFallback={waiting.extra?.tripType === 'one' ? { afterSeconds: 300, onSwitchShared: switchToShared, onSwitchReturn: switchToReturn } : undefined} />
       )}
     </div>
   )
