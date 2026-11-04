@@ -100,7 +100,14 @@ export async function POST(req: NextRequest) {
   // picking which pre-made channel this driver's pushes go to, read
   // from their own saved preference, not something this route can
   // change per-message.
-  const RIDE_REQUEST_EVENT_TYPES = new Set(['ride_dispatch_requested'])
+  // Real bug reported live, 2026-11-04: a rental booking request arrived
+  // with the phone's default notification sound instead of the tone
+  // picked in settings — this set only ever covered ride_dispatch, but
+  // the setting's own description ("the sound your phone plays when a
+  // new ride request comes in") makes no such distinction, and a driver
+  // waiting on a job offer doesn't experience Hourly/Rental/Equipment
+  // differently from Travel.
+  const RIDE_REQUEST_EVENT_TYPES = new Set(['ride_dispatch_requested', 'hourly_booking_requested', 'rental_booking_requested', 'equipment_booking_requested'])
   let rideRequestTone: string | null = null
   if (table === 'portal_notifications' && RIDE_REQUEST_EVENT_TYPES.has(row.event_type)) {
     const { data: pu } = await supabase.from('portal_users').select('ride_request_tone').eq('id', recipientId).maybeSingle()
