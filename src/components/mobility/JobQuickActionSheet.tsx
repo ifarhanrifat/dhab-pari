@@ -174,9 +174,24 @@ async function respond(kind: QuickActionKind, id: string, vehicleId: string | nu
   }
 }
 
-interface Props { row: QuickActionRow; vehicleId: string | null; onClose: () => void; onDone: () => void }
+interface Props {
+  row: QuickActionRow; vehicleId: string | null; onClose: () => void; onDone: () => void
+  // Real bug found live, 2026-11-04: without this, an accepted hourly/
+  // rental/equipment job's lifecycle sheet (built to stay open through
+  // the whole job, same as ride_dispatch) lived inside THIS component's
+  // own state — but PendingRequestOverlay's caller keeps polling its
+  // own "still actionable" queue every 20s, and once this booking's
+  // status moves off 'requested' it gets pruned from that queue,
+  // unmounting this component (and the lifecycle sheet with it) out
+  // from under the driver mid-job. Passing this prop (only the overlay
+  // does) hands the lifecycle sheet to the PARENT instead, so it keeps
+  // living independently of that queue's churn. Falls back to the
+  // original self-contained behavior when omitted (the Jobs list's own
+  // direct use of this component, which has no such pollable queue).
+  onAcceptedLifecycle?: (kind: LifecycleKind, id: string) => void
+}
 
-export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }: Props) {
+export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone, onAcceptedLifecycle }: Props) {
   const { t, isUrdu } = useLocale()
   // Opened from the Jobs or Requests list, a row only carries its title
   // and amount — fetch the same full details the incoming-request popup
@@ -262,7 +277,11 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
       const bookingId = (data as { booking_id: string | null } | null)?.booking_id
       if (bookingId) { setRideBookingId(bookingId); return }
     }
-    if (LIFECYCLE_KINDS.has(row.type) && accept) { setLifecycleBookingId(row.id); return }
+    if (LIFECYCLE_KINDS.has(row.type) && accept) {
+      if (onAcceptedLifecycle) { onAcceptedLifecycle(row.type as LifecycleKind, row.id); onClose(); return }
+      setLifecycleBookingId(row.id)
+      return
+    }
     onClose()
     // Dispatch calls already had this redirect when accepted via the
     // requests page (live tracking lives there) — kept consistent

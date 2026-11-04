@@ -30,6 +30,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext'
 import { JobQuickActionSheet, type QuickActionKind, type QuickActionRow } from '@/components/mobility/JobQuickActionSheet'
+import { BookingLifecycleSheet, type LifecycleKind } from '@/components/mobility/BookingLifecycleSheet'
 import { fetchPendingRequestRows, ALL_REQUEST_KINDS, type RowCtx } from '@/lib/driverRequestRows'
 
 interface VehicleFlags { offers_hourly: boolean; offers_shadi: boolean; offers_equipment: boolean; offers_rental: boolean; delivers: boolean; commission_mode?: string | null }
@@ -68,6 +69,9 @@ export function PendingRequestOverlay({ vehicleId, vehicle }: { vehicleId: strin
   // to reappear. Dedup below is only against what's in `queue` right
   // now, to avoid adding the same still-pending row twice.
   const [queue, setQueue] = useState<QuickActionRow[]>([])
+  // Lives independently of `queue` — see JobQuickActionSheet's own
+  // onAcceptedLifecycle prop comment for why this has to be separate.
+  const [activeLifecycle, setActiveLifecycle] = useState<{ kind: LifecycleKind; id: string } | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -169,13 +173,21 @@ export function PendingRequestOverlay({ vehicleId, vehicle }: { vehicleId: strin
           </span>
         </div>
       )}
-      {current && (
+      {activeLifecycle ? (
+        <BookingLifecycleSheet
+          kind={activeLifecycle.kind} bookingId={activeLifecycle.id} vehicleId={vehicleId}
+          commissionMode={vehicle.commission_mode ?? 'monthly_lumpsum'}
+          onClose={() => setActiveLifecycle(null)}
+          onChanged={refreshBadge}
+        />
+      ) : current && (
         <JobQuickActionSheet
           key={`${current.type}-${current.id}`}
           row={current}
           vehicleId={vehicleId}
           onClose={closeCurrent}
           onDone={refreshBadge}
+          onAcceptedLifecycle={(kind, id) => setActiveLifecycle({ kind, id })}
         />
       )}
     </>
