@@ -44,6 +44,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { fetchPendingRequestRows } from '@/lib/driverRequestRows'
 import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
+import { BookingLifecycleSheet, type LifecycleKind } from '@/components/mobility/BookingLifecycleSheet'
 import { haversineKm, fetchRoadRoute } from '@/lib/roadRoute'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 
@@ -102,6 +103,13 @@ export interface QuickActionRow {
 // own vehicle_id server-side), so this is only threaded through where
 // it's actually needed.
 const NEEDS_VEHICLE_ID = new Set<QuickActionKind>(['dispatch', 'city_purchase', 'parcel', 'delivery'])
+// Real ask, 2026-11-04: "when I accepted the request as a driver, the
+// popup disappeared with just a toast — it should stay like the
+// point-to-point (ride_dispatch) system, open until the job finishes
+// or is cancelled." These three already have that exact lifecycle
+// built (BookingLifecycleSheet, driving the my-vehicle/* pages) —
+// reused here instead of just closing on accept.
+const LIFECYCLE_KINDS = new Set<QuickActionKind>(['hourly', 'rental', 'equipment'])
 
 // Kinds whose row title is the customer's name rather than the job
 // itself — for these the card's headline is the job kind and the name
@@ -174,13 +182,16 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
   // and amount — fetch the same full details the incoming-request popup
   // shows, so the card looks the same wherever it's opened from.
   const [detail, setDetail] = useState<QuickActionRow | null>(null)
+  const [commissionMode, setCommissionMode] = useState<string | null>(null)
   useEffect(() => {
     if (baseRow.facts !== undefined || !baseRow.needsAction || !vehicleId) return
     const supabase = createClient()
     let live = true
-    supabase.from('vehicles').select('commission_mode').eq('id', vehicleId).maybeSingle().then(({ data: v }) =>
-      fetchPendingRequestRows(supabase, baseRow.type, vehicleId, { t, isUrdu, commissionMode: (v as { commission_mode: string } | null)?.commission_mode ?? null })
-    ).then((rows) => { if (live) setDetail(rows.find((r) => r.id === baseRow.id) ?? null) })
+    supabase.from('vehicles').select('commission_mode').eq('id', vehicleId).maybeSingle().then(({ data: v }) => {
+      const mode = (v as { commission_mode: string } | null)?.commission_mode ?? null
+      if (live) setCommissionMode(mode)
+      return fetchPendingRequestRows(supabase, baseRow.type, vehicleId, { t, isUrdu, commissionMode: mode })
+    }).then((rows) => { if (live) setDetail(rows.find((r) => r.id === baseRow.id) ?? null) })
     return () => { live = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseRow.type, baseRow.id, vehicleId])
@@ -199,6 +210,7 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
   // the booking it just created, same RPC OngoingRideFab/
   // FloatingBookingsHub already trust for this).
   const [rideBookingId, setRideBookingId] = useState<string | null>(null)
+  const [lifecycleBookingId, setLifecycleBookingId] = useState<string | null>(null)
   // City purchase: what this driver would actually earn — carry-back
   // (one leg) if he's already going there, else a special trip (777).
   const [cpQuote, setCpQuote] = useState<{ trip_mode: string; total_fare_pkr: number; deliver_within_hours: number; on_route: boolean } | null>(null)
@@ -250,6 +262,7 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
       const bookingId = (data as { booking_id: string | null } | null)?.booking_id
       if (bookingId) { setRideBookingId(bookingId); return }
     }
+    if (LIFECYCLE_KINDS.has(row.type) && accept) { setLifecycleBookingId(row.id); return }
     onClose()
     // Dispatch calls already had this redirect when accepted via the
     // requests page (live tracking lives there) — kept consistent
@@ -279,6 +292,16 @@ export function JobQuickActionSheet({ row: baseRow, vehicleId, onClose, onDone }
     : null
 
   if (rideBookingId) return <RideLifecycleSheet bookingId={rideBookingId} onClose={() => { setRideBookingId(null); onClose() }} />
+  if (lifecycleBookingId && vehicleId && LIFECYCLE_KINDS.has(row.type)) {
+    return (
+      <BookingLifecycleSheet
+        kind={row.type as LifecycleKind} bookingId={lifecycleBookingId} vehicleId={vehicleId}
+        commissionMode={commissionMode ?? 'monthly_lumpsum'}
+        onClose={() => { setLifecycleBookingId(null); onClose() }}
+        onChanged={onDone}
+      />
+    )
+  }
 
   return (
     <div className="fixed inset-0 bg-black/55 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={onClose}>
