@@ -118,7 +118,12 @@ function useDraggablePosition() {
     if (!dragging.current) return
     const dx = e.clientX - start.current.x
     const dy = e.clientY - start.current.y
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved.current = true
+    // Real bug found live, 2026-11-04: 5px worked fine for a mouse
+    // (near-zero jitter) but misread a real finger tap on Android as a
+    // drag — a touch naturally wanders more than a cursor click does
+    // even when the intent is just "tap." 10px matches the touch-slop
+    // range Android/Chrome's own tap-vs-drag heuristics use.
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved.current = true
     if (moved.current) setPos(clamp(start.current.posX + dx, start.current.posY + dy))
   }
   // Real bug found live, 2026-11-04: worked in the native app (a
