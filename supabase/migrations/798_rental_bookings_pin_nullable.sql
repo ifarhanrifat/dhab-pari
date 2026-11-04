@@ -1,0 +1,21 @@
+-- Migration 798: real bug report, 2026-11-04 — "A required field is
+-- missing" error when a rider tries to send a rental booking request.
+--
+-- rental_bookings.pin was defined NOT NULL (no default) back in 653,
+-- when every rental booking assigned a specific vehicle (and generated
+-- its PIN) at creation time. 787 switched Rental to the broadcast-
+-- dispatch model — vehicle_id and pin are both unknown until a driver
+-- actually accepts (respond_rental_booking generates the PIN there) —
+-- and correctly dropped vehicle_id's NOT NULL, but never did the same
+-- for pin. create_rental_booking's INSERT never sets pin, so every
+-- rental booking created since 787 has failed with a not-null-
+-- violation at the database level — caught only now because testing
+-- so far stopped at the fare preview (pure client-side math, no INSERT
+-- involved) rather than actually pressing send.
+--
+-- Fix: make pin nullable, matching the pattern hourly_bookings and
+-- equipment_bookings already use correctly (652) for this exact
+-- broadcast-then-accept lifecycle. No RPC changes needed — both
+-- create_rental_booking and respond_rental_booking already assume
+-- this shape, only the table constraint was stale.
+ALTER TABLE rental_bookings ALTER COLUMN pin DROP NOT NULL;
