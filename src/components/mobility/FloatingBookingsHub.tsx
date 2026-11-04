@@ -121,7 +121,20 @@ function useDraggablePosition() {
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved.current = true
     if (moved.current) setPos(clamp(start.current.posX + dx, start.current.posY + dy))
   }
-  const onPointerUp = () => {
+  // Real bug found live, 2026-11-04: worked in the native app (a
+  // Chromium WebView), not in a Firefox tab — same production JS both
+  // places. setPointerCapture() on this div (above) redirects every
+  // subsequent pointer event, the synthetic click included, to this
+  // element; Firefox enforces that strictly and the button's own
+  // onClick (on the child <button>) never fires, while Chromium is more
+  // lenient and still dispatches it. Fix is to stop depending on the
+  // browser's synthetic click at all — decide tap-vs-drag right here,
+  // in the pointer events this hook already owns, and call the caller's
+  // handler directly. tapRef is updated on every render (a plain
+  // assignment during render, not a hook) so it always calls with this
+  // render's latest closure, no stale total/primary/openItem.
+  const tapRef = useRef<() => void>(() => {})
+  const finishDrag = () => {
     dragging.current = false
     if (moved.current) {
       setPos((cur) => {
@@ -130,8 +143,16 @@ function useDraggablePosition() {
       })
     }
   }
+  const onPointerUp = () => {
+    const tapped = !moved.current
+    finishDrag()
+    if (tapped) tapRef.current()
+  }
+  // A cancelled gesture (browser took over, multi-touch, etc.) is never
+  // a tap, regardless of how little the pointer moved before cancelling.
+  const onPointerCancel = () => finishDrag()
 
-  return { pos, onPointerDown, onPointerMove, onPointerUp, wasDragged: () => moved.current }
+  return { pos, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, setTap: (fn: () => void) => { tapRef.current = fn } }
 }
 
 export function FloatingBookingsHub() {
@@ -352,14 +373,17 @@ export function FloatingBookingsHub() {
 
   const total = items.length
   const primary = items[0]
+  // Plain assignment during render, not a hook — always sees this
+  // render's current total/primary/openItem by the time a real tap
+  // resolves them (see the hook's own comment for why this exists).
+  drag.setTap(() => { if (total === 1) openItem(primary); else setListOpen(true) })
 
   return (
     <>
       <div dir={isUrdu ? 'rtl' : 'ltr'} className={`fixed z-[70] print:hidden ${drag.pos ? '' : 'bottom-[90px] right-4 md:bottom-6 md:right-6'}`}
         style={drag.pos ? { left: drag.pos.x, top: drag.pos.y, touchAction: 'none' } : { touchAction: 'none' }}
-        onPointerDown={drag.onPointerDown} onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerUp}>
+        onPointerDown={drag.onPointerDown} onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerCancel}>
         <button
-          onClick={() => { if (drag.wasDragged()) return; if (total === 1) openItem(primary); else setListOpen(true) }}
           className="relative flex items-center gap-2 pl-3 pr-4 h-12 rounded-full text-white shadow-lg hover:scale-105 active:scale-95 transition-all max-w-[230px] cursor-grab active:cursor-grabbing"
           style={{ background: primary.state === 'ongoing' ? '#166534' : '#0f172a' }}>
           <span className="shrink-0 w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[14px]">{primary.emoji}</span>
