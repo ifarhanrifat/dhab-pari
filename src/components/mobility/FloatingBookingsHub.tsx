@@ -33,6 +33,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { RequestWaitingSheet, type WaitingKind, type WaitingSummary } from '@/components/mobility/RequestWaitingSheet'
 import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
+import { BookingLifecycleSheet, type LifecycleKind } from '@/components/mobility/BookingLifecycleSheet'
 
 type ItemState = 'ongoing' | 'searching' | 'action' | 'waiting'
 
@@ -45,6 +46,10 @@ interface HubItem {
   countdownTarget?: number // epoch ms — only set when a real scheduled time is known
   sheet?: { kind: WaitingKind; id: string; summary: WaitingSummary; viewHref: string }
   rideSheetBookingId?: string // ongoing ride-dispatch: opens RideLifecycleSheet directly
+  // The driver's OWN accepted/in-progress job for hourly/rental/
+  // equipment — opens the same BookingLifecycleSheet the driver's own
+  // my-vehicle pages use, not the rider-facing RequestWaitingSheet.
+  driverLifecycle?: { kind: LifecycleKind; id: string; vehicleId: string; commissionMode: string }
   href?: string
 }
 
@@ -136,12 +141,14 @@ export function FloatingBookingsHub() {
   const [items, setItems] = useState<HubItem[]>([])
   const [openSheet, setOpenSheet] = useState<HubItem['sheet'] | null>(null)
   const [openRideSheetId, setOpenRideSheetId] = useState<string | null>(null)
+  const [openDriverLifecycle, setOpenDriverLifecycle] = useState<HubItem['driverLifecycle'] | null>(null)
   const [listOpen, setListOpen] = useState(false)
   const drag = useDraggablePosition()
 
   const load = useCallback(async () => {
     const supabase = createClient()
-    const [ongoing, hourly, rental, equipment, seats, rides, purchases] = await Promise.all([
+    const [vehicleRes, ongoing, hourly, rental, equipment, seats, rides, purchases] = await Promise.all([
+      supabase.from('vehicles').select('id, commission_mode, offers_hourly, offers_rental, offers_machinery, offers_tractor, offers_loader').eq('portal_user_id', user!.id).maybeSingle(),
       supabase.rpc('my_ongoing_ride'),
       supabase.rpc('my_hourly_bookings'),
       supabase.rpc('my_rental_bookings'),
@@ -152,6 +159,41 @@ export function FloatingBookingsHub() {
     ])
     const out: HubItem[] = []
     const nm = (en: string | null | undefined, ur: string | null | undefined) => (isUrdu && ur ? ur : en) ?? ''
+
+    // Real bug found 2026-11-04: "driver accepted the ride and heading
+    // towards the rider destination... no floating button." This hub
+    // already renders on driver screens too (mounted at the root portal
+    // layout), but every query above is rider-facing ("bookings I made
+    // as a customer") — my_ongoing_ride() is the only one with a
+    // driver-role branch (ride_dispatch/trip-share). Hourly/rental/
+    // equipment never surfaced the DRIVER's own accepted/in-progress
+    // job here at all. Mirrors that same dual-role coverage for these
+    // three, opening the driver's own BookingLifecycleSheet instead of
+    // the rider-facing RequestWaitingSheet.
+    const vehicle = vehicleRes.data as { id: string; commission_mode: string; offers_hourly: boolean; offers_rental: boolean; offers_machinery: boolean; offers_tractor: boolean; offers_loader: boolean } | null
+    const [driverHourly, driverRental, driverEquipment] = vehicle ? await Promise.all([
+      vehicle.offers_hourly ? supabase.rpc('vehicle_hourly_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
+      vehicle.offers_rental ? supabase.rpc('vehicle_rental_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
+      (vehicle.offers_machinery || vehicle.offers_tractor || vehicle.offers_loader) ? supabase.rpc('vehicle_equipment_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
+    ]) : [{ data: [] }, { data: [] }, { data: [] }]
+
+    if (vehicle) {
+      for (const b of (driverHourly.data ?? []) as { id: string; status: string; hours: number; customer_name: string; requested_at: string }[]) {
+        if (!['accepted', 'in_progress'].includes(b.status)) continue
+        out.push({ key: `dh-${b.id}`, emoji: '⏱️', label: `${t('rq.kind.hourly')} · ${b.customer_name}`, state: 'ongoing', since: b.requested_at,
+          driverLifecycle: { kind: 'hourly', id: b.id, vehicleId: vehicle.id, commissionMode: vehicle.commission_mode } })
+      }
+      for (const b of (driverRental.data ?? []) as { id: string; status: string; vehicle_id: string | null; to_address: string; customer_name: string; requested_at: string }[]) {
+        if (b.vehicle_id !== vehicle.id || !['accepted', 'in_progress'].includes(b.status)) continue
+        out.push({ key: `dr-${b.id}`, emoji: '🚗', label: `${t('rq.kind.rental')} · ${b.customer_name}`, state: 'ongoing', since: b.requested_at,
+          driverLifecycle: { kind: 'rental', id: b.id, vehicleId: vehicle.id, commissionMode: vehicle.commission_mode } })
+      }
+      for (const b of (driverEquipment.data ?? []) as { id: string; kind: 'machinery' | 'tractor' | 'loader'; status: string; customer_name: string; requested_at: string }[]) {
+        if (!['accepted', 'in_progress'].includes(b.status)) continue
+        out.push({ key: `de-${b.id}`, emoji: b.kind === 'tractor' ? '🚜' : b.kind === 'loader' ? '🚚' : '🏗️', label: `${t(`rq.kind.equipment.${b.kind}`)} · ${b.customer_name}`, state: 'ongoing', since: b.requested_at,
+          driverLifecycle: { kind: 'equipment', id: b.id, vehicleId: vehicle.id, commissionMode: vehicle.commission_mode } })
+      }
+    }
 
     const o = ongoing.data as { role: 'driver' | 'rider'; label: string; link: string; booking_id: string | null; is_ride_dispatch: boolean } | null
     if (o) {
@@ -229,12 +271,22 @@ export function FloatingBookingsHub() {
   const openItem = (it: HubItem) => {
     setListOpen(false)
     if (it.rideSheetBookingId) setOpenRideSheetId(it.rideSheetBookingId)
+    else if (it.driverLifecycle) setOpenDriverLifecycle(it.driverLifecycle)
     else if (it.sheet) setOpenSheet(it.sheet)
     else if (it.href) router.push(it.href)
   }
 
   const renderSheet = () => {
     if (openRideSheetId) return <RideLifecycleSheet bookingId={openRideSheetId} onClose={() => { setOpenRideSheetId(null); load() }} />
+    if (openDriverLifecycle) {
+      return (
+        <BookingLifecycleSheet
+          kind={openDriverLifecycle.kind} bookingId={openDriverLifecycle.id} vehicleId={openDriverLifecycle.vehicleId} commissionMode={openDriverLifecycle.commissionMode}
+          onClose={() => { setOpenDriverLifecycle(null); load() }}
+          onChanged={load}
+        />
+      )
+    }
     if (!openSheet) return null
     return (
       <RequestWaitingSheet kind={openSheet.kind} bookingId={openSheet.id} summary={openSheet.summary}
