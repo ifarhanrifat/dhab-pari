@@ -161,21 +161,28 @@ export function FloatingBookingsHub() {
       })
     }
 
+    // Real bug found 2026-11-04: these three only ever kept a 'requested'
+    // row — the instant a driver accepted, the item vanished from the
+    // hub entirely instead of switching to an "ongoing" state, exactly
+    // while the rider most wants a quick way back into it.
     for (const b of (hourly.data ?? []) as { id: string; status: string; hours: number; pickup_address: string; base_amount_pkr: number; total_amount_pkr: number | null; requested_at: string; owner_name: string; vehicle_type: string; model: string | null }[]) {
-      if (b.status !== 'requested') continue
-      out.push({ key: `h-${b.id}`, emoji: '⏱️', label: `${t('rq.kind.hourly')} · ${vehicleDisplayName(b.vehicle_type, b.model)}`, state: 'searching', since: b.requested_at,
+      if (!['requested', 'accepted', 'in_progress'].includes(b.status)) continue
+      const ongoing = b.status !== 'requested'
+      out.push({ key: `h-${b.id}`, emoji: '⏱️', label: `${t('rq.kind.hourly')} · ${vehicleDisplayName(b.vehicle_type, b.model)}`, state: ongoing ? 'ongoing' : 'searching', since: b.requested_at,
         sheet: { kind: 'hourly', id: b.id, viewHref: '/portal/marketplace/hourly', summary: { vehicleLabel: vehicleDisplayName(b.vehicle_type, b.model), driverName: b.owner_name, from: b.pickup_address, amount: b.total_amount_pkr ?? b.base_amount_pkr, facts: [t('rw.hours').replace('{n}', String(b.hours))] } } })
     }
     for (const b of (rental.data ?? []) as { id: string; status: string; from_address: string; to_address: string; total_amount_pkr: number; requested_at: string; owner_name: string; vehicle_type: string; model: string | null }[]) {
-      if (b.status !== 'requested') continue
-      out.push({ key: `r-${b.id}`, emoji: '🚗', label: `${t('rq.kind.rental')} · ${b.to_address}`, state: 'searching', since: b.requested_at,
+      if (!['requested', 'accepted', 'in_progress'].includes(b.status)) continue
+      const ongoing = b.status !== 'requested'
+      out.push({ key: `r-${b.id}`, emoji: '🚗', label: `${t('rq.kind.rental')} · ${b.to_address}`, state: ongoing ? 'ongoing' : 'searching', since: b.requested_at,
         sheet: { kind: 'rental', id: b.id, viewHref: '/portal/marketplace/rental', summary: { vehicleLabel: vehicleDisplayName(b.vehicle_type, b.model), driverName: b.owner_name, from: b.from_address, to: b.to_address, amount: b.total_amount_pkr } } })
     }
     for (const b of (equipment.data ?? []) as { id: string; kind: 'machinery' | 'tractor' | 'loader'; status: string; site_address: string; rate_pkr: number; total_amount_pkr: number | null; requested_at: string; owner_name: string; vehicle_type: string; model: string | null; advance_status?: string }[]) {
       const payAdvance = b.status === 'accepted' && ['due', 'rejected'].includes(b.advance_status ?? '')
-      if (b.status !== 'requested' && !payAdvance) continue
+      const ongoing = !payAdvance && b.status !== 'requested'
+      if (!['requested', 'accepted', 'in_progress'].includes(b.status) && !payAdvance) continue
       out.push({ key: `e-${b.id}`, emoji: b.kind === 'tractor' ? '🚜' : b.kind === 'loader' ? '🚚' : '🏗️', label: `${t(`rq.kind.equipment.${b.kind}`)} · ${payAdvance ? t('eqa.payBtn') : b.site_address}`,
-        state: payAdvance ? 'action' : 'searching', since: b.requested_at,
+        state: payAdvance ? 'action' : ongoing ? 'ongoing' : 'searching', since: b.requested_at,
         sheet: { kind: 'equipment', id: b.id, viewHref: `/portal/marketplace/${b.kind}`, summary: { vehicleLabel: vehicleDisplayName(b.vehicle_type, b.model), driverName: b.owner_name, from: b.site_address, amount: b.total_amount_pkr ?? b.rate_pkr } } })
     }
     for (const b of (seats.data ?? []) as unknown as { id: string; seats: number; travel_date: string; total_amount_pkr: number; created_at: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null } | null; adda_queue_entries: { addas: { name: string; name_ur: string | null } | null } | null }[]) {
