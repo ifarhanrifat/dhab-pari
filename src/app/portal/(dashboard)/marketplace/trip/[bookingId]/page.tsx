@@ -23,6 +23,8 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityBottomNav } from '@/components/mobility/MobilityBottomNav'
 import { GroupChatPanel } from '@/components/mobility/GroupChatPanel'
+import { UnreadDot } from '@/components/mobility/UnreadDot'
+import { useChatUnread } from '@/hooks/useChatUnread'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -96,6 +98,8 @@ export default function TripTrackingPage() {
     return () => clearInterval(id)
   }, [booking, role]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const chatUnread = useChatUnread('trip', booking?.trip_offer_id)
+
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!booking || !role) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
 
@@ -131,7 +135,7 @@ export default function TripTrackingPage() {
           )}
           <button onClick={() => setShowGroupChat(true)}
             className="flex items-center justify-center gap-1.5 w-full mt-3 py-2.5 rounded-xl text-[13px] font-sans font-bold cursor-pointer border border-dp-secondary text-dp-secondary">
-            <Users size={14} /> {t('cm.openGroupChatBtn')}
+            <span className="relative inline-flex"><Users size={14} /><UnreadDot show={chatUnread} /></span> {t('cm.openGroupChatBtn')}
           </button>
         </>
       )}

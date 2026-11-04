@@ -29,6 +29,8 @@ import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { RateAndReport } from '@/components/portal/RateAndReport'
 import { BookingChatPanel } from '@/components/mobility/BookingChatPanel'
+import { UnreadDot } from '@/components/mobility/UnreadDot'
+import { useChatUnread } from '@/hooks/useChatUnread'
 import { TrustStrip, type Trust } from '@/components/shared/TrustBadge'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -154,6 +156,7 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
     await run(FINISH_RPC[kind], { p_booking_id: bookingId }, kind === 'equipment' ? t('vp.jobCompletedToast') : t('vp.tripEndedToast'))
   }
   const confirmPayment = () => run(CONFIRM_RPC[kind], { p_booking_id: bookingId }, t('vp.paymentConfirmedToast'))
+  const chatUnread = useChatUnread(REF_TYPE[kind], bookingId)
 
   if (loading || !row) {
     return (
@@ -244,7 +247,7 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
               </a>
             ) : <span />}
             <button onClick={() => setShowChat(true)} className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#e5e2d0] font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer">
-              <MessageCircle size={14} /> {t('vp.chatBtn')}
+              <span className="relative inline-flex"><MessageCircle size={14} /><UnreadDot show={chatUnread} /></span> {t('vp.chatBtn')}
             </button>
             {navTarget && navTarget.lat != null && navTarget.lng != null ? (
               <a href={mapsLink(navTarget.lat, navTarget.lng)} target="_blank" rel="noopener noreferrer"

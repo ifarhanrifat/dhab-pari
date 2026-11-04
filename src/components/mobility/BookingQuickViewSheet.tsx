@@ -31,6 +31,8 @@ import { useBookingLiveStatus } from '@/hooks/useBookingLiveStatus'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { CallButton } from '@/components/portal/CallButton'
 import { BookingChatPanel, type BookingChatRefType } from '@/components/mobility/BookingChatPanel'
+import { UnreadDot } from '@/components/mobility/UnreadDot'
+import { useChatUnread, type ChatThreadType } from '@/hooks/useChatUnread'
 import { GroupChatPanel } from '@/components/mobility/GroupChatPanel'
 
 export type QuickViewKind = 'hourly' | 'equipment' | 'ride' | 'rental'
@@ -128,6 +130,9 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
   const { row: equipment, loading: equipmentLoading } = useBookingLiveStatus<EquipmentDetail>('equipment_bookings', kind === 'equipment' ? rawId : null, EQUIPMENT_SELECT)
   const { row: ride, loading: rideLoading } = useBookingLiveStatus<RideDetail>('ride_bookings', kind === 'ride' ? rawId : null, RIDE_SELECT)
   const loading = kind === 'hourly' ? hourlyLoading : kind === 'rental' ? rentalLoading : kind === 'equipment' ? equipmentLoading : rideLoading
+  const chatThreadType: ChatThreadType = kind === 'hourly' ? 'hourly_booking' : kind === 'rental' ? 'rental_booking' : kind === 'equipment' ? 'equipment_booking' : 'adda'
+  const chatRefId = kind === 'hourly' ? hourly?.id : kind === 'rental' ? rental?.id : kind === 'equipment' ? equipment?.id : ride?.adda_queue_entry_id
+  const chatUnread = useChatUnread(chatThreadType, chatRefId)
 
   const cancel = async () => {
     setBusy(true)
@@ -163,7 +168,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
           {(hourly.status === 'accepted' || hourly.status === 'in_progress') && (
             <div className="flex items-center gap-3">
               <CallButton phone={hourly.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
-              <button onClick={() => setShowChat(true)} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><MessageCircle size={13} /> {t('vp.chatBtn')}</button>
+              <button onClick={() => setShowChat(true)} className="relative inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><span className="relative inline-flex"><MessageCircle size={13} /><UnreadDot show={chatUnread} /></span> {t('vp.chatBtn')}</button>
             </div>
           )}
           {(hourly.status === 'requested' || hourly.status === 'accepted') && (
@@ -188,7 +193,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
           {(equipment.status === 'accepted' || equipment.status === 'in_progress') && (
             <div className="flex items-center gap-3">
               <CallButton phone={equipment.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
-              <button onClick={() => setShowChat(true)} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><MessageCircle size={13} /> {t('vp.chatBtn')}</button>
+              <button onClick={() => setShowChat(true)} className="relative inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><span className="relative inline-flex"><MessageCircle size={13} /><UnreadDot show={chatUnread} /></span> {t('vp.chatBtn')}</button>
             </div>
           )}
           {(equipment.status === 'requested' || equipment.status === 'accepted') && (
@@ -213,7 +218,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
           {(rental.status === 'accepted' || rental.status === 'in_progress') && (
             <div className="flex items-center gap-3">
               <CallButton phone={rental.vehicles.owner_mobile} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534]" />
-              <button onClick={() => setShowChat(true)} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><MessageCircle size={13} /> {t('vp.chatBtn')}</button>
+              <button onClick={() => setShowChat(true)} className="relative inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><span className="relative inline-flex"><MessageCircle size={13} /><UnreadDot show={chatUnread} /></span> {t('vp.chatBtn')}</button>
             </div>
           )}
           {(rental.status === 'requested' || rental.status === 'accepted') && (
@@ -254,7 +259,7 @@ export function BookingQuickViewSheet({ kind, rawId, onClose, onChanged }: Props
                         route's own detail page) — only adda bookings
                         were missing one at all. */}
                     {ride.adda_queue_entry_id && (
-                      <button onClick={() => setShowChat(true)} className="inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><Users size={13} /> {t('cm.openGroupChatBtn')}</button>
+                      <button onClick={() => setShowChat(true)} className="relative inline-flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer"><span className="relative inline-flex"><Users size={13} /><UnreadDot show={chatUnread} /></span> {t('cm.openGroupChatBtn')}</button>
                     )}
                   </div>
                 )}

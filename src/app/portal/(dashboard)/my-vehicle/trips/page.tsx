@@ -18,6 +18,20 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { TripLiveShareToggle } from '@/components/portal/TripLiveShareToggle'
 import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
 import { GroupChatPanel } from '@/components/mobility/GroupChatPanel'
+import { UnreadDot } from '@/components/mobility/UnreadDot'
+import { useChatUnread } from '@/hooks/useChatUnread'
+
+// A row in a list can't call a hook directly (list length varies) —
+// this tiny wrapper is its own component instance per row instead.
+function GroupChatRowButton({ tripOfferId, onClick }: { tripOfferId: string; onClick: () => void }) {
+  const { t } = useLocale()
+  const unread = useChatUnread('trip', tripOfferId)
+  return (
+    <button onClick={onClick} className="flex items-center justify-center gap-1.5 w-full mt-2 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer border border-[#166534] text-[#166534]">
+      <span className="relative inline-flex"><Users size={13} /><UnreadDot show={unread} /></span> {t('cm.openGroupChatBtn')}
+    </button>
+  )
+}
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicker'
@@ -462,10 +476,7 @@ export default function MyVehicleTripsPage() {
                       })()}
 
                       {!isDispatchAccepted && tripBookings.some((tb) => tb.trip_offer_id === tr.id && tb.status === 'confirmed') && (
-                        <button onClick={() => setShowGroupChatFor(tr.id)}
-                          className="flex items-center justify-center gap-1.5 w-full mt-2 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer border border-[#166534] text-[#166534]">
-                          <Users size={13} /> {t('cm.openGroupChatBtn')}
-                        </button>
+                        <GroupChatRowButton tripOfferId={tr.id} onClick={() => setShowGroupChatFor(tr.id)} />
                       )}
 
                       {/* Real ask, 2026-10-21: "make it same like the route

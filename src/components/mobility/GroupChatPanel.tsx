@@ -40,6 +40,10 @@ export function GroupChatPanel({ refType, refId, title, onClose }: { refType: Gr
     const { data } = await supabase.rpc(rpc.list, { [rpc.param]: refId })
     setMessages((data ?? []) as Message[])
     setLoading(false)
+    // Opening (and staying on) the panel IS "read" — keeps marking
+    // read on every poll so a message arriving mid-conversation
+    // doesn't reappear as unread the moment this closes.
+    supabase.rpc('mark_chat_read', { p_thread_type: refType, p_thread_ref_id: refId })
   }
 
   useEffect(() => { reload() }, [refType, refId]) // eslint-disable-line react-hooks/exhaustive-deps

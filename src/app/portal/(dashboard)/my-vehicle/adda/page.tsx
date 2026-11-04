@@ -21,6 +21,8 @@ import { getCurrentPositionOnce, classifyLocationError, type LocationErrorReason
 import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { GroupChatPanel } from '@/components/mobility/GroupChatPanel'
+import { UnreadDot } from '@/components/mobility/UnreadDot'
+import { useChatUnread } from '@/hooks/useChatUnread'
 
 interface Adda { id: string; name: string; name_ur: string | null; pair_adda_id: string | null; fixed_fare_per_seat_pkr: number | null }
 interface AddaBoardEntry {
@@ -58,6 +60,7 @@ export default function MyVehicleAddaPage() {
   const [checkingLocation, setCheckingLocation] = useState(false)
   const [locationModalReason, setLocationModalReason] = useState<Extract<LocationErrorReason, 'services_disabled' | 'permission_denied'> | null>(null)
   const [showGroupChat, setShowGroupChat] = useState(false)
+  const chatUnread = useChatUnread('adda', myEntry?.entry_id)
   const [editingSeats, setEditingSeats] = useState(false)
   const [seatsEditValue, setSeatsEditValue] = useState(0)
 
@@ -246,7 +249,7 @@ export default function MyVehicleAddaPage() {
             </div>
           )}
           <button onClick={() => setShowGroupChat(true)} className="mt-2 flex items-center gap-1 font-sans text-[12px] font-semibold text-[#166534] cursor-pointer">
-            <Users size={12} /> {t('cm.openGroupChatBtn')}
+            <span className="relative inline-flex"><Users size={12} /><UnreadDot show={chatUnread} /></span> {t('cm.openGroupChatBtn')}
           </button>
           {myEntry.status === 'current' ? (
             <div className="bg-[#166534]/10 rounded-xl p-2.5 mt-2">

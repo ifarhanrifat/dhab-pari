@@ -30,6 +30,8 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { GroupChatPanel } from '@/components/mobility/GroupChatPanel'
+import { UnreadDot } from '@/components/mobility/UnreadDot'
+import { useChatUnread } from '@/hooks/useChatUnread'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { RateAndReport } from '@/components/portal/RateAndReport'
 import { fetchRoadRoute } from '@/lib/roadRoute'
@@ -184,6 +186,8 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
     toast.success(fee ? t('cm.cancelFeeAppliesToast').replace('{amount}', String(fee)) : t('mp.bookingCancelledToast'))
     reload()
   }
+
+  const chatUnread = useChatUnread('trip', detail?.trip_offer_id)
 
   if (loading) {
     return (
@@ -362,7 +366,7 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
 
             <button onClick={() => setShowGroupChat(true)}
               className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-[13px] font-sans font-bold cursor-pointer border border-[#166534] text-[#166534]">
-              <Users size={14} /> {t('cm.openGroupChatBtn')}
+              <span className="relative inline-flex"><Users size={14} /><UnreadDot show={chatUnread} /></span> {t('cm.openGroupChatBtn')}
             </button>
 
             <button onClick={cancelRide} disabled={busy}

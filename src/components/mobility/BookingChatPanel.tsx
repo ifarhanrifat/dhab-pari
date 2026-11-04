@@ -50,6 +50,9 @@ export function BookingChatPanel({ refType, refId, otherPartyName, onClose }: {
     const { data } = await supabase.rpc('negotiation_thread_detail', { p_thread_id: id })
     if (data) { setThread(data.thread); setMessages(data.messages) }
     setLoading(false)
+    // Keeps marking read while the panel stays open, so a message that
+    // arrives mid-conversation doesn't reappear as unread on close.
+    supabase.rpc('mark_chat_read', { p_thread_type: refType, p_thread_ref_id: refId })
   }
 
   useEffect(() => {

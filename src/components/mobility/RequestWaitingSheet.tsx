@@ -20,13 +20,15 @@
 // poll underneath.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Car, Clock, Tractor, Bus, Check, X as XIcon, Phone, Loader2, CircleSlash, MessageCircle, type LucideIcon } from 'lucide-react'
+import { Car, Clock, Tractor, Bus, Check, X as XIcon, Phone, Loader2, CircleSlash, MessageCircle, Radio, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import { BookingChatPanel, type BookingChatRefType } from '@/components/mobility/BookingChatPanel'
+import { UnreadDot } from '@/components/mobility/UnreadDot'
+import { useChatUnread } from '@/hooks/useChatUnread'
 
 export type WaitingKind = 'hourly' | 'rental' | 'equipment' | 'seat'
 // Only these three have a real negotiation thread (422/658) — seat
@@ -43,7 +45,7 @@ export interface WaitingSummary {
   facts?: string[]
 }
 
-type Phase = 'waiting' | 'accepted' | 'completed' | 'declined' | 'cancelled'
+type Phase = 'waiting' | 'accepted' | 'in_progress' | 'completed' | 'declined' | 'cancelled'
 interface Live { phase: Phase; reason: string | null; pin: string | null; driverName: string | null; driverMobile: string | null; advanceDue?: number; advancePct?: number }
 
 const TABLE: Record<WaitingKind, string> = { hourly: 'hourly_bookings', rental: 'rental_bookings', equipment: 'equipment_bookings', seat: 'ride_bookings' }
@@ -64,6 +66,11 @@ function phaseOf(kind: WaitingKind, status: string): Phase {
   // 'accepted' — PIN still shown, "call driver" still offered, on a
   // ride that already ended.
   if (status === 'completed') return 'completed'
+  // Same class of bug, found right after: once the driver started the
+  // trip (PIN entered), this screen never moved off 'accepted' either
+  // — the rider's own PIN display just sat there forever since nothing
+  // distinguished "waiting to start" from "already under way."
+  if (status === 'in_progress') return 'in_progress'
   return 'accepted'
 }
 
@@ -179,6 +186,7 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
   const elapsedText = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`
   const driver = live?.driverName ?? summary.driverName ?? null
   const chatRefType = CHAT_REF_TYPE[kind]
+  const chatUnread = useChatUnread(chatRefType ?? 'hourly_booking', chatRefType ? bookingId : null)
 
   return (
     <div className="fixed inset-0 bg-black/55 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
@@ -188,9 +196,9 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
 
         {/* Status hero */}
         <div className="relative px-5 pt-8 pb-7 flex flex-col items-center text-center text-white transition-colors duration-500"
-          style={{ backgroundImage: phase === 'accepted' || phase === 'completed' ? 'linear-gradient(160deg,#065f46,#16a34a)' : phase === 'declined' || phase === 'cancelled' ? 'linear-gradient(160deg,#475569,#64748b)' : 'linear-gradient(160deg,#0f3d2e,#166534)' }}>
+          style={{ backgroundImage: phase === 'accepted' || phase === 'in_progress' || phase === 'completed' ? 'linear-gradient(160deg,#065f46,#16a34a)' : phase === 'declined' || phase === 'cancelled' ? 'linear-gradient(160deg,#475569,#64748b)' : 'linear-gradient(160deg,#0f3d2e,#166534)' }}>
           <div className="relative w-28 h-28 flex items-center justify-center">
-            {phase === 'waiting' && (
+            {(phase === 'waiting' || phase === 'in_progress') && (
               <>
                 <span className="absolute inset-0 rounded-full border-2 border-white/40 animate-ping [animation-duration:2.2s]" />
                 <span className="absolute inset-3 rounded-full border-2 border-white/30 animate-ping [animation-duration:2.2s] [animation-delay:.7s]" />
@@ -199,18 +207,20 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
             )}
             <div className={`relative w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${phase === 'waiting' ? 'bg-white text-[#166534]' : 'bg-white/95'} ${phase !== 'waiting' ? 'animate-in zoom-in-50 duration-300' : ''}`}>
               {phase === 'waiting' && <Icon size={30} />}
-              {(phase === 'accepted' || phase === 'completed') && <Check size={34} strokeWidth={3} className="text-[#16a34a]" />}
+              {phase === 'accepted' || phase === 'completed' ? <Check size={34} strokeWidth={3} className="text-[#16a34a]" /> : null}
+              {phase === 'in_progress' && <Radio size={28} className="text-[#16a34a] animate-pulse" />}
               {phase === 'declined' && <XIcon size={32} strokeWidth={3} className="text-[#b91c1c]" />}
               {phase === 'cancelled' && <CircleSlash size={30} className="text-[#475569]" />}
             </div>
           </div>
           <p className="font-sans text-[19px] font-extrabold mt-3 leading-tight">
-            {phase === 'waiting' ? t('rw.waitingHeading') : phase === 'accepted' ? t('rw.acceptedHeading') : phase === 'completed' ? t('rw.completedHeading') : phase === 'declined' ? t('rw.declinedHeading') : t('rw.cancelledHeading')}
+            {phase === 'waiting' ? t('rw.waitingHeading') : phase === 'accepted' ? t('rw.acceptedHeading') : phase === 'in_progress' ? t('rw.inProgressHeading') : phase === 'completed' ? t('rw.completedHeading') : phase === 'declined' ? t('rw.declinedHeading') : t('rw.cancelledHeading')}
           </p>
           <p className="font-sans text-[13px] text-white/85 mt-1 max-w-[300px]">
             {phase === 'waiting'
               ? (driver ? t('rw.waitingHintNamed').replace('{driver}', driver) : t('rw.waitingHint'))
               : phase === 'accepted' ? (driver ? t('rw.acceptedHintNamed').replace('{driver}', driver) : t('rw.acceptedHint'))
+              : phase === 'in_progress' ? t('rw.inProgressHint')
               : phase === 'completed' ? t('rw.completedHint')
               : phase === 'declined' ? t('rw.declinedHint') : t('rw.cancelledHint')}
           </p>
@@ -314,7 +324,7 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
             </button>
           )}
 
-          {phase === 'accepted' && (
+          {(phase === 'accepted' || phase === 'in_progress') && (
             <div className="flex gap-2.5">
               {live?.driverMobile && (
                 <a href={`tel:${live.driverMobile}`} className="flex-1 h-[50px] rounded-2xl bg-[#f1f5f9] text-[#0f172a] font-sans text-[14.5px] font-bold flex items-center justify-center gap-2">
@@ -322,8 +332,8 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
                 </a>
               )}
               {chatRefType && (
-                <button onClick={() => setShowChat(true)} aria-label={t('vp.chatBtn')} className="shrink-0 w-[50px] h-[50px] rounded-2xl bg-[#f1f5f9] text-[#166534] flex items-center justify-center cursor-pointer">
-                  <MessageCircle size={18} />
+                <button onClick={() => setShowChat(true)} aria-label={t('vp.chatBtn')} className="relative shrink-0 w-[50px] h-[50px] rounded-2xl bg-[#f1f5f9] text-[#166534] flex items-center justify-center cursor-pointer">
+                  <MessageCircle size={18} /><UnreadDot show={chatUnread} />
                 </button>
               )}
               <button onClick={onViewBooking} className="flex-[1.6] h-[50px] rounded-2xl bg-[#15803d] text-white font-sans text-[14.5px] font-bold shadow-[0_8px_20px_-6px_rgba(21,128,61,0.6)] cursor-pointer active:scale-[0.98] transition-transform">
@@ -335,8 +345,8 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
           {phase === 'completed' && (
             <div className="flex gap-2.5">
               {chatRefType && (
-                <button onClick={() => setShowChat(true)} aria-label={t('vp.chatBtn')} className="shrink-0 w-[50px] h-[50px] rounded-2xl bg-[#f1f5f9] text-[#166534] flex items-center justify-center cursor-pointer">
-                  <MessageCircle size={18} />
+                <button onClick={() => setShowChat(true)} aria-label={t('vp.chatBtn')} className="relative shrink-0 w-[50px] h-[50px] rounded-2xl bg-[#f1f5f9] text-[#166534] flex items-center justify-center cursor-pointer">
+                  <MessageCircle size={18} /><UnreadDot show={chatUnread} />
                 </button>
               )}
               <button onClick={onViewBooking} className="flex-1 h-[50px] rounded-2xl bg-[#15803d] text-white font-sans text-[14.5px] font-bold cursor-pointer active:scale-[0.98] transition-transform">
