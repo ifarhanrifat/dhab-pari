@@ -104,6 +104,17 @@ export default function HourlyRentalPage() {
   const [showPicker, setShowPicker] = useState<'pickup' | 'destination' | false>(false)
   const [destinationLoc, setDestinationLoc] = useState<PickedLocation | null>(null)
   const [isOutstation, setIsOutstation] = useState(false)
+  // Real bug, 2026-11-05: the rider's own price preview used to only
+  // read this checkbox, which gets hidden once a destination is
+  // pinned — but create_hourly_booking auto-detects outstation from
+  // real GPS distance whenever a destination exists, independent of
+  // the checkbox. A rider pinning a far destination saw the in-city
+  // estimate right up until submitting, then got charged the real
+  // (higher) outstation rate with no warning. previewOutOfCity calls
+  // the server's own hourly_is_out_of_city_preview (811) — the exact
+  // same function create_hourly_booking itself uses — so what's shown
+  // here can never diverge from what's actually charged.
+  const [previewOutOfCity, setPreviewOutOfCity] = useState(false)
   const [notes, setNotes] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [requesting, setRequesting] = useState(false)
@@ -162,6 +173,18 @@ export default function HourlyRentalPage() {
     setOpenTier(tier); setHours(2); setPreferredYear(null); setPickupLoc(null); setDestinationLoc(null); setIsOutstation(false); setNotes(''); setPaymentMethod('cash')
   }
 
+  useEffect(() => {
+    if (!pickupLoc) { setPreviewOutOfCity(false); return }
+    let live = true
+    supabase.rpc('hourly_is_out_of_city_preview', {
+      p_pickup_lat: pickupLoc.lat, p_pickup_lng: pickupLoc.lng,
+      p_destination_lat: destinationLoc?.lat ?? null, p_destination_lng: destinationLoc?.lng ?? null,
+      p_is_outstation: isOutstation,
+    }).then(({ data }) => { if (live) setPreviewOutOfCity(!!data) })
+    return () => { live = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickupLoc, destinationLoc, isOutstation])
+
   const bookAgain = (tierKey: string | null) => {
     setTab('browse')
     const tier = tiers.find((x) => x.tier_key === tierKey)
@@ -203,12 +226,12 @@ export default function HourlyRentalPage() {
   // so the estimate shown before booking must match what the server
   // will actually charge, not the in-city number.
   const effectiveHourlyRate = openTier
-    ? (isOutstation && openTier.out_of_city_hourly_rate_pkr != null ? openTier.out_of_city_hourly_rate_pkr : openTier.hourly_rate_pkr)
+    ? (previewOutOfCity && openTier.out_of_city_hourly_rate_pkr != null ? openTier.out_of_city_hourly_rate_pkr : openTier.hourly_rate_pkr)
     : 0
   const estimatedTotal = effectiveHourlyRate * hours
   const estimatedIncludedKm = openTier ? openTier.hourly_included_km_per_hour * hours : 0
   const effectiveOveragePerKm = openTier
-    ? (isOutstation && openTier.out_of_city_per_km_pkr != null ? openTier.out_of_city_per_km_pkr : openTier.hourly_overage_per_km_pkr)
+    ? (previewOutOfCity && openTier.out_of_city_per_km_pkr != null ? openTier.out_of_city_per_km_pkr : openTier.hourly_overage_per_km_pkr)
     : 0
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
@@ -437,7 +460,7 @@ export default function HourlyRentalPage() {
             <p className="text-[11px] text-[#64748b] mt-1">
               {t('vp.includedThenOverage').replace('{km}', fmt(estimatedIncludedKm)).replace('{rate}', fmt(effectiveOveragePerKm))}
             </p>
-            {isOutstation && <p className="text-[10.5px] font-semibold text-[#92400e] mt-1">{t('vp.hourlyOutstationRateNote')}</p>}
+            {previewOutOfCity && <p className="text-[10.5px] font-semibold text-[#92400e] mt-1">{t('vp.hourlyOutstationRateNote')}</p>}
             <p className="text-[10.5px] text-[#64748b] mt-1 leading-[1.6]">{t('vp.hourlyTwoWayNote')}</p>
           </div>
 
