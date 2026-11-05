@@ -56,6 +56,12 @@ export function FarePolicyCard({ service, audience = 'rider', vehicle, defaultOp
       if (policy.max_distance_km) lines.push(r('fp.max', { max: fmt(policy.max_distance_km) }))
       if (policy.advance_pct > 0) lines.push(r(service === 'shadi' ? 'fp.shadi.advance' : 'fp.eq.advance', { pct: fmt(policy.advance_pct) }))
     }
+    // Real gap found 2026-11-05 comparing against a competitor's policy
+    // screen: tolls/parking/the driver's own food and overnight stay on
+    // a long outstation trip were never disclosed anywhere — the fare
+    // shown here is the vehicle's charge only, not these out-of-pocket
+    // costs, and the rider should know that before booking, not after.
+    lines.push(t('fp.tollsFood'))
     const note = isUrdu ? (policy.notes_ur ?? policy.notes_en) : (policy.notes_en ?? policy.notes_ur)
     if (note) lines.push(note)
   }
