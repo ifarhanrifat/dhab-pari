@@ -60,7 +60,7 @@ const YEAR_OPTIONS = Array.from({ length: 26 }, (_, i) => CURRENT_YEAR - i)
 interface TierOption {
   tier_key: string; vehicle_count: number
   hourly_rate_pkr: number; hourly_included_km_per_hour: number; hourly_overage_per_km_pkr: number
-  out_of_city_per_km_pkr: number | null
+  out_of_city_per_km_pkr: number | null; out_of_city_hourly_rate_pkr: number | null
 }
 interface Booking {
   id: string; hours: number; status: string; pickup_address: string; pickup_lat: number | null; pickup_lng: number | null; decline_reason: string | null
@@ -196,15 +196,17 @@ export default function HourlyRentalPage() {
     loadBookings()
   }
 
-  const estimatedTotal = openTier ? openTier.hourly_rate_pkr * hours : 0
+  // Real fix, 2026-11-05: "why is this vehicle showing Rs 300/hr fare?"
+  // — 804 only scaled the overage-per-km rate for an outstation trip;
+  // create_hourly_booking (807) now also scales the flat per-hour rate
+  // itself by the same ratio Rental's own base fee jumps for this tier,
+  // so the estimate shown before booking must match what the server
+  // will actually charge, not the in-city number.
+  const effectiveHourlyRate = openTier
+    ? (isOutstation && openTier.out_of_city_hourly_rate_pkr != null ? openTier.out_of_city_hourly_rate_pkr : openTier.hourly_rate_pkr)
+    : 0
+  const estimatedTotal = effectiveHourlyRate * hours
   const estimatedIncludedKm = openTier ? openTier.hourly_included_km_per_hour * hours : 0
-  // Real fix, 2026-11-05: an outstation trip's km beyond the included
-  // allowance is no longer billed at the cheap in-city overage rate —
-  // create_hourly_booking (804) now switches to the vehicle's own
-  // out-of-city per-km rate (the same number Rental's out-of-city trips
-  // already use) whenever the trip is out of city, so this estimate
-  // must show the rate that will actually apply, not always the
-  // in-city one.
   const effectiveOveragePerKm = openTier
     ? (isOutstation && openTier.out_of_city_per_km_pkr != null ? openTier.out_of_city_per_km_pkr : openTier.hourly_overage_per_km_pkr)
     : 0
@@ -421,7 +423,7 @@ export default function HourlyRentalPage() {
 
           <div className="bg-[#F9F9F6] rounded-xl p-3 mb-3">
             <div className="flex items-center justify-between text-[13px]">
-              <span className="text-[#64748b]">{fmt(openTier.hourly_rate_pkr)} × {hours}{t('vp.hoursShort')}</span>
+              <span className="text-[#64748b]">{fmt(effectiveHourlyRate)} × {hours}{t('vp.hoursShort')}</span>
               <span className="font-bold text-[#1e293b] ltr-num">{fmt(estimatedTotal)}</span>
             </div>
             <p className="text-[11px] text-[#64748b] mt-1">
@@ -433,7 +435,7 @@ export default function HourlyRentalPage() {
 
           <div className="flex flex-col gap-2 mb-3">
             <TravelQuoteLine service="hourly" vehicleId={null} lat={pickupLoc?.lat} lng={pickupLoc?.lng} onQuote={setPickupQuote} hideWhenRateIsZero />
-            <FarePolicyCard service="hourly" vehicle={{ hourlyRate: openTier.hourly_rate_pkr, includedKmPerHour: openTier.hourly_included_km_per_hour, overagePerKm: effectiveOveragePerKm }} />
+            <FarePolicyCard service="hourly" vehicle={{ hourlyRate: effectiveHourlyRate, includedKmPerHour: openTier.hourly_included_km_per_hour, overagePerKm: effectiveOveragePerKm }} />
           </div>
 
           <p className="flex items-start gap-1.5 text-[11px] text-[#64748b] mb-3"><AlertCircle size={12} className="shrink-0 mt-0.5 text-[#166534]" /> {t('vp.noAdvanceExplainer')}</p>
