@@ -98,7 +98,7 @@ export default function HourlyRentalPage() {
   const [loading, setLoading] = useState(true)
 
   const [openTier, setOpenTier] = useState<TierOption | null>(null)
-  const [hours, setHours] = useState(1)
+  const [hours, setHours] = useState(2)
   const [preferredYear, setPreferredYear] = useState<number | null>(null)
   const [pickupLoc, setPickupLoc] = useState<PickedLocation | null>(null)
   const [showPicker, setShowPicker] = useState<'pickup' | 'destination' | false>(false)
@@ -159,7 +159,7 @@ export default function HourlyRentalPage() {
   }, [tab, bookings])
 
   const openBooking = (tier: TierOption) => {
-    setOpenTier(tier); setHours(1); setPreferredYear(null); setPickupLoc(null); setDestinationLoc(null); setIsOutstation(false); setNotes(''); setPaymentMethod('cash')
+    setOpenTier(tier); setHours(2); setPreferredYear(null); setPickupLoc(null); setDestinationLoc(null); setIsOutstation(false); setNotes(''); setPaymentMethod('cash')
   }
 
   const bookAgain = (tierKey: string | null) => {
@@ -355,7 +355,7 @@ export default function HourlyRentalPage() {
         <MobilityBottomSheet title={t(`vp.rentalTier.${openTier.tier_key}`)} onClose={() => setOpenTier(null)}>
           <label className="block text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.hoursLabel')}</label>
           <div className="flex items-center gap-2 mb-3">
-            <button onClick={() => setHours((h) => Math.max(1, h - 1))} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">−</button>
+            <button onClick={() => setHours((h) => Math.max(2, h - 1))} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">−</button>
             <span className="font-extrabold text-[18px] w-10 text-center ltr-num">{hours}</span>
             <button onClick={() => setHours((h) => h + 1)} className="w-9 h-9 border border-[#e5e2d0] rounded-xl cursor-pointer text-[16px]">+</button>
           </div>
