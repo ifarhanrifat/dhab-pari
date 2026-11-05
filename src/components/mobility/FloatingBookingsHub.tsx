@@ -51,6 +51,15 @@ interface HubItem {
   // my-vehicle pages use, not the rider-facing RequestWaitingSheet.
   driverLifecycle?: { kind: LifecycleKind; id: string; vehicleId: string; commissionMode: string }
   href?: string
+  // Real ask, 2026-11-05: "show the number of bookings on these saved
+  // return rides... floating button will show alert types in numeric
+  // 1.2.3.4 seats already booked" — a dedicated count distinct from the
+  // generic multi-item `total` badge below. Set only where a concrete
+  // "N people are counting on this" number exists (today: return-offer
+  // seats booked); stays on the item (so stays on the badge) for as
+  // long as the item itself is on the hub — i.e. from the offer going
+  // pending/activated through to the driver cancelling it (803).
+  badgeCount?: number
 }
 
 function useNow(enabled: boolean) {
@@ -243,11 +252,12 @@ export function FloatingBookingsHub() {
         const seatsBooked = o.bookings.length
         out.push({
           key: `dro-${o.id}`, emoji: '🔄',
-          label: `${t('rq.kind.rentalReturn')} · ${o.to_address}${seatsBooked > 0 ? ` · ${seatsBooked}` : ''}`,
+          label: `${t('rq.kind.rentalReturn')} · ${o.to_address}`,
           state: o.status === 'activated' ? 'ongoing' : 'waiting',
           since: o.expected_arrival_at,
           countdownTarget: o.status === 'pending' ? new Date(o.expected_arrival_at).getTime() : undefined,
           href: '/portal/my-vehicle/rental',
+          badgeCount: seatsBooked > 0 ? seatsBooked : undefined,
         })
       }
     }
@@ -392,6 +402,12 @@ export function FloatingBookingsHub() {
         </span>
         <span className="block font-sans text-[13px] font-semibold text-[#0f172a] truncate leading-tight mt-0.5"><bdi>{it.label}</bdi></span>
       </span>
+      {it.badgeCount != null && (
+        <span aria-label={t('dock.seatsBookedAlt').replace('{n}', String(it.badgeCount))}
+          className="shrink-0 min-w-[20px] h-5 px-1 rounded-full bg-[#f59e0b] text-[#0f172a] font-sans text-[10.5px] font-black flex items-center justify-center ltr-num">
+          {it.badgeCount}
+        </span>
+      )}
       {it.countdownTarget != null && <Countdown target={it.countdownTarget} now={now} label={it.key.startsWith('dro-') ? t('dock.readyNow') : t('dock.departed')} />}
       {it.state === 'action' && it.countdownTarget == null && <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b] shrink-0" />}
     </button>
@@ -399,6 +415,11 @@ export function FloatingBookingsHub() {
 
   const total = items.length
   const primary = items[0]
+  // The multi-item count and a specific "N seats booked" alert are
+  // different signals — when the top item itself is carrying a real
+  // booked-seat count, that's the more actionable number to put on the
+  // button, even if other unrelated items also happen to be waiting.
+  const cornerBadge = primary.badgeCount ?? (total > 1 ? total : null)
   return (
     <>
       <div dir={isUrdu ? 'rtl' : 'ltr'} className={`fixed z-[70] print:hidden ${drag.pos ? '' : 'bottom-[90px] right-4 md:bottom-6 md:right-6'}`}
@@ -415,9 +436,10 @@ export function FloatingBookingsHub() {
             </span>
             <span className="block font-sans text-[12px] font-bold truncate leading-tight mt-0.5">{primary.label}</span>
           </span>
-          {total > 1 && (
-            <span className="absolute -top-1.5 -end-1.5 min-w-[22px] h-[22px] px-1 rounded-full bg-[#f59e0b] text-[#0f172a] font-sans text-[11px] font-black flex items-center justify-center shadow-md ltr-num border-2 border-white">
-              {total}
+          {cornerBadge != null && (
+            <span aria-label={primary.badgeCount != null ? t('dock.seatsBookedAlt').replace('{n}', String(cornerBadge)) : undefined}
+              className="absolute -top-1.5 -end-1.5 min-w-[22px] h-[22px] px-1 rounded-full bg-[#f59e0b] text-[#0f172a] font-sans text-[11px] font-black flex items-center justify-center shadow-md ltr-num border-2 border-white">
+              {cornerBadge}
             </span>
           )}
         </button>
