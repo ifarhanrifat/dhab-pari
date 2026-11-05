@@ -60,6 +60,7 @@ const YEAR_OPTIONS = Array.from({ length: 26 }, (_, i) => CURRENT_YEAR - i)
 interface TierOption {
   tier_key: string; vehicle_count: number
   hourly_rate_pkr: number; hourly_included_km_per_hour: number; hourly_overage_per_km_pkr: number
+  out_of_city_per_km_pkr: number | null
 }
 interface Booking {
   id: string; hours: number; status: string; pickup_address: string; pickup_lat: number | null; pickup_lng: number | null; decline_reason: string | null
@@ -197,6 +198,16 @@ export default function HourlyRentalPage() {
 
   const estimatedTotal = openTier ? openTier.hourly_rate_pkr * hours : 0
   const estimatedIncludedKm = openTier ? openTier.hourly_included_km_per_hour * hours : 0
+  // Real fix, 2026-11-05: an outstation trip's km beyond the included
+  // allowance is no longer billed at the cheap in-city overage rate —
+  // create_hourly_booking (804) now switches to the vehicle's own
+  // out-of-city per-km rate (the same number Rental's out-of-city trips
+  // already use) whenever the trip is out of city, so this estimate
+  // must show the rate that will actually apply, not always the
+  // in-city one.
+  const effectiveOveragePerKm = openTier
+    ? (isOutstation && openTier.out_of_city_per_km_pkr != null ? openTier.out_of_city_per_km_pkr : openTier.hourly_overage_per_km_pkr)
+    : 0
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
 
@@ -414,14 +425,15 @@ export default function HourlyRentalPage() {
               <span className="font-bold text-[#1e293b] ltr-num">{fmt(estimatedTotal)}</span>
             </div>
             <p className="text-[11px] text-[#64748b] mt-1">
-              {t('vp.includedThenOverage').replace('{km}', fmt(estimatedIncludedKm)).replace('{rate}', fmt(openTier.hourly_overage_per_km_pkr))}
+              {t('vp.includedThenOverage').replace('{km}', fmt(estimatedIncludedKm)).replace('{rate}', fmt(effectiveOveragePerKm))}
             </p>
+            {isOutstation && <p className="text-[10.5px] font-semibold text-[#92400e] mt-1">{t('vp.hourlyOutstationRateNote')}</p>}
             <p className="text-[10.5px] text-[#64748b] mt-1 leading-[1.6]">{t('vp.hourlyTwoWayNote')}</p>
           </div>
 
           <div className="flex flex-col gap-2 mb-3">
             <TravelQuoteLine service="hourly" vehicleId={null} lat={pickupLoc?.lat} lng={pickupLoc?.lng} onQuote={setPickupQuote} />
-            <FarePolicyCard service="hourly" vehicle={{ hourlyRate: openTier.hourly_rate_pkr, includedKmPerHour: openTier.hourly_included_km_per_hour, overagePerKm: openTier.hourly_overage_per_km_pkr }} />
+            <FarePolicyCard service="hourly" vehicle={{ hourlyRate: openTier.hourly_rate_pkr, includedKmPerHour: openTier.hourly_included_km_per_hour, overagePerKm: effectiveOveragePerKm }} />
           </div>
 
           <p className="flex items-start gap-1.5 text-[11px] text-[#64748b] mb-3"><AlertCircle size={12} className="shrink-0 mt-0.5 text-[#166534]" /> {t('vp.noAdvanceExplainer')}</p>
