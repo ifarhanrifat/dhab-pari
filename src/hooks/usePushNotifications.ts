@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Capacitor } from '@capacitor/core'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { createClient } from '@/lib/supabase/client'
@@ -56,6 +57,7 @@ async function ensureRideRequestChannel() {
 }
 
 export function usePushNotifications(owner: { adminUserId?: string; portalUserId?: string } | null) {
+  const router = useRouter()
   const [permission, setPermission] = useState<PushPermission>('default')
   const [isStandalone, setIsStandalone] = useState(false)
   const [isIos, setIsIos] = useState(false)
@@ -77,7 +79,20 @@ export function usePushNotifications(owner: { adminUserId?: string; portalUserId
 
       const regSub = PushNotifications.addListener('registration', (token) => pendingToken.current?.resolve(token.value))
       const errSub = PushNotifications.addListener('registrationError', () => pendingToken.current?.reject())
-      return () => { regSub.then((h) => h.remove()); errSub.then((h) => h.remove()) }
+      // Real bug reported live, 2026-11-06: tapping a push notification
+      // (screen off, app in background, or cold-started from the tap)
+      // just opened the WebView at its default root URL — the `link`
+      // the dispatch route already sends in the FCM payload's `data`
+      // (api/push/dispatch/route.ts) was never read anywhere on the
+      // native side. Capacitor buffers the tap that launched/resumed the
+      // app and replays it once this listener is registered, so no
+      // native (Java/Kotlin) change is needed — just read the link and
+      // navigate there.
+      const actionSub = PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+        const link = (action.notification?.data as { link?: string } | undefined)?.link
+        if (link) router.push(link)
+      })
+      return () => { regSub.then((h) => h.remove()); errSub.then((h) => h.remove()); actionSub.then((h) => h.remove()) }
     }
 
     const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window

@@ -27,7 +27,6 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityHeader } from '@/components/mobility/MobilityHeader'
 import { DriverMobilityNav } from '@/components/mobility/DriverMobilityNav'
 import { DriverJobsBadgeProvider, useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext'
-import { PendingRequestOverlay } from '@/components/mobility/PendingRequestOverlay'
 import { useVehicleLocationRefresh } from '@/hooks/useVehicleLocationRefresh'
 
 interface Vehicle {
@@ -128,13 +127,15 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
 
   return (
     <DriverJobsBadgeProvider vehicleId={vehicle.id} vehicle={vehicle}>
-      {/* Mounted at this layout level (not inside any one page) so the
-          incoming-request popup is alive no matter which driver screen
-          is open — see PendingRequestOverlay.tsx's own header comment.
-          useVehicleLocationRefresh moved here for the same reason, see
-          its own header comment — it used to live only on the Home tab
-          and went stale the moment the driver navigated away. */}
-      <PendingRequestOverlay vehicleId={vehicle.id} vehicle={vehicle} />
+      {/* The incoming-request popup itself is now mounted app-wide, at
+          the portal dashboard's shared layout (DriverPendingRequestGate),
+          so it fires no matter which page the driver is on — not just
+          here. Removed from this layout 2026-11-06 to avoid a second,
+          duplicate overlay/Realtime channel firing on top of that one
+          whenever a driver happens to be on a my-vehicle page.
+          useVehicleLocationRefresh stays here, see its own header
+          comment — it used to live only on the Home tab and went stale
+          the moment the driver navigated away. */}
       <LocationRefresher vehicleId={vehicle.id} isOnline={vehicle.is_online} />
       <Chrome>{children}</Chrome>
     </DriverJobsBadgeProvider>
