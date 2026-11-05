@@ -397,7 +397,15 @@ export default function HourlyRentalPage() {
                 <Navigation size={15} className="text-[#b91c1c] shrink-0" />
                 <span className={`text-[13.5px] truncate ${destinationLoc ? 'text-[#1e293b] font-semibold' : 'text-[#94a3b8]'}`}>{destinationLoc ? destinationLoc.label : t('vp.hourlyDestinationPlaceholder')}</span>
               </button>
-              {destinationLoc && (
+              {/* Real bug found 2026-11-05: this used to only render
+                  once a destination was pinned, so a rider who wants an
+                  outstation trip without knowing the exact destination
+                  address had no way to flag it at all. Flipped: once a
+                  destination IS pinned, the server measures both ends
+                  for real (808) and this checkbox would be ignored, so
+                  it only needs to show when there's no destination to
+                  measure against — exactly the one case it matters. */}
+              {!destinationLoc && (
                 <label className="flex items-center gap-2 mb-3 cursor-pointer">
                   <input type="checkbox" checked={isOutstation} onChange={(e) => setIsOutstation(e.target.checked)} className="accent-[#166534]" />
                   <span className="font-sans text-[12.5px] text-[#1e293b]">{t('vp.hourlyIsOutstationLabel')}</span>
