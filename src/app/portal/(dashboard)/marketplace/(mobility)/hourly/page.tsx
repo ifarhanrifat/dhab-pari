@@ -432,7 +432,7 @@ export default function HourlyRentalPage() {
           </div>
 
           <div className="flex flex-col gap-2 mb-3">
-            <TravelQuoteLine service="hourly" vehicleId={null} lat={pickupLoc?.lat} lng={pickupLoc?.lng} onQuote={setPickupQuote} />
+            <TravelQuoteLine service="hourly" vehicleId={null} lat={pickupLoc?.lat} lng={pickupLoc?.lng} onQuote={setPickupQuote} hideWhenRateIsZero />
             <FarePolicyCard service="hourly" vehicle={{ hourlyRate: openTier.hourly_rate_pkr, includedKmPerHour: openTier.hourly_included_km_per_hour, overagePerKm: effectiveOveragePerKm }} />
           </div>
 

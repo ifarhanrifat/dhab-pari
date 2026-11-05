@@ -90,9 +90,17 @@ export function FarePolicyCard({ service, audience = 'rider', vehicle, defaultOp
 // One chosen vehicle + place: the server's own travel quote (the same
 // fare_travel_quote the booking insert uses), so the rider sees the
 // travel charge — or that the place is too far — before sending.
-export function TravelQuoteLine({ service, vehicleId, lat, lng, onQuote }: {
+export function TravelQuoteLine({ service, vehicleId, lat, lng, onQuote, hideWhenRateIsZero = false }: {
   service: FareService; vehicleId: string | null; lat: number | null | undefined; lng: number | null | undefined
   onQuote?: (q: TravelQuote | null) => void
+  // Real ask, 2026-11-05: "why is this showing Rs 0?" — Hourly's own
+  // pickup-travel rate is 0 by policy (it already bills every km
+  // driven during the whole booking through the overage meter, so this
+  // separate "vehicle drives to reach you" charge would double-count
+  // the same km). The too_far validation below still runs either way —
+  // this only suppresses the always-zero line that only ever confused
+  // riders into thinking it was broken.
+  hideWhenRateIsZero?: boolean
 }) {
   const { t } = useLocale()
   const [quote, setQuote] = useState<TravelQuote | null>(null)
@@ -117,6 +125,7 @@ export function TravelQuoteLine({ service, vehicleId, lat, lng, onQuote }: {
   if (lat == null || lng == null) return null
   if (loading) return <p className="flex items-center gap-1.5 font-sans text-[12px] text-[#64748b]"><Loader2 size={12} className="animate-spin" /> {t('fp.quoting')}</p>
   if (!quote || !quote.known) return null
+  if (hideWhenRateIsZero && quote.travel_rate_per_km_pkr === 0 && !quote.too_far) return null
   if (quote.too_far) {
     return (
       <div className="rounded-xl bg-[#fef2f2] border border-[#fecaca] p-2.5 flex gap-2">
