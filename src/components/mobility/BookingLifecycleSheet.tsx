@@ -54,6 +54,7 @@ interface Row {
   // hourly
   hours?: number; pickup_address?: string; pickup_lat?: number | null; pickup_lng?: number | null
   distance_km?: number; included_km?: number; overage_km?: number | null
+  destination_address?: string | null; destination_lat?: number | null; destination_lng?: number | null; is_outstation?: boolean
   // rental
   from_address?: string; from_lat?: number | null; from_lng?: number | null
   to_address?: string; to_lat?: number | null; to_lng?: number | null
@@ -190,7 +191,9 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
   const pickup = kind === 'hourly' ? { lat: row.pickup_lat, lng: row.pickup_lng, label: row.pickup_address }
     : kind === 'rental' ? { lat: row.from_lat, lng: row.from_lng, label: row.from_address }
     : { lat: row.site_lat, lng: row.site_lng, label: row.site_address }
-  const dropoff = kind === 'rental' ? { lat: row.to_lat, lng: row.to_lng, label: row.to_address } : null
+  const dropoff = kind === 'rental' ? { lat: row.to_lat, lng: row.to_lng, label: row.to_address }
+    : kind === 'hourly' && row.destination_lat != null ? { lat: row.destination_lat, lng: row.destination_lng, label: row.destination_address ?? undefined }
+    : null
   const navTarget = kind === 'rental' && inProgress ? dropoff : pickup
   const pins = [
     ...(pickup.lat != null && pickup.lng != null ? [{ lat: pickup.lat, lng: pickup.lng, label: pickup.label, color: '#dc2626', emoji: '📍' }] : []),
@@ -204,6 +207,7 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10.5px] font-bold uppercase tracking-[0.05em] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">{kindTitle}</span>
           <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${stopped ? 'bg-slate-100 text-slate-500' : 'bg-[#F0FDF4] text-[#166534]'}`}>{statusLabel}</span>
+          {kind === 'hourly' && row.is_outstation && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800">{t('vp.hourlyOutstationBadge')}</span>}
         </div>
 
         {!stopped && (
@@ -220,7 +224,7 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
           <div className="min-w-0">
             <p className="font-sans text-[12px] text-[#64748b]">{t('mb.fareForTripLabel')}</p>
             <p className="font-sans text-[11.5px] text-[#64748b] ltr-num mt-0.5">
-              {kind === 'hourly' && `${row.hours}h · ${fmt(row.included_km)}km`}
+              {kind === 'hourly' && `${row.hours}h · ${fmt(row.included_km)}km incl. · ₨${fmt(row.overage_per_km_pkr)}${t('vp.perKmBeyondShort')}`}
               {kind === 'rental' && `${fmt(row.km)}km${row.trip_type === 'return' ? ` · ↺ ${row.wait_hours}h` : ''}`}
               {kind === 'equipment' && `${row.requested_hours ?? '—'}h × ${fmt(row.rate_pkr)}`}
             </p>
