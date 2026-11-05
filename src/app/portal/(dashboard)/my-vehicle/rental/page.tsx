@@ -13,7 +13,7 @@
 // popup (BookingLifecycleSheet) — this page is just the grouped list.
 
 import { useEffect, useState } from 'react'
-import { Navigation } from 'lucide-react'
+import { Navigation, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -44,11 +44,22 @@ export default function MyRentalBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [returnOffers, setReturnOffers] = useState<ReturnOffer[]>([])
   const [loading, setLoading] = useState(true)
+  const [cancellingOfferId, setCancellingOfferId] = useState<string | null>(null)
 
   const loadBookings = (vehicleId: string) =>
     supabase.rpc('vehicle_rental_bookings', { p_vehicle_id: vehicleId }).then(({ data }) => setBookings((data ?? []) as Booking[]))
   const loadReturnOffers = (vehicleId: string) =>
     supabase.rpc('vehicle_rental_return_offers', { p_vehicle_id: vehicleId }).then(({ data }) => setReturnOffers((data ?? []) as ReturnOffer[]))
+
+  const cancelReturnOffer = async (offerId: string) => {
+    if (!vehicle) return
+    if (!window.confirm(t('vp.cancelReturnOfferConfirm'))) return
+    setCancellingOfferId(offerId)
+    const { error } = await supabase.rpc('cancel_rental_return_offer', { p_offer_id: offerId })
+    setCancellingOfferId(null)
+    if (error) { alert(error.message); return }
+    await loadReturnOffers(vehicle.id)
+  }
 
   useEffect(() => {
     if (!user) return
@@ -98,8 +109,15 @@ export default function MyRentalBookingsPage() {
             <div key={o.id} className="bg-[#FFFBEB] border border-[#fde68a] rounded-2xl p-3.5 flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-sans text-[13px] font-semibold text-[#92400e]">{o.from_address} → {o.to_address}</p>
-                <span className="shrink-0 text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#92400e] text-white">
-                  {o.status === 'activated' ? t('vp.returnOfferActiveLabel') : t('vp.returnOfferPendingLabel')}
+                <span className="shrink-0 flex items-center gap-1.5">
+                  <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#92400e] text-white">
+                    {o.status === 'activated' ? t('vp.returnOfferActiveLabel') : t('vp.returnOfferPendingLabel')}
+                  </span>
+                  <button onClick={() => cancelReturnOffer(o.id)} disabled={cancellingOfferId === o.id}
+                    aria-label={t('vp.cancelReturnOfferBtn')}
+                    className="w-6 h-6 rounded-full bg-white border border-[#fde68a] flex items-center justify-center text-[#92400e] disabled:opacity-50 cursor-pointer">
+                    <X size={13} />
+                  </button>
                 </span>
               </div>
               <p className="font-sans text-[11.5px] text-[#92400e]/80 ltr-num">
