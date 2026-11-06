@@ -9,7 +9,6 @@ import { PoolAppealBanner } from '@/components/portal/PoolAppealBanner'
 import { WelcomeTour } from '@/components/portal/WelcomeTour'
 import { PortalMobileNavProvider } from '@/components/portal/PortalMobileNavContext'
 import { FloatingBookingsHub } from '@/components/mobility/FloatingBookingsHub'
-import { DriverPendingRequestGate } from '@/components/mobility/DriverPendingRequestGate'
 
 // The "Dhab Pari Mobility" screens (my-vehicle/* and the marketplace/
 // (mobility)/* route group) render their own MobilityHeader — real bug
@@ -108,9 +107,6 @@ export default function PortalDashboardLayout({ children }: { children: React.Re
         </main>
       </div>
       <FloatingBookingsHub />
-      {/* Driver-only, app-wide: fires regardless of which portal page is
-          open. See DriverPendingRequestGate.tsx's own header comment. */}
-      <DriverPendingRequestGate />
     </div>
   )
 }

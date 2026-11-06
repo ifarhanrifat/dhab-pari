@@ -7,12 +7,16 @@
 // in the portal — it couldn't fire while a driver was browsing the
 // marketplace, donations, etc., no matter what arrived.
 //
-// Mounted instead at the portal dashboard's own shared layout — the
-// ancestor of every /portal/(dashboard)/* route, driver or rider — with
-// its own independent vehicle lookup so it's a no-op for a portal user
-// with no vehicle. my-vehicle/layout.tsx's own instance is removed (see
-// its own comment) to avoid two overlays/Realtime channels firing for
-// the same driver while they happen to be on a my-vehicle page.
+// First mounted at the portal dashboard's own shared layout (every
+// /portal/(dashboard)/* route) — fixed the my-vehicle-only scoping, but
+// a driver browsing the public site (outside /portal entirely) still got
+// nothing, same bug, one layer up. Moved to the true app root
+// (src/app/layout.tsx, 2026-11-06) so it exists on every single page of
+// the site, portal or not. Has its own independent vehicle lookup so
+// it's a no-op for a portal user with no vehicle (a rider, or a visitor
+// not logged in at all). my-vehicle/layout.tsx's own instance was
+// removed earlier (see its own comment) to avoid a duplicate overlay/
+// Realtime channel firing for the same driver while on a my-vehicle page.
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'

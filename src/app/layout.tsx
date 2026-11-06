@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { FloatingWhatsAppButton } from "@/components/layout/FloatingWhatsAppButton";
 import { PwaProvider } from "@/components/layout/PwaProvider";
 import { NativePushNavigator } from "@/components/layout/NativePushNavigator";
+import { DriverPendingRequestGate } from "@/components/mobility/DriverPendingRequestGate";
 import { PullToRefresh } from "@/components/layout/PullToRefresh";
 import { AppUpdateRequiredModal } from "@/components/layout/AppUpdateRequiredModal";
 import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
@@ -175,6 +176,12 @@ export default async function RootLayout({
         {children}
         <PwaProvider />
         <NativePushNavigator />
+        {/* True app root, not just /portal/(dashboard) — see its own
+            header comment for why this had to move here: a driver
+            browsing the public site (outside the portal account) was
+            getting no popup at all, since this component simply didn't
+            exist in that page's tree before. */}
+        <DriverPendingRequestGate />
         <FloatingWhatsAppButton />
         </LocaleProvider>
         </SiteProvider>
