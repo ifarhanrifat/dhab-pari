@@ -38,6 +38,7 @@ interface Vehicle { id: string; owner_name: string; owner_mobile: string | null;
 interface Stop { id: string; label: string; label_ur: string | null; lat: number; lng: number; stop_order: number }
 interface MonthlySubscription { id: string; status: string; monthly_fee_pkr: number; queue_position: number | null; scheduled_cancellation_at: string | null }
 interface MonthlyDetail { is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null; seats_total: number; active_count: number; my_subscription: MonthlySubscription | null; my_leave_days: string[] }
+interface AttendanceRow { run_date: string; present: boolean; marked_at: string }
 
 // Approximate only — interpolated proportionally along the driver's
 // own chosen road path using its real OSRM duration, not a live ETA.
@@ -95,6 +96,8 @@ export default function RouteDetailPage() {
   const [leavingSeat, setLeavingSeat] = useState(false)
   const [leaveDate, setLeaveDate] = useState('')
   const [markingLeave, setMarkingLeave] = useState(false)
+  const [myAttendance, setMyAttendance] = useState<AttendanceRow[]>([])
+  const [decliningAttendance, setDecliningAttendance] = useState(false)
   const [returnSeatsAvailable, setReturnSeatsAvailable] = useState<number | null>(null)
   const [returnBoardStopId, setReturnBoardStopId] = useState<string | null>(null)
   const [returnProofPath, setReturnProofPath] = useState('')
@@ -115,6 +118,8 @@ export default function RouteDetailPage() {
         if (r.is_monthly_fixed) {
           const { data: md } = await supabase.rpc('route_monthly_detail', { p_route_id: r.id })
           setMonthlyDetail(md as MonthlyDetail | null)
+          const { data: att } = await supabase.rpc('my_route_attendance', { p_route_id: r.id })
+          setMyAttendance((att ?? []) as AttendanceRow[])
         }
       }
       setLoading(false)
@@ -202,6 +207,18 @@ export default function RouteDetailPage() {
     if (!route) return
     const { data: md } = await supabase.rpc('route_monthly_detail', { p_route_id: route.id })
     setMonthlyDetail(md as MonthlyDetail | null)
+    const { data: att } = await supabase.rpc('my_route_attendance', { p_route_id: route.id })
+    setMyAttendance((att ?? []) as AttendanceRow[])
+  }
+
+  const declineTodaysAttendance = async () => {
+    if (!monthlyDetail?.my_subscription) return
+    setDecliningAttendance(true)
+    const { error } = await supabase.rpc('decline_todays_attendance', { p_subscription_id: monthlyDetail.my_subscription.id })
+    setDecliningAttendance(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.attendanceDeclinedToast'))
+    reloadMonthlyDetail()
   }
 
   const applyForSeat = async () => {
@@ -328,6 +345,30 @@ export default function RouteDetailPage() {
                 <p className="font-sans text-[13px] font-semibold text-emerald-700">✅ {t('mv.monthlyActiveStatusLabel')}</p>
               )}
               <p className="font-sans text-[13px] text-dp-on-surface">{t('mv.yourMonthlyFeeLabel')}: <span className="font-bold ltr-num">₨{fmt(monthlyDetail.my_subscription.monthly_fee_pkr)}</span></p>
+              {myAttendance.length > 0 && (() => {
+                const todayStr = new Date().toISOString().slice(0, 10)
+                const todayRow = myAttendance.find((a) => a.run_date === todayStr)
+                return (
+                  <div className="bg-sky-50 border border-sky-200 rounded-lg p-2.5 flex flex-col gap-1.5">
+                    <p className="font-sans text-[11.5px] font-bold text-sky-900">{t('mv.myAttendanceHeading')}</p>
+                    {todayRow?.present && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-sans text-[12px] font-semibold text-sky-800">✅ {t('mv.markedPresentTodayLabel')}</span>
+                        <button onClick={declineTodaysAttendance} disabled={decliningAttendance} className="text-[11.5px] font-bold text-dp-error cursor-pointer disabled:opacity-50">
+                          {decliningAttendance ? t('action.saving') : t('mv.notOnboardedBtn')}
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {myAttendance.slice(0, 7).map((a) => (
+                        <span key={a.run_date} className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ltr-num ${a.present ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {a.run_date.slice(5)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
               {monthlyDetail.my_subscription.status !== 'waitlisted' && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex flex-col gap-1.5">
                   <p className="font-sans text-[11.5px] font-bold text-amber-900">{t('mv.markLeaveDayHeading')}</p>

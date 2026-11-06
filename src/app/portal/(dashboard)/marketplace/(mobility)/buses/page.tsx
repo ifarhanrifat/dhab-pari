@@ -50,6 +50,7 @@ interface NearbyTehsilRow {
 }
 interface MySeat {
   id: string; status: string; seats: number; travel_date: string; route_id: string | null
+  boarded_at: string | null; dropped_off_at: string | null
   vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null } | null
 }
 
@@ -99,7 +100,7 @@ export default function BusesPage() {
     Promise.all([
       supabase.from('vehicle_routes').select(`id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr, departure_time, return_departure_time, days_of_week, is_two_way, is_monthly_fixed, monthly_reference_fee_pkr, distance_km, route_duration_min, ${veh}`).eq('is_active', true).order('departure_time'),
       supabase.from('vehicle_trip_offers').select(`id, origin, origin_ur, destination, destination_ur, travel_date, departure_time_estimate, seats_available, listed_fare_per_seat_pkr, trip_type, ${veh}`).eq('status', 'open').gte('travel_date', today).order('travel_date'),
-      supabase.from('ride_bookings').select('id, status, seats, travel_date, route_id, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time)').eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).gte('travel_date', today).order('travel_date'),
+      supabase.from('ride_bookings').select('id, status, seats, travel_date, route_id, boarded_at, dropped_off_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time)').eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).gte('travel_date', today).order('travel_date'),
       supabase.rpc('nearby_tehsil_rides'),
     ]).then(([r, o, m, nearby]) => {
       const ownRoutes = (r.data ?? []) as unknown as RouteRow[]
@@ -165,6 +166,16 @@ export default function BusesPage() {
     else router.push('/portal/marketplace/shared')
   }
 
+  const declineBoarding = async (e: React.MouseEvent, bookingId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const supabase = createClient()
+    const { error } = await supabase.rpc('decline_boarding', { p_booking_id: bookingId })
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('bus.declinedBoardingToast'))
+    setMine((prev) => prev.map((s) => (s.id === bookingId ? { ...s, boarded_at: null } : s)))
+  }
+
   const confirmCrossTenantBooking = async () => {
     if (!crossTenantTarget) return
     const supabase = createClient()
@@ -209,6 +220,12 @@ export default function BusesPage() {
                     </span>
                     <span className="flex items-center gap-1 text-[11.5px] font-bold text-[#166534]"><MessageCircle size={13} /> {t('bus.groupChat')}</span>
                   </div>
+                  {s.boarded_at && !s.dropped_off_at && (
+                    <div className="mt-1.5 flex items-center justify-between gap-2">
+                      <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985]">{t('bus.onboardedBadge')}</span>
+                      <button onClick={(e) => declineBoarding(e, s.id)} className="text-[10.5px] font-bold text-[#b91c1c] cursor-pointer">{t('bus.notOnboardedBtn')}</button>
+                    </div>
+                  )}
                 </Link>
               )
             })}
