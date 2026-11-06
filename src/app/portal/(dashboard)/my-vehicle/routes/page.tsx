@@ -387,9 +387,8 @@ export default function MyVehicleRoutesPage() {
       </div>
 
       {showForm && (
-        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5 flex flex-col gap-2.5">
-          <p className="font-sans text-[13px] font-bold text-[#1e293b]">{t('mv.postRouteHeading')}</p>
-
+        <MobilityBottomSheet title={t('mv.postRouteHeading')} onClose={() => setShowForm(false)}>
+        <div className="flex flex-col gap-2.5">
           <CityReturnDemandCard limit={6} />
 
           <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1">{t('mv.routeBasicsSectionLabel')}</p>
@@ -615,6 +614,7 @@ export default function MyVehicleRoutesPage() {
             {t('mv.postRouteSubmitBtn')}
           </button>
         </div>
+        </MobilityBottomSheet>
       )}
 
       {routes.length === 0 && !showForm && <p className="font-sans text-[13px] text-[#94a3b8] text-center py-6">{t('mv.noRoutesYet')}</p>}
