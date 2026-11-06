@@ -43,11 +43,19 @@ const PALETTE = [
   ['#065f46', '#10b981'], ['#1e3a8a', '#3b82f6'], ['#7c2d12', '#f97316'], ['#581c87', '#a855f7'], ['#0f766e', '#2dd4bf'], ['#9d174d', '#ec4899'],
 ]
 function hashIdx(s: string) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % PALETTE.length }
-function emojiFor(type: string | undefined) {
+type VehicleGroup = 'shared' | 'auto' | 'bike' | 'car'
+function vehicleGroupFor(type: string | undefined): VehicleGroup {
   const t = (type ?? '').toLowerCase()
-  if (/coaster|bus|hiace|van|wagon|bolan|carry/.test(t)) return '🚐'
-  if (/rickshaw|qingqi|loader/.test(t)) return '🛺'
-  if (/bike|motor/.test(t)) return '🏍️'
+  if (/coaster|bus|hiace|van|wagon|bolan|carry/.test(t)) return 'shared'
+  if (/rickshaw|qingqi|loader/.test(t)) return 'auto'
+  if (/bike|motor/.test(t)) return 'bike'
+  return 'car'
+}
+function emojiFor(type: string | undefined) {
+  const g = vehicleGroupFor(type)
+  if (g === 'shared') return '🚐'
+  if (g === 'auto') return '🛺'
+  if (g === 'bike') return '🏍️'
   return '🚗'
 }
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -61,6 +69,7 @@ export default function BusesPage() {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [city, setCity] = useState<string | null>(null)
+  const [vehicleGroup, setVehicleGroup] = useState<VehicleGroup | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -93,17 +102,18 @@ export default function BusesPage() {
     const q = query.trim().toLowerCase()
     const match = (a: string, b: string | null, c: string, d: string | null) =>
       !q || [a, b, c, d].some((x) => x && x.toLowerCase().includes(q))
+    const groupOk = (type: string | undefined) => !vehicleGroup || vehicleGroupFor(type) === vehicleGroup
     const map = new Map<string, { key: string; label: string; routes: RouteRow[]; trips: TripRow[] }>()
     const add = (dest: string, destUr: string | null) => {
       const key = dest.trim().toLowerCase()
       if (!map.has(key)) map.set(key, { key, label: nm(dest, destUr), routes: [], trips: [] })
       return map.get(key)!
     }
-    for (const r of routes) if (match(r.origin, r.origin_ur, r.destination, r.destination_ur)) add(r.destination, r.destination_ur).routes.push(r)
-    for (const o of trips) if (match(o.origin, o.origin_ur, o.destination, o.destination_ur)) add(o.destination, o.destination_ur).trips.push(o)
+    for (const r of routes) if (match(r.origin, r.origin_ur, r.destination, r.destination_ur) && groupOk(r.vehicles?.vehicle_type)) add(r.destination, r.destination_ur).routes.push(r)
+    for (const o of trips) if (match(o.origin, o.origin_ur, o.destination, o.destination_ur) && groupOk(o.vehicles?.vehicle_type)) add(o.destination, o.destination_ur).trips.push(o)
     return Array.from(map.values()).sort((a, b) => (b.routes.length + b.trips.length) - (a.routes.length + a.trips.length))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routes, trips, query, isUrdu])
+  }, [routes, trips, query, vehicleGroup, isUrdu])
   const shown = city ? groups.filter((g) => g.key === city) : groups
 
   if (loading) return <div className="text-center py-12"><LoadingDots /></div>
@@ -143,6 +153,15 @@ export default function BusesPage() {
           </div>
         </div>
       )}
+
+      <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+        {([null, 'shared', 'car', 'auto', 'bike'] as const).map((g) => (
+          <button key={g ?? 'all'} onClick={() => setVehicleGroup(g)}
+            className={`shrink-0 h-9 px-3.5 rounded-full font-sans text-[12.5px] font-bold border ${vehicleGroup === g ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>
+            {g === null ? t('bus.filterAll') : g === 'shared' ? t('bus.filterShared') : g === 'car' ? t('bus.filterCar') : g === 'auto' ? t('bus.filterAuto') : t('bus.filterBike')}
+          </button>
+        ))}
+      </div>
 
       {groups.length > 1 && (
         <div className="flex gap-2 overflow-x-auto hide-scrollbar">

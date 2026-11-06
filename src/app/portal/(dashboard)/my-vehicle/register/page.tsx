@@ -36,7 +36,7 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 
 interface RegStatus { id: string; status: 'pending' | 'approved' | 'rejected'; rejection_reason: string | null; created_at: string }
 interface ServiceClass { id: string; name: string; name_ur: string | null; category: string }
-interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; per_km_pkr: number; intercity_commission_pct: number }
+interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; per_km_pkr: number; intercity_commission_pct: number; ride_group: string | null }
 interface VehicleModel { id: string; make: string; model: string }
 
 const emptyForm = {
@@ -73,7 +73,7 @@ export default function VehicleRegisterPage() {
     if (!user) return
     supabase.rpc('my_vehicle_registration_status').then(({ data }) => setStatus(data ?? null))
     supabase.from('service_classes').select('id, name, name_ur, category').eq('is_active', true).order('display_order').then(({ data }) => setServiceClasses(data ?? []))
-    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, per_km_pkr, intercity_commission_pct').eq('is_active', true).order('display_order').then(({ data }) => setCategories(data ?? []))
+    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, per_km_pkr, intercity_commission_pct, ride_group').eq('is_active', true).order('display_order').then(({ data }) => setCategories(data ?? []))
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -106,6 +106,8 @@ export default function VehicleRegisterPage() {
   }
 
   const selectedCategory = categories.find((c) => c.id === form.category_id) ?? null
+  const sharedRideCategories = categories.filter((c) => c.ride_group === 'shared_ride')
+  const otherCategories = categories.filter((c) => c.ride_group !== 'shared_ride')
 
   const submit = async () => {
     if (!form.owner_name.trim() || !form.cnic_number.trim() || !form.address.trim() || !form.category_id) {
@@ -168,8 +170,27 @@ export default function VehicleRegisterPage() {
       </div>
 
       <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.categoryPickerLabel')}</p>
+      {sharedRideCategories.length > 0 && (
+        <>
+          <p className="font-sans text-[11px] font-bold text-[#166534] uppercase tracking-[0.05em] mb-2">{t('vr.sharedRideHeading')}</p>
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {sharedRideCategories.map((c) => {
+              const on = form.category_id === c.id
+              return (
+                <button key={c.id} type="button" onClick={() => setForm({ ...form, category_id: c.id })}
+                  className="flex flex-col items-center gap-1 py-3 rounded-2xl border-2 cursor-pointer transition-colors"
+                  style={{ borderColor: on ? '#166534' : '#e5e2d0', background: on ? '#F0FDF4' : '#fff' }}>
+                  <span className="text-[24px]">{c.emoji}</span>
+                  <span className="font-sans text-[10.5px] font-semibold text-[#1e293b] text-center leading-tight">{isUrdu && c.name_ur ? c.name_ur : c.name}</span>
+                </button>
+              )
+            })}
+          </div>
+          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.otherVehiclesHeading')}</p>
+        </>
+      )}
       <div className="grid grid-cols-4 gap-2 mb-5">
-        {categories.map((c) => {
+        {otherCategories.map((c) => {
           const on = form.category_id === c.id
           return (
             <button key={c.id} type="button" onClick={() => setForm({ ...form, category_id: c.id })}
