@@ -19,7 +19,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Subscriber { id: string; name: string; stop_label: string | null; monthly_fee_pkr: number; status: string; scheduled_cancellation_at: string | null }
 interface WaitlistRow { id: string; name: string; queue_position: number; monthly_fee_pkr: number }
-interface DueCharge { id: string; rider_name: string; month: number; year: number; amount_pkr: number }
+interface DueCharge { id: string; rider_name: string; month: number; year: number; amount_pkr: number; proof_url: string | null }
 interface Detail { seats_total: number; active_count: number; subscribers: Subscriber[]; waitlist: WaitlistRow[]; due_charges: DueCharge[] }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -128,6 +128,9 @@ export function RouteMonthlySubscribersPanel({ routeId, onClose }: { routeId: st
               {detail.due_charges.map((c) => (
                 <div key={c.id} className="flex items-center gap-2 rounded-lg bg-amber-50 px-2.5 py-1.5">
                   <span className="flex-1 min-w-0 font-sans text-[12px] font-semibold text-[#1e293b] truncate">{c.rider_name} · {c.month}/{c.year}</span>
+                  {c.proof_url && (
+                    <a href={c.proof_url} target="_blank" rel="noopener noreferrer" className="shrink-0 font-sans text-[10.5px] font-bold text-sky-700 underline">{t('mv.viewReceiptLink')}</a>
+                  )}
                   <span className="shrink-0 font-sans text-[11px] font-bold text-amber-700 ltr-num">₨{fmt(c.amount_pkr)}</span>
                   <button onClick={() => markPaid(c.id)} disabled={actionId === c.id} className="shrink-0 px-2 py-1 rounded-lg text-[10.5px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">
                     {t('mv.markPaidBtn')}

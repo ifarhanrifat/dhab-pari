@@ -66,6 +66,7 @@ interface Route {
   route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
   is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
   is_two_way: boolean; return_wait_minutes: number | null
+  seat_override: number | null
 }
 interface RouteIlan { id: string; vehicle_route_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 
@@ -123,7 +124,7 @@ export default function MyVehicleRoutesPage() {
   const [stopsRouteId, setStopsRouteId] = useState<string | null>(null)
   const [pendingIlanRoute, setPendingIlanRoute] = useState<{ origin: string; destination: string } | null>(null)
   const [groupRouteId, setGroupRouteId] = useState<string | null>(null)
-  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[]; is_two_way: boolean; return_wait_minutes: number } | null>(null)
+  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[]; is_two_way: boolean; return_wait_minutes: number; seat_override: string } | null>(null)
   const [savingSchedule, setSavingSchedule] = useState(false)
   const [stopCounts, setStopCounts] = useState<Record<string, number>>({})
   const [nextRunSeats, setNextRunSeats] = useState<Record<string, number>>({})
@@ -137,7 +138,7 @@ export default function MyVehicleRoutesPage() {
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
-      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes')
+      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
@@ -224,6 +225,10 @@ export default function MyVehicleRoutesPage() {
       p_return_departure_time: editSchedule.is_two_way ? (editSchedule.return_departure_time || null) : null,
       p_is_two_way: editSchedule.is_two_way, p_return_wait_minutes: editSchedule.is_two_way ? editSchedule.return_wait_minutes : null,
     })
+    if (!error) {
+      const seatOverride = editSchedule.seat_override.trim() ? Number(editSchedule.seat_override) : null
+      await supabase.rpc('set_route_seat_override', { p_route_id: editSchedule.id, p_seat_override: seatOverride })
+    }
     setSavingSchedule(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mv.scheduleUpdatedToast'))
@@ -745,7 +750,7 @@ export default function MyVehicleRoutesPage() {
                 )}
                 {r.is_active && (
                   <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[#f1f5f9]">
-                    <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [], is_two_way: r.is_two_way, return_wait_minutes: r.return_wait_minutes ?? 300 })}
+                    <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [], is_two_way: r.is_two_way, return_wait_minutes: r.return_wait_minutes ?? 300, seat_override: r.seat_override != null ? String(r.seat_override) : '' })}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
                       <Pencil size={11} /> {t('mv.editScheduleBtn')}
                     </button>
@@ -913,6 +918,12 @@ export default function MyVehicleRoutesPage() {
                   )
                 })}
               </div>
+            </div>
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.seatOverrideLabel')}</label>
+              <input type="number" min={1} value={editSchedule.seat_override} onChange={(e) => setEditSchedule({ ...editSchedule, seat_override: e.target.value })}
+                placeholder={totalSeats ? String(totalSeats) : ''} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num" />
+              <p className="font-sans text-[10.5px] text-[#94a3b8] mt-1">{t('mv.seatOverrideHint').replace('{n}', String(totalSeats ?? '—'))}</p>
             </div>
             <button onClick={saveSchedule} disabled={savingSchedule} className="w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
               {savingSchedule ? t('action.saving') : t('action.save')}

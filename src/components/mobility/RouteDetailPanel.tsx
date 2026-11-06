@@ -44,11 +44,13 @@ interface Route {
   route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
   is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
   is_two_way: boolean; return_wait_minutes: number | null
+  seat_override: number | null
 }
 interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string }
 interface Stop { id: string; label: string; label_ur: string | null; lat: number; lng: number; stop_order: number }
 interface MonthlySubscription { id: string; status: string; monthly_fee_pkr: number; queue_position: number | null; scheduled_cancellation_at: string | null }
 interface MonthlyDetail { is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null; seats_total: number; active_count: number; my_subscription: MonthlySubscription | null; my_leave_days: string[] }
+interface DepositPreview { monthly_fee_pkr: number; deposit_pkr: number; days_remaining: number; days_total: number }
 interface AttendanceRow { run_date: string; present: boolean; marked_at: string }
 interface MyBooking { id: string; travel_date: string; seats: number; total_amount_pkr: number; status: string }
 
@@ -118,6 +120,18 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [reschedulingId, setReschedulingId] = useState<string | null>(null)
   const mapRef = useRef<LeafletMapHandle>(null)
   const [rescheduleDate, setRescheduleDate] = useState('')
+  // Real ask, 2026-11-07: a villager boarding mid-route shouldn't pay
+  // the full origin→destination fare — pick where you get on and off,
+  // same distance-proportional math monthly seats already use
+  // (route_fraction_remaining), now extended to ordinary per-day
+  // bookings (fixed-fare routes only — see migration 822).
+  const [boardStopId, setBoardStopId] = useState<string | null>(null)
+  const [alightStopId, setAlightStopId] = useState<string | null>(null)
+  const [segmentFraction, setSegmentFraction] = useState(1)
+  const [depositPreview, setDepositPreview] = useState<DepositPreview | null>(null)
+  const [applyProofPath, setApplyProofPath] = useState('')
+  const [applyMethod, setApplyMethod] = useState('cash')
+  const [leaveDateEnd, setLeaveDateEnd] = useState('')
 
   const loadMyBookings = async () => {
     if (!user) return
@@ -178,6 +192,29 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [travelDate, route?.id, route?.is_two_way, wrongDay])
 
+  useEffect(() => {
+    if (!route || route.fare_mode === 'flex' || !boardStopId || !alightStopId) { setSegmentFraction(1); return }
+    const boardStop = stops.find((s) => s.id === boardStopId)
+    const alightStop = stops.find((s) => s.id === alightStopId)
+    if (!boardStop || !alightStop) { setSegmentFraction(1); return }
+    Promise.all([
+      supabase.rpc('route_fraction_remaining', { p_route_id: route.id, p_lat: boardStop.lat, p_lng: boardStop.lng }),
+      supabase.rpc('route_fraction_remaining', { p_route_id: route.id, p_lat: alightStop.lat, p_lng: alightStop.lng }),
+    ]).then(([a, b]) => {
+      const f = (a.data as number) - (b.data as number)
+      setSegmentFraction(f > 0 ? f : 1)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route?.id, boardStopId, alightStopId, stops])
+
+  useEffect(() => {
+    if (!route?.is_monthly_fixed || monthlyDetail?.my_subscription || !selectedBoardStopId) { setDepositPreview(null); return }
+    supabase.rpc('preview_monthly_deposit', { p_route_id: route.id, p_board_stop_id: selectedBoardStopId }).then(({ data }) => {
+      setDepositPreview(data as DepositPreview | null)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route?.id, route?.is_monthly_fixed, selectedBoardStopId, monthlyDetail?.my_subscription])
+
   const bookReturnSeat = async () => {
     if (!route) return
     if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
@@ -200,19 +237,22 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   // moment this booking is placed. seatsBookedSoFar comes from
   // route_seats_available (already fetched, already public) rather
   // than a second query.
-  const seatsBookedSoFar = isFlex && vehicle && available !== null ? vehicle.total_seats - available : 0
+  const effectiveSeats = route?.seat_override ?? vehicle?.total_seats ?? 0
+  const seatsBookedSoFar = isFlex && effectiveSeats && available !== null ? effectiveSeats - available : 0
   const estimatedPerSeatNow = isFlex && route?.total_fare_pkr ? route.total_fare_pkr / Math.max(1, seatsBookedSoFar + seats) : 0
-  const minPerSeatIfFull = isFlex && route?.total_fare_pkr && vehicle ? route.total_fare_pkr / vehicle.total_seats : 0
-  const total = !route ? 0 : isFlex ? Math.round(seats * estimatedPerSeatNow) : seats * route.fare_per_seat_pkr
+  const minPerSeatIfFull = isFlex && route?.total_fare_pkr && effectiveSeats ? route.total_fare_pkr / effectiveSeats : 0
+  const total = !route ? 0 : isFlex ? Math.round(seats * estimatedPerSeatNow) : Math.round(seats * route.fare_per_seat_pkr * segmentFraction)
   const isPerOrder = vehicle?.commission_mode === 'per_order'
 
   const submit = async () => {
     if (!route) return
     if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
     if (!isPerOrder && !proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
+    if ((boardStopId && !alightStopId) || (!boardStopId && alightStopId)) { toast.error(t('mv.pickBothStopsError')); return }
     setSubmitting(true)
     const { data: placed, error } = await supabase.rpc('place_ride_booking', {
       p_route_id: route.id, p_travel_date: travelDate, p_seats: seats, p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : proofPath,
+      p_board_stop_id: boardStopId, p_alight_stop_id: alightStopId,
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -270,8 +310,12 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
 
   const applyForSeat = async () => {
     if (!route || !selectedBoardStopId) { toast.error(t('mv.pickBoardStopLabel')); return }
+    if (!isPerOrder && (depositPreview?.deposit_pkr ?? 0) > 0 && !applyProofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     setApplying(true)
-    const { error } = await supabase.rpc('apply_for_monthly_seat', { p_route_id: route.id, p_board_stop_id: selectedBoardStopId })
+    const { error } = await supabase.rpc('apply_for_monthly_seat', {
+      p_route_id: route.id, p_board_stop_id: selectedBoardStopId,
+      p_method: isPerOrder ? 'direct' : applyMethod, p_proof_url: isPerOrder ? null : (applyProofPath || null),
+    })
     setApplying(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mv.monthlyAppliedToast'))
@@ -291,11 +335,13 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const markLeave = async () => {
     if (!monthlyDetail?.my_subscription || !leaveDate) return
     setMarkingLeave(true)
-    const { error } = await supabase.rpc('mark_subscription_leave_day', { p_subscription_id: monthlyDetail.my_subscription.id, p_leave_date: leaveDate })
+    const { error } = await supabase.rpc('mark_subscription_leave_day', {
+      p_subscription_id: monthlyDetail.my_subscription.id, p_leave_date: leaveDate, p_leave_date_end: leaveDateEnd || null,
+    })
     setMarkingLeave(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mv.leaveDayMarkedToast'))
-    setLeaveDate('')
+    setLeaveDate(''); setLeaveDateEnd('')
     reloadMonthlyDetail()
   }
 
@@ -453,12 +499,15 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                       ))}
                     </div>
                   )}
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 items-center">
                     <input type="date" value={leaveDate} min={todayStr()} onChange={(e) => setLeaveDate(e.target.value)} className="input-field flex-1 text-[12.5px]" />
-                    <button onClick={markLeave} disabled={markingLeave || !leaveDate} className="shrink-0 px-3 rounded-lg bg-amber-600 text-white font-sans text-[12px] font-semibold cursor-pointer disabled:opacity-50">
-                      {markingLeave ? t('action.saving') : t('mv.markLeaveDayBtn')}
-                    </button>
+                    <span className="font-sans text-[11px] text-amber-700">{t('mv.toLabel')}</span>
+                    <input type="date" value={leaveDateEnd} min={leaveDate || todayStr()} onChange={(e) => setLeaveDateEnd(e.target.value)} className="input-field flex-1 text-[12.5px]" placeholder={t('mv.sameDayHint')} />
                   </div>
+                  <p className="font-sans text-[10.5px] text-amber-700">{t('mv.leaveRangeHint')}</p>
+                  <button onClick={markLeave} disabled={markingLeave || !leaveDate} className="w-full px-3 py-1.5 rounded-lg bg-amber-600 text-white font-sans text-[12px] font-semibold cursor-pointer disabled:opacity-50">
+                    {markingLeave ? t('action.saving') : t('mv.markLeaveDayBtn')}
+                  </button>
                 </div>
               )}
               {monthlyDetail.my_subscription.status !== 'pending_cancellation' && (
@@ -474,7 +523,34 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 <option value="">—</option>
                 {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
               </select>
-              <button onClick={applyForSeat} disabled={applying || !selectedBoardStopId} className="w-full bg-dp-secondary text-white rounded-lg py-2.5 font-sans font-semibold active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+              {depositPreview && (
+                <div className="bg-sky-50 border border-sky-200 rounded-lg p-2.5 flex flex-col gap-1">
+                  <p className="font-sans text-[12px] text-sky-900">{t('mv.monthlyFeeLabel')}: <span className="font-bold ltr-num">₨{fmt(depositPreview.monthly_fee_pkr)}</span></p>
+                  {depositPreview.deposit_pkr > 0 ? (
+                    <>
+                      <p className="font-sans text-[12.5px] font-bold text-sky-900">{t('mv.advanceDueLabel')}: <span className="ltr-num">₨{fmt(depositPreview.deposit_pkr)}</span></p>
+                      <p className="font-sans text-[10.5px] text-sky-700 ltr-num">{t('mv.advanceDaysHint').replace('{remaining}', String(depositPreview.days_remaining)).replace('{total}', String(depositPreview.days_total))}</p>
+                    </>
+                  ) : (
+                    <p className="font-sans text-[11.5px] text-sky-700">{t('mv.noAdvanceDueHint')}</p>
+                  )}
+                </div>
+              )}
+              {depositPreview && depositPreview.deposit_pkr > 0 && !isPerOrder && (
+                <>
+                  <select value={applyMethod} onChange={(e) => setApplyMethod(e.target.value)} className="input-field">
+                    <option value="cash">{t('w.cash')}</option>
+                    <option value="jazzcash">{t('w.jazzcash')}</option>
+                    <option value="easypaisa">{t('w.easypaisa')}</option>
+                    <option value="bank">{t('a.bank')}</option>
+                  </select>
+                  <DonationReceiptUpload onUpload={setApplyProofPath} />
+                </>
+              )}
+              {depositPreview && depositPreview.deposit_pkr > 0 && isPerOrder && (
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5">{t('cm.payDirectlyNote')}</p>
+              )}
+              <button onClick={applyForSeat} disabled={applying || !selectedBoardStopId || (!isPerOrder && (depositPreview?.deposit_pkr ?? 0) > 0 && !applyProofPath)} className="w-full bg-dp-secondary text-white rounded-lg py-2.5 font-sans font-semibold active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                 {applying ? t('mp.placingBooking') : t('mv.applyMonthlySeatBtn')}
               </button>
             </div>
@@ -491,6 +567,28 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
 
       {!route.is_monthly_fixed && bookable && (
       <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-5">
+        {!isFlex && stops.length > 0 && (
+          <div className="mb-4 pb-4 border-b border-dp-outline-variant">
+            <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{t('mv.boardAlightHeading')}</p>
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mv.boardStopLabel')}</label>
+            <select value={boardStopId ?? ''} onChange={(e) => setBoardStopId(e.target.value || null)} className="input-field">
+              <option value="">{t('mv.fullRouteOption')}</option>
+              {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
+            </select>
+            {boardStopId && (
+              <>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1 mt-2.5">{t('mv.alightStopLabel')}</label>
+                <select value={alightStopId ?? ''} onChange={(e) => setAlightStopId(e.target.value || null)} className="input-field">
+                  <option value="">—</option>
+                  {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
+                </select>
+              </>
+            )}
+            {boardStopId && alightStopId && (
+              <p className="font-sans text-[11.5px] text-dp-secondary mt-1.5">{t('mv.segmentFareHint').replace('{pct}', String(Math.round(segmentFraction * 100)))}</p>
+            )}
+          </div>
+        )}
         <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('mp.travelDateLabel')}</label>
         <input type="date" min={todayStr()} value={travelDate} onChange={(e) => setTravelDate(e.target.value)} className="input-field" />
         {wrongDay && <p className="font-sans text-[12px] text-dp-error mt-1.5">{t('mp.wrongDayError')}</p>}
