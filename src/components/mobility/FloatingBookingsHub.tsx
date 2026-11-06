@@ -34,6 +34,8 @@ import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { RequestWaitingSheet, type WaitingKind, type WaitingSummary } from '@/components/mobility/RequestWaitingSheet'
 import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
 import { BookingLifecycleSheet, type LifecycleKind } from '@/components/mobility/BookingLifecycleSheet'
+import { RouteBookingSheet } from '@/components/mobility/RouteBookingSheet'
+import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
 
 type ItemState = 'ongoing' | 'searching' | 'action' | 'waiting'
 
@@ -50,6 +52,14 @@ interface HubItem {
   // equipment — opens the same BookingLifecycleSheet the driver's own
   // my-vehicle pages use, not the rider-facing RequestWaitingSheet.
   driverLifecycle?: { kind: LifecycleKind; id: string; vehicleId: string; commissionMode: string }
+  // A rider's own booked seat on a route — opens RouteBookingSheet
+  // directly (book/cancel/reschedule), same popup the browse screen
+  // now uses, instead of a page navigation.
+  routeSheetId?: string
+  // The driver's own route needing attention (roster to review, or
+  // already live) — opens RouteGroupPanel directly, the same popup
+  // already used for day-to-day route management.
+  routeGroupId?: string
   href?: string
   // Real ask, 2026-11-05: "show the number of bookings on these saved
   // return rides... floating button will show alert types in numeric
@@ -178,6 +188,8 @@ export function FloatingBookingsHub() {
   const [openSheet, setOpenSheet] = useState<HubItem['sheet'] | null>(null)
   const [openRideSheetId, setOpenRideSheetId] = useState<string | null>(null)
   const [openDriverLifecycle, setOpenDriverLifecycle] = useState<HubItem['driverLifecycle'] | null>(null)
+  const [openRouteSheetId, setOpenRouteSheetId] = useState<string | null>(null)
+  const [openGroupRouteId, setOpenGroupRouteId] = useState<string | null>(null)
   const [listOpen, setListOpen] = useState(false)
   const drag = useDraggablePosition()
 
@@ -189,7 +201,7 @@ export function FloatingBookingsHub() {
       supabase.rpc('my_hourly_bookings'),
       supabase.rpc('my_rental_bookings'),
       supabase.rpc('my_equipment_bookings'),
-      supabase.from('ride_bookings').select('id, seats, travel_date, total_amount_pkr, created_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time), adda_queue_entries(addas(name, name_ur))').eq('portal_user_id', user!.id).eq('status', 'announced'),
+      supabase.from('ride_bookings').select('id, route_id, seats, travel_date, total_amount_pkr, created_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time), adda_queue_entries(addas(name, name_ur))').eq('portal_user_id', user!.id).eq('status', 'announced'),
       supabase.from('ride_dispatch_requests').select('id, pickup_label, dropoff_label, fare_pkr, created_at').eq('initiator_portal_user_id', user!.id).eq('status', 'open'),
       supabase.rpc('my_city_purchase_requests'),
       supabase.rpc('my_parcel_deliveries'),
@@ -275,9 +287,9 @@ export function FloatingBookingsHub() {
         | { kind: 'adda_action'; entry_id: string; adda_name: string; adda_name_ur: string | null; pending_count: number }
       >) {
         if (item.kind === 'route_ongoing') {
-          out.push({ key: `rto-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'ongoing', since: item.started_at, href: `/portal/marketplace/route/${item.route_id}` })
+          out.push({ key: `rto-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'ongoing', since: item.started_at, routeGroupId: item.route_id })
         } else if (item.kind === 'route_action') {
-          out.push({ key: `rta-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'action', since: new Date().toISOString(), href: `/portal/marketplace/route/${item.route_id}`, badgeCount: item.pending_count })
+          out.push({ key: `rta-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'action', since: new Date().toISOString(), routeGroupId: item.route_id, badgeCount: item.pending_count })
         } else if (item.kind === 'adda_ongoing') {
           out.push({ key: `ado-${item.entry_id}`, emoji: '🚐', label: `${nm(item.adda_name, item.adda_name_ur)}`, state: 'ongoing', since: new Date().toISOString(), href: '/portal/my-vehicle/adda' })
         } else {
@@ -355,7 +367,7 @@ export function FloatingBookingsHub() {
         state: payAdvance ? 'action' : ongoing ? 'ongoing' : 'searching', since: b.requested_at,
         sheet: { kind: 'equipment', id: b.id, viewHref: `/portal/marketplace/${b.kind}`, summary: { vehicleLabel: vehicleDisplayName(b.vehicle_type, b.model), driverName: b.owner_name, from: b.site_address, amount: b.total_amount_pkr ?? b.rate_pkr } } })
     }
-    for (const b of (seats.data ?? []) as unknown as { id: string; seats: number; travel_date: string; total_amount_pkr: number; created_at: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null } | null; adda_queue_entries: { addas: { name: string; name_ur: string | null } | null } | null }[]) {
+    for (const b of (seats.data ?? []) as unknown as { id: string; route_id: string | null; seats: number; travel_date: string; total_amount_pkr: number; created_at: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null } | null; adda_queue_entries: { addas: { name: string; name_ur: string | null } | null } | null }[]) {
       const r = b.vehicle_routes
       const adda = b.adda_queue_entries?.addas
       const title = r ? `${nm(r.origin, r.origin_ur)} → ${nm(r.destination, r.destination_ur)}` : nm(adda?.name, adda?.name_ur)
@@ -363,8 +375,13 @@ export function FloatingBookingsHub() {
       // adda (turn-based queue) has no fixed departure, so it keeps its
       // plain "waiting" status instead of a fabricated countdown.
       const countdownTarget = r?.departure_time ? new Date(`${b.travel_date}T${r.departure_time}+05:00`).getTime() : undefined
+      // A route booking opens the same popup (book/cancel/reschedule)
+      // the browse screen now uses, directly — an adda booking (no
+      // route_id) falls back to the existing waiting-sheet pattern.
       out.push({ key: `s-${b.id}`, emoji: '🚌', label: `${t('rq.kind.route')} · ${title}`, state: 'waiting', since: b.created_at, countdownTarget,
-        sheet: { kind: 'seat', id: b.id, viewHref: '/portal/marketplace/trips', summary: { vehicleLabel: title, from: r ? nm(r.origin, r.origin_ur) : nm(adda?.name, adda?.name_ur), to: r ? nm(r.destination, r.destination_ur) : null, amount: b.total_amount_pkr, facts: [b.travel_date, t('rw.seats').replace('{n}', String(b.seats))] } } })
+        ...(b.route_id
+          ? { routeSheetId: b.route_id }
+          : { sheet: { kind: 'seat', id: b.id, viewHref: '/portal/marketplace/trips', summary: { vehicleLabel: title, from: nm(adda?.name, adda?.name_ur), to: null, amount: b.total_amount_pkr, facts: [b.travel_date, t('rw.seats').replace('{n}', String(b.seats))] } } }) })
     }
     for (const d of (rides.data ?? []) as { id: string; pickup_label: string; dropoff_label: string; fare_pkr: number; created_at: string }[]) {
       out.push({ key: `d-${d.id}`, emoji: '🚕', label: `${t('rq.kind.ride_dispatch')} · ${d.dropoff_label}`, state: 'searching', since: d.created_at, href: `/portal/marketplace/ride-dispatch/${d.id}` })
@@ -395,12 +412,16 @@ export function FloatingBookingsHub() {
     setListOpen(false)
     if (it.rideSheetBookingId) setOpenRideSheetId(it.rideSheetBookingId)
     else if (it.driverLifecycle) setOpenDriverLifecycle(it.driverLifecycle)
+    else if (it.routeSheetId) setOpenRouteSheetId(it.routeSheetId)
+    else if (it.routeGroupId) setOpenGroupRouteId(it.routeGroupId)
     else if (it.sheet) setOpenSheet(it.sheet)
     else if (it.href) router.push(it.href)
   }
 
   const renderSheet = () => {
     if (openRideSheetId) return <RideLifecycleSheet bookingId={openRideSheetId} onClose={() => { setOpenRideSheetId(null); load() }} />
+    if (openRouteSheetId) return <RouteBookingSheet routeId={openRouteSheetId} onClose={() => { setOpenRouteSheetId(null); load() }} />
+    if (openGroupRouteId) return <RouteGroupPanel routeId={openGroupRouteId} onClose={() => { setOpenGroupRouteId(null); load() }} />
     if (openDriverLifecycle) {
       return (
         <BookingLifecycleSheet

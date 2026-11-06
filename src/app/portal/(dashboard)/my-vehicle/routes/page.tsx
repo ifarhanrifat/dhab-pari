@@ -65,6 +65,7 @@ interface Route {
   departure_time: string | null; return_departure_time: string | null; days_of_week: number[]
   route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
   is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
+  is_two_way: boolean; return_wait_minutes: number | null
 }
 interface RouteIlan { id: string; vehicle_route_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 
@@ -122,7 +123,7 @@ export default function MyVehicleRoutesPage() {
   const [stopsRouteId, setStopsRouteId] = useState<string | null>(null)
   const [pendingIlanRoute, setPendingIlanRoute] = useState<{ origin: string; destination: string } | null>(null)
   const [groupRouteId, setGroupRouteId] = useState<string | null>(null)
-  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[] } | null>(null)
+  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[]; is_two_way: boolean; return_wait_minutes: number } | null>(null)
   const [savingSchedule, setSavingSchedule] = useState(false)
   const [stopCounts, setStopCounts] = useState<Record<string, number>>({})
   const [nextRunSeats, setNextRunSeats] = useState<Record<string, number>>({})
@@ -136,7 +137,7 @@ export default function MyVehicleRoutesPage() {
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
-      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr')
+      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
@@ -220,7 +221,8 @@ export default function MyVehicleRoutesPage() {
     setSavingSchedule(true)
     const { error } = await supabase.rpc('update_vehicle_route_schedule', {
       p_route_id: editSchedule.id, p_departure_time: editSchedule.departure_time || null, p_days_of_week: editSchedule.days_of_week,
-      p_return_departure_time: editSchedule.return_departure_time || null,
+      p_return_departure_time: editSchedule.is_two_way ? (editSchedule.return_departure_time || null) : null,
+      p_is_two_way: editSchedule.is_two_way, p_return_wait_minutes: editSchedule.is_two_way ? editSchedule.return_wait_minutes : null,
     })
     setSavingSchedule(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -743,7 +745,7 @@ export default function MyVehicleRoutesPage() {
                 )}
                 {r.is_active && (
                   <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[#f1f5f9]">
-                    <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [] })}
+                    <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [], is_two_way: r.is_two_way, return_wait_minutes: r.return_wait_minutes ?? 300 })}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
                       <Pencil size={11} /> {t('mv.editScheduleBtn')}
                     </button>
@@ -872,10 +874,31 @@ export default function MyVehicleRoutesPage() {
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
               <input type="time" value={editSchedule.departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
             </div>
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
-              <input type="time" value={editSchedule.return_departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, return_departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
-            </div>
+            <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] font-semibold text-[#1e293b] cursor-pointer">
+              <input type="checkbox" checked={editSchedule.is_two_way} onChange={(e) => setEditSchedule({ ...editSchedule, is_two_way: e.target.checked, return_departure_time: e.target.checked ? editSchedule.return_departure_time : '' })} />
+              {t('mv.isTwoWayToggleLabel')}
+            </label>
+            {editSchedule.is_two_way && (
+              <>
+                <div>
+                  <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.returnWaitMinutesLabel')}</label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {[300, 360, 480].map((mins) => (
+                      <button key={mins} type="button" onClick={() => setEditSchedule({ ...editSchedule, return_wait_minutes: mins })}
+                        className={`px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${editSchedule.return_wait_minutes === mins ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                        {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
+                      </button>
+                    ))}
+                    <input type="number" min={30} step={30} value={editSchedule.return_wait_minutes} onChange={(e) => setEditSchedule({ ...editSchedule, return_wait_minutes: Number(e.target.value) })}
+                      className="w-24 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" placeholder={t('mv.customMinutesPlaceholder')} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
+                  <input type="time" value={editSchedule.return_departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, return_departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+                </div>
+              </>
+            )}
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>
               <div className="flex gap-1.5 flex-wrap">

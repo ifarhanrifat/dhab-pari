@@ -24,6 +24,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { FarePolicyCard } from '@/components/mobility/FarePolicyCard'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
+import { RouteBookingSheet } from '@/components/mobility/RouteBookingSheet'
 import { friendlyError } from '@/lib/errors'
 
 interface VehicleLite { owner_name: string; vehicle_type: string; model: string | null; color: string | null; total_seats: number | null; has_ac: boolean | null; vehicle_number: string | null }
@@ -80,6 +81,7 @@ export default function BusesPage() {
   const { user } = usePortalUser()
   const router = useRouter()
   const [crossTenantTarget, setCrossTenantTarget] = useState<{ kind: 'route'; row: RouteRow } | { kind: 'trip'; row: TripRow } | null>(null)
+  const [openRouteId, setOpenRouteId] = useState<string | null>(null)
   const [bookSeats, setBookSeats] = useState(1)
   const [bookDate, setBookDate] = useState('')
   const [booking, setBooking] = useState(false)
@@ -159,7 +161,7 @@ export default function BusesPage() {
 
   const openRoute = (r: RouteRow) => {
     if (r.source_tenant_name) { setBookSeats(1); setBookDate(''); setCrossTenantTarget({ kind: 'route', row: r }) }
-    else router.push(`/portal/marketplace/route/${r.id}`)
+    else setOpenRouteId(r.id)
   }
   const openTrip = (o: TripRow) => {
     if (o.source_tenant_name) { setBookSeats(1); setCrossTenantTarget({ kind: 'trip', row: o }) }
@@ -372,6 +374,7 @@ export default function BusesPage() {
           </div>
         </MobilityBottomSheet>
       )}
+      {openRouteId && <RouteBookingSheet routeId={openRouteId} onClose={() => setOpenRouteId(null)} />}
     </div>
   )
 }
