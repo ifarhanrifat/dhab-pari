@@ -363,6 +363,17 @@ export default function MyVehicleRoutesPage() {
     }
   }
 
+  const editMonthlyFee = async (r: Route) => {
+    const input = window.prompt(t('mv.editMonthlyFeePrompt'), String(r.monthly_reference_fee_pkr ?? ''))
+    if (input == null) return
+    const fee = Number(input)
+    if (!fee || fee <= 0) { toast.error(t('mv.monthlyReferenceFeeRequiredError')); return }
+    const { error } = await supabase.rpc('set_route_monthly_pricing', { p_route_id: r.id, p_is_monthly_fixed: true, p_monthly_reference_fee_pkr: fee })
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.monthlyFeeUpdatedToast'))
+    if (vehicleId) reload(vehicleId)
+  }
+
   const cancelConfirmedBooking = async (id: string) => {
     if (!confirm(t('mp.confirmCancelConfirmedHint'))) return
     const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
@@ -706,10 +717,16 @@ export default function MyVehicleRoutesPage() {
                       <Users size={11} /> {t('mv.routeGroupBtn')}
                     </button>
                     {r.is_monthly_fixed && (
-                      <button onClick={() => setMonthlyRidersRouteId(r.id)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-amber-200 text-amber-700 bg-amber-50">
-                        <Users size={11} /> {t('mv.manageRidersBtn')}
-                      </button>
+                      <>
+                        <button onClick={() => setMonthlyRidersRouteId(r.id)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-amber-200 text-amber-700 bg-amber-50">
+                          <Users size={11} /> {t('mv.manageRidersBtn')}
+                        </button>
+                        <button onClick={() => editMonthlyFee(r)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-amber-200 text-amber-700 bg-amber-50">
+                          <Pencil size={11} /> {t('mv.editMonthlyFeeBtn')}
+                        </button>
+                      </>
                     )}
                   </div>
                 )}

@@ -34,7 +34,7 @@ interface LiveLoc { portal_user_id: string; name: string; is_own: boolean; is_ow
 interface StopRow { id: string; label: string; label_ur: string | null; lat: number; lng: number }
 interface ActiveRun { id: string; started_at: string; direction: 'outbound' | 'return'; outbound_arrived_at: string | null }
 interface TodaysRun { id: string; direction: 'outbound' | 'return'; started_at: string; ended_at: string | null }
-interface RosterRow { subscription_id: string; name: string; present: boolean }
+interface RosterRow { subscription_id: string; name: string; present: boolean; on_leave_today: boolean }
 interface OutboundBookingRow { booking_id: string; name: string; seats: number; offboarded: boolean }
 interface Detail {
   is_owner: boolean; is_member: boolean; sharing_location: boolean
@@ -269,6 +269,7 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
                   <input type="checkbox" checked={rosterChecks[r.subscription_id] ?? true}
                     onChange={(e) => setRosterChecks((rows) => ({ ...rows, [r.subscription_id]: e.target.checked }))} />
                   {r.name}
+                  {r.on_leave_today && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">{t('mv.onLeaveTodayTag')}</span>}
                 </label>
               ))}
               {stakeInfo?.applies && (

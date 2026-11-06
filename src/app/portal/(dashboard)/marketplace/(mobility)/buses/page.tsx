@@ -26,7 +26,7 @@ interface VehicleLite { owner_name: string; vehicle_type: string; model: string 
 interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_per_seat_pkr: number | null; departure_time: string | null; return_departure_time: string | null; days_of_week: number[] | null
-  is_two_way: boolean | null; is_monthly_fixed: boolean | null; distance_km: number | null; route_duration_min: number | null
+  is_two_way: boolean | null; is_monthly_fixed: boolean | null; monthly_reference_fee_pkr: number | null; distance_km: number | null; route_duration_min: number | null
   vehicles: VehicleLite | null
 }
 interface TripRow {
@@ -70,6 +70,7 @@ export default function BusesPage() {
   const [query, setQuery] = useState('')
   const [city, setCity] = useState<string | null>(null)
   const [vehicleGroup, setVehicleGroup] = useState<VehicleGroup | null>(null)
+  const [view, setView] = useState<'perRide' | 'monthly'>('perRide')
 
   useEffect(() => {
     if (!user) return
@@ -77,7 +78,7 @@ export default function BusesPage() {
     const today = new Date().toISOString().slice(0, 10)
     const veh = 'vehicles(owner_name, vehicle_type, model, color, total_seats, has_ac, vehicle_number)'
     Promise.all([
-      supabase.from('vehicle_routes').select(`id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr, departure_time, return_departure_time, days_of_week, is_two_way, is_monthly_fixed, distance_km, route_duration_min, ${veh}`).eq('is_active', true).order('departure_time'),
+      supabase.from('vehicle_routes').select(`id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr, departure_time, return_departure_time, days_of_week, is_two_way, is_monthly_fixed, monthly_reference_fee_pkr, distance_km, route_duration_min, ${veh}`).eq('is_active', true).order('departure_time'),
       supabase.from('vehicle_trip_offers').select(`id, origin, origin_ur, destination, destination_ur, travel_date, departure_time_estimate, seats_available, listed_fare_per_seat_pkr, trip_type, ${veh}`).eq('status', 'open').gte('travel_date', today).order('travel_date'),
       supabase.from('ride_bookings').select('id, status, seats, travel_date, route_id, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time)').eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).gte('travel_date', today).order('travel_date'),
     ]).then(([r, o, m]) => {
@@ -109,11 +110,12 @@ export default function BusesPage() {
       if (!map.has(key)) map.set(key, { key, label: nm(dest, destUr), routes: [], trips: [] })
       return map.get(key)!
     }
-    for (const r of routes) if (match(r.origin, r.origin_ur, r.destination, r.destination_ur) && groupOk(r.vehicles?.vehicle_type)) add(r.destination, r.destination_ur).routes.push(r)
-    for (const o of trips) if (match(o.origin, o.origin_ur, o.destination, o.destination_ur) && groupOk(o.vehicles?.vehicle_type)) add(o.destination, o.destination_ur).trips.push(o)
+    const wantMonthly = view === 'monthly'
+    for (const r of routes) if (!!r.is_monthly_fixed === wantMonthly && match(r.origin, r.origin_ur, r.destination, r.destination_ur) && groupOk(r.vehicles?.vehicle_type)) add(r.destination, r.destination_ur).routes.push(r)
+    if (!wantMonthly) for (const o of trips) if (match(o.origin, o.origin_ur, o.destination, o.destination_ur) && groupOk(o.vehicles?.vehicle_type)) add(o.destination, o.destination_ur).trips.push(o)
     return Array.from(map.values()).sort((a, b) => (b.routes.length + b.trips.length) - (a.routes.length + a.trips.length))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routes, trips, query, vehicleGroup, isUrdu])
+  }, [routes, trips, query, vehicleGroup, view, isUrdu])
   const shown = city ? groups.filter((g) => g.key === city) : groups
 
   if (loading) return <div className="text-center py-12"><LoadingDots /></div>
@@ -153,6 +155,14 @@ export default function BusesPage() {
           </div>
         </div>
       )}
+
+      <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-1">
+        {(['perRide', 'monthly'] as const).map((v) => (
+          <button key={v} onClick={() => setView(v)} className={`flex-1 h-9 rounded-full font-sans text-[12.5px] font-bold cursor-pointer ${view === v ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
+            {v === 'perRide' ? t('bus.tabPerRide') : t('bus.tabMonthly')}
+          </button>
+        ))}
+      </div>
 
       <div className="flex gap-2 overflow-x-auto hide-scrollbar">
         {([null, 'shared', 'car', 'auto', 'bike'] as const).map((g) => (
@@ -213,14 +223,23 @@ export default function BusesPage() {
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {runsToday && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
                       {r.is_two_way && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={10} /> {t('bus.twoWay')}{r.return_departure_time ? ` · ${timeLabel(r.return_departure_time)}` : ''}</span>}
-                      {r.is_monthly_fixed && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#f3e8ff] text-[#6b21a8]">{t('bus.monthly')}</span>}
                       {r.route_duration_min && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#f1f5f9] text-[#334155] inline-flex items-center gap-1"><Clock size={10} /> <span className="ltr-num">{Math.round(r.route_duration_min)} min</span></span>}
                     </div>
                   </div>
                   <div className="text-end shrink-0">
-                    {r.fare_per_seat_pkr != null && <p className="font-sans text-[18px] font-black text-[#14532d]"><span className="ltr-num">₨{fmt(r.fare_per_seat_pkr)}</span></p>}
-                    <p className="font-sans text-[10.5px] text-[#64748b]">{t('bus.perSeat')}</p>
-                    <span className="mt-1.5 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[12px] font-bold">{t('bus.book')}</span>
+                    {r.is_monthly_fixed ? (
+                      <>
+                        <p className="font-sans text-[18px] font-black text-[#6b21a8]"><span className="ltr-num">₨{fmt(r.monthly_reference_fee_pkr ?? 0)}</span></p>
+                        <p className="font-sans text-[10.5px] text-[#64748b]">{t('bus.perMonth')}</p>
+                        <span className="mt-1.5 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#6b21a8] text-white font-sans text-[12px] font-bold">{t('bus.applyMonthlyBtn')}</span>
+                      </>
+                    ) : (
+                      <>
+                        {r.fare_per_seat_pkr != null && <p className="font-sans text-[18px] font-black text-[#14532d]"><span className="ltr-num">₨{fmt(r.fare_per_seat_pkr)}</span></p>}
+                        <p className="font-sans text-[10.5px] text-[#64748b]">{t('bus.perSeat')}</p>
+                        <span className="mt-1.5 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[12px] font-bold">{t('bus.book')}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </Link>

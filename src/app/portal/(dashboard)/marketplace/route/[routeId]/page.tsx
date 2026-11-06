@@ -37,7 +37,7 @@ interface Route {
 interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string }
 interface Stop { id: string; label: string; label_ur: string | null; lat: number; lng: number; stop_order: number }
 interface MonthlySubscription { id: string; status: string; monthly_fee_pkr: number; queue_position: number | null; scheduled_cancellation_at: string | null }
-interface MonthlyDetail { is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null; seats_total: number; active_count: number; my_subscription: MonthlySubscription | null }
+interface MonthlyDetail { is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null; seats_total: number; active_count: number; my_subscription: MonthlySubscription | null; my_leave_days: string[] }
 
 // Approximate only — interpolated proportionally along the driver's
 // own chosen road path using its real OSRM duration, not a live ETA.
@@ -93,6 +93,8 @@ export default function RouteDetailPage() {
   const [selectedBoardStopId, setSelectedBoardStopId] = useState<string | null>(null)
   const [applying, setApplying] = useState(false)
   const [leavingSeat, setLeavingSeat] = useState(false)
+  const [leaveDate, setLeaveDate] = useState('')
+  const [markingLeave, setMarkingLeave] = useState(false)
   const [returnSeatsAvailable, setReturnSeatsAvailable] = useState<number | null>(null)
   const [returnBoardStopId, setReturnBoardStopId] = useState<string | null>(null)
   const [returnProofPath, setReturnProofPath] = useState('')
@@ -222,6 +224,24 @@ export default function RouteDetailPage() {
     reloadMonthlyDetail()
   }
 
+  const markLeave = async () => {
+    if (!monthlyDetail?.my_subscription || !leaveDate) return
+    setMarkingLeave(true)
+    const { error } = await supabase.rpc('mark_subscription_leave_day', { p_subscription_id: monthlyDetail.my_subscription.id, p_leave_date: leaveDate })
+    setMarkingLeave(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.leaveDayMarkedToast'))
+    setLeaveDate('')
+    reloadMonthlyDetail()
+  }
+
+  const cancelLeave = async (date: string) => {
+    if (!monthlyDetail?.my_subscription) return
+    const { error } = await supabase.rpc('cancel_subscription_leave_day', { p_subscription_id: monthlyDetail.my_subscription.id, p_leave_date: date })
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    reloadMonthlyDetail()
+  }
+
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
   if (!route) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('mp.routeNotFound')}</div>
@@ -308,6 +328,26 @@ export default function RouteDetailPage() {
                 <p className="font-sans text-[13px] font-semibold text-emerald-700">✅ {t('mv.monthlyActiveStatusLabel')}</p>
               )}
               <p className="font-sans text-[13px] text-dp-on-surface">{t('mv.yourMonthlyFeeLabel')}: <span className="font-bold ltr-num">₨{fmt(monthlyDetail.my_subscription.monthly_fee_pkr)}</span></p>
+              {monthlyDetail.my_subscription.status !== 'waitlisted' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex flex-col gap-1.5">
+                  <p className="font-sans text-[11.5px] font-bold text-amber-900">{t('mv.markLeaveDayHeading')}</p>
+                  {monthlyDetail.my_leave_days.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {monthlyDetail.my_leave_days.map((d) => (
+                        <span key={d} className="inline-flex items-center gap-1 bg-white border border-amber-300 rounded-full px-2 py-0.5 font-sans text-[11px] text-amber-800 ltr-num">
+                          {d} <button onClick={() => cancelLeave(d)} className="text-amber-500 cursor-pointer font-bold">×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-1.5">
+                    <input type="date" value={leaveDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setLeaveDate(e.target.value)} className="input-field flex-1 text-[12.5px]" />
+                    <button onClick={markLeave} disabled={markingLeave || !leaveDate} className="shrink-0 px-3 rounded-lg bg-amber-600 text-white font-sans text-[12px] font-semibold cursor-pointer disabled:opacity-50">
+                      {markingLeave ? t('action.saving') : t('mv.markLeaveDayBtn')}
+                    </button>
+                  </div>
+                </div>
+              )}
               {monthlyDetail.my_subscription.status !== 'pending_cancellation' && (
                 <button onClick={leaveSeat} disabled={leavingSeat} className="w-full border border-dp-error text-dp-error rounded-lg py-2 font-sans text-[13px] font-semibold cursor-pointer disabled:opacity-50">
                   {leavingSeat ? t('action.saving') : t('mv.leaveMonthlySeatBtn')}
