@@ -32,6 +32,7 @@ interface AddaBoardEntry {
   vehicle_id: string; owner_name: string
 }
 interface AddaBoard { adda: Adda; pair_adda: Adda | null; entries: AddaBoardEntry[] }
+interface AddaBookingRow { id: string; name: string; seats: number; boarded_at: string | null; dropped_off_at: string | null }
 
 const inputCls = 'dp2-input'
 
@@ -63,6 +64,9 @@ export default function MyVehicleAddaPage() {
   const chatUnread = useChatUnread('adda', myEntry?.entry_id)
   const [editingSeats, setEditingSeats] = useState(false)
   const [seatsEditValue, setSeatsEditValue] = useState(0)
+  const [myBookings, setMyBookings] = useState<AddaBookingRow[]>([])
+  const [boardChecks, setBoardChecks] = useState<Record<string, boolean>>({})
+  const [departedEntryId, setDepartedEntryId] = useState<string | null>(null)
 
   const reloadAdda = async (vehicleId: string) => {
     const { data: addaList } = await supabase.from('addas').select('id, name, name_ur, pair_adda_id, fixed_fare_per_seat_pkr').eq('is_active', true).order('name')
@@ -70,6 +74,21 @@ export default function MyVehicleAddaPage() {
     const today = new Date().toLocaleDateString('en-CA')
     const { data: entry } = await supabase.from('adda_queue_entries').select('*, addas(name, name_ur)')
       .eq('vehicle_id', vehicleId).eq('queue_date', today).in('status', ['waiting', 'current']).maybeSingle()
+    const { data: departed } = await supabase.from('adda_queue_entries').select('id')
+      .eq('vehicle_id', vehicleId).eq('queue_date', today).eq('status', 'departed')
+      .order('departed_at', { ascending: false }).limit(1).maybeSingle()
+    setDepartedEntryId(departed?.id ?? null)
+    const bookingsEntryId = entry?.id ?? departed?.id ?? null
+    if (bookingsEntryId) {
+      const { data: bookings } = await supabase.rpc('adda_entry_today_bookings', { p_entry_id: bookingsEntryId })
+      const rows = (bookings ?? []) as AddaBookingRow[]
+      setMyBookings(rows)
+      setBoardChecks((prev) => {
+        const next = { ...prev }
+        for (const r of rows) if (!r.boarded_at && !(r.id in next)) next[r.id] = true
+        return next
+      })
+    } else { setMyBookings([]) }
     if (entry) {
       setMyEntry({ ...entry, entry_id: entry.id, adda_id: entry.adda_id, adda_name: entry.addas?.name ?? '', adda_name_ur: entry.addas?.name_ur ?? null })
       const { data: board } = await supabase.rpc('adda_board', { p_adda_id: entry.adda_id })
@@ -137,10 +156,24 @@ export default function MyVehicleAddaPage() {
   const doAddaDeparted = async () => {
     if (!vehicle || !myEntry) return
     setAddaActionLoading(true)
+    const boardIds = Object.entries(boardChecks).filter(([, on]) => on).map(([id]) => id)
+    if (boardIds.length > 0) {
+      const { error: boardErr } = await supabase.rpc('board_ride_bookings', { p_booking_ids: boardIds })
+      if (boardErr) { setAddaActionLoading(false); toast.error(friendlyError(boardErr, undefined, isUrdu)); return }
+    }
     const { error } = await supabase.rpc('adda_mark_departed', { p_entry_id: myEntry.entry_id })
     setAddaActionLoading(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.departedToast'))
+    reloadAdda(vehicle.id)
+  }
+  const doFinishTrip = async () => {
+    if (!vehicle || !departedEntryId) return
+    setAddaActionLoading(true)
+    const { error } = await supabase.rpc('complete_adda_trip', { p_entry_id: departedEntryId })
+    setAddaActionLoading(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('af.tripFinishedToast'))
     reloadAdda(vehicle.id)
   }
   const doAddaPass = async () => {
@@ -192,6 +225,15 @@ export default function MyVehicleAddaPage() {
   return (
     <div className="flex flex-col gap-3">
       <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Signpost size={19} /> {t('af.atTheAddaHeading')}</h1>
+
+      {departedEntryId && myBookings.some((b) => b.boarded_at && !b.dropped_off_at) && (
+        <div className="bg-[#166534]/10 border border-[#166534]/20 rounded-2xl p-3.5">
+          <p className="font-sans text-[13px] font-bold text-[#166534] mb-2">{t('af.tripInProgressLabel')}</p>
+          <button onClick={doFinishTrip} disabled={addaActionLoading} className="w-full py-2 rounded-xl bg-[#166534] text-white font-sans text-[13px] font-semibold cursor-pointer disabled:opacity-50">
+            {addaActionLoading ? t('action.saving') : t('af.finishTripBtn')}
+          </button>
+        </div>
+      )}
 
       {!myEntry && !rideEligible ? (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
@@ -257,6 +299,18 @@ export default function MyVehicleAddaPage() {
                 <span className="inline-flex items-center gap-1 font-sans text-[13px] font-bold text-[#166534]"><Trophy size={13} /> {t('af.yourTurnLabel')}</span>
                 {secondsLeft(myEntry.turn_expires_at) != null && <span className="inline-flex items-center gap-1 font-sans text-[13px] font-bold text-[#166534] ltr-num"><Timer size={13} /> {fmtCountdown(secondsLeft(myEntry.turn_expires_at)!)}</span>}
               </div>
+              {myBookings.filter((b) => !b.boarded_at).length > 0 && (
+                <div className="flex flex-col gap-1 mt-2.5 bg-white rounded-lg p-2">
+                  <p className="font-sans text-[11px] font-bold text-[#166534] uppercase tracking-[0.05em]">{t('mv.takeAttendanceLabel')}</p>
+                  {myBookings.filter((b) => !b.boarded_at).map((b) => (
+                    <label key={b.id} className="flex items-center gap-2 font-sans text-[12.5px] text-[#1e293b] cursor-pointer">
+                      <input type="checkbox" checked={boardChecks[b.id] ?? true}
+                        onChange={(e) => setBoardChecks((rows) => ({ ...rows, [b.id]: e.target.checked }))} />
+                      {b.name}{b.seats > 1 ? ` (${b.seats})` : ''}
+                    </label>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-1.5 mt-2.5">
                 <button onClick={doAddaDeparted} disabled={addaActionLoading} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[12.5px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50"><LogOut size={12} /> {t('af.departedBtn')}</button>
                 <button onClick={doAddaPass} disabled={addaActionLoading} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[12.5px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#64748b] disabled:opacity-50"><SkipForward size={12} /> {t('af.passBtn')}</button>

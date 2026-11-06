@@ -36,6 +36,7 @@ interface ActiveRun { id: string; started_at: string; direction: 'outbound' | 'r
 interface TodaysRun { id: string; direction: 'outbound' | 'return'; started_at: string; ended_at: string | null }
 interface RosterRow { subscription_id: string; name: string; present: boolean; on_leave_today: boolean }
 interface OutboundBookingRow { booking_id: string; name: string; seats: number; offboarded: boolean }
+interface AdHocBookingRow { id: string; name: string; seats: number; boarded_at: string | null; dropped_off_at: string | null }
 interface Detail {
   is_owner: boolean; is_member: boolean; sharing_location: boolean
   owner_portal_user_id: string; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
@@ -88,10 +89,17 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
   const [sharingBusy, setSharingBusy] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  const [adHocBookings, setAdHocBookings] = useState<AdHocBookingRow[]>([])
+  const [adHocChecks, setAdHocChecks] = useState<Record<string, boolean>>({})
+
   const load = async () => {
-    const { data } = await supabase.rpc('route_group_detail', { p_route_id: routeId })
+    const [{ data }, { data: adHoc }] = await Promise.all([
+      supabase.rpc('route_group_detail', { p_route_id: routeId }),
+      supabase.rpc('route_today_ad_hoc_bookings', { p_route_id: routeId }),
+    ])
     const d = data as Detail | null
     if (d) { setDetail(d); setSharing(d.sharing_location) }
+    setAdHocBookings((adHoc ?? []) as AdHocBookingRow[])
     setLoading(false)
   }
 
@@ -142,9 +150,12 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
     return runs[runs.length - 1].direction === 'outbound' ? 'return' : 'outbound'
   })()
 
+  const unboardedAdHoc = adHocBookings.filter((b) => !b.boarded_at)
+
   const openStartFlow = () => {
-    if (nextDirection === 'outbound' && (detail?.roster_today.length ?? 0) > 0) {
+    if (nextDirection === 'outbound' && ((detail?.roster_today.length ?? 0) > 0 || unboardedAdHoc.length > 0)) {
       setRosterChecks(Object.fromEntries((detail?.roster_today ?? []).map((r) => [r.subscription_id, r.present])))
+      setAdHocChecks(Object.fromEntries(unboardedAdHoc.map((b) => [b.id, true])))
       setShowRoster(true)
     } else {
       startRun(nextDirection)
@@ -157,6 +168,13 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
       const presentIds = Object.entries(rosterChecks).filter(([, present]) => present).map(([id]) => id)
       const { error: attErr } = await supabase.rpc('take_attendance', { p_route_id: routeId, p_run_date: new Date().toISOString().slice(0, 10), p_present_subscription_ids: presentIds })
       if (attErr) { setRunBusy(false); toast.error(friendlyError(attErr, undefined, isUrdu)); return }
+    }
+    if (direction === 'outbound') {
+      const boardIds = Object.entries(adHocChecks).filter(([, on]) => on).map(([id]) => id)
+      if (boardIds.length > 0) {
+        const { error: boardErr } = await supabase.rpc('board_ride_bookings', { p_booking_ids: boardIds })
+        if (boardErr) { setRunBusy(false); toast.error(friendlyError(boardErr, undefined, isUrdu)); return }
+      }
     }
     const { error } = await supabase.rpc('start_route_run', { p_route_id: routeId, p_direction: direction })
     setRunBusy(false)
@@ -270,6 +288,14 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
                     onChange={(e) => setRosterChecks((rows) => ({ ...rows, [r.subscription_id]: e.target.checked }))} />
                   {r.name}
                   {r.on_leave_today && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">{t('mv.onLeaveTodayTag')}</span>}
+                </label>
+              ))}
+              {unboardedAdHoc.map((b) => (
+                <label key={b.id} className="flex items-center gap-2 font-sans text-[12.5px] text-[#1e293b] cursor-pointer">
+                  <input type="checkbox" checked={adHocChecks[b.id] ?? true}
+                    onChange={(e) => setAdHocChecks((rows) => ({ ...rows, [b.id]: e.target.checked }))} />
+                  {b.name}{b.seats > 1 ? ` (${b.seats})` : ''}
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800">{t('mv.oneOffRiderTag')}</span>
                 </label>
               ))}
               {stakeInfo?.applies && (

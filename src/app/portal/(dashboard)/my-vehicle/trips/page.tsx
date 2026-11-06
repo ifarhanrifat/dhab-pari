@@ -298,6 +298,15 @@ export default function MyVehicleTripsPage() {
     reload(vehicle.id)
   }
 
+  const startTripBooking = async (id: string) => {
+    if (!vehicle) return
+    setActionId(id)
+    const { error } = await supabase.rpc('start_trip_booking', { p_trip_booking_id: id })
+    setActionId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    reload(vehicle.id)
+  }
+
   const completeTripBooking = async (id: string) => {
     if (!vehicle) return
     setActionId(id)
@@ -589,11 +598,16 @@ export default function MyVehicleTripsPage() {
                       <Navigation size={12} /> {t('cm.openRideBtn')}
                     </button>
                   )}
-                  {tb.status === 'confirmed' && !dispatchTripOfferIds.has(tb.trip_offer_id) && (
+                  {(tb.status === 'confirmed' || tb.status === 'in_progress') && !dispatchTripOfferIds.has(tb.trip_offer_id) && (
                     <>
                       <Link href={`/portal/marketplace/trip/${tb.id}`} className="inline-flex items-center gap-1 text-[#166534] text-[12px] font-semibold"><Navigation size={12} /> {t('cm.trackLocationBtn')}</Link>
                       <div className="flex items-center gap-1.5">
-                        <button onClick={() => cancelTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
+                        {tb.status === 'confirmed' && (
+                          <button onClick={() => cancelTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
+                        )}
+                        {tb.status === 'confirmed' && (
+                          <button onClick={() => startTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#D4AF37] text-[#0f172a] disabled:opacity-50">{t('mv.boardedBtn')}</button>
+                        )}
                         <button onClick={() => completeTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('cm.markTripCompleteBtn')}</button>
                       </div>
                     </>

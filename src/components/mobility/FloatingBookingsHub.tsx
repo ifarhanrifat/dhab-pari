@@ -208,13 +208,20 @@ export function FloatingBookingsHub() {
     // three, opening the driver's own BookingLifecycleSheet instead of
     // the rider-facing RequestWaitingSheet.
     const vehicle = vehicleRes.data as { id: string; commission_mode: string; offers_hourly: boolean; offers_rental: boolean; offers_shadi: boolean; offers_machinery: boolean; offers_tractor: boolean; offers_loader: boolean } | null
-    const [driverHourly, driverRental, driverEquipment, driverShadi, driverReturnOffers] = vehicle ? await Promise.all([
+    const [driverHourly, driverRental, driverEquipment, driverShadi, driverReturnOffers, driverRouteAddaLive, driverTripInProgress] = vehicle ? await Promise.all([
       vehicle.offers_hourly ? supabase.rpc('vehicle_hourly_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
       vehicle.offers_rental ? supabase.rpc('vehicle_rental_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
       (vehicle.offers_machinery || vehicle.offers_tractor || vehicle.offers_loader) ? supabase.rpc('vehicle_equipment_bookings', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
       vehicle.offers_shadi ? supabase.rpc('vehicle_shadi_requests', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
       vehicle.offers_rental ? supabase.rpc('vehicle_rental_return_offers', { p_vehicle_id: vehicle.id }) : Promise.resolve({ data: [] }),
-    ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }]
+      // Real bug found 2026-11-06: this hub never queried routes/adda by
+      // vehicle ownership at all — only by the viewer's own
+      // portal_user_id as a rider, so a driver who owns the vehicle but
+      // didn't personally book a seat saw nothing. These two feed the
+      // real per-rider onboarding this session built (817).
+      supabase.rpc('vehicle_route_adda_live_status', { p_vehicle_id: vehicle.id }),
+      supabase.from('vehicle_trip_bookings').select('id, trip_offer_id, vehicle_trip_offers(origin, origin_ur, destination, destination_ur)').eq('vehicle_id', vehicle.id).eq('status', 'in_progress'),
+    ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }]
 
     if (vehicle) {
       for (const b of (driverHourly.data ?? []) as { id: string; status: string; hours: number; customer_name: string; requested_at: string }[]) {
@@ -259,6 +266,33 @@ export function FloatingBookingsHub() {
           href: '/portal/my-vehicle/rental',
           badgeCount: seatsBooked > 0 ? seatsBooked : undefined,
         })
+      }
+
+      for (const item of (driverRouteAddaLive.data ?? []) as Array<
+        | { kind: 'route_ongoing'; route_id: string; origin: string; destination: string; started_at: string }
+        | { kind: 'route_action'; route_id: string; origin: string; destination: string; pending_count: number }
+        | { kind: 'adda_ongoing'; entry_id: string; adda_name: string; adda_name_ur: string | null }
+        | { kind: 'adda_action'; entry_id: string; adda_name: string; adda_name_ur: string | null; pending_count: number }
+      >) {
+        if (item.kind === 'route_ongoing') {
+          out.push({ key: `rto-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'ongoing', since: item.started_at, href: `/portal/marketplace/route/${item.route_id}` })
+        } else if (item.kind === 'route_action') {
+          out.push({ key: `rta-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'action', since: new Date().toISOString(), href: `/portal/marketplace/route/${item.route_id}`, badgeCount: item.pending_count })
+        } else if (item.kind === 'adda_ongoing') {
+          out.push({ key: `ado-${item.entry_id}`, emoji: '🚐', label: `${nm(item.adda_name, item.adda_name_ur)}`, state: 'ongoing', since: new Date().toISOString(), href: '/portal/my-vehicle/adda' })
+        } else {
+          out.push({ key: `ada-${item.entry_id}`, emoji: '🚐', label: `${nm(item.adda_name, item.adda_name_ur)}`, state: 'action', since: new Date().toISOString(), href: '/portal/my-vehicle/adda', badgeCount: item.pending_count })
+        }
+      }
+
+      // Dedupe against my_ongoing_ride()'s own single driver-side trip-
+      // share item (today only) — this query covers every OTHER
+      // in_progress trip-share booking regardless of date.
+      const ongoingBookingId = (ongoing.data as { booking_id: string | null } | null)?.booking_id
+      for (const tb of (driverTripInProgress.data ?? []) as unknown as { id: string; vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }[]) {
+        if (tb.id === ongoingBookingId) continue
+        const o2 = tb.vehicle_trip_offers
+        out.push({ key: `dtb-${tb.id}`, emoji: '🚖', label: o2 ? `${nm(o2.origin, o2.origin_ur)} → ${nm(o2.destination, o2.destination_ur)}` : t('rq.kind.ride_dispatch'), state: 'ongoing', since: new Date().toISOString(), href: '/portal/my-vehicle/trips' })
       }
     }
 
