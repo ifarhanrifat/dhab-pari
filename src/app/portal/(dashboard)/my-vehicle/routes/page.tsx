@@ -343,7 +343,7 @@ export default function MyVehicleRoutesPage() {
     for (let i = 0; i < viaStops.length; i++) {
       const v = viaStops[i]
       await supabase.rpc('create_route_stop', {
-        p_route_id: routeId, p_label: v.label, p_label_ur: v.label, p_lat: v.lat, p_lng: v.lng, p_village_id: null, p_stop_order: i + 1,
+        p_route_id: routeId, p_label: v.label, p_label_ur: null, p_lat: v.lat, p_lng: v.lng, p_village_id: null, p_stop_order: i + 1,
       })
     }
 

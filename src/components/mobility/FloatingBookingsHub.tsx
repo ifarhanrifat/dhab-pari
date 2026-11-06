@@ -367,7 +367,17 @@ export function FloatingBookingsHub() {
         state: payAdvance ? 'action' : ongoing ? 'ongoing' : 'searching', since: b.requested_at,
         sheet: { kind: 'equipment', id: b.id, viewHref: `/portal/marketplace/${b.kind}`, summary: { vehicleLabel: vehicleDisplayName(b.vehicle_type, b.model), driverName: b.owner_name, from: b.site_address, amount: b.total_amount_pkr ?? b.rate_pkr } } })
     }
-    for (const b of (seats.data ?? []) as unknown as { id: string; route_id: string | null; seats: number; travel_date: string; total_amount_pkr: number; created_at: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null } | null; adda_queue_entries: { addas: { name: string; name_ur: string | null } | null } | null }[]) {
+    const seatRows = (seats.data ?? []) as unknown as { id: string; route_id: string | null; seats: number; travel_date: string; total_amount_pkr: number; created_at: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null } | null; adda_queue_entries: { addas: { name: string; name_ur: string | null } | null } | null }[]
+    // Real ask, 2026-11-06: "when rider click on the floating button
+    // then it will view everything in real time... along with full
+    // chat" — if the van for one of these routes is actually live right
+    // now, jump straight to the live map/chat (RouteGroupPanel) instead
+    // of the booking popup.
+    const seatRouteIds = [...new Set(seatRows.map((b) => b.route_id).filter((id): id is string => !!id))]
+    const activeRunRouteIds = seatRouteIds.length > 0
+      ? new Set(((await supabase.from('route_runs').select('route_id').in('route_id', seatRouteIds).is('ended_at', null)).data ?? []).map((r) => r.route_id))
+      : new Set<string>()
+    for (const b of seatRows) {
       const r = b.vehicle_routes
       const adda = b.adda_queue_entries?.addas
       const title = r ? `${nm(r.origin, r.origin_ur)} → ${nm(r.destination, r.destination_ur)}` : nm(adda?.name, adda?.name_ur)
@@ -375,11 +385,16 @@ export function FloatingBookingsHub() {
       // adda (turn-based queue) has no fixed departure, so it keeps its
       // plain "waiting" status instead of a fabricated countdown.
       const countdownTarget = r?.departure_time ? new Date(`${b.travel_date}T${r.departure_time}+05:00`).getTime() : undefined
+      const isLive = !!b.route_id && activeRunRouteIds.has(b.route_id)
       // A route booking opens the same popup (book/cancel/reschedule)
-      // the browse screen now uses, directly — an adda booking (no
-      // route_id) falls back to the existing waiting-sheet pattern.
-      out.push({ key: `s-${b.id}`, emoji: '🚌', label: `${t('rq.kind.route')} · ${title}`, state: 'waiting', since: b.created_at, countdownTarget,
-        ...(b.route_id
+      // the browse screen now uses, directly — unless the van is
+      // already live, which opens the group/live-map view instead — an
+      // adda booking (no route_id) falls back to the existing
+      // waiting-sheet pattern.
+      out.push({ key: `s-${b.id}`, emoji: '🚌', label: `${t('rq.kind.route')} · ${title}`, state: isLive ? 'ongoing' : 'waiting', since: b.created_at, countdownTarget: isLive ? undefined : countdownTarget,
+        ...(isLive && b.route_id
+          ? { routeGroupId: b.route_id }
+          : b.route_id
           ? { routeSheetId: b.route_id }
           : { sheet: { kind: 'seat', id: b.id, viewHref: '/portal/marketplace/trips', summary: { vehicleLabel: title, from: nm(adda?.name, adda?.name_ur), to: null, amount: b.total_amount_pkr, facts: [b.travel_date, t('rw.seats').replace('{n}', String(b.seats))] } } }) })
     }

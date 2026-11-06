@@ -16,7 +16,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Send, Radio, Users, LogOut, PlayCircle, StopCircle } from 'lucide-react'
+import { Send, Radio, Users, LogOut, PlayCircle, StopCircle, Maximize2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -25,8 +25,13 @@ import { useLiveLocation } from '@/hooks/useLiveLocation'
 import { haversineKm } from '@/lib/roadRoute'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import type { LeafletMapHandle, MapPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
+
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+}
 
 interface Participant { portal_user_id: string; name: string; sharing_location: boolean }
 interface Message { id: string; sender_portal_user_id: string; sender_name: string; is_own: boolean; body: string; created_at: string }
@@ -88,6 +93,9 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
   const [sharing, setSharing] = useState(false)
   const [sharingBusy, setSharingBusy] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<LeafletMapHandle>(null)
+  const fullscreenMapRef = useRef<LeafletMapHandle>(null)
+  const [fullscreen, setFullscreen] = useState(false)
 
   const [adHocBookings, setAdHocBookings] = useState<AdHocBookingRow[]>([])
   const [adHocChecks, setAdHocChecks] = useState<Record<string, boolean>>({})
@@ -255,6 +263,63 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
     setSharing(!sharing)
   }
 
+  // One combined map for the whole live picture — stops, the driver,
+  // and every rider currently sharing location — instead of stops as a
+  // plain list and the map showing only live dots. Real ask, 2026-11-06:
+  // "all stops will be shown like icons... same like google map like
+  // all the stops and riders will be visible on the map along with the
+  // vehicle position."
+  const mapData = (() => {
+    if (!detail?.active_run) return null
+    const orderedStops = detail.active_run.direction === 'return' ? [...detail.stops].reverse() : detail.stops
+    const driverPos = detail.live_locations.find((l) => l.is_owner)
+    const etas = computeLiveEtas(detail.route_path ?? [], detail.route_duration_min, driverPos ? { lat: driverPos.lat, lng: driverPos.lng } : null, detail.stops, detail.active_run.direction)
+    const stopPins: MapPin[] = orderedStops.map((s) => {
+      const name = isUrdu && s.label_ur ? s.label_ur : s.label
+      const e = etas[s.id]
+      const etaLine = e ? (e.passed ? t('mv.stopPassedLabel') : `${e.minutesAway} ${t('mv.minAwaySuffix')}`) : ''
+      return { lat: s.lat, lng: s.lng, emoji: '📍', color: '#f59e0b', popupHtml: `<div style="font-family:sans-serif;min-width:140px"><b>${escapeHtml(name)}</b>${etaLine ? `<br/><span style="color:#166534;font-weight:600">${escapeHtml(etaLine)}</span>` : ''}</div>` }
+    })
+    const livePins: MapPin[] = detail.live_locations.map((l) => ({
+      lat: l.lat, lng: l.lng, label: l.name, color: l.is_own ? '#D4AF37' : '#166534', emoji: l.is_owner ? '🚐' : '🧍', isVehicle: l.is_owner,
+    }))
+    return { pins: [...stopPins, ...livePins], orderedStops, etas }
+  })()
+
+  if (fullscreen && detail && mapData) {
+    return (
+      <div className="fixed inset-0 z-[150] bg-white flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e2d0]" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}>
+          <p className="font-sans text-[13px] font-bold text-[#1e293b] truncate">{t('mv.routeGroupHeading')}</p>
+          <button type="button" onClick={() => setFullscreen(false)} className="shrink-0 p-2 cursor-pointer text-[#1e293b]" aria-label={t('cm.collapseMapBtn')}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 relative">
+          <LeafletMap ref={fullscreenMapRef} pins={mapData.pins} route={detail.route_path ?? undefined} height="100%" zoom={13} />
+          {mapData.orderedStops.length > 0 && (
+            <div className="absolute bottom-0 left-0 right-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-6 px-3 bg-gradient-to-t from-black/40 to-transparent">
+              <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+                {mapData.orderedStops.map((s, i) => {
+                  const e = mapData.etas[s.id]
+                  return (
+                    <button key={s.id} type="button" onClick={() => fullscreenMapRef.current?.focusPin(i)}
+                      className="shrink-0 bg-white rounded-xl shadow-lg px-3 py-2 min-w-[130px] text-start cursor-pointer">
+                      <p className="font-sans text-[12px] font-bold text-[#1e293b] truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</p>
+                      <p className={`font-sans text-[11px] font-bold ltr-num ${e?.passed ? 'text-[#94a3b8]' : 'text-[#166534]'}`}>
+                        {e ? (e.passed ? t('mv.stopPassedLabel') : `${e.minutesAway} ${t('mv.minAwaySuffix')}`) : t('action.loading')}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   const send = async () => {
     const body = text.trim()
     if (!body) return
@@ -410,32 +475,6 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
           {detail.active_run && detail.stops.length === 0 && (
             <p className="font-sans text-[11.5px] text-[#94a3b8] text-center py-2">{t('mv.noStopsConfiguredNote')}</p>
           )}
-          {detail.active_run && detail.stops.length > 0 && (() => {
-            const driverPos = detail.live_locations.find((l) => l.is_owner)
-            const etas = computeLiveEtas(detail.route_path ?? [], detail.route_duration_min, driverPos ? { lat: driverPos.lat, lng: driverPos.lng } : null, detail.stops, detail.active_run.direction)
-            // "the last stop is now its first stop" — same stops, shown
-            // in the order they're actually reached on this leg.
-            const orderedStops = detail.active_run.direction === 'return' ? [...detail.stops].reverse() : detail.stops
-            return (
-              <div className="flex flex-col gap-1">
-                {orderedStops.map((s) => {
-                  const e = etas[s.id]
-                  return (
-                    <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F9F9F6] px-2.5 py-1.5">
-                      <span className="font-sans text-[12px] font-semibold text-[#1e293b] truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</span>
-                      {e ? (
-                        <span className={`shrink-0 font-sans text-[11px] font-bold ltr-num ${e.passed ? 'text-[#94a3b8]' : 'text-[#166534]'}`}>
-                          {e.passed ? t('mv.stopPassedLabel') : `${e.minutesAway} ${t('mv.minAwaySuffix')}`}
-                        </span>
-                      ) : (
-                        <span className="shrink-0 font-sans text-[11px] text-[#94a3b8]">{t('action.loading')}</span>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          })()}
 
           <button type="button" onClick={toggleSharing} disabled={sharingBusy}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer transition-all disabled:opacity-50 w-fit ${sharing ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>
@@ -443,13 +482,33 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
           </button>
           {sharing && geoError && <p className="font-sans text-[11px] text-amber-700">{geoError}</p>}
 
-          {detail.live_locations.length > 0 ? (
-            <LeafletMap
-              pins={detail.live_locations.map((l) => ({ lat: l.lat, lng: l.lng, label: l.name, color: l.is_own ? '#D4AF37' : '#166534', emoji: '🚗' }))}
-              height={150} className="rounded-xl"
-            />
-          ) : detail.active_run && !sharing && (
+          {mapData && (mapData.pins.length > 0 ? (
+            <div className="relative">
+              <LeafletMap ref={mapRef} pins={mapData.pins} route={detail.route_path ?? undefined} height={190} className="rounded-xl" />
+              <button type="button" onClick={() => setFullscreen(true)}
+                className="absolute top-2 right-2 z-[60] bg-white shadow-md rounded-lg p-2 cursor-pointer" aria-label={t('cm.expandMapBtn')}>
+                <Maximize2 size={15} className="text-[#1e293b]" />
+              </button>
+            </div>
+          ) : !sharing && (
             <p className="font-sans text-[11.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-2 text-center">{t('mv.turnOnSharingNote')}</p>
+          ))}
+
+          {mapData && mapData.orderedStops.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+              {mapData.orderedStops.map((s, i) => {
+                const e = mapData.etas[s.id]
+                return (
+                  <button key={s.id} type="button" onClick={() => mapRef.current?.focusPin(i)}
+                    className="shrink-0 bg-[#F9F9F6] border border-[#e5e2d0] rounded-xl px-2.5 py-1.5 min-w-[120px] text-start cursor-pointer">
+                    <p className="font-sans text-[11.5px] font-semibold text-[#1e293b] truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</p>
+                    <p className={`font-sans text-[10.5px] font-bold ltr-num ${e?.passed ? 'text-[#94a3b8]' : 'text-[#166534]'}`}>
+                      {e ? (e.passed ? t('mv.stopPassedLabel') : `${e.minutesAway} ${t('mv.minAwaySuffix')}`) : t('action.loading')}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
           )}
 
           <div className="bg-[#F9F9F6] border border-[#e5e2d0] rounded-2xl p-3 min-h-[220px] max-h-[40vh] overflow-y-auto flex flex-col gap-2">
