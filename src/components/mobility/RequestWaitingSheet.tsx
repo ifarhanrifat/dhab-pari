@@ -46,7 +46,12 @@ export interface WaitingSummary {
 }
 
 type Phase = 'waiting' | 'accepted' | 'in_progress' | 'completed' | 'declined' | 'cancelled'
-interface Live { phase: Phase; reason: string | null; pin: string | null; driverName: string | null; driverMobile: string | null; advanceDue?: number; advancePct?: number }
+interface Live {
+  phase: Phase; reason: string | null; pin: string | null; driverName: string | null; driverMobile: string | null; advanceDue?: number; advancePct?: number
+  // Hourly only (813) — lets the rider see the driver paused the wait
+  // clock instead of wondering why nothing is moving.
+  pausedAt?: string | null
+}
 
 const TABLE: Record<WaitingKind, string> = { hourly: 'hourly_bookings', rental: 'rental_bookings', equipment: 'equipment_bookings', seat: 'ride_bookings' }
 const ICON: Record<WaitingKind, LucideIcon> = { hourly: Clock, rental: Car, equipment: Tractor, seat: Bus }
@@ -83,7 +88,7 @@ async function loadLive(kind: WaitingKind, id: string): Promise<Live | null> {
   }
   const rpc = kind === 'hourly' ? 'my_hourly_bookings' : kind === 'rental' ? 'my_rental_bookings' : 'my_equipment_bookings'
   const { data } = await supabase.rpc(rpc)
-  const b = ((data ?? []) as { id: string; status: string; decline_reason: string | null; pin: string | null; owner_name: string | null; owner_mobile: string | null; advance_status?: string; advance_amount_pkr?: number; advance_pct?: number }[]).find((r) => r.id === id)
+  const b = ((data ?? []) as { id: string; status: string; decline_reason: string | null; pin: string | null; owner_name: string | null; owner_mobile: string | null; advance_status?: string; advance_amount_pkr?: number; advance_pct?: number; paused_at?: string | null }[]).find((r) => r.id === id)
   if (!b) return null
   // An equipment job with an advance still to pay isn't confirmed yet —
   // its PIN only matters once the committee has the advance (776).
@@ -91,6 +96,7 @@ async function loadLive(kind: WaitingKind, id: string): Promise<Live | null> {
   return {
     phase: phaseOf(kind, b.status), reason: b.decline_reason, pin: advanceDue ? null : b.pin, driverName: b.owner_name, driverMobile: b.owner_mobile,
     advanceDue: advanceDue ? Number(b.advance_amount_pkr ?? 0) : undefined, advancePct: b.advance_pct,
+    pausedAt: kind === 'hourly' ? b.paused_at : undefined,
   }
 }
 
@@ -227,6 +233,11 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
           {phase === 'waiting' && (
             <span className="mt-3 inline-flex items-center gap-1.5 bg-white/15 px-3 py-1 rounded-full font-sans text-[12px] font-semibold">
               <Loader2 size={13} className="animate-spin" /> <span className="ltr-num">{elapsedText}</span>
+            </span>
+          )}
+          {phase === 'in_progress' && live?.pausedAt && (
+            <span className="mt-3 inline-flex items-center gap-1.5 bg-white/15 px-3 py-1 rounded-full font-sans text-[12px] font-semibold">
+              {t('hm.paused')}
             </span>
           )}
         </div>

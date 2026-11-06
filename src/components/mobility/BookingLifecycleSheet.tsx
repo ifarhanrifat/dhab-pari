@@ -17,7 +17,7 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Loader2, AlertTriangle, CheckCircle2, Ban, Navigation, Phone, Radio, X, Check, Wallet, Play, Square, MessageCircle } from 'lucide-react'
+import { Loader2, AlertTriangle, CheckCircle2, Ban, Navigation, Phone, Radio, X, Check, Wallet, Play, Square, MessageCircle, Pause } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -49,6 +49,7 @@ interface Row {
   // instead, not that the request goes away).
   vehicle_id?: string | null
   requested_at: string; started_at: string | null; ended_at: string | null
+  paused_at?: string | null; paused_minutes?: number | null
   notes: string | null; payment_method: string
   customer_portal_user_id: string; customer_name: string; customer_mobile: string | null; customer_trust?: Trust | null
   // hourly
@@ -156,6 +157,8 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
     if (!confirm(kind === 'equipment' ? t('vp.confirmCompleteJob') : t('vp.confirmEndTrip'))) return
     await run(FINISH_RPC[kind], { p_booking_id: bookingId }, kind === 'equipment' ? t('vp.jobCompletedToast') : t('vp.tripEndedToast'))
   }
+  const isPaused = kind === 'hourly' && !!row?.paused_at
+  const togglePause = () => run(isPaused ? 'resume_hourly_trip' : 'pause_hourly_trip', { p_booking_id: bookingId })
   const confirmPayment = () => run(CONFIRM_RPC[kind], { p_booking_id: bookingId }, t('vp.paymentConfirmedToast'))
   const chatUnread = useChatUnread(REF_TYPE[kind], bookingId)
 
@@ -321,7 +324,7 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
               </span>
             </div>
             {kind === 'hourly' && row.hours != null && (
-              <HourlyMeter row={{ hours: row.hours, started_at: row.started_at, distance_km: row.distance_km ?? 0, included_km: row.included_km, overage_per_km_pkr: row.overage_per_km_pkr, hourly_rate_pkr: row.hourly_rate_pkr, base_amount_pkr: row.base_amount_pkr }} />
+              <HourlyMeter row={{ hours: row.hours, started_at: row.started_at, distance_km: row.distance_km ?? 0, included_km: row.included_km, overage_per_km_pkr: row.overage_per_km_pkr, hourly_rate_pkr: row.hourly_rate_pkr, base_amount_pkr: row.base_amount_pkr, paused_at: row.paused_at, paused_minutes: row.paused_minutes }} />
             )}
             {advanceHeld > 0 && <p className="font-sans text-[12px] font-semibold text-[#166534] text-center ltr-num">{t('eqa.driverHeld').replace('{amount}', fmt(advanceHeld)).replace('{collect}', fmt(Math.max(0, amount - advanceHeld)))}</p>}
             {kind === 'hourly' && trackLocation && locError && (
@@ -330,10 +333,19 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
                 <p className="font-sans text-[12px] text-amber-900">{t('cm.geoErrorMsg')}</p>
               </div>
             )}
-            <button onClick={finish} disabled={busy}
+            {kind === 'hourly' && (
+              <button onClick={togglePause} disabled={busy}
+                className={`w-full py-3 rounded-xl text-[14px] font-sans font-bold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 border ${isPaused ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#b45309] border-amber-300'}`}>
+                {busy ? <Loader2 size={14} className="animate-spin" /> : isPaused ? <Play size={13} /> : <Pause size={13} />}
+                {isPaused ? t('vp.resumeTripBtn') : t('vp.pauseTripBtn')}
+              </button>
+            )}
+            <button onClick={finish} disabled={busy || isPaused}
+              title={isPaused ? t('vp.resumeBeforeEndHint') : undefined}
               className="w-full py-3 rounded-xl text-[14px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50 flex items-center justify-center gap-1.5">
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Square size={13} />} {kind === 'equipment' ? t('vp.completeJobBtn') : t('vp.endTripBtn')}
             </button>
+            {isPaused && <p className="font-sans text-[11.5px] text-[#94a3b8] text-center">{t('vp.resumeBeforeEndHint')}</p>}
           </div>
         )}
 

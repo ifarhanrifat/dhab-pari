@@ -60,9 +60,12 @@ export function useFarePolicy(service: FareService | null): FarePolicy | null {
 }
 
 // Hourly overtime exactly as end_hourly_trip bills it, for the live meter.
-export function hourlyOvertime(policy: FarePolicy | null, bookedHours: number, startedAt: string | null, hourlyRate: number, now = Date.now()) {
+export function hourlyOvertime(policy: FarePolicy | null, bookedHours: number, startedAt: string | null, hourlyRate: number, now = Date.now(), pausedMinutes = 0) {
   if (!policy || !startedAt) return { minutes: 0, amount: 0 }
-  const elapsedMin = (now - new Date(startedAt).getTime()) / 60000
+  // Paused time (813) never counts toward the booked hours — mirrors
+  // end_hourly_trip's own elapsed-minus-paused math exactly, so this
+  // live preview never disagrees with what actually gets billed.
+  const elapsedMin = Math.max(0, (now - new Date(startedAt).getTime()) / 60000 - pausedMinutes)
   const over = elapsedMin - bookedHours * 60 - policy.overtime_grace_minutes
   if (over <= 0) return { minutes: 0, amount: 0 }
   const minutes = Math.ceil(over / policy.overtime_block_minutes) * policy.overtime_block_minutes
