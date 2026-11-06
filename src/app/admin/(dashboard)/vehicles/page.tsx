@@ -273,6 +273,40 @@ function AdminVehiclesInner() {
   const [shareAgreements, setShareAgreements] = useState<ShareAgreement[]>([])
   const [otherTenants, setOtherTenants] = useState<OtherTenant[]>([])
   const [showShareAgreements, setShowShareAgreements] = useState(false)
+  const [showNotStarted, setShowNotStarted] = useState(false)
+  const [notStarted, setNotStarted] = useState<{ route_id: string; origin: string; destination: string; departure_time: string | null; is_monthly_fixed: boolean; owner_name: string; rider_count: number }[]>([])
+  const [subFor, setSubFor] = useState<string | null>(null)
+  const [subSearch, setSubSearch] = useState('')
+  const [subResults, setSubResults] = useState<{ id: string; owner_name: string; vehicle_number: string | null; vehicle_type: string }[]>([])
+  const [assigningSub, setAssigningSub] = useState(false)
+
+  const loadNotStarted = async () => {
+    const { data } = await supabase.rpc('admin_routes_not_started_today')
+    setNotStarted(data ?? [])
+  }
+  useEffect(() => { if (showNotStarted) loadNotStarted() }, [showNotStarted]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!subFor || !subSearch.trim()) { setSubResults([]); return }
+    const handle = setTimeout(() => {
+      supabase.from('vehicles').select('id, owner_name, vehicle_number, vehicle_type').eq('is_active', true)
+        .or(`owner_name.ilike.%${subSearch.trim()}%,vehicle_number.ilike.%${subSearch.trim()}%`).limit(8)
+        .then(({ data }) => setSubResults(data ?? []))
+    }, 300)
+    return () => clearTimeout(handle)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subSearch, subFor])
+
+  const confirmAssignSubstitute = async (vehicleId: string) => {
+    if (!subFor) return
+    setAssigningSub(true)
+    const { error } = await supabase.rpc('admin_assign_route_substitute', { p_route_id: subFor, p_substitute_vehicle_id: vehicleId })
+    setAssigningSub(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.handOffDoneToast'))
+    setSubFor(null); setSubSearch(''); setSubResults([])
+    loadNotStarted()
+  }
   const [newShare, setNewShare] = useState({ category: 'hourly' as string, target_tenant_id: '' })
   const [savingShare, setSavingShare] = useState(false)
 
@@ -736,6 +770,7 @@ function AdminVehiclesInner() {
               <button onClick={() => setShowRates((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Percent size={14} /> {t('cm.ratesBtn')}</button>
               <button onClick={() => setShowDispatchBands((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Percent size={14} /> {t('cm.dispatchBandsBtn')}</button>
               <button onClick={() => setShowShareAgreements((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Percent size={14} /> {t('cm.shareAgreementsBtn')}</button>
+              <button onClick={() => setShowNotStarted((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Signpost size={14} /> {t('mv.notStartedBtn')}</button>
               <button onClick={openNewVehicle} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('mk.newVehicleBtn')}</button>
             </div>
           </div>
@@ -896,6 +931,39 @@ function AdminVehiclesInner() {
                   {otherTenants.map((tn) => <option key={tn.id} value={tn.id}>{isUrdu ? (tn.name_ur ?? tn.name) : tn.name}</option>)}
                 </select>
                 <button onClick={saveShare} disabled={savingShare} className="px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('g.saveChanges')}</button>
+              </div>
+            </div>
+          )}
+
+          {showNotStarted && (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-6">
+              <p className="font-sans text-[13px] font-bold text-dp-on-surface mb-1">{t('mv.notStartedHeading')}</p>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">{t('mv.notStartedHint')}</p>
+              <div className="space-y-1.5">
+                {notStarted.map((r) => (
+                  <div key={r.route_id} className="flex flex-col gap-1.5 bg-dp-surface-container rounded-lg px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-sans text-[13px] text-dp-on-surface">{r.origin} → {r.destination} · {r.owner_name}{r.is_monthly_fixed ? ` · ${t('mv.monthlyFixedBadge')}` : ''}</span>
+                      <span className="font-sans text-[11.5px] text-dp-on-surface-variant shrink-0 ltr-num">{r.departure_time?.slice(0, 5)} · {r.rider_count} {t('mk.seatsLabel')}</span>
+                    </div>
+                    {subFor === r.route_id ? (
+                      <div className="flex flex-col gap-1.5">
+                        <input value={subSearch} onChange={(e) => setSubSearch(e.target.value)} placeholder={t('mv.handOffSearchPlaceholder')} className="input-field" />
+                        {subResults.map((v) => (
+                          <button key={v.id} onClick={() => confirmAssignSubstitute(v.id)} disabled={assigningSub}
+                            className="flex items-center justify-between gap-2 border border-dp-outline-variant rounded-lg px-2.5 py-1.5 cursor-pointer disabled:opacity-50">
+                            <span className="font-sans text-[12.5px]">{v.owner_name} · {v.vehicle_type}</span>
+                            <span className="font-sans text-[11px] text-dp-on-surface-variant ltr-num">{v.vehicle_number}</span>
+                          </button>
+                        ))}
+                        <button onClick={() => { setSubFor(null); setSubSearch('') }} className="font-sans text-[11.5px] text-dp-on-surface-variant cursor-pointer self-start">{t('action.cancel')}</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setSubFor(r.route_id)} className="self-start px-2.5 py-1 rounded-lg text-[11.5px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white">{t('mv.assignSubstituteBtn')}</button>
+                    )}
+                  </div>
+                ))}
+                {notStarted.length === 0 && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('mv.notStartedEmpty')}</p>}
               </div>
             </div>
           )}

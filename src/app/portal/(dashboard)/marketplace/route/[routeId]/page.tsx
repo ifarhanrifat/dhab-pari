@@ -330,7 +330,7 @@ export default function RouteDetailPage() {
       <button onClick={() => setShowGroup(true)} className="w-full flex items-center justify-center gap-1.5 bg-white border border-dp-outline-variant rounded-lg p-3 mt-4 font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer">
         <Users size={14} /> {t('mv.routeGroupHeading')}
       </button>
-      {showGroup && <RouteGroupPanel routeId={route.id} onClose={() => setShowGroup(false)} />}
+      {showGroup && <RouteGroupPanel routeId={route.id} onClose={() => setShowGroup(false)} departureTime={route.departure_time} />}
 
       {route.is_monthly_fixed && monthlyDetail && (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-4">

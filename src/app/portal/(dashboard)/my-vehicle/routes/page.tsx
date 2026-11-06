@@ -128,6 +128,11 @@ export default function MyVehicleRoutesPage() {
   const [nextRunSeats, setNextRunSeats] = useState<Record<string, number>>({})
   const [monthlyActiveCounts, setMonthlyActiveCounts] = useState<Record<string, number>>({})
   const [monthlyRidersRouteId, setMonthlyRidersRouteId] = useState<string | null>(null)
+  const [handOffRouteId, setHandOffRouteId] = useState<string | null>(null)
+  const [handOffSearch, setHandOffSearch] = useState('')
+  const [handOffResults, setHandOffResults] = useState<{ id: string; owner_name: string; vehicle_number: string | null; vehicle_type: string }[]>([])
+  const [handingOff, setHandingOff] = useState(false)
+  const [coveringToday, setCoveringToday] = useState<{ route_id: string; origin: string; destination: string; departure_time: string | null; reason: string }[]>([])
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
@@ -138,6 +143,7 @@ export default function MyVehicleRoutesPage() {
     ])
     setRoutes(rts ?? [])
     setBookings((b ?? []) as unknown as Booking[])
+    supabase.rpc('my_substitute_assignments_today').then(({ data }) => setCoveringToday((data ?? []) as typeof coveringToday))
 
     if (rts && rts.length > 0) {
       const { data: ilans } = await supabase.from('commercial_ilans')
@@ -374,6 +380,27 @@ export default function MyVehicleRoutesPage() {
     if (vehicleId) reload(vehicleId)
   }
 
+  useEffect(() => {
+    if (!handOffRouteId || !handOffSearch.trim()) { setHandOffResults([]); return }
+    const handle = setTimeout(() => {
+      supabase.from('vehicles').select('id, owner_name, vehicle_number, vehicle_type').eq('is_active', true)
+        .or(`owner_name.ilike.%${handOffSearch.trim()}%,vehicle_number.ilike.%${handOffSearch.trim()}%`).limit(8)
+        .then(({ data }) => setHandOffResults(data ?? []))
+    }, 300)
+    return () => clearTimeout(handle)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handOffSearch, handOffRouteId])
+
+  const confirmHandOff = async (substituteVehicleId: string) => {
+    if (!handOffRouteId) return
+    setHandingOff(true)
+    const { error } = await supabase.rpc('driver_request_substitute', { p_route_id: handOffRouteId, p_substitute_vehicle_id: substituteVehicleId })
+    setHandingOff(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.handOffDoneToast'))
+    setHandOffRouteId(null); setHandOffSearch(''); setHandOffResults([])
+  }
+
   const cancelConfirmedBooking = async (id: string) => {
     if (!confirm(t('mp.confirmCancelConfirmedHint'))) return
     const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
@@ -396,6 +423,18 @@ export default function MyVehicleRoutesPage() {
           <Plus size={14} /> {t('mv.postRouteBtn')}
         </button>
       </div>
+
+      {coveringToday.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex flex-col gap-2">
+          <p className="font-sans text-[12px] font-bold text-amber-900 uppercase tracking-[0.05em]">{t('mv.coveringTodayHeading')}</p>
+          {coveringToday.map((c) => (
+            <button key={c.route_id} type="button" onClick={() => setGroupRouteId(c.route_id)} className="flex items-center justify-between gap-2 bg-white rounded-xl px-3 py-2 cursor-pointer">
+              <span className="font-sans text-[13px] font-semibold text-[#1e293b] truncate">{c.origin} → {c.destination}</span>
+              <span className="font-sans text-[10.5px] text-amber-700 shrink-0">{c.reason === 'admin_assigned' ? t('mv.coveringReasonAdminAssigned') : t('mv.coveringReasonDriverRequested')}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {showForm && (
         <MobilityBottomSheet title={t('mv.postRouteHeading')} onClose={() => setShowForm(false)}>
@@ -716,6 +755,10 @@ export default function MyVehicleRoutesPage() {
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#166534]">
                       <Users size={11} /> {t('mv.routeGroupBtn')}
                     </button>
+                    <button onClick={() => setHandOffRouteId(r.id)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
+                      <Users size={11} /> {t('mv.handOffRunBtn')}
+                    </button>
                     {r.is_monthly_fixed && (
                       <>
                         <button onClick={() => setMonthlyRidersRouteId(r.id)}
@@ -805,6 +848,22 @@ export default function MyVehicleRoutesPage() {
       )}
       {monthlyRidersRouteId && (
         <RouteMonthlySubscribersPanel routeId={monthlyRidersRouteId} onClose={() => { setMonthlyRidersRouteId(null); if (vehicleId) reload(vehicleId) }} />
+      )}
+      {handOffRouteId && (
+        <MobilityBottomSheet title={t('mv.handOffRunHeading')} onClose={() => { setHandOffRouteId(null); setHandOffSearch(''); setHandOffResults([]) }}>
+          <div className="flex flex-col gap-2.5">
+            <label className="block font-sans text-[11.5px] font-bold text-[#64748b]">{t('mv.pickSubstituteVehicleLabel')}</label>
+            <input value={handOffSearch} onChange={(e) => setHandOffSearch(e.target.value)} placeholder={t('mv.handOffSearchPlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            {handOffResults.map((v) => (
+              <button key={v.id} type="button" onClick={() => confirmHandOff(v.id)} disabled={handingOff}
+                className="flex items-center justify-between gap-2 border border-[#e5e2d0] rounded-lg px-3 py-2 cursor-pointer disabled:opacity-50">
+                <span className="font-sans text-[13px] font-semibold text-[#1e293b]">{v.owner_name} · {v.vehicle_type}</span>
+                <span className="font-sans text-[11.5px] text-[#64748b] ltr-num">{v.vehicle_number}</span>
+              </button>
+            ))}
+            <p className="font-sans text-[11.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">{t('mv.handOffSettleNote')}</p>
+          </div>
+        </MobilityBottomSheet>
       )}
       {editSchedule && (
         <MobilityBottomSheet title={t('mv.editScheduleHeading')} onClose={() => setEditSchedule(null)}>

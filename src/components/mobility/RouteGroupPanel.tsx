@@ -76,7 +76,7 @@ function computeLiveEtas(path: { lat: number; lng: number }[], durationMin: numb
   return result
 }
 
-export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose: () => void }) {
+export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: string; onClose: () => void; departureTime?: string | null }) {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [detail, setDetail] = useState<Detail | null>(null)
@@ -215,6 +215,21 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
     load()
   }
 
+  const [nudging, setNudging] = useState(false)
+  const nudgeDriver = async () => {
+    setNudging(true)
+    const { error } = await supabase.rpc('nudge_route_driver', { p_route_id: routeId })
+    setNudging(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.driverNudgedToast'))
+  }
+  const departurePassed = (() => {
+    if (!departureTime) return false
+    const [h, m] = departureTime.split(':').map(Number)
+    const target = new Date(); target.setHours(h, m, 0, 0)
+    return Date.now() > target.getTime() + 10 * 60000
+  })()
+
   const join = async () => {
     setJoining(true)
     const { error } = await supabase.rpc('join_route_group', { p_route_id: routeId })
@@ -337,6 +352,12 @@ export function RouteGroupPanel({ routeId, onClose }: { routeId: string; onClose
             <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
               <Radio size={12} className="animate-pulse" /> {detail.active_run.direction === 'return' ? t('mv.rideLiveReturnLabel') : t('mv.rideLiveNowLabel')}
             </p>
+          )}
+          {!detail.is_owner && !detail.active_run && detail.todays_runs.length === 0 && departurePassed && (
+            <button type="button" onClick={nudgeDriver} disabled={nudging}
+              className="w-full py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer border border-amber-300 bg-amber-50 text-amber-800 disabled:opacity-50">
+              {nudging ? t('action.saving') : t('mv.nudgeDriverBtn')}
+            </button>
           )}
 
           {/* Real ask, 2026-10-21: "the vehicle will leave on its time and
