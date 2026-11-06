@@ -17,7 +17,7 @@
 // since a flex-split fare depends on who else books that specific
 // date and isn't safe to silently recompute here.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
@@ -33,6 +33,7 @@ import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
 import { RequestWaitingSheet, type WaitingSummary } from '@/components/mobility/RequestWaitingSheet'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { estimateArrivalTime, estimateReturnArrivalTime } from '@/lib/roadRoute'
+import type { LeafletMapHandle, MapPin as LeafletMapPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -115,6 +116,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [myBookings, setMyBookings] = useState<MyBooking[]>([])
   const [actionId, setActionId] = useState<string | null>(null)
   const [reschedulingId, setReschedulingId] = useState<string | null>(null)
+  const mapRef = useRef<LeafletMapHandle>(null)
   const [rescheduleDate, setRescheduleDate] = useState('')
 
   const loadMyBookings = async () => {
@@ -333,38 +335,42 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
         <p className="font-heading text-[22px] font-bold text-dp-secondary mt-2">{fmt(route.fare_per_seat_pkr)} <span className="font-sans font-normal text-dp-on-surface-variant text-[13px]">{t('mk.perSeat')}</span></p>
       )}
 
-      {route.origin_lat != null && route.origin_lng != null && route.destination_lat != null && route.destination_lng != null && (
-        <div className="mt-4">
-          <LeafletMap
-            className="rounded-lg"
-            pins={[
-              { lat: route.origin_lat, lng: route.origin_lng, label: isUrdu && route.origin_ur ? route.origin_ur : route.origin, color: '#16a34a' },
-              { lat: route.destination_lat, lng: route.destination_lng, label: isUrdu && route.destination_ur ? route.destination_ur : route.destination, color: '#dc2626' },
-            ]}
-            route={route.route_path ?? undefined}
-          />
-        </div>
-      )}
-
-      {stops.length > 0 && (() => {
+      {route.origin_lat != null && route.origin_lng != null && route.destination_lat != null && route.destination_lng != null && (() => {
         const etas = computeStopEtas(route.route_path ?? [], route.route_duration_min, route.departure_time, stops)
         const returnEtas = computeReturnStopEtas(route.route_path ?? [], route.route_duration_min, route.return_departure_time, stops)
+        // Real ask, 2026-11-06: "the map is not showing all the stops"
+        // — stops are now real pins on the same map as origin/
+        // destination, not a separate plain-text list, with a banner
+        // popup (name + scheduled ETA) just like the live view.
+        const stopPins: LeafletMapPin[] = stops.map((s, i) => {
+          const name = isUrdu && s.label_ur ? s.label_ur : s.label
+          const etaLine = [etas[s.id] ? `🕒 ${etas[s.id]}` : null, returnEtas[s.id] ? `↩️ ${returnEtas[s.id]}` : null].filter(Boolean).join(' · ')
+          return { lat: s.lat, lng: s.lng, emoji: '📍', color: '#f59e0b', popupHtml: `<div style="font-family:sans-serif;min-width:140px"><b>${i + 1}. ${name}</b>${etaLine ? `<br/><span style="color:#166534;font-weight:600">${etaLine}</span>` : ''}</div>` }
+        })
+        const pins: LeafletMapPin[] = [
+          { lat: route.origin_lat!, lng: route.origin_lng!, label: isUrdu && route.origin_ur ? route.origin_ur : route.origin, color: '#16a34a' },
+          ...stopPins,
+          { lat: route.destination_lat!, lng: route.destination_lng!, label: isUrdu && route.destination_ur ? route.destination_ur : route.destination, color: '#dc2626' },
+        ]
         return (
-          <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-4">
-            <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{t('mp.routeStopsHeading')}</p>
-            <div className="flex flex-col gap-1.5">
-              {stops.map((s, i) => (
-                <div key={s.id} className="flex items-center gap-2.5">
-                  <span className="shrink-0 w-5 h-5 rounded-full bg-dp-secondary-container text-dp-secondary text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
-                  <span className="flex-1 min-w-0 font-sans text-[13px] text-dp-on-surface truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</span>
-                  <span className="shrink-0 flex flex-col items-end font-sans text-[11px] text-dp-on-surface-variant ltr-num">
-                    {etas[s.id] && <span>🕒 {etas[s.id]}</span>}
-                    {returnEtas[s.id] && <span>↩️ {returnEtas[s.id]}</span>}
-                  </span>
-                </div>
-              ))}
+          <>
+            <div className="mt-4">
+              <LeafletMap ref={mapRef} className="rounded-lg" pins={pins} route={route.route_path ?? undefined} />
             </div>
-          </div>
+            {stops.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto hide-scrollbar mt-3 pb-1">
+                {stops.map((s, i) => (
+                  <button key={s.id} type="button" onClick={() => mapRef.current?.focusPin(i + 1)}
+                    className="shrink-0 bg-white border border-dp-outline-variant rounded-xl px-2.5 py-1.5 min-w-[130px] text-start cursor-pointer">
+                    <p className="font-sans text-[12px] font-semibold text-dp-on-surface truncate">{i + 1}. {isUrdu && s.label_ur ? s.label_ur : s.label}</p>
+                    <p className="font-sans text-[10.5px] text-dp-on-surface-variant ltr-num">
+                      {[etas[s.id] ? `🕒 ${etas[s.id]}` : null, returnEtas[s.id] ? `↩️ ${returnEtas[s.id]}` : null].filter(Boolean).join(' · ')}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )
       })()}
 

@@ -755,7 +755,7 @@ export default function MyVehicleRoutesPage() {
                     </button>
                     <button onClick={() => setGroupRouteId(r.id)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#166534]">
-                      <Users size={11} /> {t('mv.routeGroupBtn')}
+                      <Users size={11} /> {r.is_monthly_fixed ? t('mv.startManageRideBtn') : t('mv.routeGroupBtn')}
                     </button>
                     <button onClick={() => setHandOffRouteId(r.id)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
