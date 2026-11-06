@@ -5,6 +5,7 @@ import { Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { FloatingWhatsAppButton } from "@/components/layout/FloatingWhatsAppButton";
 import { PwaProvider } from "@/components/layout/PwaProvider";
+import { NativePushNavigator } from "@/components/layout/NativePushNavigator";
 import { PullToRefresh } from "@/components/layout/PullToRefresh";
 import { AppUpdateRequiredModal } from "@/components/layout/AppUpdateRequiredModal";
 import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
@@ -173,6 +174,7 @@ export default async function RootLayout({
         <PullToRefresh />
         {children}
         <PwaProvider />
+        <NativePushNavigator />
         <FloatingWhatsAppButton />
         </LocaleProvider>
         </SiteProvider>
