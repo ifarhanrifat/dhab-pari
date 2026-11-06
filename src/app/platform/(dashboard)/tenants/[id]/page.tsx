@@ -25,7 +25,9 @@ interface TenantSummary {
   admin_count: number; portal_user_count: number
   subscription_status: string | null; subscription_plan: string | null
   water_supply_enabled: boolean; donors_enabled: boolean
+  tehsil_id: string | null; tehsil_name: string | null
 }
+interface Tehsil { id: string; name: string; name_ur: string | null }
 
 interface TenantAdmin {
   id: string; full_name: string; email: string; role: string
@@ -77,7 +79,10 @@ export default function PlatformTenantDetailPage() {
   const [planLimit, setPlanLimit] = useState<CurrentPlanLimit | null>(null)
 
   const [showEdit, setShowEdit] = useState(false)
-  const [editForm, setEditForm] = useState({ name: '', name_ur: '', slug: '' })
+  const [editForm, setEditForm] = useState({ name: '', name_ur: '', slug: '', tehsil_id: '' })
+  const [tehsils, setTehsils] = useState<Tehsil[]>([])
+  const [newTehsilName, setNewTehsilName] = useState('')
+  const [addingTehsil, setAddingTehsil] = useState(false)
   const [editSaving, setEditSaving] = useState(false)
 
   const [zones, setZones] = useState<Zone[]>([])
@@ -88,7 +93,7 @@ export default function PlatformTenantDetailPage() {
   const [zoneSaving, setZoneSaving] = useState(false)
 
   const load = async () => {
-    const [{ data: tenants, error: tenantsError }, { data: adminsData, error: adminsError }, { data: plansData }, { data: subData }, { data: zonesData }, { data: allZonesData }, { data: citiesData }] = await Promise.all([
+    const [{ data: tenants, error: tenantsError }, { data: adminsData, error: adminsError }, { data: plansData }, { data: subData }, { data: zonesData }, { data: allZonesData }, { data: citiesData }, { data: tehsilsData }] = await Promise.all([
       supabase.rpc('platform_list_tenants'),
       supabase.rpc('platform_get_tenant_admins', { p_tenant_id: id }),
       supabase.from('subscription_plans').select('id, key, name, monthly_price_pkr, commission_pct').eq('is_active', true).order('monthly_price_pkr'),
@@ -96,6 +101,7 @@ export default function PlatformTenantDetailPage() {
       supabase.rpc('platform_tenant_zones', { p_tenant_id: id }),
       supabase.rpc('platform_all_tenant_zones'),
       supabase.from('cities').select('id, name, lat, lng').eq('is_active', true).order('display_order'),
+      supabase.from('tehsils').select('id, name, name_ur').order('name'),
     ])
     if (tenantsError) toast.error(friendlyError(tenantsError))
     else setTenant(((tenants as TenantSummary[]) ?? []).find((t) => t.id === id) ?? null)
@@ -108,6 +114,7 @@ export default function PlatformTenantDetailPage() {
     setZones((zonesData as Zone[]) ?? [])
     setOtherZones(((allZonesData as OtherZoneRow[]) ?? []).filter((z) => z.tenant_id !== id))
     setCities((citiesData as CityOption[]) ?? [])
+    setTehsils((tehsilsData as Tehsil[]) ?? [])
   }
 
   useEffect(() => { load() }, [id])
@@ -229,7 +236,7 @@ export default function PlatformTenantDetailPage() {
 
   const openEdit = () => {
     if (!tenant) return
-    setEditForm({ name: tenant.name, name_ur: tenant.name_ur ?? '', slug: tenant.slug })
+    setEditForm({ name: tenant.name, name_ur: tenant.name_ur ?? '', slug: tenant.slug, tehsil_id: tenant.tehsil_id ?? '' })
     setShowEdit(true)
   }
 
@@ -241,16 +248,32 @@ export default function PlatformTenantDetailPage() {
       return
     }
     setEditSaving(true)
+    const tehsilChanged = (tenant.tehsil_id ?? '') !== editForm.tehsil_id
     const { error } = await supabase.from('tenants').update({
       name: editForm.name.trim(),
       name_ur: editForm.name_ur.trim() || null,
       slug: editForm.slug.trim().toLowerCase(),
+      tehsil_id: editForm.tehsil_id || null,
     }).eq('id', tenant.id)
+    if (!error && tehsilChanged && editForm.tehsil_id) {
+      await supabase.rpc('sync_tehsil_share_agreements', { p_tehsil_id: editForm.tehsil_id })
+    }
     setEditSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success('Tenant updated.')
     setShowEdit(false)
     load()
+  }
+
+  const addTehsil = async () => {
+    if (!newTehsilName.trim()) return
+    setAddingTehsil(true)
+    const { data, error } = await supabase.from('tehsils').insert({ name: newTehsilName.trim() }).select('id, name, name_ur').single()
+    setAddingTehsil(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    setTehsils((prev) => [...prev, data as Tehsil])
+    setEditForm((f) => ({ ...f, tehsil_id: (data as Tehsil).id }))
+    setNewTehsilName('')
   }
 
   const toggleModule = async (field: 'water_supply_enabled' | 'donors_enabled') => {
@@ -526,6 +549,27 @@ export default function PlatformTenantDetailPage() {
                   className="w-full px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] focus:border-dp-secondary focus:ring-0"
                 />
                 <p className="text-[12px] text-dp-on-surface-variant mt-1 font-sans">Public subdomain: {editForm.slug || '...'}.dhabpari.com</p>
+              </div>
+              <div>
+                <label className="block text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 font-sans">Tehsil (for same-tehsil ride sharing)</label>
+                <select
+                  value={editForm.tehsil_id}
+                  onChange={(e) => setEditForm((f) => ({ ...f, tehsil_id: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] focus:border-dp-secondary focus:ring-0"
+                >
+                  <option value="">No tehsil</option>
+                  {tehsils.map((th) => <option key={th.id} value={th.id}>{th.name}</option>)}
+                </select>
+                <div className="flex gap-2 mt-1.5">
+                  <input
+                    type="text" value={newTehsilName} onChange={(e) => setNewTehsilName(e.target.value)} placeholder="New tehsil name"
+                    className="flex-1 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] focus:border-dp-secondary focus:ring-0"
+                  />
+                  <button type="button" onClick={addTehsil} disabled={addingTehsil || !newTehsilName.trim()} className="px-2.5 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold cursor-pointer disabled:opacity-50">
+                    {addingTehsil ? '...' : '+ Add'}
+                  </button>
+                </div>
+                <p className="text-[11.5px] text-dp-on-surface-variant mt-1 font-sans">Tenants sharing a tehsil automatically see each other's Routes/Adda/trip-shares as "local." Saving a tehsil change re-syncs sharing for every tenant in it.</p>
               </div>
               <button
                 type="submit" disabled={editSaving}

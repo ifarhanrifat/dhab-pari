@@ -59,7 +59,7 @@ interface ShareAgreement { id: string; category: string; target_tenant_id: strin
 interface OtherTenant { id: string; name: string; name_ur: string | null }
 interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; per_km_pkr: number; intercity_commission_pct: number }
 interface VehicleModel { id: string; make: string; model: string }
-const SHARE_CATEGORIES = ['hourly', 'shadi', 'rental', 'machinery', 'tractor', 'loader'] as const
+const SHARE_CATEGORIES = ['hourly', 'shadi', 'rental', 'machinery', 'tractor', 'loader', 'route', 'adda', 'trip_share'] as const
 interface Adda {
   id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null; pair_adda_id: string | null
   classification: string; turn_minutes: number; is_active: boolean; fixed_fare_per_seat_pkr: number | null

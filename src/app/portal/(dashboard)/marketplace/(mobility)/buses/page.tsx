@@ -14,13 +14,17 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Bus, Search, Clock, Users, MessageCircle, ArrowRight, CalendarDays, Repeat } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { Bus, Search, Clock, Users, MessageCircle, ArrowRight, CalendarDays, Repeat, MapPinned } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { FarePolicyCard } from '@/components/mobility/FarePolicyCard'
+import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
+import { friendlyError } from '@/lib/errors'
 
 interface VehicleLite { owner_name: string; vehicle_type: string; model: string | null; color: string | null; total_seats: number | null; has_ac: boolean | null; vehicle_number: string | null }
 interface RouteRow {
@@ -28,11 +32,21 @@ interface RouteRow {
   fare_per_seat_pkr: number | null; departure_time: string | null; return_departure_time: string | null; days_of_week: number[] | null
   is_two_way: boolean | null; is_monthly_fixed: boolean | null; monthly_reference_fee_pkr: number | null; distance_km: number | null; route_duration_min: number | null
   vehicles: VehicleLite | null
+  source_tenant_name?: string | null
 }
 interface TripRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   travel_date: string; departure_time_estimate: string | null; seats_available: number; listed_fare_per_seat_pkr: number; trip_type: string | null
   vehicles: VehicleLite | null
+  source_tenant_name?: string | null
+}
+interface NearbyTehsilRow {
+  kind: 'route' | 'trip'; id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
+  fare_per_seat_pkr?: number | null; departure_time?: string | null; return_departure_time?: string | null
+  days_of_week?: number[] | null; is_two_way?: boolean | null; distance_km?: number | null; route_duration_min?: number | null
+  travel_date?: string | null; departure_time_estimate?: string | null; seats_available?: number | null
+  owner_name: string; vehicle_type: string; model: string | null; color: string | null; total_seats: number | null; has_ac: boolean | null; vehicle_number: string | null
+  source_tenant_id: string; source_tenant_name: string
 }
 interface MySeat {
   id: string; status: string; seats: number; travel_date: string; route_id: string | null
@@ -63,6 +77,11 @@ function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maxi
 export default function BusesPage() {
   const { t, isUrdu } = useLocale()
   const { user } = usePortalUser()
+  const router = useRouter()
+  const [crossTenantTarget, setCrossTenantTarget] = useState<{ kind: 'route'; row: RouteRow } | { kind: 'trip'; row: TripRow } | null>(null)
+  const [bookSeats, setBookSeats] = useState(1)
+  const [bookDate, setBookDate] = useState('')
+  const [booking, setBooking] = useState(false)
   const [routes, setRoutes] = useState<RouteRow[]>([])
   const [trips, setTrips] = useState<TripRow[]>([])
   const [mine, setMine] = useState<MySeat[]>([])
@@ -81,9 +100,28 @@ export default function BusesPage() {
       supabase.from('vehicle_routes').select(`id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr, departure_time, return_departure_time, days_of_week, is_two_way, is_monthly_fixed, monthly_reference_fee_pkr, distance_km, route_duration_min, ${veh}`).eq('is_active', true).order('departure_time'),
       supabase.from('vehicle_trip_offers').select(`id, origin, origin_ur, destination, destination_ur, travel_date, departure_time_estimate, seats_available, listed_fare_per_seat_pkr, trip_type, ${veh}`).eq('status', 'open').gte('travel_date', today).order('travel_date'),
       supabase.from('ride_bookings').select('id, status, seats, travel_date, route_id, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time)').eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).gte('travel_date', today).order('travel_date'),
-    ]).then(([r, o, m]) => {
-      setRoutes((r.data ?? []) as unknown as RouteRow[])
-      setTrips((o.data ?? []) as unknown as TripRow[])
+      supabase.rpc('nearby_tehsil_rides'),
+    ]).then(([r, o, m, nearby]) => {
+      const ownRoutes = (r.data ?? []) as unknown as RouteRow[]
+      const ownTrips = (o.data ?? []) as unknown as TripRow[]
+      const nearbyRows = ((nearby.data ?? []) as NearbyTehsilRow[])
+      const nearbyRoutes: RouteRow[] = nearbyRows.filter((n) => n.kind === 'route').map((n) => ({
+        id: n.id, origin: n.origin, origin_ur: n.origin_ur, destination: n.destination, destination_ur: n.destination_ur,
+        fare_per_seat_pkr: n.fare_per_seat_pkr ?? null, departure_time: n.departure_time ?? null, return_departure_time: n.return_departure_time ?? null,
+        days_of_week: n.days_of_week ?? null, is_two_way: n.is_two_way ?? null, is_monthly_fixed: false, monthly_reference_fee_pkr: null,
+        distance_km: n.distance_km ?? null, route_duration_min: n.route_duration_min ?? null,
+        vehicles: { owner_name: n.owner_name, vehicle_type: n.vehicle_type, model: n.model, color: n.color, total_seats: n.total_seats, has_ac: n.has_ac, vehicle_number: n.vehicle_number },
+        source_tenant_name: n.source_tenant_name,
+      }))
+      const nearbyTrips: TripRow[] = nearbyRows.filter((n) => n.kind === 'trip').map((n) => ({
+        id: n.id, origin: n.origin, origin_ur: n.origin_ur, destination: n.destination, destination_ur: n.destination_ur,
+        travel_date: n.travel_date ?? '', departure_time_estimate: n.departure_time_estimate ?? null, seats_available: n.seats_available ?? 0,
+        listed_fare_per_seat_pkr: n.fare_per_seat_pkr ?? 0, trip_type: null,
+        vehicles: { owner_name: n.owner_name, vehicle_type: n.vehicle_type, model: n.model, color: n.color, total_seats: n.total_seats, has_ac: n.has_ac, vehicle_number: n.vehicle_number },
+        source_tenant_name: n.source_tenant_name,
+      }))
+      setRoutes([...ownRoutes, ...nearbyRoutes])
+      setTrips([...ownTrips, ...nearbyTrips])
       setMine((m.data ?? []) as unknown as MySeat[])
       setLoading(false)
     })
@@ -117,6 +155,28 @@ export default function BusesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routes, trips, query, vehicleGroup, view, isUrdu])
   const shown = city ? groups.filter((g) => g.key === city) : groups
+
+  const openRoute = (r: RouteRow) => {
+    if (r.source_tenant_name) { setBookSeats(1); setBookDate(''); setCrossTenantTarget({ kind: 'route', row: r }) }
+    else router.push(`/portal/marketplace/route/${r.id}`)
+  }
+  const openTrip = (o: TripRow) => {
+    if (o.source_tenant_name) { setBookSeats(1); setCrossTenantTarget({ kind: 'trip', row: o }) }
+    else router.push('/portal/marketplace/shared')
+  }
+
+  const confirmCrossTenantBooking = async () => {
+    if (!crossTenantTarget) return
+    const supabase = createClient()
+    setBooking(true)
+    const { error } = crossTenantTarget.kind === 'route'
+      ? await supabase.rpc('place_ride_booking', { p_route_id: crossTenantTarget.row.id, p_travel_date: bookDate, p_seats: bookSeats, p_method: 'cash', p_proof_url: null })
+      : await supabase.rpc('book_trip_offer', { p_trip_offer_id: crossTenantTarget.row.id, p_seats_requested: bookSeats })
+    setBooking(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('bus.crossTenantBookedToast'))
+    setCrossTenantTarget(null)
+  }
 
   if (loading) return <div className="text-center py-12"><LoadingDots /></div>
 
@@ -196,7 +256,7 @@ export default function BusesPage() {
             const [c1, c2] = PALETTE[hashIdx(r.destination)]
             const runsToday = (r.days_of_week ?? []).includes(todayDow)
             return (
-              <Link key={r.id} href={`/portal/marketplace/route/${r.id}`} className="block rounded-[22px] overflow-hidden bg-white border border-[#e5e7eb] shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)] active:scale-[0.99] transition-transform">
+              <div key={r.id} role="button" tabIndex={0} onClick={() => openRoute(r)} className="block rounded-[22px] overflow-hidden bg-white border border-[#e5e7eb] shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)] active:scale-[0.99] transition-transform cursor-pointer">
                 <div className="relative px-4 pt-3.5 pb-4 text-white" style={{ backgroundImage: `linear-gradient(135deg, ${c1}, ${c2})` }}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -224,6 +284,7 @@ export default function BusesPage() {
                       {runsToday && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
                       {r.is_two_way && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={10} /> {t('bus.twoWay')}{r.return_departure_time ? ` · ${timeLabel(r.return_departure_time)}` : ''}</span>}
                       {r.route_duration_min && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#f1f5f9] text-[#334155] inline-flex items-center gap-1"><Clock size={10} /> <span className="ltr-num">{Math.round(r.route_duration_min)} min</span></span>}
+                      {r.source_tenant_name && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#fef9c3] text-[#854d0e] inline-flex items-center gap-1"><MapPinned size={10} /> {r.source_tenant_name}</span>}
                     </div>
                   </div>
                   <div className="text-end shrink-0">
@@ -242,25 +303,58 @@ export default function BusesPage() {
                     )}
                   </div>
                 </div>
-              </Link>
+              </div>
             )
           })}
 
           {g.trips.map((o) => (
-            <Link key={o.id} href={`/portal/marketplace/shared`} className="block rounded-[22px] bg-white border border-dashed border-[#94a3b8] p-3.5 active:scale-[0.99] transition-transform">
+            <div key={o.id} role="button" tabIndex={0} onClick={() => openTrip(o)} className="block rounded-[22px] bg-white border border-dashed border-[#94a3b8] p-3.5 active:scale-[0.99] transition-transform cursor-pointer">
               <div className="flex items-center gap-3">
                 <span className="w-12 h-12 rounded-2xl bg-[#f1f5f9] flex items-center justify-center text-[26px] shrink-0">{emojiFor(o.vehicles?.vehicle_type)}</span>
                 <div className="min-w-0 flex-1">
                   <p className="font-sans text-[10.5px] font-bold text-[#7c3aed] flex items-center gap-1"><CalendarDays size={11} /> {t('bus.oneOffTrip')} · <span className="ltr-num">{o.travel_date}</span> · {timeLabel(o.departure_time_estimate)}</p>
                   <p className="font-sans text-[13.5px] font-bold text-[#0f172a] truncate"><bdi>{nm(o.origin, o.origin_ur)}</bdi> → <bdi>{nm(o.destination, o.destination_ur)}</bdi></p>
-                  <p className="font-sans text-[11.5px] text-[#64748b] truncate flex items-center gap-1"><Users size={11} /> {o.seats_available} {t('bus.seatsLeft')} · {o.vehicles?.owner_name}</p>
+                  <p className="font-sans text-[11.5px] text-[#64748b] truncate flex items-center gap-1"><Users size={11} /> {o.seats_available} {t('bus.seatsLeft')} · {o.vehicles?.owner_name}{o.source_tenant_name ? ` · 🏘️ ${o.source_tenant_name}` : ''}</p>
                 </div>
                 <p className="font-sans text-[16px] font-black text-[#14532d] shrink-0"><span className="ltr-num">₨{fmt(o.listed_fare_per_seat_pkr)}</span></p>
               </div>
-            </Link>
+            </div>
           ))}
         </section>
       ))}
+
+      {crossTenantTarget && (
+        <MobilityBottomSheet title={t('bus.crossTenantSheetTitle')} onClose={() => setCrossTenantTarget(null)}>
+          <div className="flex flex-col gap-3">
+            <p className="font-sans text-[11.5px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1 self-start">
+              <MapPinned size={12} /> {crossTenantTarget.row.source_tenant_name}
+            </p>
+            <p className="font-sans text-[15px] font-bold text-[#0f172a]">
+              <bdi>{nm(crossTenantTarget.row.origin, crossTenantTarget.row.origin_ur)}</bdi> → <bdi>{nm(crossTenantTarget.row.destination, crossTenantTarget.row.destination_ur)}</bdi>
+            </p>
+            <p className="font-sans text-[12.5px] text-[#64748b]">
+              {crossTenantTarget.row.vehicles ? vehicleDisplayName(crossTenantTarget.row.vehicles.vehicle_type, crossTenantTarget.row.vehicles.model) : '—'} · {crossTenantTarget.row.vehicles?.owner_name}
+            </p>
+            {crossTenantTarget.kind === 'route' && (
+              <div>
+                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('bus.travelDateLabel')}</label>
+                <input type="date" value={bookDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setBookDate(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+              </div>
+            )}
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('bus.seatsLabel')}</label>
+              <input type="number" min={1} value={bookSeats} onChange={(e) => setBookSeats(Math.max(1, Number(e.target.value)))} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            </div>
+            <p className="font-sans text-[16px] font-black text-[#14532d]">
+              <span className="ltr-num">₨{fmt((crossTenantTarget.kind === 'route' ? crossTenantTarget.row.fare_per_seat_pkr ?? 0 : crossTenantTarget.row.listed_fare_per_seat_pkr) * bookSeats)}</span>
+            </p>
+            <button onClick={confirmCrossTenantBooking} disabled={booking || (crossTenantTarget.kind === 'route' && !bookDate)}
+              className="w-full py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
+              {booking ? t('action.saving') : t('bus.confirmBookingBtn')}
+            </button>
+          </div>
+        </MobilityBottomSheet>
+      )}
     </div>
   )
 }
