@@ -97,6 +97,12 @@ export default function MyVehicleHomePage() {
 
   const [rideEligible, setRideEligible] = useState(false)
   const [myTripOffers, setMyTripOffers] = useState<TripOffer[]>([])
+  // Real ask, 2026-11-07: "where the route is saving in the main page of
+  // the driver" — this card used to be a static "Post a Route" pitch
+  // that never changed even once the driver already had one live, giving
+  // no sense the feature actually did anything. Now reflects the real
+  // route once one exists.
+  const [myActiveRoute, setMyActiveRoute] = useState<{ id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null; is_monthly_fixed: boolean } | null>(null)
   const [destination, setDestination] = useState<PickedLocation | null>(null)
   const [showDestPicker, setShowDestPicker] = useState(false)
   const [tripType, setTripType] = useState<'oneway' | 'return'>('oneway')
@@ -121,6 +127,12 @@ export default function MyVehicleHomePage() {
       .eq('vehicle_id', vehicleId).eq('status', 'open').order('created_at', { ascending: false })
     setMyTripOffers(data ?? [])
   }
+  const reloadMyRoute = async (vehicleId: string) => {
+    const { data } = await supabase.from('vehicle_routes')
+      .select('id, origin, origin_ur, destination, destination_ur, departure_time, is_monthly_fixed')
+      .eq('vehicle_id', vehicleId).eq('is_active', true).maybeSingle()
+    setMyActiveRoute(data ?? null)
+  }
 
   useEffect(() => {
     if (!user) return
@@ -138,6 +150,7 @@ export default function MyVehicleHomePage() {
           supabase.rpc('vehicle_dashboard_summary', { p_vehicle_id: v.id }).then(({ data: s }) => setSummary(s as unknown as Summary)),
           reloadPresence(v.id),
           reloadTripOffers(v.id),
+          reloadMyRoute(v.id),
         ])
         const mine = new Set((offers ?? []).map((o) => o.service_class_id))
         const myClasses = (sc ?? []).filter((cl) => mine.has(cl.id))
@@ -457,10 +470,22 @@ export default function MyVehicleHomePage() {
           just gives it an entry point that looks like it. */}
       <Link href="/portal/my-vehicle/routes" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3 hover:border-[#166534]">
         <span className="shrink-0 w-10 h-10 rounded-full bg-[#F0FDF4] flex items-center justify-center"><RouteIcon size={18} className="text-[#166534]" /></span>
-        <span className="flex-1 min-w-0">
-          <span className="block font-sans text-[13px] font-bold text-[#005A36]">{t('mv.postRouteHomeHeading')}</span>
-          <span className="block font-sans text-[10.5px] text-[#64748b] mt-0.5">{t('mv.postRouteHomeHint')}</span>
-        </span>
+        {myActiveRoute ? (
+          <span className="flex-1 min-w-0">
+            <span className="block font-sans text-[13px] font-bold text-[#005A36] truncate">
+              {isUrdu && myActiveRoute.origin_ur ? myActiveRoute.origin_ur : myActiveRoute.origin} → {isUrdu && myActiveRoute.destination_ur ? myActiveRoute.destination_ur : myActiveRoute.destination}
+            </span>
+            <span className="block font-sans text-[10.5px] text-[#64748b] mt-0.5 ltr-num">
+              {myActiveRoute.is_monthly_fixed && `✅ ${t('mv.monthlyFixedBadge')} · `}
+              {myActiveRoute.departure_time ? `🕒 ${myActiveRoute.departure_time.slice(0, 5)}` : t('mk.noFixedTime')}
+            </span>
+          </span>
+        ) : (
+          <span className="flex-1 min-w-0">
+            <span className="block font-sans text-[13px] font-bold text-[#005A36]">{t('mv.postRouteHomeHeading')}</span>
+            <span className="block font-sans text-[10.5px] text-[#64748b] mt-0.5">{t('mv.postRouteHomeHint')}</span>
+          </span>
+        )}
         <ChevronRight size={16} className={`shrink-0 text-[#166534] ${isUrdu ? 'rotate-180' : ''}`} />
       </Link>
 

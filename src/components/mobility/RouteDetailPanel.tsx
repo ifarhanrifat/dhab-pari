@@ -599,6 +599,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                     <>
                       <p className="font-sans text-[12.5px] font-bold text-sky-900">{t('mv.advanceDueLabel')}: <span className="ltr-num">₨{fmt(depositPreview.deposit_pkr)}</span></p>
                       <p className="font-sans text-[10.5px] text-sky-700 ltr-num">{t('mv.advanceDaysHint').replace('{remaining}', String(depositPreview.days_remaining)).replace('{total}', String(depositPreview.days_total))}</p>
+                      <p className="font-sans text-[10.5px] font-semibold text-amber-700">{t('mv.advanceNonRefundableNote')}</p>
                     </>
                   ) : (
                     <p className="font-sans text-[11.5px] text-sky-700">{t('mv.noAdvanceDueHint')}</p>

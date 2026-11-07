@@ -245,6 +245,16 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     load()
   }
+  const [noShowId, setNoShowId] = useState<string | null>(null)
+  const markNoShow = async (bookingId: string) => {
+    if (!window.confirm(t('mv.noShowConfirmPrompt'))) return
+    setNoShowId(bookingId)
+    const { error } = await supabase.rpc('mark_rider_no_show', { p_booking_id: bookingId })
+    setNoShowId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.noShowMarkedToast'))
+    load()
+  }
   const markArrived = async () => {
     if (!detail?.active_run) return
     setRunBusy(true)
@@ -507,10 +517,16 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
                         {eta && !eta.passed && ` · ${eta.minutesAway} ${t('mv.minAwaySuffix')}`}
                       </span>
                     </span>
-                    <button type="button" onClick={() => boardOne(b.id)} disabled={boardingId === b.id}
-                      className="shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">
-                      {boardingId === b.id ? t('action.saving') : t('mv.boardNowBtn')}
-                    </button>
+                    <div className="shrink-0 flex items-center gap-1">
+                      <button type="button" onClick={() => markNoShow(b.id)} disabled={noShowId === b.id || boardingId === b.id}
+                        className="px-2 py-1 rounded-lg text-[10.5px] font-sans font-bold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">
+                        {t('mv.noShowBtn')}
+                      </button>
+                      <button type="button" onClick={() => boardOne(b.id)} disabled={boardingId === b.id || noShowId === b.id}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">
+                        {boardingId === b.id ? t('action.saving') : t('mv.boardNowBtn')}
+                      </button>
+                    </div>
                   </div>
                 )
               })}
