@@ -120,6 +120,8 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [reschedulingId, setReschedulingId] = useState<string | null>(null)
   const mapRef = useRef<LeafletMapHandle>(null)
   const [rescheduleDate, setRescheduleDate] = useState('')
+  const [rescheduleBoardStopId, setRescheduleBoardStopId] = useState<string | null>(null)
+  const [rescheduleAlightStopId, setRescheduleAlightStopId] = useState<string | null>(null)
   // Real ask, 2026-11-07: a villager boarding mid-route shouldn't pay
   // the full origin→destination fare — pick where you get on and off,
   // same distance-proportional math monthly seats already use
@@ -296,14 +298,28 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     loadMyBookings()
   }
 
-  const rescheduleBooking = async (bookingId: string) => {
+  const rescheduleBooking = async (bookingId: string, original: MyBooking) => {
     if (!rescheduleDate) return
+    // Real bug fixed, 2026-11-07: this only ever sent a new date — a
+    // rider wanting to change their stop had nowhere to do that except
+    // the "book a new seat" form below, which created a SECOND, separate
+    // booking instead of editing this one. Only send stop params when
+    // they actually changed, so an ordinary date-only reschedule on an
+    // already-confirmed booking still works exactly as before.
+    const boardChanged = rescheduleBoardStopId !== original.board_stop_id
+    const alightChanged = rescheduleAlightStopId !== original.alight_stop_id
+    const clearStops = boardChanged && !rescheduleBoardStopId && !!original.board_stop_id
     setActionId(bookingId)
-    const { error } = await supabase.rpc('reschedule_ride_booking', { p_booking_id: bookingId, p_new_travel_date: rescheduleDate })
+    const { error } = await supabase.rpc('reschedule_ride_booking', {
+      p_booking_id: bookingId, p_new_travel_date: rescheduleDate,
+      p_board_stop_id: clearStops ? null : (boardChanged || alightChanged) ? rescheduleBoardStopId : null,
+      p_alight_stop_id: clearStops ? null : (boardChanged || alightChanged) ? rescheduleAlightStopId : null,
+      p_clear_stops: clearStops,
+    })
     setActionId(null)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mv.bookingRescheduledToast'))
-    setReschedulingId(null); setRescheduleDate('')
+    setReschedulingId(null); setRescheduleDate(''); setRescheduleBoardStopId(null); setRescheduleAlightStopId(null)
     loadMyBookings()
   }
 
@@ -472,14 +488,30 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 )
               })()}
               {reschedulingId === b.id ? (
-                <div className="flex items-center gap-1.5 mt-2">
-                  <input type="date" min={todayStr()} value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} className="input-field flex-1 text-[12.5px]" />
-                  <button onClick={() => rescheduleBooking(b.id)} disabled={actionId === b.id || !rescheduleDate} className="shrink-0 px-2.5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold cursor-pointer disabled:opacity-50">{t('action.save')}</button>
-                  <button onClick={() => { setReschedulingId(null); setRescheduleDate('') }} className="shrink-0 px-2.5 py-2 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold cursor-pointer">{t('action.cancel')}</button>
+                <div className="flex flex-col gap-1.5 mt-2">
+                  <input type="date" min={todayStr()} value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} className="input-field text-[12.5px]" />
+                  {!isFlex && stops.length > 0 && b.status === 'announced' && (
+                    <>
+                      <select value={rescheduleBoardStopId ?? ''} onChange={(e) => setRescheduleBoardStopId(e.target.value || null)} className="input-field text-[12.5px]">
+                        <option value="">{t('mv.fullRouteOption')}</option>
+                        {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
+                      </select>
+                      {rescheduleBoardStopId && (
+                        <select value={rescheduleAlightStopId ?? ''} onChange={(e) => setRescheduleAlightStopId(e.target.value || null)} className="input-field text-[12.5px]">
+                          <option value="">{t('mv.alightStopLabel')}</option>
+                          {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
+                        </select>
+                      )}
+                    </>
+                  )}
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => rescheduleBooking(b.id, b)} disabled={actionId === b.id || !rescheduleDate} className="shrink-0 px-2.5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold cursor-pointer disabled:opacity-50">{t('action.save')}</button>
+                    <button onClick={() => { setReschedulingId(null); setRescheduleDate(''); setRescheduleBoardStopId(null); setRescheduleAlightStopId(null) }} className="shrink-0 px-2.5 py-2 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold cursor-pointer">{t('action.cancel')}</button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 mt-2">
-                  <button onClick={() => { setReschedulingId(b.id); setRescheduleDate(b.travel_date) }} disabled={actionId === b.id} className="inline-flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary cursor-pointer disabled:opacity-50"><CalendarClock size={12} /> {t('mv.rescheduleBtn')}</button>
+                  <button onClick={() => { setReschedulingId(b.id); setRescheduleDate(b.travel_date); setRescheduleBoardStopId(b.board_stop_id); setRescheduleAlightStopId(b.alight_stop_id) }} disabled={actionId === b.id} className="inline-flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary cursor-pointer disabled:opacity-50"><CalendarClock size={12} /> {t('mv.rescheduleBtn')}</button>
                   <button onClick={() => cancelMyBooking(b.id)} disabled={actionId === b.id} className="font-sans text-[12px] font-semibold text-dp-error cursor-pointer disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
                 </div>
               )}
@@ -604,6 +636,9 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
 
       {!route.is_monthly_fixed && bookable && (
       <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-5">
+        {myBookings.length > 0 && (
+          <p className="font-sans text-[11.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mb-3">{t('mv.bookNewVsEditHint')}</p>
+        )}
         {!isFlex && stops.length > 0 && (
           <div className="mb-4 pb-4 border-b border-dp-outline-variant">
             <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{t('mv.boardAlightHeading')}</p>
