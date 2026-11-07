@@ -451,13 +451,21 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 <p className="font-sans text-[13px] font-semibold text-dp-on-surface ltr-num">{b.travel_date} · {t('rw.seats').replace('{n}', String(b.seats))}</p>
                 <p className="font-sans text-[13px] font-bold text-dp-secondary ltr-num">₨{fmt(b.total_amount_pkr)}</p>
               </div>
-              {b.board_stop_id && (() => {
-                const stop = stops.find((s) => s.id === b.board_stop_id)
-                if (!stop) return null
+              {(() => {
+                // Real ask, 2026-11-07: "distance of the stop... shown on
+                // the live map, not anywhere else" — a full-route booking
+                // (no specific board_stop_id) boards at the route's own
+                // origin, so it gets the exact same plain-text distance
+                // check instead of only existing for a stop-segmented one.
+                const stop = b.board_stop_id ? stops.find((s) => s.id === b.board_stop_id) : null
+                const lat = stop ? stop.lat : route.origin_lat
+                const lng = stop ? stop.lng : route.origin_lng
+                const label = stop ? (isUrdu && stop.label_ur ? stop.label_ur : stop.label) : (isUrdu && route.origin_ur ? route.origin_ur : route.origin)
+                if (lat == null || lng == null) return null
                 return (
                   <div className="flex items-center justify-between gap-2 mt-1.5 bg-dp-secondary-container/30 rounded-lg px-2.5 py-1.5">
-                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant truncate">{t('mv.yourStopLabel')}: <span className="font-semibold text-dp-on-surface">{isUrdu && stop.label_ur ? stop.label_ur : stop.label}</span></p>
-                    <button onClick={() => checkDistanceToStop(b.id, stop.lat, stop.lng)} className="shrink-0 font-sans text-[11px] font-bold text-dp-secondary cursor-pointer ltr-num">
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant truncate">{t('mv.yourStopLabel')}: <span className="font-semibold text-dp-on-surface">{label}</span></p>
+                    <button onClick={() => checkDistanceToStop(b.id, lat!, lng!)} className="shrink-0 font-sans text-[11px] font-bold text-dp-secondary cursor-pointer ltr-num">
                       {distanceByBooking[b.id] ?? t('mv.howFarBtn')}
                     </button>
                   </div>

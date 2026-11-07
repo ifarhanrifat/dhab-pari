@@ -288,6 +288,7 @@ export function FloatingBookingsHub() {
       for (const item of (driverRouteAddaLive.data ?? []) as Array<
         | { kind: 'route_ongoing'; route_id: string; origin: string; destination: string; started_at: string }
         | { kind: 'route_action'; route_id: string; origin: string; destination: string; pending_count: number }
+        | { kind: 'route_idle'; route_id: string; origin: string; destination: string }
         | { kind: 'adda_ongoing'; entry_id: string; adda_name: string; adda_name_ur: string | null }
         | { kind: 'adda_action'; entry_id: string; adda_name: string; adda_name_ur: string | null; pending_count: number }
       >) {
@@ -295,6 +296,14 @@ export function FloatingBookingsHub() {
           out.push({ key: `rto-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'ongoing', since: item.started_at, routeGroupId: item.route_id })
         } else if (item.kind === 'route_action') {
           out.push({ key: `rta-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'action', since: new Date().toISOString(), routeGroupId: item.route_id, badgeCount: item.pending_count })
+        } else if (item.kind === 'route_idle') {
+          // Real bug found 2026-11-07: a permanent, scheduled-today route
+          // used to vanish from the hub the instant its run ended and
+          // nothing was left pending — unlike the rider's own seat item,
+          // which never disappears just because nothing needs action
+          // right now. Same quiet 'waiting' styling, still one tap into
+          // the route group (chat/roster/prep for tomorrow).
+          out.push({ key: `rti-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'waiting', since: new Date().toISOString(), routeGroupId: item.route_id })
         } else if (item.kind === 'adda_ongoing') {
           out.push({ key: `ado-${item.entry_id}`, emoji: '🚐', label: `${nm(item.adda_name, item.adda_name_ur)}`, state: 'ongoing', since: new Date().toISOString(), href: '/portal/my-vehicle/adda' })
         } else {

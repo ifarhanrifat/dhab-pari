@@ -120,6 +120,24 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [detail?.messages.length])
 
+  // Real ask, 2026-11-07: "after the ride starts... the driver will
+  // also view the rider position live" — this used to require BOTH
+  // sides to remember to manually tap "Share my location" with no
+  // prompt telling them to, so in practice nobody's dot ever showed up.
+  // Auto-shares once per run (driver and rider alike) the moment this
+  // panel sees that run go active; the manual toggle stays available
+  // to opt back out for this one trip.
+  const autoSharedRunIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const runId = detail?.active_run?.id
+    if (!runId || sharing || autoSharedRunIdRef.current === runId) return
+    autoSharedRunIdRef.current = runId
+    supabase.rpc('set_route_location_sharing', { p_route_id: routeId, p_on: true }).then(({ error }) => {
+      if (!error) setSharing(true)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail?.active_run?.id])
+
   const { error: geoError } = useLiveLocation({
     enabled: sharing,
     minIntervalMs: 12000,
