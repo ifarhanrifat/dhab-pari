@@ -135,6 +135,14 @@ export default function MyVehicleRoutesPage() {
   const [handOffResults, setHandOffResults] = useState<{ id: string; owner_name: string; vehicle_number: string | null; vehicle_type: string }[]>([])
   const [handingOff, setHandingOff] = useState(false)
   const [coveringToday, setCoveringToday] = useState<{ route_id: string; origin: string; destination: string; departure_time: string | null; reason: string }[]>([])
+  // Real bug found 2026-11-07 ("garbage... why there is plenty of
+  // garbage is displaying"): this list had zero filtering — every
+  // booking ever made on this vehicle's routes, including months-old
+  // cancelled/rejected/expired ones, sat in one flat dump with no way
+  // to tell a real pending confirmation apart from old noise. Same
+  // active/past segmented pattern the rider's own Bookings list already
+  // uses, so a driver sees what needs attention by default.
+  const [bookingsSeg, setBookingsSeg] = useState<'active' | 'past'>('active')
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
@@ -787,10 +795,27 @@ export default function MyVehicleRoutesPage() {
       )}
 
       <div>
-        <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('mp.bookingsHeading')}</p>
-        {bookings.length === 0 && <p className="font-sans text-[13px] text-[#94a3b8] text-center py-6">{t('cm.noBookingsYet')}</p>}
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em]">{t('mp.bookingsHeading')}</p>
+          <div className="grid grid-cols-2 gap-1 p-0.5 rounded-lg bg-[#f2f1e8]">
+            {(['active', 'past'] as const).map((k) => (
+              <button key={k} onClick={() => setBookingsSeg(k)}
+                className="rounded-[7px] px-2.5 py-1 text-[10.5px] font-bold cursor-pointer"
+                style={{ background: bookingsSeg === k ? '#166534' : 'transparent', color: bookingsSeg === k ? '#fff' : '#64748b' }}>
+                {k === 'active' ? t('mb.bookingsActiveTab') : t('mb.bookingsPastTab')}
+              </button>
+            ))}
+          </div>
+        </div>
+        {(() => {
+          const todayStr = new Date().toISOString().slice(0, 10)
+          const isActive = (b: Booking) => ['announced', 'confirmed'].includes(b.status) && b.travel_date >= todayStr
+          const shown = bookings.filter((b) => (bookingsSeg === 'active' ? isActive(b) : !isActive(b)))
+          return shown.length === 0 ? (
+            <p className="font-sans text-[13px] text-[#94a3b8] text-center py-6">{t('cm.noBookingsYet')}</p>
+          ) : (
         <div className="flex flex-col gap-2">
-          {bookings.map((b) => (
+          {shown.map((b) => (
             <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -825,6 +850,8 @@ export default function MyVehicleRoutesPage() {
             </div>
           ))}
         </div>
+          )
+        })()}
       </div>
 
       {stopsRouteId && (() => {
