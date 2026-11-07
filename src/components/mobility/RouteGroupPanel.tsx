@@ -41,7 +41,7 @@ interface ActiveRun { id: string; started_at: string; direction: 'outbound' | 'r
 interface TodaysRun { id: string; direction: 'outbound' | 'return'; started_at: string; ended_at: string | null }
 interface RosterRow { subscription_id: string; name: string; present: boolean; on_leave_today: boolean }
 interface OutboundBookingRow { booking_id: string; name: string; seats: number; offboarded: boolean }
-interface AdHocBookingRow { id: string; name: string; seats: number; boarded_at: string | null; dropped_off_at: string | null }
+interface AdHocBookingRow { id: string; name: string; seats: number; boarded_at: string | null; dropped_off_at: string | null; board_stop_id: string | null }
 interface Detail {
   is_owner: boolean; is_member: boolean; sharing_location: boolean
   owner_portal_user_id: string; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
@@ -160,10 +160,24 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
 
   const unboardedAdHoc = adHocBookings.filter((b) => !b.boarded_at)
 
+  const stopLabel = (stopId: string | null) => {
+    if (!stopId) return null
+    const s = detail?.stops.find((st) => st.id === stopId)
+    if (!s) return null
+    return isUrdu && s.label_ur ? s.label_ur : s.label
+  }
+
   const openStartFlow = () => {
     if (nextDirection === 'outbound' && ((detail?.roster_today.length ?? 0) > 0 || unboardedAdHoc.length > 0)) {
       setRosterChecks(Object.fromEntries((detail?.roster_today ?? []).map((r) => [r.subscription_id, r.present])))
-      setAdHocChecks(Object.fromEntries(unboardedAdHoc.map((b) => [b.id, true])))
+      // Real bug, 2026-11-07: every rider used to default to checked
+      // (boarded) the instant the driver tapped Start, regardless of
+      // where they'd actually booked to get on — a mid-route rider got
+      // marked present at the origin before the van had even moved.
+      // Only a rider with no specific board stop (boarding at the
+      // origin itself) defaults to checked now; anyone with a real stop
+      // waits for the driver to board them there, during the trip.
+      setAdHocChecks(Object.fromEntries(unboardedAdHoc.map((b) => [b.id, !b.board_stop_id])))
       setShowRoster(true)
     } else {
       startRun(nextDirection)
@@ -205,6 +219,14 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
   // seat for the return leg only, which is what makes a standalone
   // one-way return booking (and the alert to nearby riders) possible.
   const [offboardBusy, setOffboardBusy] = useState<string | null>(null)
+  const [boardingId, setBoardingId] = useState<string | null>(null)
+  const boardOne = async (bookingId: string) => {
+    setBoardingId(bookingId)
+    const { error } = await supabase.rpc('board_ride_bookings', { p_booking_ids: [bookingId] })
+    setBoardingId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    load()
+  }
   const markArrived = async () => {
     if (!detail?.active_run) return
     setRunBusy(true)
@@ -372,12 +394,18 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               ))}
               {unboardedAdHoc.map((b) => (
                 <label key={b.id} className="flex items-center gap-2 font-sans text-[12.5px] text-[#1e293b] cursor-pointer">
-                  <input type="checkbox" checked={adHocChecks[b.id] ?? true}
+                  <input type="checkbox" checked={adHocChecks[b.id] ?? !b.board_stop_id}
                     onChange={(e) => setAdHocChecks((rows) => ({ ...rows, [b.id]: e.target.checked }))} />
                   {b.name}{b.seats > 1 ? ` (${b.seats})` : ''}
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800">{t('mv.oneOffRiderTag')}</span>
+                  {b.board_stop_id && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 truncate">📍 {stopLabel(b.board_stop_id)}</span>
+                  )}
                 </label>
               ))}
+              {unboardedAdHoc.some((b) => b.board_stop_id) && (
+                <p className="font-sans text-[10.5px] text-amber-700">{t('mv.stopRidersBoardLaterHint')}</p>
+              )}
               {stakeInfo?.applies && (
                 <p className={`font-sans text-[10.5px] rounded-lg px-2 py-1 ${stakeInfo.can_afford ? 'bg-white text-[#64748b]' : 'bg-rose-50 text-rose-700 font-semibold'}`}>
                   {t('mv.startingStakeNote').replace('{stake}', String(stakeInfo.stake_pkr)).replace('{balance}', String(Math.round(stakeInfo.balance_pkr)))}
@@ -398,6 +426,29 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               {t('mv.startingStakeNote').replace('{stake}', String(stakeInfo.stake_pkr)).replace('{balance}', String(Math.round(stakeInfo.balance_pkr)))}
             </p>
           )}
+          {/* Real ask, 2026-11-07: "before starting the ride the driver
+              was not aware who has booked his ride, he should completely
+              know who booked his ride before he start the ride" — a
+              plain, always-visible manifest, not just buried inside the
+              Start checklist the driver has to remember to read closely. */}
+          {detail.is_owner && !detail.active_run && !showRoster && (detail.roster_today.length > 0 || adHocBookings.length > 0) && (
+            <div className="flex flex-col gap-1 bg-[#F9F9F6] border border-[#e5e2d0] rounded-xl p-2.5">
+              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-[#64748b]">{t('mv.todaysBookingsHeading')}</p>
+              {detail.roster_today.map((r) => (
+                <p key={r.subscription_id} className="font-sans text-[12px] text-[#1e293b] flex items-center gap-1.5">
+                  <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{t('mv.monthlyFixedBadge')}</span>
+                  {r.name}
+                </p>
+              ))}
+              {adHocBookings.map((b) => (
+                <p key={b.id} className="font-sans text-[12px] text-[#1e293b] flex items-center gap-1.5 flex-wrap">
+                  <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800">{t('mv.oneOffRiderTag')}</span>
+                  {b.name}{b.seats > 1 ? ` (${b.seats})` : ''}
+                  {b.board_stop_id && <span className="text-[10.5px] text-amber-700 font-semibold">📍 {stopLabel(b.board_stop_id)}</span>}
+                </p>
+              ))}
+            </div>
+          )}
           {detail.is_owner && !showRoster && (
             <button type="button" onClick={detail.active_run ? endRun : openStartFlow} disabled={runBusy || (!detail.active_run && stakeInfo?.applies && !stakeInfo.can_afford)}
               className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[13px] font-sans font-bold cursor-pointer disabled:opacity-50 ${detail.active_run ? 'bg-[#b91c1c] text-white' : 'bg-[#D4AF37] text-[#0f172a]'}`}>
@@ -417,6 +468,35 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
             <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
               <Radio size={12} className="animate-pulse" /> {detail.active_run.direction === 'return' ? t('mv.rideLiveReturnLabel') : t('mv.rideLiveNowLabel')}
             </p>
+          )}
+
+          {/* Real ask, 2026-11-07: "he should onboard him when he reached
+              his stop" — a rider with a specific mid-route board stop is
+              no longer auto-boarded at the origin (see openStartFlow);
+              this is where the driver actually boards them, with the
+              stop name and a live ETA right there, while the run is on. */}
+          {detail.is_owner && detail.active_run?.direction === 'outbound' && unboardedAdHoc.length > 0 && (
+            <div className="flex flex-col gap-1 bg-sky-50 border border-sky-200 rounded-xl p-2.5">
+              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-sky-900">{t('mv.stillBoardingHeading')}</p>
+              {unboardedAdHoc.map((b) => {
+                const eta = b.board_stop_id ? mapData?.etas[b.board_stop_id] : undefined
+                return (
+                  <div key={b.id} className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5">
+                    <span className="min-w-0 flex-1">
+                      <span className="font-sans text-[12px] font-semibold text-[#1e293b] block truncate">{b.name}{b.seats > 1 ? ` (${b.seats})` : ''}</span>
+                      <span className="font-sans text-[10.5px] text-sky-700 block truncate">
+                        📍 {b.board_stop_id ? stopLabel(b.board_stop_id) : t('mv.originStopLabel')}
+                        {eta && !eta.passed && ` · ${eta.minutesAway} ${t('mv.minAwaySuffix')}`}
+                      </span>
+                    </span>
+                    <button type="button" onClick={() => boardOne(b.id)} disabled={boardingId === b.id}
+                      className="shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">
+                      {boardingId === b.id ? t('action.saving') : t('mv.boardNowBtn')}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
           )}
           {!detail.is_owner && !detail.active_run && detail.todays_runs.length === 0 && departurePassed && (
             <button type="button" onClick={nudgeDriver} disabled={nudging}

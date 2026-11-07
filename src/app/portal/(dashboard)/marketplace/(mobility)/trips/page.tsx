@@ -42,9 +42,10 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { BookingQuickViewSheet, type QuickViewKind } from '@/components/mobility/BookingQuickViewSheet'
+import { RouteBookingSheet } from '@/components/mobility/RouteBookingSheet'
 
 type Kind = 'trip' | 'hourly' | 'equipment' | 'ride' | 'shadi' | 'cityPurchase' | 'rental' | 'parcel' | 'dispatch' | 'shop' | 'rideDispatch' | 'monthly'
-interface BookingRow { id: string; rawId: string; kind: Kind; title: string; subtitle: string; amount: number | null; status: 'pending' | 'confirmed' | 'declined' | 'cancelled' | 'completed'; date: string; href: string | null; note?: string }
+interface BookingRow { id: string; rawId: string; kind: Kind; title: string; subtitle: string; amount: number | null; status: 'pending' | 'confirmed' | 'declined' | 'cancelled' | 'completed'; date: string; href: string | null; note?: string; routeId?: string | null }
 // Real ask: hourly/equipment/ride rows used to send the rider to a
 // generic, unscoped browse page instead of their own booking — these 3
 // now pop up that one booking's own status/actions instead (see
@@ -100,6 +101,7 @@ export default function TripsPage() {
   const [rows, setRows] = useState<BookingRow[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [openRow, setOpenRow] = useState<BookingRow | null>(null)
+  const [openRouteId, setOpenRouteId] = useState<string | null>(null)
   const [seg, setSeg] = useState<'active' | 'past'>('active')
 
   const reloadMine = async () => {
@@ -110,7 +112,7 @@ export default function TripsPage() {
       // Filtered to the signed-in rider: ride_bookings' keeper policy also
       // lets a driver read every booking on their own routes, which landed
       // other people's seats in the driver's own "My Bookings".
-      supabase.from('ride_bookings').select('id, status, total_amount_pkr, travel_date, vehicle_routes(origin, origin_ur, destination, destination_ur)').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
+      supabase.from('ride_bookings').select('id, route_id, status, total_amount_pkr, travel_date, vehicle_routes(origin, origin_ur, destination, destination_ur)').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
       supabase.rpc('my_shadi_events'),
       supabase.rpc('my_city_purchase_requests'),
       supabase.rpc('my_rental_bookings'),
@@ -135,9 +137,9 @@ export default function TripsPage() {
     for (const b of (equipment.data ?? []) as Array<{ id: string; kind: string; model: string | null; vehicle_type: string; total_amount_pkr: number | null; rate_pkr: number; status: string; requested_at: string }>) {
       out.push({ id: `equip-${b.id}`, rawId: b.id, kind: 'equipment', title: t(`vp.${b.kind}PageTitle`), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.rate_pkr, status: mapStatus(b.status), date: b.requested_at, href: `/portal/marketplace/${b.kind}` })
     }
-    for (const b of (ride.data ?? []) as unknown as Array<{ id: string; status: string; total_amount_pkr: number; travel_date: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }>) {
+    for (const b of (ride.data ?? []) as unknown as Array<{ id: string; route_id: string | null; status: string; total_amount_pkr: number; travel_date: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }>) {
       const vr = b.vehicle_routes
-      out.push({ id: `ride-${b.id}`, rawId: b.id, kind: 'ride', title: t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: '/portal/marketplace' })
+      out.push({ id: `ride-${b.id}`, rawId: b.id, kind: 'ride', title: vr ? t('mv.tab.routes') : t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: '/portal/marketplace', routeId: b.route_id })
     }
     for (const e of (shadi.data ?? []) as Array<{ id: string; event_date: string; venue_address: string; status: string; advance_amount_pkr: number | null; created_at: string }>) {
       out.push({ id: `shadi-${e.id}`, rawId: e.id, kind: 'shadi', title: t('vp.shadiPageTitle'), subtitle: e.venue_address, amount: e.advance_amount_pkr, status: mapStatus(e.status), date: e.event_date || e.created_at, href: `/portal/marketplace/shadi/${e.id}` })
@@ -234,6 +236,16 @@ export default function TripsPage() {
             </>
           )
           const cls = 'w-full text-start bg-white border border-[#e5e2d0] rounded-2xl p-3 flex flex-col gap-2 cursor-pointer hover:border-[#166534]'
+          // A route-based seat booking opens the real, rich popup (map,
+          // stops, cancel/reschedule) this session built — not the old
+          // plain quick-view, which has no map at all. An adda-based ride
+          // booking (no route_id) has no route to map, so it keeps the
+          // quick-view as before.
+          if (r.kind === 'ride' && r.routeId) {
+            return (
+              <button key={r.id} onClick={() => setOpenRouteId(r.routeId!)} className={cls}>{content}</button>
+            )
+          }
           if (isQuickViewKind(r.kind)) {
             return (
               <button key={r.id} onClick={() => setOpenRow(r)} className={cls}>{content}</button>
@@ -254,6 +266,9 @@ export default function TripsPage() {
           onClose={() => setOpenRow(null)}
           onChanged={reloadMine}
         />
+      )}
+      {openRouteId && (
+        <RouteBookingSheet routeId={openRouteId} onClose={() => { setOpenRouteId(null); reloadMine() }} />
       )}
     </div>
   )

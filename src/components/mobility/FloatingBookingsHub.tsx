@@ -201,7 +201,12 @@ export function FloatingBookingsHub() {
       supabase.rpc('my_hourly_bookings'),
       supabase.rpc('my_rental_bookings'),
       supabase.rpc('my_equipment_bookings'),
-      supabase.from('ride_bookings').select('id, route_id, seats, travel_date, total_amount_pkr, created_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time), adda_queue_entries(addas(name, name_ur))').eq('portal_user_id', user!.id).eq('status', 'announced'),
+      // Real bug found 2026-11-07: filtering to 'announced' only meant a
+      // booking vanished from the floating button the instant the driver
+      // confirmed it — exactly the moment a rider most wants a quick way
+      // back into it. 'confirmed' now stays in, bounded to today/future
+      // so a long-past booking doesn't linger forever.
+      supabase.from('ride_bookings').select('id, route_id, seats, travel_date, total_amount_pkr, created_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time), adda_queue_entries(addas(name, name_ur))').eq('portal_user_id', user!.id).in('status', ['announced', 'confirmed']).gte('travel_date', new Date().toISOString().slice(0, 10)),
       supabase.from('ride_dispatch_requests').select('id, pickup_label, dropoff_label, fare_pkr, created_at').eq('initiator_portal_user_id', user!.id).eq('status', 'open'),
       supabase.rpc('my_city_purchase_requests'),
       supabase.rpc('my_parcel_deliveries'),

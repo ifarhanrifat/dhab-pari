@@ -32,7 +32,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
 import { RequestWaitingSheet, type WaitingSummary } from '@/components/mobility/RequestWaitingSheet'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
-import { estimateArrivalTime, estimateReturnArrivalTime } from '@/lib/roadRoute'
+import { estimateArrivalTime, estimateReturnArrivalTime, haversineKm } from '@/lib/roadRoute'
 import type { LeafletMapHandle, MapPin as LeafletMapPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -52,7 +52,7 @@ interface MonthlySubscription { id: string; status: string; monthly_fee_pkr: num
 interface MonthlyDetail { is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null; seats_total: number; active_count: number; my_subscription: MonthlySubscription | null; my_leave_days: string[] }
 interface DepositPreview { monthly_fee_pkr: number; deposit_pkr: number; days_remaining: number; days_total: number }
 interface AttendanceRow { run_date: string; present: boolean; marked_at: string }
-interface MyBooking { id: string; travel_date: string; seats: number; total_amount_pkr: number; status: string }
+interface MyBooking { id: string; travel_date: string; seats: number; total_amount_pkr: number; status: string; board_stop_id: string | null; alight_stop_id: string | null }
 
 // Approximate only — interpolated proportionally along the driver's
 // own chosen road path using its real OSRM duration, not a live ETA.
@@ -132,10 +132,27 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [applyProofPath, setApplyProofPath] = useState('')
   const [applyMethod, setApplyMethod] = useState('cash')
   const [leaveDateEnd, setLeaveDateEnd] = useState('')
+  // Real ask, 2026-11-07: "how far is that stop from where he is now" —
+  // a rider's own upcoming booking card gets a one-tap distance check
+  // to its board stop, using the phone's own position. Lazy (tap to
+  // check), not an auto geolocation prompt on every open.
+  const [distanceByBooking, setDistanceByBooking] = useState<Record<string, string>>({})
+  const checkDistanceToStop = (bookingId: string, lat: number, lng: number) => {
+    if (!navigator.geolocation) return
+    setDistanceByBooking((d) => ({ ...d, [bookingId]: t('action.loading') }))
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const km = haversineKm({ lat: pos.coords.latitude, lng: pos.coords.longitude }, { lat, lng })
+        setDistanceByBooking((d) => ({ ...d, [bookingId]: `${km.toFixed(1)} km` }))
+      },
+      () => setDistanceByBooking((d) => ({ ...d, [bookingId]: t('mv.locationUnavailableHint') })),
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  }
 
   const loadMyBookings = async () => {
     if (!user) return
-    const { data } = await supabase.from('ride_bookings').select('id, travel_date, seats, total_amount_pkr, status')
+    const { data } = await supabase.from('ride_bookings').select('id, travel_date, seats, total_amount_pkr, status, board_stop_id, alight_stop_id')
       .eq('route_id', routeId).eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).gte('travel_date', todayStr()).order('travel_date')
     setMyBookings((data ?? []) as MyBooking[])
   }
@@ -434,6 +451,18 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 <p className="font-sans text-[13px] font-semibold text-dp-on-surface ltr-num">{b.travel_date} · {t('rw.seats').replace('{n}', String(b.seats))}</p>
                 <p className="font-sans text-[13px] font-bold text-dp-secondary ltr-num">₨{fmt(b.total_amount_pkr)}</p>
               </div>
+              {b.board_stop_id && (() => {
+                const stop = stops.find((s) => s.id === b.board_stop_id)
+                if (!stop) return null
+                return (
+                  <div className="flex items-center justify-between gap-2 mt-1.5 bg-dp-secondary-container/30 rounded-lg px-2.5 py-1.5">
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant truncate">{t('mv.yourStopLabel')}: <span className="font-semibold text-dp-on-surface">{isUrdu && stop.label_ur ? stop.label_ur : stop.label}</span></p>
+                    <button onClick={() => checkDistanceToStop(b.id, stop.lat, stop.lng)} className="shrink-0 font-sans text-[11px] font-bold text-dp-secondary cursor-pointer ltr-num">
+                      {distanceByBooking[b.id] ?? t('mv.howFarBtn')}
+                    </button>
+                  </div>
+                )
+              })()}
               {reschedulingId === b.id ? (
                 <div className="flex items-center gap-1.5 mt-2">
                   <input type="date" min={todayStr()} value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} className="input-field flex-1 text-[12.5px]" />
