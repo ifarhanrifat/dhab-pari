@@ -599,18 +599,23 @@ export default function MyVehicleTripsPage() {
                     </button>
                   )}
                   {(tb.status === 'confirmed' || tb.status === 'in_progress') && !dispatchTripOfferIds.has(tb.trip_offer_id) && (
-                    <>
-                      <Link href={`/portal/marketplace/trip/${tb.id}`} className="inline-flex items-center gap-1 text-[#166534] text-[12px] font-semibold"><Navigation size={12} /> {t('cm.trackLocationBtn')}</Link>
-                      <div className="flex items-center gap-1.5">
+                    // Real bug found live, 2026-11-08: up to 4 actions
+                    // (track/cancel/boarded/complete) crammed into one
+                    // non-wrapping row read as one undifferentiated strip
+                    // of buttons. flex-wrap lets them drop to a second
+                    // row instead of being squeezed or cut off.
+                    <div className="flex items-center flex-wrap gap-1.5 w-full">
+                      <Link href={`/portal/marketplace/trip/${tb.id}`} className="inline-flex items-center gap-1 text-[#166534] text-[11px] font-semibold shrink-0"><Navigation size={11} /> {t('cm.trackLocationBtn')}</Link>
+                      <div className="flex items-center gap-1.5 flex-wrap ms-auto">
                         {tb.status === 'confirmed' && (
-                          <button onClick={() => cancelTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
+                          <button onClick={() => cancelTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2 py-1 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
                         )}
                         {tb.status === 'confirmed' && (
-                          <button onClick={() => startTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#D4AF37] text-[#0f172a] disabled:opacity-50">{t('mv.boardedBtn')}</button>
+                          <button onClick={() => startTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2 py-1 rounded-lg text-[11px] font-sans font-semibold cursor-pointer bg-[#D4AF37] text-[#0f172a] disabled:opacity-50">{t('mv.boardedBtn')}</button>
                         )}
-                        <button onClick={() => completeTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2.5 py-1 rounded-lg text-[12px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('cm.markTripCompleteBtn')}</button>
+                        <button onClick={() => completeTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2 py-1 rounded-lg text-[11px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('cm.markTripCompleteBtn')}</button>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>

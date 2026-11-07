@@ -757,32 +757,39 @@ export default function MyVehicleRoutesPage() {
                   </div>
                 )}
                 {r.is_active && (
-                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[#f1f5f9]">
+                  // Real bug found live, 2026-11-08: "these are having
+                  // overflowing and not visible on the same rows" — up to
+                  // 6 buttons in one non-wrapping flex row ran off-screen
+                  // on a phone with no way to reach the later ones.
+                  // flex-wrap lets them drop to a second row instead of
+                  // being cut off; tightened padding/text keeps most of
+                  // them on one row on a normal phone width.
+                  <div className="flex items-center flex-wrap gap-1 mt-2 pt-2 border-t border-[#f1f5f9]">
                     <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [], is_two_way: r.is_two_way, return_wait_minutes: r.return_wait_minutes ?? 300, seat_override: r.seat_override != null ? String(r.seat_override) : '' })}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
-                      <Pencil size={11} /> {t('mv.editScheduleBtn')}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
+                      <Pencil size={10} /> {t('mv.editScheduleBtn')}
                     </button>
                     <button onClick={() => setStopsRouteId(r.id)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
-                      <RouteIcon size={11} /> {t('mv.manageStopsBtn')}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
+                      <RouteIcon size={10} /> {t('mv.manageStopsBtn')}
                     </button>
                     <button onClick={() => setGroupRouteId(r.id)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#166534]">
-                      <Users size={11} /> {r.is_monthly_fixed ? t('mv.startManageRideBtn') : t('mv.routeGroupBtn')}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#166534]">
+                      <Users size={10} /> {r.is_monthly_fixed ? t('mv.startManageRideBtn') : t('mv.routeGroupBtn')}
                     </button>
                     <button onClick={() => setHandOffRouteId(r.id)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
-                      <Users size={11} /> {t('mv.handOffRunBtn')}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
+                      <Users size={10} /> {t('mv.handOffRunBtn')}
                     </button>
                     {r.is_monthly_fixed && (
                       <>
                         <button onClick={() => setMonthlyRidersRouteId(r.id)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-amber-200 text-amber-700 bg-amber-50">
-                          <Users size={11} /> {t('mv.manageRidersBtn')}
+                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-sans font-semibold cursor-pointer border border-amber-200 text-amber-700 bg-amber-50">
+                          <Users size={10} /> {t('mv.manageRidersBtn')}
                         </button>
                         <button onClick={() => editMonthlyFee(r)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-amber-200 text-amber-700 bg-amber-50">
-                          <Pencil size={11} /> {t('mv.editMonthlyFeeBtn')}
+                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-sans font-semibold cursor-pointer border border-amber-200 text-amber-700 bg-amber-50">
+                          <Pencil size={10} /> {t('mv.editMonthlyFeeBtn')}
                         </button>
                       </>
                     )}
