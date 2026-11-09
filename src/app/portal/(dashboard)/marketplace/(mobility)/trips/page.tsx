@@ -43,6 +43,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { BookingQuickViewSheet, type QuickViewKind } from '@/components/mobility/BookingQuickViewSheet'
 import { RouteBookingSheet } from '@/components/mobility/RouteBookingSheet'
+import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
 
 type Kind = 'trip' | 'hourly' | 'equipment' | 'ride' | 'shadi' | 'cityPurchase' | 'rental' | 'parcel' | 'dispatch' | 'shop' | 'rideDispatch' | 'monthly'
 interface BookingRow { id: string; rawId: string; kind: Kind; title: string; subtitle: string; amount: number | null; status: 'pending' | 'confirmed' | 'declined' | 'cancelled' | 'completed'; date: string; href: string | null; note?: string; routeId?: string | null }
@@ -102,6 +103,7 @@ export default function TripsPage() {
   const [loading, setLoading] = useState(true)
   const [openRow, setOpenRow] = useState<BookingRow | null>(null)
   const [openRouteId, setOpenRouteId] = useState<string | null>(null)
+  const [openTripBookingId, setOpenTripBookingId] = useState<string | null>(null)
   const [seg, setSeg] = useState<'active' | 'past'>('active')
 
   const reloadMine = async () => {
@@ -246,6 +248,16 @@ export default function TripsPage() {
               <button key={r.id} onClick={() => setOpenRouteId(r.routeId!)} className={cls}>{content}</button>
             )
           }
+          // Real fix, 2026-11-08: this used to navigate to the old
+          // primitive, page-only tracking screen (no background
+          // geolocation). Opens the same rich RideLifecycleSheet the
+          // driver's and the Shared Ride browse screen's own bookings
+          // now use instead.
+          if (r.kind === 'trip') {
+            return (
+              <button key={r.id} onClick={() => setOpenTripBookingId(r.rawId)} className={cls}>{content}</button>
+            )
+          }
           if (isQuickViewKind(r.kind)) {
             return (
               <button key={r.id} onClick={() => setOpenRow(r)} className={cls}>{content}</button>
@@ -269,6 +281,9 @@ export default function TripsPage() {
       )}
       {openRouteId && (
         <RouteBookingSheet routeId={openRouteId} onClose={() => { setOpenRouteId(null); reloadMine() }} />
+      )}
+      {openTripBookingId && (
+        <RideLifecycleSheet bookingId={openTripBookingId} onClose={() => { setOpenTripBookingId(null); reloadMine() }} />
       )}
     </div>
   )

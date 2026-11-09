@@ -25,7 +25,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { RiderLiveShareToggle } from '@/components/portal/RiderLiveShareToggle'
+import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
 
 interface CityRow { city_key: string; destination: string; destination_ur: string | null; ride_count: number }
 interface TripRow {
@@ -70,6 +70,7 @@ export default function SharedRidePage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [myBookings, setMyBookings] = useState<BookingRow[]>([])
   const [bookingsFilter, setBookingsFilter] = useState<'upcoming' | 'completed' | 'cancelled'>('upcoming')
+  const [openRideBookingId, setOpenRideBookingId] = useState<string | null>(null)
 
   function loadMyBookings() {
     supabase.rpc('my_trip_bookings').then(({ data, error }) => {
@@ -146,17 +147,6 @@ export default function SharedRidePage() {
         setListLoading(false)
       })
     }
-    loadMyBookings()
-  }
-
-  async function cancelBooking(b: BookingRow) {
-    if (!window.confirm(t('mp.confirmCancelConfirmedHint'))) return
-    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
-    setBusyId(b.id)
-    const { error } = await supabase.rpc('cancel_trip_booking', { p_trip_booking_id: b.id, p_reason: reason || null })
-    setBusyId(null)
-    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    toast.success(t('mp.bookingCancelledToast'))
     loadMyBookings()
   }
 
@@ -250,17 +240,16 @@ export default function SharedRidePage() {
                       {b.status === 'cancelled' && b.cancellation_reason && (
                         <p className="text-[10.5px] text-rose-600">{b.cancellation_reason}</p>
                       )}
-                      {b.status === 'confirmed' && b.leg === 'return' && (
-                        <RiderLiveShareToggle
-                          tripBookingId={b.id}
-                          sharing={b.rider_sharing_location}
-                          onSharingChange={(on) => setMyBookings((rows) => rows.map((r) => r.id === b.id ? { ...r, rider_sharing_location: on } : r))}
-                        />
-                      )}
-                      {b.status === 'confirmed' && (
-                        <button onClick={() => cancelBooking(b)} disabled={busyId === b.id}
-                          className="w-full rounded-xl py-1.5 text-[11px] font-bold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">
-                          {t('mp.cancelBookingBtn')}
+                      {/* Real fix, 2026-11-08: this used to be a plain
+                          card with a one-way live-share toggle and no
+                          map at all — "Open Ride" now opens the same
+                          popup (map, ETA, chat, cancel, rating) the
+                          driver's own side already got, instead of a
+                          dead end with only Cancel. */}
+                      {(b.status === 'confirmed' || b.status === 'completed') && (
+                        <button onClick={() => setOpenRideBookingId(b.id)}
+                          className="w-full rounded-xl py-1.5 text-[11px] font-bold cursor-pointer bg-[#166534] text-white">
+                          {t('cm.openRideBtn')}
                         </button>
                       )}
                     </div>
@@ -406,6 +395,9 @@ export default function SharedRidePage() {
             </div>
           )}
         </>
+      )}
+      {openRideBookingId && (
+        <RideLifecycleSheet bookingId={openRideBookingId} onClose={() => { setOpenRideBookingId(null); loadMyBookings() }} />
       )}
     </div>
   )

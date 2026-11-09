@@ -44,7 +44,7 @@ interface Detail {
   origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   pickup_lat: number | null; pickup_lng: number | null; pickup_label: string | null
   dest_lat: number | null; dest_lng: number | null
-  pin: string | null
+  pin: string | null; has_pin: boolean
   vehicle_id: string; rider_portal_user_id: string
   total_amount_pkr: number; is_out_of_city?: boolean
 }
@@ -186,6 +186,16 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     const fee = (data as { fee_pkr?: number } | null)?.fee_pkr
     toast.success(fee ? t('cm.cancelFeeAppliesToast').replace('{amount}', String(fee)) : t('mp.bookingCancelledToast'))
+    reload()
+  }
+
+  const markNoShow = async () => {
+    if (!window.confirm(t('mv.noShowConfirmPrompt'))) return
+    setBusy(true)
+    const { error } = await supabase.rpc('mark_trip_booking_no_show', { p_trip_booking_id: bookingId })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.noShowMarkedToast'))
     reload()
   }
 
@@ -340,7 +350,15 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
               </p>
             )}
 
-            {detail.role === 'driver' && detail.status === 'confirmed' && (
+            {/* Real fix, 2026-11-08: an ordinary Shared Ride booking
+                (no door-to-door dispatch) never has a PIN at all —
+                start_trip_booking already skips the PIN check entirely
+                when b.pin is null, but this UI used to require typing 4
+                digits regardless, which would have blocked every
+                ordinary trip from ever starting. has_pin (830) is the
+                one safe signal that tells the driver's own copy whether
+                a real code exists to ask for. */}
+            {detail.role === 'driver' && detail.status === 'confirmed' && detail.has_pin && (
               <div className="flex flex-col gap-2 mt-1 pt-3 border-t border-[#f1f5f9]">
                 <p className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{t('vp.pinAskHint')}</p>
                 <input
@@ -350,6 +368,14 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
                   className="w-full text-center tracking-[0.5em] font-bold text-[20px] ltr-num border border-[#e5e2d0] rounded-xl py-2"
                 />
                 <button onClick={startRide} disabled={busy || pinInput.length !== 4}
+                  className="w-full py-3 rounded-xl text-[14px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  {busy ? <Loader2 size={14} className="animate-spin" /> : null} {t('cm.startRideBtn')}
+                </button>
+              </div>
+            )}
+            {detail.role === 'driver' && detail.status === 'confirmed' && !detail.has_pin && (
+              <div className="flex flex-col gap-2 mt-1 pt-3 border-t border-[#f1f5f9]">
+                <button onClick={startRide} disabled={busy}
                   className="w-full py-3 rounded-xl text-[14px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50 flex items-center justify-center gap-1.5">
                   {busy ? <Loader2 size={14} className="animate-spin" /> : null} {t('cm.startRideBtn')}
                 </button>
@@ -371,10 +397,18 @@ export function RideLifecycleSheet({ bookingId, onClose }: { bookingId: string; 
               <span className="relative inline-flex"><Users size={14} /><UnreadDot show={chatUnread} /></span> {t('cm.openGroupChatBtn')}
             </button>
 
-            <button onClick={cancelRide} disabled={busy}
-              className="flex items-center justify-center gap-1 font-sans text-[11.5px] font-semibold cursor-pointer disabled:opacity-50 text-[#b91c1c]">
-              <Ban size={12} /> {t('cm.cancelTripBtn')}
-            </button>
+            <div className="flex items-center justify-center gap-4">
+              <button onClick={cancelRide} disabled={busy}
+                className="flex items-center justify-center gap-1 font-sans text-[11.5px] font-semibold cursor-pointer disabled:opacity-50 text-[#b91c1c]">
+                <Ban size={12} /> {t('cm.cancelTripBtn')}
+              </button>
+              {detail.role === 'driver' && detail.status === 'confirmed' && (
+                <button onClick={markNoShow} disabled={busy}
+                  className="flex items-center justify-center gap-1 font-sans text-[11.5px] font-semibold cursor-pointer disabled:opacity-50 text-[#b91c1c]">
+                  <Ban size={12} /> {t('mv.noShowBtn')}
+                </button>
+              )}
+            </div>
           </>
         )}
 

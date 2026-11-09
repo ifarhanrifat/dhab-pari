@@ -352,8 +352,12 @@ export function FloatingBookingsHub() {
     const o = ongoing.data as { role: 'driver' | 'rider'; label: string; link: string; booking_id: string | null; is_ride_dispatch: boolean } | null
     if (o) {
       out.push({
+        // Real fix, 2026-11-08: RideLifecycleSheet now handles an
+        // ordinary (non-dispatch) Shared Ride booking just as well as a
+        // dispatch one (has_pin, 830) — a rider's own pending trip
+        // booking no longer has to fall back to a plain page link.
         key: 'ongoing', emoji: '🚖', label: o.label, state: 'ongoing', since: new Date().toISOString(),
-        ...(o.is_ride_dispatch && o.booking_id ? { rideSheetBookingId: o.booking_id } : { href: o.link }),
+        ...(o.booking_id ? { rideSheetBookingId: o.booking_id } : { href: o.link }),
       })
     }
 

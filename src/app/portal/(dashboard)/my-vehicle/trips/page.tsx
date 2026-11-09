@@ -7,7 +7,6 @@
 // fixed-position post-trip modal now uses the shared MobilityBottomSheet.
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { MapPin, PlusCircle, X, Navigation, CheckCircle2, Ban, Check, XCircle, Megaphone, Clock, Users } from 'lucide-react'
 import { toast } from 'sonner'
@@ -89,7 +88,6 @@ export default function MyVehicleTripsPage() {
   // RideLifecycleSheet popup (bilateral map + PIN start/complete)
   // instead of an external Navigate link.
   const [openRideBookingId, setOpenRideBookingId] = useState<string | null>(null)
-  const [dispatchTripOfferIds, setDispatchTripOfferIds] = useState<Set<string>>(new Set())
   const [showPostTrip, setShowPostTrip] = useState(false)
   const [tripForm, setTripForm] = useState(emptyTripOffer)
   const [posting, setPosting] = useState(false)
@@ -116,13 +114,6 @@ export default function MyVehicleTripsPage() {
     setTripOffers(trips ?? [])
     const bookings = (tripB ?? []) as unknown as Omit<TripBooking, 'offboarded' | 'rider_name'>[]
     setTripBookings(bookings.map((b) => ({ ...b, offboarded: false, rider_name: null })))
-
-    // Marks which bookings came through ride-dispatch (so their row
-    // opens the shared PIN-start/complete popup instead of the ordinary
-    // Track Location/Cancel/Mark Complete actions, which would let a
-    // driver skip the PIN step entirely for these).
-    supabase.from('ride_dispatch_requests').select('trip_offer_id').eq('accepted_vehicle_id', vehicleId).not('trip_offer_id', 'is', null)
-      .then(({ data: rds }) => setDispatchTripOfferIds(new Set((rds ?? []).map((r) => r.trip_offer_id as string))))
 
     // portal_users has no cross-reader RLS policy (rightly — a driver
     // can't just read any rider's profile), so rider names for the
@@ -295,38 +286,6 @@ export default function MyVehicleTripsPage() {
     setActionId(null)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(action === 'accept' ? t('cm.fareAcceptedToast') : action === 'counter' ? t('cm.fareCounteredToast') : t('cm.fareRejectedToast'))
-    reload(vehicle.id)
-  }
-
-  const startTripBooking = async (id: string) => {
-    if (!vehicle) return
-    setActionId(id)
-    const { error } = await supabase.rpc('start_trip_booking', { p_trip_booking_id: id })
-    setActionId(null)
-    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    reload(vehicle.id)
-  }
-
-  const completeTripBooking = async (id: string) => {
-    if (!vehicle) return
-    setActionId(id)
-    const { error } = await supabase.rpc('complete_trip_booking', { p_trip_booking_id: id })
-    setActionId(null)
-    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    toast.success(t('cm.tripCompletedToast'))
-    reload(vehicle.id)
-  }
-
-  const cancelTripBooking = async (id: string) => {
-    if (!vehicle) return
-    if (!window.confirm(t('mp.confirmCancelConfirmedHint'))) return
-    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
-    setActionId(id)
-    const { data, error } = await supabase.rpc('cancel_trip_booking', { p_trip_booking_id: id, p_reason: reason || null })
-    setActionId(null)
-    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    const fee = (data as { fee_pkr?: number } | null)?.fee_pkr
-    toast.success(fee ? t('cm.cancelFeeAppliesToast').replace('{amount}', String(fee)) : t('mp.bookingCancelledToast'))
     reload(vehicle.id)
   }
 
@@ -588,34 +547,21 @@ export default function MyVehicleTripsPage() {
                 <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
                   {tb.status === 'completed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={11} /> {t('cm.tripCompletedStatus')}</span>}
                   {tb.status === 'cancelled' && <span className="inline-flex items-center gap-1 text-[#64748b] text-[11px] font-bold"><Ban size={11} /> {t('mp.cancelledStatus')}</span>}
-                  {/* Real ask, 2026-10-28: a ride-dispatch booking now
-                      opens the shared PIN-start/complete popup — the
-                      plain "Mark Trip Complete" button would otherwise
-                      let a driver skip the PIN step entirely. */}
-                  {(tb.status === 'confirmed' || tb.status === 'in_progress') && dispatchTripOfferIds.has(tb.trip_offer_id) && (
+                  {/* Real fix, 2026-11-08: every confirmed/in_progress
+                      booking now opens the same RideLifecycleSheet
+                      (map, PIN-or-plain start, chat, cancel, no-show,
+                      complete all live inside it) — not just
+                      ride-dispatch ones. This replaces the old separate
+                      Track-Location-link + 4-button row entirely, which
+                      is exactly the "garbage" this page was flagged
+                      for: a primitive page-navigation tracker with no
+                      background geolocation, duplicated logic, and an
+                      overflowing button row. */}
+                  {(tb.status === 'confirmed' || tb.status === 'in_progress') && (
                     <button onClick={() => setOpenRideBookingId(tb.id)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-sans font-bold cursor-pointer bg-[#166534] text-white">
                       <Navigation size={12} /> {t('cm.openRideBtn')}
                     </button>
-                  )}
-                  {(tb.status === 'confirmed' || tb.status === 'in_progress') && !dispatchTripOfferIds.has(tb.trip_offer_id) && (
-                    // Real bug found live, 2026-11-08: up to 4 actions
-                    // (track/cancel/boarded/complete) crammed into one
-                    // non-wrapping row read as one undifferentiated strip
-                    // of buttons. flex-wrap lets them drop to a second
-                    // row instead of being squeezed or cut off.
-                    <div className="flex items-center flex-wrap gap-1.5 w-full">
-                      <Link href={`/portal/marketplace/trip/${tb.id}`} className="inline-flex items-center gap-1 text-[#166534] text-[11px] font-semibold shrink-0"><Navigation size={11} /> {t('cm.trackLocationBtn')}</Link>
-                      <div className="flex items-center gap-1.5 flex-wrap ms-auto">
-                        {tb.status === 'confirmed' && (
-                          <button onClick={() => cancelTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2 py-1 rounded-lg text-[11px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
-                        )}
-                        {tb.status === 'confirmed' && (
-                          <button onClick={() => startTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2 py-1 rounded-lg text-[11px] font-sans font-semibold cursor-pointer bg-[#D4AF37] text-[#0f172a] disabled:opacity-50">{t('mv.boardedBtn')}</button>
-                        )}
-                        <button onClick={() => completeTripBooking(tb.id)} disabled={actionId === tb.id} className="px-2 py-1 rounded-lg text-[11px] font-sans font-semibold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('cm.markTripCompleteBtn')}</button>
-                      </div>
-                    </div>
                   )}
                 </div>
               </div>
