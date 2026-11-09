@@ -40,6 +40,7 @@ interface VehicleCategory {
   base_fare_pkr: number; per_km_pkr: number; intercity_commission_pct: number; out_of_city_commission_pct: number; is_active: boolean
   category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean
   out_of_city_base_fare_pkr: number | null; out_of_city_per_km_pkr: number | null
+  hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null; shadi_full_day_rate_pkr: number | null
 }
 interface RentalTierGuide {
   tier_key: string; hourly_rate_pkr: number; hourly_included_km_per_hour: number; hourly_overage_per_km_pkr: number
@@ -51,7 +52,10 @@ const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, 
 const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', display_order: 0, delivery_eligible: true, ride_eligible: true, home_city_delivery_eligible: true, outstation_delivery_eligible: true }
 const emptyVillage = { name: '', name_ur: '', delivery_fee_pkr: 0, is_home_village: false, display_order: 0 }
 const emptyFareBand = { base_pkr: 0, per_km_pkr: 0, spread: 0.28 }
-const emptyVehicleCategory = { name: '', name_ur: '', emoji: '', base_fare_pkr: 0, per_km_pkr: 0, intercity_commission_pct: 10, out_of_city_commission_pct: 15, category_group: 'passenger' as 'passenger' | 'loading' | 'machinery', out_of_city_eligible: true, out_of_city_base_fare_pkr: 0, out_of_city_per_km_pkr: 0 }
+const emptyVehicleCategory = {
+  name: '', name_ur: '', emoji: '', base_fare_pkr: 0, per_km_pkr: 0, intercity_commission_pct: 10, out_of_city_commission_pct: 15, category_group: 'passenger' as 'passenger' | 'loading' | 'machinery', out_of_city_eligible: true, out_of_city_base_fare_pkr: 0, out_of_city_per_km_pkr: 0,
+  hourly_rate_pkr: 0, hourly_included_km: 0, hourly_overage_per_km_pkr: 0, shadi_full_day_rate_pkr: 0,
+}
 const emptyRentalTierGuide = { tier_key: '', hourly_rate_pkr: 0, hourly_included_km_per_hour: 0, hourly_overage_per_km_pkr: 0, rental_base_pkr: 0, rental_per_km_pkr: 0, rental_wait_hour_pkr: 0, out_of_city_base_pkr: 0, out_of_city_per_km_pkr: 0 }
 
 function fmt(n: number) { return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -126,7 +130,10 @@ export default function MarketplaceReferencePage() {
   const openEditFareBand = (fb: FareBand) => { setEditingFlow(fb.flow); setFareBandForm({ base_pkr: fb.base_pkr, per_km_pkr: fb.per_km_pkr, spread: fb.spread }); setShowForm(true) }
   const openEditVehicleCategory = (vc: VehicleCategory) => {
     setEditingId(vc.id)
-    setVehicleCategoryForm({ name: vc.name, name_ur: vc.name_ur ?? '', emoji: vc.emoji, base_fare_pkr: vc.base_fare_pkr, per_km_pkr: vc.per_km_pkr, intercity_commission_pct: vc.intercity_commission_pct, out_of_city_commission_pct: vc.out_of_city_commission_pct, category_group: vc.category_group, out_of_city_eligible: vc.out_of_city_eligible, out_of_city_base_fare_pkr: vc.out_of_city_base_fare_pkr ?? 0, out_of_city_per_km_pkr: vc.out_of_city_per_km_pkr ?? 0 })
+    setVehicleCategoryForm({
+      name: vc.name, name_ur: vc.name_ur ?? '', emoji: vc.emoji, base_fare_pkr: vc.base_fare_pkr, per_km_pkr: vc.per_km_pkr, intercity_commission_pct: vc.intercity_commission_pct, out_of_city_commission_pct: vc.out_of_city_commission_pct, category_group: vc.category_group, out_of_city_eligible: vc.out_of_city_eligible, out_of_city_base_fare_pkr: vc.out_of_city_base_fare_pkr ?? 0, out_of_city_per_km_pkr: vc.out_of_city_per_km_pkr ?? 0,
+      hourly_rate_pkr: vc.hourly_rate_pkr ?? 0, hourly_included_km: vc.hourly_included_km ?? 0, hourly_overage_per_km_pkr: vc.hourly_overage_per_km_pkr ?? 0, shadi_full_day_rate_pkr: vc.shadi_full_day_rate_pkr ?? 0,
+    })
     setShowForm(true)
   }
   const openEditRentalTier = (g: RentalTierGuide) => { setEditingTierKey(g.tier_key); setRentalTierForm({ ...g }); setShowForm(true) }
@@ -270,6 +277,8 @@ export default function MarketplaceReferencePage() {
                 {vc.out_of_city_eligible && (
                   <p className="font-sans text-[12px] text-amber-700 ltr-num">{t('mr.outstationRateLabel')}: {fmt(vc.out_of_city_base_fare_pkr ?? 0)} base + {fmt(vc.out_of_city_per_km_pkr ?? 0)}/km</p>
                 )}
+                {vc.hourly_rate_pkr ? <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{t('vr.wantsHourlyLabel')}: {fmt(vc.hourly_rate_pkr)}/hr · {fmt(vc.hourly_included_km ?? 0)}km incl.</p> : null}
+                {vc.shadi_full_day_rate_pkr ? <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{t('vr.wantsShadiLabel')}: {fmt(vc.shadi_full_day_rate_pkr)}/day</p> : null}
               </div>
               <div className="flex items-center gap-1.5">
                 <button onClick={() => toggleActive('vehicle_categories', vc.id, vc.is_active)} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">{t('mr.deactivateBtn')}</button>
@@ -406,6 +415,25 @@ export default function MarketplaceReferencePage() {
                     </div>
                   </div>
                 )}
+                {/* Real ask, 2026-11-10: "no manual input for the admin
+                    end — admin just attaches a category, that's it" —
+                    the hourly/shadi rate now has to live here, on the
+                    category, since admin_approve_vehicle_registration
+                    (834) no longer accepts them as input at all. Leave
+                    these at 0 (shown as blank) for a category that
+                    shouldn't offer that service — approving a driver
+                    who requested it is then blocked with a clear
+                    message instead of silently inserting a 0 rate. */}
+                <div className="pt-2 mt-1 border-t border-dp-outline-variant space-y-1.5">
+                  <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface">{t('mr.hourlyRatesHeading')}</p>
+                  <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.categoryHourlyShadiHint')}</p>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <Field label={t('mk.hourlyRatePlaceholder')}><input type="number" value={vehicleCategoryForm.hourly_rate_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, hourly_rate_pkr: +e.target.value })} className="input-field" /></Field>
+                    <Field label={t('mk.includedKmPlaceholder')}><input type="number" value={vehicleCategoryForm.hourly_included_km || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, hourly_included_km: +e.target.value })} className="input-field" /></Field>
+                    <Field label={t('mk.overageRatePlaceholder')}><input type="number" value={vehicleCategoryForm.hourly_overage_per_km_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, hourly_overage_per_km_pkr: +e.target.value })} className="input-field" /></Field>
+                  </div>
+                  <Field label={t('mk.shadiRatePlaceholder')}><input type="number" value={vehicleCategoryForm.shadi_full_day_rate_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, shadi_full_day_rate_pkr: +e.target.value })} className="input-field" /></Field>
+                </div>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.vehicleCategoryEditHint')}</p>
               </div>
             )}

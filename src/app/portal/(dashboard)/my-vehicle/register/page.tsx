@@ -35,7 +35,6 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 
 interface RegStatus { id: string; status: 'pending' | 'approved' | 'rejected'; rejection_reason: string | null; created_at: string }
-interface ServiceClass { id: string; name: string; name_ur: string | null; category: string }
 interface VehicleCategory {
   id: string; key: string; name: string; name_ur: string | null; emoji: string; per_km_pkr: number; intercity_commission_pct: number; ride_group: string | null
   vehicle_kind: string | null; min_cc: number | null; max_cc: number | null; example_models_hint: string | null; example_models_hint_ur: string | null
@@ -75,7 +74,6 @@ export default function VehicleRegisterPage() {
   const [status, setStatus] = useState<RegStatus | null | undefined>(undefined)
   const [form, setForm] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
-  const [serviceClasses, setServiceClasses] = useState<ServiceClass[]>([])
   const [categories, setCategories] = useState<VehicleCategory[]>([])
   const [modelQuery, setModelQuery] = useState('')
   const [modelResults, setModelResults] = useState<VehicleModel[]>([])
@@ -87,7 +85,6 @@ export default function VehicleRegisterPage() {
   useEffect(() => {
     if (!user) return
     supabase.rpc('my_vehicle_registration_status').then(({ data }) => setStatus(data ?? null))
-    supabase.from('service_classes').select('id, name, name_ur, category').eq('is_active', true).order('display_order').then(({ data }) => setServiceClasses(data ?? []))
     supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, per_km_pkr, intercity_commission_pct, ride_group, vehicle_kind, min_cc, max_cc, example_models_hint, example_models_hint_ur').eq('is_active', true).order('display_order').then(({ data }) => setCategories(data ?? []))
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -99,10 +96,6 @@ export default function VehicleRegisterPage() {
     return () => clearTimeout(handle)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelQuery, form.category_id])
-
-  const toggleServiceClass = (id: string) => {
-    setForm((f) => ({ ...f, wants_service_class_ids: f.wants_service_class_ids.includes(id) ? f.wants_service_class_ids.filter((x) => x !== id) : [...f.wants_service_class_ids, id] }))
-  }
 
   const pickModel = (m: VehicleModel) => {
     setForm({ ...form, model: `${m.make} ${m.model}` })
@@ -402,25 +395,6 @@ export default function VehicleRegisterPage() {
         ))}
       </div>
 
-      {serviceClasses.length > 0 && (
-        <>
-          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.serviceClassesHeading')}</p>
-          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4 mb-6">
-            <p className="font-sans text-[11.5px] text-[#64748b] mb-2.5 leading-relaxed">{t('vr.serviceClassesHint')}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {serviceClasses.map((sc) => {
-                const on = form.wants_service_class_ids.includes(sc.id)
-                return (
-                  <button key={sc.id} type="button" onClick={() => toggleServiceClass(sc.id)} className="px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer"
-                    style={{ background: on ? '#166534' : '#F9F9F6', color: on ? '#fff' : '#64748b', border: on ? 'none' : '1px solid #e5e2d0' }}>
-                    {isUrdu && sc.name_ur ? sc.name_ur : sc.name}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </>
-      )}
 
       <button onClick={submit} disabled={submitting} className="w-full flex items-center justify-center gap-1.5 py-3 bg-[#166534] text-white rounded-xl font-sans text-[14px] font-semibold cursor-pointer disabled:opacity-50">
         <CheckCircle2 size={16} /> {submitting ? t('action.saving') : t('vr.submitBtn')}
