@@ -56,11 +56,15 @@ interface Live {
 const TABLE: Record<WaitingKind, string> = { hourly: 'hourly_bookings', rental: 'rental_bookings', equipment: 'equipment_bookings', seat: 'ride_bookings' }
 const ICON: Record<WaitingKind, LucideIcon> = { hourly: Clock, rental: Car, equipment: Tractor, seat: Bus }
 
-function phaseOf(kind: WaitingKind, status: string): Phase {
+function phaseOf(kind: WaitingKind, status: string, seatAccepted?: boolean): Phase {
   if (kind === 'seat') {
-    if (status === 'announced') return 'waiting'
     if (status === 'rejected') return 'declined'
     if (status === 'cancelled') return 'cancelled'
+    // Real ask, 2026-11-09: a seat now needs the driver's explicit
+    // accept before it's final — status alone stays 'announced' the
+    // whole time (that column is a separate, later commission-
+    // settlement flag), so this phase keys off seat_accepted_at too.
+    if (status === 'announced' && !seatAccepted) return 'waiting'
     return 'accepted'
   }
   if (status === 'requested') return 'waiting'
@@ -82,9 +86,9 @@ function phaseOf(kind: WaitingKind, status: string): Phase {
 async function loadLive(kind: WaitingKind, id: string): Promise<Live | null> {
   const supabase = createClient()
   if (kind === 'seat') {
-    const { data } = await supabase.from('ride_bookings').select('status, cancellation_reason').eq('id', id).maybeSingle()
+    const { data } = await supabase.from('ride_bookings').select('status, rejected_reason, cancellation_reason, seat_accepted_at').eq('id', id).maybeSingle()
     if (!data) return null
-    return { phase: phaseOf(kind, data.status), reason: data.cancellation_reason ?? null, pin: null, driverName: null, driverMobile: null }
+    return { phase: phaseOf(kind, data.status, !!data.seat_accepted_at), reason: data.rejected_reason ?? data.cancellation_reason ?? null, pin: null, driverName: null, driverMobile: null }
   }
   const rpc = kind === 'hourly' ? 'my_hourly_bookings' : kind === 'rental' ? 'my_rental_bookings' : 'my_equipment_bookings'
   const { data } = await supabase.rpc(rpc)

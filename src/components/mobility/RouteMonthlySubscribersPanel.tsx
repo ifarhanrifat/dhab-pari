@@ -20,7 +20,8 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 interface Subscriber { id: string; name: string; stop_label: string | null; monthly_fee_pkr: number; status: string; scheduled_cancellation_at: string | null }
 interface WaitlistRow { id: string; name: string; queue_position: number; monthly_fee_pkr: number }
 interface DueCharge { id: string; rider_name: string; month: number; year: number; amount_pkr: number; proof_url: string | null }
-interface Detail { seats_total: number; active_count: number; subscribers: Subscriber[]; waitlist: WaitlistRow[]; due_charges: DueCharge[] }
+interface PendingApplication { id: string; name: string; stop_label: string | null; monthly_fee_pkr: number; applied_at: string; deposit_pkr: number | null; proof_url: string | null; payment_method: string | null }
+interface Detail { seats_total: number; active_count: number; subscribers: Subscriber[]; pending_applications: PendingApplication[]; waitlist: WaitlistRow[]; due_charges: DueCharge[] }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
@@ -67,12 +68,55 @@ export function RouteMonthlySubscribersPanel({ routeId, onClose }: { routeId: st
     load()
   }
 
+  const acceptApplication = async (subscriptionId: string) => {
+    setActionId(subscriptionId)
+    const { error } = await supabase.rpc('confirm_monthly_subscription', { p_subscription_id: subscriptionId })
+    setActionId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.seatAcceptedToast'))
+    load()
+  }
+  const declineApplication = async (subscriptionId: string) => {
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setActionId(subscriptionId)
+    const { error } = await supabase.rpc('reject_monthly_subscription', { p_subscription_id: subscriptionId, p_reason: reason || null })
+    setActionId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.seatDeclinedToast'))
+    load()
+  }
+
   return (
     <MobilityBottomSheet title={t('mv.manageRidersBtn')} onClose={onClose}>
       {loading || !detail ? (
         <div className="text-center py-8"><LoadingDots /></div>
       ) : (
         <div className="flex flex-col gap-3">
+          {detail.pending_applications.length > 0 && (
+            <>
+              <p className="font-sans text-[11px] font-bold uppercase tracking-[0.05em] text-amber-900">{t('mv.pendingRequestsHeading')}</p>
+              <div className="flex flex-col gap-1.5">
+                {detail.pending_applications.map((a) => (
+                  <div key={a.id} className="flex flex-col gap-1 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{a.name}</span>
+                      <span className="shrink-0 font-sans text-[12px] font-bold text-[#166534] ltr-num">₨{fmt(a.monthly_fee_pkr)}/mo</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-sans text-[10.5px] text-[#64748b] truncate">
+                        {a.stop_label ?? '—'}{a.deposit_pkr != null && a.deposit_pkr > 0 ? ` · ${t('mv.advanceDueLabel')}: ₨${fmt(a.deposit_pkr)}` : ''}
+                        {a.proof_url && <a href={a.proof_url} target="_blank" rel="noopener noreferrer" className="ms-1.5 font-bold text-sky-700 underline">{t('mv.viewReceiptLink')}</a>}
+                      </span>
+                      <div className="shrink-0 flex items-center gap-1.5">
+                        <button onClick={() => declineApplication(a.id)} disabled={actionId === a.id} className="px-2 py-1 rounded-lg text-[10.5px] font-sans font-bold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.rejectBtn')}</button>
+                        <button onClick={() => acceptApplication(a.id)} disabled={actionId === a.id} className="px-2 py-1 rounded-lg text-[10.5px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{t('mv.acceptSeatBtn')}</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           <p className="font-sans text-[11px] font-bold uppercase tracking-[0.05em] text-[#64748b] flex items-center gap-1">
             <Users size={12} /> {t('mv.activeRidersLabel')} ({detail.active_count}/{detail.seats_total})
           </p>

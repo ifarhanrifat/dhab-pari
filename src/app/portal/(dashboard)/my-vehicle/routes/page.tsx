@@ -56,7 +56,7 @@ const emptyRouteForm = {
 }
 
 interface Booking {
-  id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null
+  id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null; seat_accepted_at: string | null
   vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
 }
 interface Route {
@@ -148,7 +148,7 @@ export default function MyVehicleRoutesPage() {
     const [{ data: rts }, { data: b }] = await Promise.all([
       supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
-      supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
+      supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, seat_accepted_at, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
     ])
     setRoutes(rts ?? [])
@@ -840,6 +840,9 @@ export default function MyVehicleRoutesPage() {
                   {b.status === 'announced' && commissionMode !== 'per_order' && <span className="inline-flex items-center gap-1 text-amber-700 text-[11px] font-bold"><Clock size={11} /> {t('mp.awaitingStatus')}</span>}
                 </div>
               </div>
+              {b.status === 'announced' && !b.seat_accepted_at && (
+                <p className="font-sans text-[11px] font-bold text-amber-700 mt-1.5">{t('mv.openGroupToConfirmSeatHint')}</p>
+              )}
               {b.status === 'announced' && commissionMode === 'per_order' && (
                 <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#f1f5f9]">
                   <span className="font-sans text-[11px] text-[#64748b]">{t('cm.markFulfilledHint')}</span>

@@ -94,14 +94,22 @@ export default function PortalDashboardLayout({ children }: { children: React.Re
             padding pushes the whole block below the status bar; bg-dp2-
             primary on the strip matches the status bar's own theme-color
             tint instead of leaving a mismatched gap. */}
-        <div className="sticky top-0 z-40 bg-dp2-primary" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-          {/* Same red belt as the website, scoped to the appeals aimed at
-              this user — targeted ones appear here even when not public. */}
-          <AnnouncementBar source="portal" />
-          {!isMobility && <PortalHeader onMenuToggle={() => setMobileOpen(true)} />}
-        </div>
+        {/* Real bug, live: on the mobility screens (my-vehicle/*,
+            marketplace/(mobility)/*) this ticker rendered stacked right
+            above MobilityHeader's own green bar — PortalHeader was
+            correctly skipped here for these routes, but this ticker
+            wasn't, so the driver/rider saw two top bars. Gated the same
+            way PortalHeader already is. */}
+        {!isMobility && (
+          <div className="sticky top-0 z-40 bg-dp2-primary" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+            {/* Same red belt as the website, scoped to the appeals aimed at
+                this user — targeted ones appear here even when not public. */}
+            <AnnouncementBar source="portal" />
+            <PortalHeader onMenuToggle={() => setMobileOpen(true)} />
+          </div>
+        )}
         {/* Stays up on every page until enough people have joined. */}
-        <PoolAppealBanner />
+        {!isMobility && <PoolAppealBanner />}
         <main className="p-4 sm:p-6 md:p-10 max-w-[1400px] print:p-0 print:max-w-none">
           <PortalMobileNavProvider onOpen={() => setMobileOpen(true)}>{children}</PortalMobileNavProvider>
         </main>

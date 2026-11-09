@@ -16,7 +16,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Send, Radio, Users, LogOut, PlayCircle, StopCircle, Maximize2, X } from 'lucide-react'
+import { Send, Radio, Users, LogOut, PlayCircle, StopCircle, MapPin as MapPinIcon, Maximize2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -41,13 +41,16 @@ interface ActiveRun { id: string; started_at: string; direction: 'outbound' | 'r
 interface TodaysRun { id: string; direction: 'outbound' | 'return'; started_at: string; ended_at: string | null }
 interface RosterRow { subscription_id: string; name: string; present: boolean; on_leave_today: boolean }
 interface OutboundBookingRow { booking_id: string; name: string; seats: number; offboarded: boolean }
-interface AdHocBookingRow { id: string; name: string; seats: number; boarded_at: string | null; dropped_off_at: string | null; board_stop_id: string | null }
+interface AdHocBookingRow { id: string; name: string; seats: number; boarded_at: string | null; dropped_off_at: string | null; board_stop_id: string | null; seat_accepted_at?: string | null }
+interface PendingSeatRequest { id: string; name: string; seats: number; travel_date: string; direction: 'outbound' | 'return'; total_amount_pkr: number; announced_method: string | null; announced_proof_url: string | null }
+interface PendingMonthlyApplication { id: string; name: string; monthly_fee_pkr: number; stop_label: string | null; applied_at: string; deposit_pkr: number | null; proof_url: string | null; payment_method: string | null }
 interface Detail {
   is_owner: boolean; is_member: boolean; sharing_location: boolean
   owner_portal_user_id: string; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
   is_two_way: boolean; return_wait_minutes: number | null; return_seats_available_today: number | null
   active_run: ActiveRun | null; todays_runs: TodaysRun[]; stops: StopRow[]; roster_today: RosterRow[]
   todays_outbound_bookings: OutboundBookingRow[]
+  pending_seat_requests: PendingSeatRequest[]; pending_monthly_applications: PendingMonthlyApplication[]
   participants: Participant[]; messages: Message[]; live_locations: LiveLoc[]
 }
 
@@ -255,6 +258,42 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
     toast.success(t('mv.noShowMarkedToast'))
     load()
   }
+  const [seatActionId, setSeatActionId] = useState<string | null>(null)
+  const acceptSeatRequest = async (bookingId: string) => {
+    setSeatActionId(bookingId)
+    const { error } = await supabase.rpc('accept_ride_booking_seat', { p_booking_id: bookingId })
+    setSeatActionId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.seatAcceptedToast'))
+    load()
+  }
+  const declineSeatRequest = async (bookingId: string) => {
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setSeatActionId(bookingId)
+    const { error } = await supabase.rpc('decline_ride_booking_seat', { p_booking_id: bookingId, p_reason: reason || null })
+    setSeatActionId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.seatDeclinedToast'))
+    load()
+  }
+  const [monthlyActionId, setMonthlyActionId] = useState<string | null>(null)
+  const acceptMonthlyApplication = async (subscriptionId: string) => {
+    setMonthlyActionId(subscriptionId)
+    const { error } = await supabase.rpc('confirm_monthly_subscription', { p_subscription_id: subscriptionId })
+    setMonthlyActionId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.seatAcceptedToast'))
+    load()
+  }
+  const declineMonthlyApplication = async (subscriptionId: string) => {
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setMonthlyActionId(subscriptionId)
+    const { error } = await supabase.rpc('reject_monthly_subscription', { p_subscription_id: subscriptionId, p_reason: reason || null })
+    setMonthlyActionId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.seatDeclinedToast'))
+    load()
+  }
   const markArrived = async () => {
     if (!detail?.active_run) return
     setRunBusy(true)
@@ -454,6 +493,60 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               {t('mv.startingStakeNote').replace('{stake}', String(stakeInfo.stake_pkr)).replace('{balance}', String(Math.round(stakeInfo.balance_pkr)))}
             </p>
           )}
+          {/* Real ask, 2026-11-09: "driver must have to confirm all these
+              seats... only the confirmed riders will be part of groups"
+              — a pending request (any future travel date, not just
+              today) stays here, with the rider's submitted payment
+              method/proof, until the driver explicitly accepts or
+              declines it. Shown regardless of active_run/showRoster so
+              a driver can clear these without having to start a run. */}
+          {detail.is_owner && (detail.pending_seat_requests.length > 0 || detail.pending_monthly_applications.length > 0) && (
+            <div className="flex flex-col gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
+              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-amber-900">{t('mv.pendingRequestsHeading')}</p>
+              {detail.pending_seat_requests.map((r) => (
+                <div key={r.id} className="flex flex-col gap-1 rounded-lg bg-white px-2.5 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">
+                      {r.name}{r.seats > 1 ? ` (${r.seats})` : ''} · {new Date(r.travel_date).toLocaleDateString('en-GB')}
+                      {r.direction === 'return' && <span className="ms-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700">{t('cm.tripTypeReturn')}</span>}
+                    </span>
+                    <span className="shrink-0 font-sans text-[12.5px] font-bold text-[#166534] ltr-num">₨{Number(r.total_amount_pkr).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-sans text-[11px] text-[#64748b]">
+                      {r.announced_method ? `${t('w.paymentMethod')}: ${r.announced_method}` : ''}
+                      {r.announced_proof_url && <a href={r.announced_proof_url} target="_blank" rel="noopener noreferrer" className="ms-1.5 font-bold text-sky-700 underline">{t('mv.viewReceiptLink')}</a>}
+                    </span>
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      <button type="button" onClick={() => declineSeatRequest(r.id)} disabled={seatActionId === r.id} className="px-2.5 py-1 rounded-lg text-[11px] font-sans font-bold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.rejectBtn')}</button>
+                      <button type="button" onClick={() => acceptSeatRequest(r.id)} disabled={seatActionId === r.id} className="px-2.5 py-1 rounded-lg text-[11px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{seatActionId === r.id ? t('action.saving') : t('mv.acceptSeatBtn')}</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {detail.pending_monthly_applications.map((a) => (
+                <div key={a.id} className="flex flex-col gap-1 rounded-lg bg-white px-2.5 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">
+                      {a.name} <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{t('mv.monthlyFixedBadge')}</span>
+                      {a.stop_label && <span className="text-[10.5px] text-amber-700 font-semibold"> · 📍 {a.stop_label}</span>}
+                    </span>
+                    <span className="shrink-0 font-sans text-[12.5px] font-bold text-[#166534] ltr-num">₨{Number(a.monthly_fee_pkr).toLocaleString()}/mo</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-sans text-[11px] text-[#64748b]">
+                      {a.deposit_pkr != null && a.deposit_pkr > 0 ? `${t('mv.advanceDueLabel')}: ₨${Number(a.deposit_pkr).toLocaleString()}` : ''}
+                      {a.proof_url && <a href={a.proof_url} target="_blank" rel="noopener noreferrer" className="ms-1.5 font-bold text-sky-700 underline">{t('mv.viewReceiptLink')}</a>}
+                    </span>
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      <button type="button" onClick={() => declineMonthlyApplication(a.id)} disabled={monthlyActionId === a.id} className="px-2.5 py-1 rounded-lg text-[11px] font-sans font-bold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.rejectBtn')}</button>
+                      <button type="button" onClick={() => acceptMonthlyApplication(a.id)} disabled={monthlyActionId === a.id} className="px-2.5 py-1 rounded-lg text-[11px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">{monthlyActionId === a.id ? t('action.saving') : t('mv.acceptSeatBtn')}</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {/* Real ask, 2026-11-07: "before starting the ride the driver
               was not aware who has booked his ride, he should completely
               know who booked his ride before he start the ride" — a
@@ -471,21 +564,39 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               {adHocBookings.map((b) => (
                 <p key={b.id} className="font-sans text-[12px] text-[#1e293b] flex items-center gap-1.5 flex-wrap">
                   <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800">{t('mv.oneOffRiderTag')}</span>
+                  {!b.seat_accepted_at && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">{t('mp.awaitingStatus')}</span>}
                   {b.name}{b.seats > 1 ? ` (${b.seats})` : ''}
                   {b.board_stop_id && <span className="text-[10.5px] text-amber-700 font-semibold">📍 {stopLabel(b.board_stop_id)}</span>}
                 </p>
               ))}
             </div>
           )}
-          {detail.is_owner && !showRoster && (
-            <button type="button" onClick={detail.active_run ? endRun : openStartFlow} disabled={runBusy || (!detail.active_run && stakeInfo?.applies && !stakeInfo.can_afford)}
-              className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[13px] font-sans font-bold cursor-pointer disabled:opacity-50 ${detail.active_run ? 'bg-[#b91c1c] text-white' : 'bg-[#D4AF37] text-[#0f172a]'}`}>
-              {detail.active_run ? <StopCircle size={15} /> : <PlayCircle size={15} />}
-              {detail.active_run
-                ? t('mv.endRideBtn')
-                : nextDirection === 'return' ? t('mv.startReturnTripBtn') : t('mv.startRideBtn')}
-            </button>
-          )}
+          {/* Real ask, 2026-11-09: "can't you do this only pushing the end
+              ride button? the more we build the more difficult for the
+              driver" — collapsed the two stacked buttons (End Ride +
+              Arrived on Destination, both visible at once on a two-way
+              route's outbound leg) into one button slot that changes
+              label/action by state, so the driver only ever has one
+              decision to make at a time: Start → Arrived at Destination
+              (opens the wait window) → End Ride → Start Return Trip. All
+              the wait-window/offboard/standalone-return-seat machinery
+              below is unchanged — only the button that triggers the
+              arrival step moved into this same slot. */}
+          {detail.is_owner && !showRoster && (() => {
+            const needsArrival = !!detail.active_run && detail.is_two_way && detail.active_run.direction === 'outbound' && !detail.active_run.outbound_arrived_at
+            const onClick = !detail.active_run ? openStartFlow : needsArrival ? markArrived : endRun
+            const label = !detail.active_run
+              ? (nextDirection === 'return' ? t('mv.startReturnTripBtn') : t('mv.startRideBtn'))
+              : needsArrival ? t('mv.markArrivedBtn') : t('mv.endRideBtn')
+            const colorCls = !detail.active_run ? 'bg-[#D4AF37] text-[#0f172a]' : needsArrival ? 'bg-[#166534] text-white' : 'bg-[#b91c1c] text-white'
+            return (
+              <button type="button" onClick={onClick} disabled={runBusy || (!detail.active_run && stakeInfo?.applies && !stakeInfo.can_afford)}
+                className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[13px] font-sans font-bold cursor-pointer disabled:opacity-50 ${colorCls}`}>
+                {!detail.active_run ? <PlayCircle size={15} /> : needsArrival ? <MapPinIcon size={15} /> : <StopCircle size={15} />}
+                {label}
+              </button>
+            )
+          })()}
           {/* Real ask, 2026-10-21: "the return ride button... when driver is
               starting a return ride... it should" show something — the
               driver (owner) used to get NO feedback at all beyond the
@@ -541,14 +652,10 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
 
           {/* Real ask, 2026-10-21: "the vehicle will leave on its time and
               then the driver can off board the rider who is late" — the
-              owner marks arrival, which opens a wait window (the route's
-              own return_wait_minutes), and can release a specific
-              outbound rider's seat for the return leg during that window. */}
-          {detail.is_owner && detail.is_two_way && detail.active_run?.direction === 'outbound' && !detail.active_run.outbound_arrived_at && (
-            <button type="button" onClick={markArrived} disabled={runBusy} className="w-full py-2 rounded-xl text-[13px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">
-              {t('mv.markArrivedBtn')}
-            </button>
-          )}
+              owner marks arrival (now via the single button above), which
+              opens a wait window (the route's own return_wait_minutes),
+              and can release a specific outbound rider's seat for the
+              return leg during that window. */}
           {detail.is_owner && detail.active_run?.direction === 'outbound' && detail.active_run.outbound_arrived_at && (() => {
             const elapsedMin = (Date.now() - new Date(detail.active_run.outbound_arrived_at).getTime()) / 60000
             const remainingMin = detail.return_wait_minutes != null ? Math.max(0, Math.round(detail.return_wait_minutes - elapsedMin)) : null

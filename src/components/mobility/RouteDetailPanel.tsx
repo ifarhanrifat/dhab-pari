@@ -52,7 +52,7 @@ interface MonthlySubscription { id: string; status: string; monthly_fee_pkr: num
 interface MonthlyDetail { is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null; seats_total: number; active_count: number; my_subscription: MonthlySubscription | null; my_leave_days: string[] }
 interface DepositPreview { monthly_fee_pkr: number; deposit_pkr: number; days_remaining: number; days_total: number }
 interface AttendanceRow { run_date: string; present: boolean; marked_at: string }
-interface MyBooking { id: string; travel_date: string; seats: number; total_amount_pkr: number; status: string; board_stop_id: string | null; alight_stop_id: string | null }
+interface MyBooking { id: string; travel_date: string; seats: number; total_amount_pkr: number; status: string; board_stop_id: string | null; alight_stop_id: string | null; seat_accepted_at: string | null }
 
 // Approximate only — interpolated proportionally along the driver's
 // own chosen road path using its real OSRM duration, not a live ETA.
@@ -154,7 +154,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
 
   const loadMyBookings = async () => {
     if (!user) return
-    const { data } = await supabase.from('ride_bookings').select('id, travel_date, seats, total_amount_pkr, status, board_stop_id, alight_stop_id')
+    const { data } = await supabase.from('ride_bookings').select('id, travel_date, seats, total_amount_pkr, status, board_stop_id, alight_stop_id, seat_accepted_at')
       .eq('route_id', routeId).eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).gte('travel_date', todayStr()).order('travel_date')
     setMyBookings((data ?? []) as MyBooking[])
   }
@@ -238,11 +238,11 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     if (!route) return
     if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
     if (!returnBoardStopId) { toast.error(t('mv.pickBoardStopLabel')); return }
-    if (!isPerOrder && !returnProofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
+    if (!returnProofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     setBookingReturn(true)
     const { data, error } = await supabase.rpc('book_standalone_return_seat', {
       p_route_id: route.id, p_travel_date: travelDate, p_board_stop_id: returnBoardStopId,
-      p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : returnProofPath,
+      p_method: method, p_proof_url: returnProofPath,
     })
     setBookingReturn(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -266,11 +266,11 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const submit = async () => {
     if (!route) return
     if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
-    if (!isPerOrder && !proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
+    if (!proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     if ((boardStopId && !alightStopId) || (!boardStopId && alightStopId)) { toast.error(t('mv.pickBothStopsError')); return }
     setSubmitting(true)
     const { data: placed, error } = await supabase.rpc('place_ride_booking', {
-      p_route_id: route.id, p_travel_date: travelDate, p_seats: seats, p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : proofPath,
+      p_route_id: route.id, p_travel_date: travelDate, p_seats: seats, p_method: method, p_proof_url: proofPath,
       p_board_stop_id: boardStopId, p_alight_stop_id: alightStopId,
     })
     setSubmitting(false)
@@ -467,6 +467,11 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 <p className="font-sans text-[13px] font-semibold text-dp-on-surface ltr-num">{b.travel_date} · {t('rw.seats').replace('{n}', String(b.seats))}</p>
                 <p className="font-sans text-[13px] font-bold text-dp-secondary ltr-num">₨{fmt(b.total_amount_pkr)}</p>
               </div>
+              {b.status === 'announced' && (
+                <p className={`font-sans text-[11px] font-bold mt-1 ${b.seat_accepted_at ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {b.seat_accepted_at ? t('mv.seatConfirmedInGroupNote') : t('mv.seatPendingDriverNote')}
+                </p>
+              )}
               {(() => {
                 // Real ask, 2026-11-07: "distance of the stop... shown on
                 // the live map, not anywhere else" — a full-route booking
@@ -527,6 +532,8 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
             <div className="flex flex-col gap-2">
               {monthlyDetail.my_subscription.status === 'waitlisted' ? (
                 <p className="font-sans text-[13px] font-semibold text-amber-700">{t('mv.waitlistPositionLabel').replace('{n}', String(monthlyDetail.my_subscription.queue_position ?? '?'))}</p>
+              ) : monthlyDetail.my_subscription.status === 'pending' ? (
+                <p className="font-sans text-[13px] font-semibold text-amber-700">⏳ {t('mv.monthlyPendingConfirmStatusLabel')}</p>
               ) : monthlyDetail.my_subscription.status === 'pending_cancellation' ? (
                 <p className="font-sans text-[13px] font-semibold text-amber-700">{t('mv.monthlyPendingCancellationStatusLabel').replace('{date}', monthlyDetail.my_subscription.scheduled_cancellation_at ? new Date(monthlyDetail.my_subscription.scheduled_cancellation_at).toLocaleDateString() : '')}</p>
               ) : (
@@ -556,7 +563,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                   </div>
                 )
               })()}
-              {monthlyDetail.my_subscription.status !== 'waitlisted' && (
+              {(monthlyDetail.my_subscription.status === 'active' || monthlyDetail.my_subscription.status === 'pending_cancellation') && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex flex-col gap-1.5">
                   <p className="font-sans text-[11.5px] font-bold text-amber-900">{t('mv.markLeaveDayHeading')}</p>
                   {monthlyDetail.my_leave_days.length > 0 && (
@@ -620,6 +627,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
               {depositPreview && depositPreview.deposit_pkr > 0 && isPerOrder && (
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5">{t('cm.payDirectlyNote')}</p>
               )}
+              <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">{t('mv.seatNeedsDriverConfirmNote')}</p>
               <button onClick={applyForSeat} disabled={applying || !selectedBoardStopId || (!isPerOrder && (depositPreview?.deposit_pkr ?? 0) > 0 && !applyProofPath)} className="w-full bg-dp-secondary text-white rounded-lg py-2.5 font-sans font-semibold active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                 {applying ? t('mp.placingBooking') : t('mv.applyMonthlySeatBtn')}
               </button>
@@ -688,26 +696,26 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
               <p className="font-heading text-[19px] font-bold text-dp-secondary">{fmt(total)}</p>
             </div>
 
-            {isPerOrder ? (
-              <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-4">{t('cm.payDirectlyNote')}</p>
-            ) : (
-              <>
-                <div className="mt-4">
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
-                  <select value={method} onChange={(e) => setMethod(e.target.value)} className="input-field">
-                    <option value="cash">{t('w.cash')}</option>
-                    <option value="jazzcash">{t('w.jazzcash')}</option>
-                    <option value="easypaisa">{t('w.easypaisa')}</option>
-                    <option value="bank">{t('a.bank')}</option>
-                  </select>
-                </div>
-                <div className="mt-3">
-                  <DonationReceiptUpload onUpload={setProofPath} />
-                </div>
-              </>
-            )}
+            <div className="mt-4">
+              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
+              <select value={method} onChange={(e) => setMethod(e.target.value)} className="input-field">
+                <option value="cash">{t('w.cash')}</option>
+                <option value="jazzcash">{t('w.jazzcash')}</option>
+                <option value="easypaisa">{t('w.easypaisa')}</option>
+                <option value="bank">{t('a.bank')}</option>
+              </select>
+            </div>
+            <div className="mt-3">
+              <DonationReceiptUpload onUpload={setProofPath} />
+            </div>
+            {/* Real ask, 2026-11-09: "driver must have to confirm all these
+                seats... a clear cut information will be written on the
+                booking page for the rider" — a seat now only becomes real
+                once the driver confirms the payment, so this is said
+                plainly before the rider taps Book, not discovered after. */}
+            <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
             <div className="mt-3"><FarePolicyCard service="seat" defaultOpen={false} /></div>
-            <button onClick={submit} disabled={submitting} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button onClick={submit} disabled={submitting || !proofPath} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {submitting ? t('mp.placingBooking') : t('mp.bookSeatsBtn')}
             </button>
           </>
@@ -737,15 +745,12 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
             ))}
           </select>
 
-          {isPerOrder ? (
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-3">{t('cm.payDirectlyNote')}</p>
-          ) : (
-            <div className="mt-3">
-              <DonationReceiptUpload onUpload={setReturnProofPath} />
-            </div>
-          )}
+          <div className="mt-3">
+            <DonationReceiptUpload onUpload={setReturnProofPath} />
+          </div>
+          <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
 
-          <button onClick={bookReturnSeat} disabled={bookingReturn || !returnBoardStopId} className="w-full mt-3 bg-[#166534] text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-[#0f4b27] transition-all disabled:opacity-50">
+          <button onClick={bookReturnSeat} disabled={bookingReturn || !returnBoardStopId || !returnProofPath} className="w-full mt-3 bg-[#166534] text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-[#0f4b27] transition-all disabled:opacity-50">
             {bookingReturn ? t('mp.placingBooking') : t('mv.bookReturnSeatBtn')}
           </button>
         </div>
