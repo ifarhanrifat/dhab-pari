@@ -41,7 +41,13 @@ export function MobilityHeader() {
     // group to the right in Urdu. Hardcoded ltr so the chrome's physical
     // layout never moves; Urdu text inside still renders RTL correctly on
     // its own via each element's own dir/the browser's bidi handling.
-    <header dir="ltr" className="bg-[#005A36] text-white px-3.5 py-2.5 flex items-center justify-between gap-2 shadow-[0_4px_10px_rgba(0,0,0,.15)] relative z-20">
+    // Real bug, reported live: once PortalHeader/AnnouncementBar were
+    // correctly stopped from rendering above this on mobility routes
+    // (they used to accidentally supply the safe-area padding), this
+    // became the very first element on the page — with no safe-area
+    // inset of its own it sat up under the phone's status bar
+    // (signal/battery/clock) on an edge-to-edge device.
+    <header dir="ltr" className="bg-[#005A36] text-white px-3.5 py-2.5 flex items-center justify-between gap-2 shadow-[0_4px_10px_rgba(0,0,0,.15)] relative z-20" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 10px)' }}>
       <div className="flex items-center gap-2.5 min-w-0">
         {/* Only the sidebar's own trigger -- hidden on md+ where the
             sidebar already shows permanently, same breakpoint it uses. */}
