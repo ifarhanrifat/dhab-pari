@@ -238,11 +238,11 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     if (!route) return
     if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
     if (!returnBoardStopId) { toast.error(t('mv.pickBoardStopLabel')); return }
-    if (!returnProofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
+    if (!isPerOrder && !returnProofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     setBookingReturn(true)
     const { data, error } = await supabase.rpc('book_standalone_return_seat', {
       p_route_id: route.id, p_travel_date: travelDate, p_board_stop_id: returnBoardStopId,
-      p_method: method, p_proof_url: returnProofPath,
+      p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : returnProofPath,
     })
     setBookingReturn(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -266,11 +266,11 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const submit = async () => {
     if (!route) return
     if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
-    if (!proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
+    if (!isPerOrder && !proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     if ((boardStopId && !alightStopId) || (!boardStopId && alightStopId)) { toast.error(t('mv.pickBothStopsError')); return }
     setSubmitting(true)
     const { data: placed, error } = await supabase.rpc('place_ride_booking', {
-      p_route_id: route.id, p_travel_date: travelDate, p_seats: seats, p_method: method, p_proof_url: proofPath,
+      p_route_id: route.id, p_travel_date: travelDate, p_seats: seats, p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : proofPath,
       p_board_stop_id: boardStopId, p_alight_stop_id: alightStopId,
     })
     setSubmitting(false)
@@ -696,26 +696,35 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
               <p className="font-heading text-[19px] font-bold text-dp-secondary">{fmt(total)}</p>
             </div>
 
-            <div className="mt-4">
-              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
-              <select value={method} onChange={(e) => setMethod(e.target.value)} className="input-field">
-                <option value="cash">{t('w.cash')}</option>
-                <option value="jazzcash">{t('w.jazzcash')}</option>
-                <option value="easypaisa">{t('w.easypaisa')}</option>
-                <option value="bank">{t('a.bank')}</option>
-              </select>
-            </div>
-            <div className="mt-3">
-              <DonationReceiptUpload onUpload={setProofPath} />
-            </div>
-            {/* Real ask, 2026-11-09: "driver must have to confirm all these
-                seats... a clear cut information will be written on the
-                booking page for the rider" — a seat now only becomes real
-                once the driver confirms the payment, so this is said
-                plainly before the rider taps Book, not discovered after. */}
+            {isPerOrder ? (
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-4">{t('cm.payDirectlyNote')}</p>
+            ) : (
+              <>
+                <div className="mt-4">
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
+                  <select value={method} onChange={(e) => setMethod(e.target.value)} className="input-field">
+                    <option value="cash">{t('w.cash')}</option>
+                    <option value="jazzcash">{t('w.jazzcash')}</option>
+                    <option value="easypaisa">{t('w.easypaisa')}</option>
+                    <option value="bank">{t('a.bank')}</option>
+                  </select>
+                </div>
+                <div className="mt-3">
+                  <DonationReceiptUpload onUpload={setProofPath} />
+                </div>
+              </>
+            )}
+            {/* Real ask, 2026-11-09: "we will let the user to book a ride,
+                but after the successful booking... let the user read a
+                text that your seat is booked but its not confirmed, any
+                paid rider will replace your seat, you need to pay the
+                amount directly to driver to confirm" — booking is never
+                blocked on a receipt; the rider is told plainly up front
+                that paying the driver is what turns this into a real,
+                locked-in seat. */}
             <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
             <div className="mt-3"><FarePolicyCard service="seat" defaultOpen={false} /></div>
-            <button onClick={submit} disabled={submitting || !proofPath} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button onClick={submit} disabled={submitting} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {submitting ? t('mp.placingBooking') : t('mp.bookSeatsBtn')}
             </button>
           </>
@@ -745,12 +754,16 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
             ))}
           </select>
 
-          <div className="mt-3">
-            <DonationReceiptUpload onUpload={setReturnProofPath} />
-          </div>
+          {isPerOrder ? (
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-3">{t('cm.payDirectlyNote')}</p>
+          ) : (
+            <div className="mt-3">
+              <DonationReceiptUpload onUpload={setReturnProofPath} />
+            </div>
+          )}
           <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
 
-          <button onClick={bookReturnSeat} disabled={bookingReturn || !returnBoardStopId || !returnProofPath} className="w-full mt-3 bg-[#166534] text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-[#0f4b27] transition-all disabled:opacity-50">
+          <button onClick={bookReturnSeat} disabled={bookingReturn || !returnBoardStopId} className="w-full mt-3 bg-[#166534] text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-[#0f4b27] transition-all disabled:opacity-50">
             {bookingReturn ? t('mp.placingBooking') : t('mv.bookReturnSeatBtn')}
           </button>
         </div>

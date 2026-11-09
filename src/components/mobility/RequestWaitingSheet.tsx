@@ -301,6 +301,19 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
             )}
           </div>
 
+          {/* Real ask, 2026-11-09: "after the successful booking then at
+              the same booking window we can let the user to read a text
+              that your seat is booked but its not confirmed, any paid
+              rider will replace your seat, you need to pay the amount
+              directly to driver to confirm" — shown right here, on the
+              same waiting screen the booking already opens into. */}
+          {phase === 'waiting' && kind === 'seat' && (
+            <div className="rounded-2xl bg-[#fffbeb] border border-[#fde68a] p-3.5">
+              <p className="font-sans text-[13px] font-bold text-[#92400e]">{t('rw.seatNotConfirmedHeading')}</p>
+              <p className="font-sans text-[12px] text-[#92400e]/80 leading-snug mt-1">{t('rw.seatNotConfirmedHint')}</p>
+            </div>
+          )}
+
           {phase === 'waiting' && oneWayFallback && elapsed >= oneWayFallback.afterSeconds && (
             <div className="rounded-2xl bg-[#fffbeb] border border-[#fde68a] p-3.5 flex flex-col gap-2.5">
               <p className="font-sans text-[13px] font-bold text-[#92400e]">{t('rw.noOneWayDriverHeading')}</p>
