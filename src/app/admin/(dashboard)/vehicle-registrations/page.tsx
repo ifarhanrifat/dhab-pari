@@ -26,6 +26,8 @@ interface Request {
   status: 'pending' | 'approved' | 'rejected'; is_village_resident: boolean | null; rejection_reason: string | null
   created_at: string; reviewed_at: string | null; submitter_name: string; submitter_mobile: string | null
   category_id: string | null; category_name: string | null; category_name_ur: string | null; category_emoji: string | null; category_per_km_pkr: number | null
+  category_vehicle_kind: string | null; category_min_cc: number | null; category_max_cc: number | null
+  engine_cc: number | null; is_electric: boolean; is_loader: boolean; is_luxury_declared: boolean
 }
 interface ServiceClass { id: string; name: string; name_ur: string | null }
 
@@ -153,6 +155,14 @@ export default function AdminVehicleRegistrationsPage() {
                   <p><span className="text-dp-on-surface-variant">{t('vr.colorPlaceholder')}:</span> <span className="font-semibold">{r.color ?? '—'}</span></p>
                   <p><span className="text-dp-on-surface-variant">{t('vr.totalSeatsPlaceholder')}:</span> <span className="font-semibold ltr-num">{r.total_seats}</span></p>
                   <p><span className="text-dp-on-surface-variant">{t('mv.hasAcLabel')}:</span> <span className="font-semibold">{r.has_ac ? t('g.yes') : t('g.no')}</span></p>
+                  {r.category_vehicle_kind && ['car', 'rickshaw', 'bike'].includes(r.category_vehicle_kind) && (
+                    <>
+                      {r.engine_cc != null && <p><span className="text-dp-on-surface-variant">{t('vreg.engineCcLabel')}:</span> <span className="font-semibold ltr-num">{r.engine_cc}cc</span></p>}
+                      <p><span className="text-dp-on-surface-variant">{t('vreg.declaredFlagsLabel')}:</span> <span className="font-semibold">
+                        {[r.is_electric && t('vr.isElectricLabel'), r.is_loader && t('vr.loaderLabel'), r.is_luxury_declared && t('vr.isLuxuryLabel')].filter(Boolean).join(', ') || '—'}
+                      </span></p>
+                    </>
+                  )}
                   {r.submitter_mobile && <a href={`tel:${r.submitter_mobile}`} className="inline-flex items-center gap-1 text-dp-secondary font-semibold"><Phone size={12} /> {r.submitter_mobile}</a>}
                 </div>
 

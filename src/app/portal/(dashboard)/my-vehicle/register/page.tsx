@@ -36,8 +36,22 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 
 interface RegStatus { id: string; status: 'pending' | 'approved' | 'rejected'; rejection_reason: string | null; created_at: string }
 interface ServiceClass { id: string; name: string; name_ur: string | null; category: string }
-interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; per_km_pkr: number; intercity_commission_pct: number; ride_group: string | null }
+interface VehicleCategory {
+  id: string; key: string; name: string; name_ur: string | null; emoji: string; per_km_pkr: number; intercity_commission_pct: number; ride_group: string | null
+  vehicle_kind: string | null; min_cc: number | null; max_cc: number | null; example_models_hint: string | null; example_models_hint_ur: string | null
+}
 interface VehicleModel { id: string; make: string; model: string }
+
+// Real ask, 2026-11-09: "when user is going to register he will pickup
+// a model car or write down his car then pickup the cc and when he
+// will choose cc then his car will be automatically added into
+// category, the committee or admin will only need to verify" — car/
+// rickshaw/bike are no longer individual icons in the grid below; they
+// open this small sub-form instead, and the real category is resolved
+// server-side (resolve_vehicle_category, migration 833) from what's
+// entered here. Every other kind (van/bus/loader/tractor/machinery/
+// suv) is unchanged — picking it IS the category, same as before.
+const KIND_ICONS: Record<'car' | 'rickshaw' | 'bike', string> = { car: '🚗', rickshaw: '🛺', bike: '🛵' }
 
 const emptyForm = {
   owner_name: '', cnic_number: '', father_husband_name: '', address: '',
@@ -45,6 +59,7 @@ const emptyForm = {
   owner_id_card_url: '', license_url: '', vehicle_doc_url: '', driver_photo_url: '', has_ac: false,
   wants_delivers: false, wants_hourly: false, wants_shadi: false, wants_out_of_city: false, wants_night_booking: false,
   wants_service_class_ids: [] as string[],
+  vehicle_kind: '' as '' | 'car' | 'rickshaw' | 'bike', engine_cc: '', is_electric: false, is_loader: false, is_luxury_declared: false,
 }
 
 const inputCls = 'dp2-input'
@@ -73,7 +88,7 @@ export default function VehicleRegisterPage() {
     if (!user) return
     supabase.rpc('my_vehicle_registration_status').then(({ data }) => setStatus(data ?? null))
     supabase.from('service_classes').select('id, name, name_ur, category').eq('is_active', true).order('display_order').then(({ data }) => setServiceClasses(data ?? []))
-    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, per_km_pkr, intercity_commission_pct, ride_group').eq('is_active', true).order('display_order').then(({ data }) => setCategories(data ?? []))
+    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, per_km_pkr, intercity_commission_pct, ride_group, vehicle_kind, min_cc, max_cc, example_models_hint, example_models_hint_ur').eq('is_active', true).order('display_order').then(({ data }) => setCategories(data ?? []))
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -105,13 +120,36 @@ export default function VehicleRegisterPage() {
     setNewMake(''); setNewModel(''); setShowAddModel(false)
   }
 
-  const selectedCategory = categories.find((c) => c.id === form.category_id) ?? null
-  const sharedRideCategories = categories.filter((c) => c.ride_group === 'shared_ride')
-  const otherCategories = categories.filter((c) => c.ride_group !== 'shared_ride')
+  // Kind/rickshaw/bike are no longer their own rows in `categories` to
+  // pick directly — only the "simple" (one-tap) kinds stay in these two
+  // grids, same split as before.
+  const simpleCategories = categories.filter((c) => !['car', 'rickshaw', 'bike'].includes(c.vehicle_kind ?? ''))
+  const sharedRideCategories = simpleCategories.filter((c) => c.ride_group === 'shared_ride')
+  const otherCategories = simpleCategories.filter((c) => c.ride_group !== 'shared_ride')
+
+  const [resolvedCategoryId, setResolvedCategoryId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!form.vehicle_kind) { setResolvedCategoryId(null); return }
+    if (form.vehicle_kind === 'car' && !form.engine_cc) { setResolvedCategoryId(null); return }
+    const handle = setTimeout(() => {
+      supabase.rpc('resolve_vehicle_category', {
+        p_kind: form.vehicle_kind, p_cc: form.vehicle_kind === 'car' ? Number(form.engine_cc) : null, p_has_ac: form.vehicle_kind === 'car' ? form.has_ac : null,
+        p_is_electric: form.is_electric, p_is_loader: form.is_loader, p_is_luxury: form.is_luxury_declared,
+      }).then(({ data }) => setResolvedCategoryId((data as string | null) ?? null))
+    }, 300)
+    return () => clearTimeout(handle)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.vehicle_kind, form.engine_cc, form.has_ac, form.is_electric, form.is_loader, form.is_luxury_declared])
+
+  const selectedCategory = form.vehicle_kind
+    ? (categories.find((c) => c.id === resolvedCategoryId) ?? null)
+    : (categories.find((c) => c.id === form.category_id) ?? null)
 
   const submit = async () => {
-    if (!form.owner_name.trim() || !form.cnic_number.trim() || !form.address.trim() || !form.category_id) {
-      toast.error(form.category_id ? t('vr.requiredFieldsError') : t('vr.categoryRequiredError')); return
+    const hasSimplePick = !form.vehicle_kind && !!form.category_id
+    const hasKindPick = !!form.vehicle_kind && (form.vehicle_kind !== 'car' || !!form.engine_cc) && !!resolvedCategoryId
+    if (!form.owner_name.trim() || !form.cnic_number.trim() || !form.address.trim() || !(hasSimplePick || hasKindPick)) {
+      toast.error((hasSimplePick || hasKindPick) ? t('vr.requiredFieldsError') : t('vr.categoryRequiredError')); return
     }
     if (!form.owner_id_card_url || !form.license_url || !form.vehicle_doc_url || !form.driver_photo_url) {
       toast.error(t('vr.allDocumentsRequiredError')); return
@@ -122,7 +160,9 @@ export default function VehicleRegisterPage() {
       p_vehicle_type: selectedCategory?.name ?? '', p_vehicle_number: form.vehicle_number || null, p_model: form.model || null, p_color: form.color || null, p_total_seats: form.total_seats,
       p_owner_id_card_url: form.owner_id_card_url, p_license_url: form.license_url, p_vehicle_doc_url: form.vehicle_doc_url, p_driver_photo_url: form.driver_photo_url,
       p_wants_delivers: form.wants_delivers, p_wants_hourly: form.wants_hourly, p_wants_shadi: form.wants_shadi, p_wants_out_of_city: form.wants_out_of_city, p_wants_night_booking: form.wants_night_booking,
-      p_wants_service_class_ids: form.wants_service_class_ids, p_category_id: form.category_id, p_has_ac: form.has_ac,
+      p_wants_service_class_ids: form.wants_service_class_ids, p_category_id: form.vehicle_kind ? null : form.category_id, p_has_ac: form.has_ac,
+      p_vehicle_kind: form.vehicle_kind || null, p_engine_cc: form.vehicle_kind === 'car' && form.engine_cc ? Number(form.engine_cc) : null,
+      p_is_electric: form.is_electric, p_is_loader: form.is_loader, p_is_luxury_declared: form.is_luxury_declared,
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -170,14 +210,73 @@ export default function VehicleRegisterPage() {
       </div>
 
       <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.categoryPickerLabel')}</p>
+
+      {/* Real ask, 2026-11-09: car/rickshaw/bike are no longer separate
+          icons per model/size — one button each opens the small
+          cc/electric/loader/luxury sub-form below, and the real
+          category is resolved automatically from that, not hand-picked. */}
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        {(['car', 'rickshaw', 'bike'] as const).map((kind) => {
+          const on = form.vehicle_kind === kind
+          return (
+            <button key={kind} type="button" onClick={() => setForm({ ...form, vehicle_kind: kind, category_id: '' })}
+              className="flex flex-col items-center gap-1 py-3 rounded-2xl border-2 cursor-pointer transition-colors"
+              style={{ borderColor: on ? '#166534' : '#e5e2d0', background: on ? '#F0FDF4' : '#fff' }}>
+              <span className="text-[24px]">{KIND_ICONS[kind]}</span>
+              <span className="font-sans text-[10.5px] font-semibold text-[#1e293b] text-center leading-tight">{t(`vr.kind.${kind}`)}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {form.vehicle_kind && (
+        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5 mb-4 flex flex-col gap-2.5">
+          {form.vehicle_kind === 'car' && (
+            <>
+              <input type="number" min={50} value={form.engine_cc} onChange={(e) => setForm({ ...form, engine_cc: e.target.value })} placeholder={t('vr.engineCcPlaceholder')} className={inputCls} />
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setForm({ ...form, has_ac: true })} className="flex-1 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer" style={{ background: form.has_ac ? '#166534' : '#F9F9F6', color: form.has_ac ? '#fff' : '#64748b' }}>❄️ {t('mv.hasAcLabel')}</button>
+                <button type="button" onClick={() => setForm({ ...form, has_ac: false })} className="flex-1 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer" style={{ background: !form.has_ac ? '#166534' : '#F9F9F6', color: !form.has_ac ? '#fff' : '#64748b' }}>☀️ {t('vr.nonAcLabel')}</button>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.is_electric} onChange={(e) => setForm({ ...form, is_electric: e.target.checked })} className="accent-[#166534]" />
+                <span className="font-sans text-[13px] text-[#1e293b]">{t('vr.isElectricLabel')}</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.is_luxury_declared} onChange={(e) => setForm({ ...form, is_luxury_declared: e.target.checked })} className="accent-[#166534]" />
+                <span className="font-sans text-[13px] text-[#1e293b]">{t('vr.isLuxuryLabel')}</span>
+              </label>
+            </>
+          )}
+          {form.vehicle_kind === 'rickshaw' && (
+            <>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.is_electric} onChange={(e) => setForm({ ...form, is_electric: e.target.checked })} className="accent-[#166534]" />
+                <span className="font-sans text-[13px] text-[#1e293b]">{t('vr.isElectricLabel')}</span>
+              </label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setForm({ ...form, is_loader: false })} className="flex-1 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer" style={{ background: !form.is_loader ? '#166534' : '#F9F9F6', color: !form.is_loader ? '#fff' : '#64748b' }}>🧍 {t('vr.passengerLabel')}</button>
+                <button type="button" onClick={() => setForm({ ...form, is_loader: true })} className="flex-1 py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer" style={{ background: form.is_loader ? '#166534' : '#F9F9F6', color: form.is_loader ? '#fff' : '#64748b' }}>📦 {t('vr.loaderLabel')}</button>
+              </div>
+            </>
+          )}
+          {form.vehicle_kind === 'bike' && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.is_electric} onChange={(e) => setForm({ ...form, is_electric: e.target.checked })} className="accent-[#166534]" />
+              <span className="font-sans text-[13px] text-[#1e293b]">{t('vr.isElectricLabel')}</span>
+            </label>
+          )}
+        </div>
+      )}
+
       {sharedRideCategories.length > 0 && (
         <>
           <p className="font-sans text-[11px] font-bold text-[#166534] uppercase tracking-[0.05em] mb-2">{t('vr.sharedRideHeading')}</p>
           <div className="grid grid-cols-4 gap-2 mb-4">
             {sharedRideCategories.map((c) => {
-              const on = form.category_id === c.id
+              const on = !form.vehicle_kind && form.category_id === c.id
               return (
-                <button key={c.id} type="button" onClick={() => setForm({ ...form, category_id: c.id })}
+                <button key={c.id} type="button" onClick={() => setForm({ ...form, category_id: c.id, vehicle_kind: '' })}
                   className="flex flex-col items-center gap-1 py-3 rounded-2xl border-2 cursor-pointer transition-colors"
                   style={{ borderColor: on ? '#166534' : '#e5e2d0', background: on ? '#F0FDF4' : '#fff' }}>
                   <span className="text-[24px]">{c.emoji}</span>
@@ -191,9 +290,9 @@ export default function VehicleRegisterPage() {
       )}
       <div className="grid grid-cols-4 gap-2 mb-5">
         {otherCategories.map((c) => {
-          const on = form.category_id === c.id
+          const on = !form.vehicle_kind && form.category_id === c.id
           return (
-            <button key={c.id} type="button" onClick={() => setForm({ ...form, category_id: c.id })}
+            <button key={c.id} type="button" onClick={() => setForm({ ...form, category_id: c.id, vehicle_kind: '' })}
               className="flex flex-col items-center gap-1 py-3 rounded-2xl border-2 cursor-pointer transition-colors"
               style={{ borderColor: on ? '#166534' : '#e5e2d0', background: on ? '#F0FDF4' : '#fff' }}>
               <span className="text-[24px]">{c.emoji}</span>
@@ -203,8 +302,14 @@ export default function VehicleRegisterPage() {
         })}
       </div>
 
+      {form.vehicle_kind && !selectedCategory && (
+        <p className="font-sans text-[12px] text-[#64748b] mb-5">{form.vehicle_kind === 'car' && !form.engine_cc ? t('vr.enterCcHint') : t('vr.noCategoryMatchHint')}</p>
+      )}
       {selectedCategory && (
         <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-2xl p-3.5 mb-5">
+          {form.vehicle_kind && (
+            <p className="font-sans text-[12.5px] font-bold text-[#166534] mb-2">{t('vr.resolvedAsLabel')}: {selectedCategory.emoji} {isUrdu && selectedCategory.name_ur ? selectedCategory.name_ur : selectedCategory.name}</p>
+          )}
           <p className="font-sans text-[11.5px] font-bold text-[#166534] uppercase tracking-[0.05em] mb-1.5">{t('vr.rateCardHeading')}</p>
           <div className="flex items-center justify-between font-sans text-[13px]">
             <span className="text-[#64748b]">{t('vr.rateCardPerKmLabel')}</span>
@@ -214,6 +319,9 @@ export default function VehicleRegisterPage() {
             <span className="text-[#64748b]">{t('vr.rateCardCommissionLabel')}</span>
             <span className="font-bold text-[#1e293b] ltr-num">{selectedCategory.intercity_commission_pct}%</span>
           </div>
+          {(isUrdu ? selectedCategory.example_models_hint_ur : selectedCategory.example_models_hint) && (
+            <p className="font-sans text-[11px] text-[#166534] mt-2">{isUrdu ? selectedCategory.example_models_hint_ur : selectedCategory.example_models_hint}</p>
+          )}
           <p className="font-sans text-[11px] text-[#64748b] mt-2">{t('vr.rateCardHint')}</p>
         </div>
       )}
@@ -257,10 +365,16 @@ export default function VehicleRegisterPage() {
           <input value={form.vehicle_number} onChange={(e) => setForm({ ...form, vehicle_number: e.target.value })} placeholder={t('vr.vehicleNumberPlaceholder')} className={inputCls} />
         </div>
         <input type="number" min={1} value={form.total_seats || ''} onChange={(e) => setForm({ ...form, total_seats: +e.target.value })} placeholder={t('vr.totalSeatsPlaceholder')} className={inputCls} />
+        {/* Cars already have their own AC/non-AC toggle above (it's
+            what decides the category) — this stays only for every
+            other kind, where AC is just a vehicle fact, not a
+            category-resolving one. */}
+        {form.vehicle_kind !== 'car' && (
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={form.has_ac} onChange={(e) => setForm({ ...form, has_ac: e.target.checked })} className="accent-[#166534]" />
           <span className="font-sans text-[13.5px] text-[#1e293b]">{t('mv.hasAcLabel')}</span>
         </label>
+        )}
       </div>
 
       <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em] mb-2">{t('vr.documentsHeading')}</p>

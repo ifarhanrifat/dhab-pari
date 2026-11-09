@@ -58,7 +58,10 @@ interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_per_seat_pkr: number; vehicle_id: string; owner_name: string
 }
-interface VehicleCategory { id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; out_of_city_base_fare_pkr: number | null; out_of_city_per_km_pkr: number | null; category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean; ride_group: string | null; variant_filter: string | null }
+interface VehicleCategory {
+  id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; out_of_city_base_fare_pkr: number | null; out_of_city_per_km_pkr: number | null; category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean; ride_group: string | null; variant_filter: string | null
+  fare_spread_pct: number | null; example_models_hint: string | null; example_models_hint_ur: string | null
+}
 // Real ask, 2026-11-03: "this is how the professional apps are showing
 // categories... small cars, cars above 1000cc, suvs, bikes, rickshaws —
 // only 5 or 6 categories will be displayed, there will be no hiace or
@@ -188,7 +191,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
   const [scheduleAt, setScheduleAt] = useState('')
 
   useEffect(() => {
-    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, base_fare_pkr, per_km_pkr, out_of_city_base_fare_pkr, out_of_city_per_km_pkr, category_group, out_of_city_eligible, ride_group, variant_filter').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
+    supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, base_fare_pkr, per_km_pkr, out_of_city_base_fare_pkr, out_of_city_per_km_pkr, category_group, out_of_city_eligible, ride_group, variant_filter, fare_spread_pct, example_models_hint, example_models_hint_ur').eq('is_active', true).order('display_order').then(({ data }) => setCategories((data ?? []) as VehicleCategory[]))
     supabase.rpc('ride_group_options').then(({ data }) => setRideGroups((data ?? []) as RideGroupOption[]))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -503,13 +506,24 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                       const avgBase = members.reduce((s, c) => s + (isOutOfCity ? (c.out_of_city_base_fare_pkr ?? c.base_fare_pkr) : c.base_fare_pkr), 0) / members.length
                       const avgPerKm = members.reduce((s, c) => s + (isOutOfCity ? (c.out_of_city_per_km_pkr ?? c.per_km_pkr) : c.per_km_pkr), 0) / members.length
                       const fare = Math.round(avgBase + avgPerKm * distanceKm * (isOutOfCity ? 2 : 1))
+                      // Real ask, 2026-11-09: "categories will be in these
+                      // ranges... this 1200-1600 fare" — a range reads
+                      // more honestly than one exact number this early
+                      // (before a specific driver/vehicle is matched),
+                      // same spread fare_band() already uses elsewhere,
+                      // now per-category instead of a flow-level constant.
+                      const avgSpread = members.reduce((s, c) => s + (c.fare_spread_pct ?? 0.25), 0) / members.length
+                      const fareMin = Math.round(fare * (1 - avgSpread) / 10) * 10
+                      const fareMax = Math.round(fare * (1 + avgSpread) / 10) * 10
+                      const hint = members.map((c) => (isUrdu ? c.example_models_hint_ur : c.example_models_hint)).find(Boolean)
                       return (
                         <button key={g.ride_group} onClick={() => openGroupSheet(g)}
                           className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
                           <span className="text-[20px]">{g.emoji}</span>
                           <span className="text-[12.5px] font-bold text-[#1e293b]">{t(`mb.rideGroup.${g.ride_group}`)}</span>
-                          <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{fmt(fare)}</span>
+                          <span className="font-extrabold text-[14px] text-[#166534] ltr-num">{fmt(fareMin)}–{fmt(fareMax)}</span>
                           <span className="text-[10px] text-[#94a3b8] ltr-num">{distanceKm.toFixed(1)} km</span>
+                          {hint && <span className="text-[9.5px] text-[#94a3b8] leading-tight">{hint}</span>}
                         </button>
                       )
                     })}
