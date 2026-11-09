@@ -27,6 +27,20 @@ export default function MobilityAccountPage() {
   const router = useRouter()
   const supabase = createClient()
   const [open, setOpen] = useState<(typeof ROLE_KEYS)[number] | null>('rider')
+  const [hasVehicle, setHasVehicle] = useState(true)
+
+  // Real gap found live, 2026-11-09: "from where the drivers will
+  // register their vehicles" — the self-serve registration page
+  // (my-vehicle/register, submit_vehicle_registration RPC) already
+  // existed but had no button anywhere a new driver would actually see
+  // — the sidebar's own "My Vehicle" link only ever appeared once a
+  // vehicle was already approved. Default true so the button never
+  // flashes for an existing driver while this loads.
+  useEffect(() => {
+    if (!user) return
+    supabase.from('vehicles').select('id').eq('portal_user_id', user.id).limit(1)
+      .then(({ data }) => setHasVehicle((data?.length ?? 0) > 0))
+  }, [supabase, user])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -79,6 +93,18 @@ export default function MobilityAccountPage() {
           )
         })}
       </section>
+
+      {!hasVehicle && (
+        <button onClick={() => router.push('/portal/my-vehicle/register')}
+          className="w-full bg-[#005A36] text-white rounded-2xl px-3 py-3 flex items-center gap-2.5 cursor-pointer text-start">
+          <span className="shrink-0 w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"><Bus size={16} className="text-white" /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[13.5px] font-bold">{t('portal.registerVehicle')}</span>
+            <span className="block text-[11px] text-white/75">{t('mb.registerVehicleHint')}</span>
+          </span>
+          <ChevronRight size={16} className={`text-white/80 shrink-0 ${isUrdu ? 'rotate-180' : ''}`} />
+        </button>
+      )}
 
       <section className="bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden">
         <div className="px-3 py-2.5 text-[13px] font-bold text-[#005A36] border-b border-[#f1f5f9] flex items-center gap-1.5"><CreditCard size={14} /> {t('mb.paymentMethodsHeading')}</div>

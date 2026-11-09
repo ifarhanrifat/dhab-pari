@@ -183,8 +183,22 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   // A group shows the moment at least one child would have on its own, and
   // carries only the children that actually passed — same derivation as
   // AdminSidebar, nothing about who sees which leaf changes.
+  // Real gap found live, 2026-11-09: "from where the drivers will
+  // register their vehicles because there is no navigation button in
+  // the portal" — submit_vehicle_registration (self-serve request ->
+  // admin_approve_vehicle_registration) already exists and works, but
+  // "My Vehicle" only ever appeared here once hasVehicle was already
+  // true, which only becomes true AFTER that approval — so a brand new
+  // driver had no way to even find the registration page short of
+  // someone handing them the raw URL. Swapped for "Register as a
+  // Driver" pointing at the registration form until they're approved.
   const visibleMenuItems: MenuEntry[] = menuItems
-    .map((entry) => (isGroup(entry) ? { ...entry, children: entry.children.filter(isLeafVisible) } : entry))
+    .map((entry) => {
+      if (!isGroup(entry) && entry.href === '/portal/my-vehicle' && !hasVehicle) {
+        return { ...entry, href: '/portal/my-vehicle/register', label: 'Register as a Driver', tKey: 'portal.registerVehicle', requiresVehicleKeeper: false }
+      }
+      return isGroup(entry) ? { ...entry, children: entry.children.filter(isLeafVisible) } : entry
+    })
     .filter((entry) => (isGroup(entry) ? entry.children.length > 0 : isLeafVisible(entry)))
 
   const flatVisibleItems = visibleMenuItems.flatMap((entry) => (isGroup(entry) ? entry.children : [entry]))
