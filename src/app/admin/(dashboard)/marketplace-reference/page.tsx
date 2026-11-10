@@ -41,11 +41,8 @@ interface VehicleCategory {
   category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean
   out_of_city_base_fare_pkr: number | null; out_of_city_per_km_pkr: number | null
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null; shadi_full_day_rate_pkr: number | null
-}
-interface RentalTierGuide {
-  tier_key: string; hourly_rate_pkr: number; hourly_included_km_per_hour: number; hourly_overage_per_km_pkr: number
-  rental_base_pkr: number; rental_per_km_pkr: number; rental_wait_hour_pkr: number
-  out_of_city_base_pkr: number; out_of_city_per_km_pkr: number
+  rental_base_pkr: number | null; rental_per_km_pkr: number | null; rental_wait_hour_pkr: number | null
+  hourly_out_of_city_base_pkr: number | null; hourly_out_of_city_per_km_pkr: number | null
 }
 
 const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, display_order: 0 }
@@ -55,8 +52,8 @@ const emptyFareBand = { base_pkr: 0, per_km_pkr: 0, spread: 0.28 }
 const emptyVehicleCategory = {
   name: '', name_ur: '', emoji: '', base_fare_pkr: 0, per_km_pkr: 0, intercity_commission_pct: 10, out_of_city_commission_pct: 15, category_group: 'passenger' as 'passenger' | 'loading' | 'machinery', out_of_city_eligible: true, out_of_city_base_fare_pkr: 0, out_of_city_per_km_pkr: 0,
   hourly_rate_pkr: 0, hourly_included_km: 0, hourly_overage_per_km_pkr: 0, shadi_full_day_rate_pkr: 0,
+  rental_base_pkr: 0, rental_per_km_pkr: 0, rental_wait_hour_pkr: 0, hourly_out_of_city_base_pkr: 0, hourly_out_of_city_per_km_pkr: 0,
 }
-const emptyRentalTierGuide = { tier_key: '', hourly_rate_pkr: 0, hourly_included_km_per_hour: 0, hourly_overage_per_km_pkr: 0, rental_base_pkr: 0, rental_per_km_pkr: 0, rental_wait_hour_pkr: 0, out_of_city_base_pkr: 0, out_of_city_per_km_pkr: 0 }
 
 function fmt(n: number) { return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 function flowLabelKey(flow: 'trip_share' | 'city_fetch' | 'route') {
@@ -80,39 +77,34 @@ export default function MarketplaceReferencePage() {
   const access = useSystemAccess()
   const supabase = createClient()
 
-  const [tab, setTab] = useState<'cities' | 'services' | 'villages' | 'fareBands' | 'vehicleCategories' | 'rentalTiers'>('cities')
+  const [tab, setTab] = useState<'cities' | 'services' | 'villages' | 'fareBands' | 'vehicleCategories'>('cities')
   const [cities, setCities] = useState<City[]>([])
   const [services, setServices] = useState<ServiceClass[]>([])
   const [villages, setVillages] = useState<Village[]>([])
   const [fareBands, setFareBands] = useState<FareBand[]>([])
   const [vehicleCategories, setVehicleCategories] = useState<VehicleCategory[]>([])
-  const [rentalTiers, setRentalTiers] = useState<RentalTierGuide[]>([])
   const [loading, setLoading] = useState(true)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingFlow, setEditingFlow] = useState<'trip_share' | 'city_fetch' | 'route' | null>(null)
-  const [editingTierKey, setEditingTierKey] = useState<string | null>(null)
   const [cityForm, setCityForm] = useState(emptyCity)
   const [serviceForm, setServiceForm] = useState(emptyServiceClass)
   const [villageForm, setVillageForm] = useState(emptyVillage)
   const [fareBandForm, setFareBandForm] = useState(emptyFareBand)
   const [vehicleCategoryForm, setVehicleCategoryForm] = useState(emptyVehicleCategory)
-  const [rentalTierForm, setRentalTierForm] = useState(emptyRentalTierGuide)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const load = async () => {
-    const [{ data: c }, { data: s }, { data: v }, { data: fb }, { data: vc }, { data: rt }] = await Promise.all([
+    const [{ data: c }, { data: s }, { data: v }, { data: fb }, { data: vc }] = await Promise.all([
       supabase.from('cities').select('*').order('display_order'),
       supabase.from('service_classes').select('*').order('display_order'),
       supabase.from('villages').select('*').order('display_order'),
       supabase.from('fare_bands').select('*').order('flow'),
       supabase.from('vehicle_categories').select('*').order('display_order'),
-      supabase.from('rental_tier_fare_guides').select('*').order('display_order'),
     ])
     setCities((c ?? []) as City[]); setServices((s ?? []) as ServiceClass[]); setVillages((v ?? []) as Village[]); setFareBands((fb ?? []) as FareBand[])
     setVehicleCategories((vc ?? []) as VehicleCategory[])
-    setRentalTiers((rt ?? []) as RentalTierGuide[])
     setLoading(false)
   }
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -133,10 +125,11 @@ export default function MarketplaceReferencePage() {
     setVehicleCategoryForm({
       name: vc.name, name_ur: vc.name_ur ?? '', emoji: vc.emoji, base_fare_pkr: vc.base_fare_pkr, per_km_pkr: vc.per_km_pkr, intercity_commission_pct: vc.intercity_commission_pct, out_of_city_commission_pct: vc.out_of_city_commission_pct, category_group: vc.category_group, out_of_city_eligible: vc.out_of_city_eligible, out_of_city_base_fare_pkr: vc.out_of_city_base_fare_pkr ?? 0, out_of_city_per_km_pkr: vc.out_of_city_per_km_pkr ?? 0,
       hourly_rate_pkr: vc.hourly_rate_pkr ?? 0, hourly_included_km: vc.hourly_included_km ?? 0, hourly_overage_per_km_pkr: vc.hourly_overage_per_km_pkr ?? 0, shadi_full_day_rate_pkr: vc.shadi_full_day_rate_pkr ?? 0,
+      rental_base_pkr: vc.rental_base_pkr ?? 0, rental_per_km_pkr: vc.rental_per_km_pkr ?? 0, rental_wait_hour_pkr: vc.rental_wait_hour_pkr ?? 0,
+      hourly_out_of_city_base_pkr: vc.hourly_out_of_city_base_pkr ?? 0, hourly_out_of_city_per_km_pkr: vc.hourly_out_of_city_per_km_pkr ?? 0,
     })
     setShowForm(true)
   }
-  const openEditRentalTier = (g: RentalTierGuide) => { setEditingTierKey(g.tier_key); setRentalTierForm({ ...g }); setShowForm(true) }
 
   const save = async () => {
     setSaving(true)
@@ -145,12 +138,6 @@ export default function MarketplaceReferencePage() {
       : tab === 'services' ? (editingId ? await supabase.from('service_classes').update(serviceForm).eq('id', editingId) : await supabase.from('service_classes').insert(serviceForm))
       : tab === 'villages' ? (editingId ? await supabase.from('villages').update(villageForm).eq('id', editingId) : await supabase.from('villages').insert(villageForm))
       : tab === 'vehicleCategories' ? await supabase.from('vehicle_categories').update(vehicleCategoryForm).eq('id', editingId)
-      : tab === 'rentalTiers' ? await supabase.rpc('admin_update_rental_tier_fare_guide', {
-          p_tier_key: editingTierKey, p_hourly_rate_pkr: rentalTierForm.hourly_rate_pkr, p_hourly_included_km_per_hour: rentalTierForm.hourly_included_km_per_hour,
-          p_hourly_overage_per_km_pkr: rentalTierForm.hourly_overage_per_km_pkr, p_rental_base_pkr: rentalTierForm.rental_base_pkr,
-          p_rental_per_km_pkr: rentalTierForm.rental_per_km_pkr, p_rental_wait_hour_pkr: rentalTierForm.rental_wait_hour_pkr,
-          p_out_of_city_base_pkr: rentalTierForm.out_of_city_base_pkr, p_out_of_city_per_km_pkr: rentalTierForm.out_of_city_per_km_pkr,
-        })
       : await supabase.from('fare_bands').update(fareBandForm).eq('flow', editingFlow)
     setSaving(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -182,14 +169,13 @@ export default function MarketplaceReferencePage() {
         <button onClick={() => { setTab('villages'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'villages' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Home size={14} /> {t('mr.villagesTab')}</button>
         <button onClick={() => { setTab('fareBands'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'fareBands' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Gauge size={14} /> {t('mr.fareBandsTab')}</button>
         <button onClick={() => { setTab('vehicleCategories'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'vehicleCategories' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Truck size={14} /> {t('mr.vehicleCategoriesTab')}</button>
-        <button onClick={() => { setTab('rentalTiers'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'rentalTiers' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Gauge size={14} /> {t('mr.rentalTiersTab')}</button>
       </div>
 
       {tab === 'cities' && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('mr.citiesHint')}</p>}
       {tab === 'services' && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('mr.servicesHint')}</p>}
       {tab === 'villages' && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('mr.villagesHint')}</p>}
 
-      {tab !== 'fareBands' && tab !== 'vehicleCategories' && tab !== 'rentalTiers' && (
+      {tab !== 'fareBands' && tab !== 'vehicleCategories' && (
         <button onClick={openNew} className="flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all mb-4"><Plus size={14} /> {t('mr.addNewBtn')}</button>
       )}
 
@@ -279,6 +265,7 @@ export default function MarketplaceReferencePage() {
                 )}
                 {vc.hourly_rate_pkr ? <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{t('vr.wantsHourlyLabel')}: {fmt(vc.hourly_rate_pkr)}/hr · {fmt(vc.hourly_included_km ?? 0)}km incl.</p> : null}
                 {vc.shadi_full_day_rate_pkr ? <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{t('vr.wantsShadiLabel')}: {fmt(vc.shadi_full_day_rate_pkr)}/day</p> : null}
+                {vc.rental_base_pkr ? <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{t('mr.rentalRatesHeading')}: {fmt(vc.rental_base_pkr)} base + {fmt(vc.rental_per_km_pkr ?? 0)}/km + {fmt(vc.rental_wait_hour_pkr ?? 0)}/hr {t('mr.waitLabel')}</p> : null}
               </div>
               <div className="flex items-center gap-1.5">
                 <button onClick={() => toggleActive('vehicle_categories', vc.id, vc.is_active)} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">{t('mr.deactivateBtn')}</button>
@@ -302,27 +289,10 @@ export default function MarketplaceReferencePage() {
         </div>
       )}
 
-      {tab === 'rentalTiers' && (
-        <div className="space-y-2">
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2">{t('mr.rentalTiersHint')}</p>
-          {rentalTiers.map((g) => (
-            <div key={g.tier_key} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex items-center justify-between gap-3">
-              <div>
-                <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{t(`vp.rentalTier.${g.tier_key}`)}</p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{t('mr.hourlyRatesHeading')}: {fmt(g.hourly_rate_pkr)}/hr · {fmt(g.hourly_included_km_per_hour)}km {t('mr.includedLabel')} · {fmt(g.hourly_overage_per_km_pkr)}/km {t('mr.overageLabel')}</p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{t('mr.rentalRatesHeading')}: {fmt(g.rental_base_pkr)} base + {fmt(g.rental_per_km_pkr)}/km + {fmt(g.rental_wait_hour_pkr)}/hr {t('mr.waitLabel')}</p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{t('mr.outstationRateLabel')}: {fmt(g.out_of_city_base_pkr)} base + {fmt(g.out_of_city_per_km_pkr)}/km</p>
-              </div>
-              <button onClick={() => openEditRentalTier(g)} className="p-2 rounded text-dp-secondary hover:bg-dp-surface-container cursor-pointer"><Pencil size={14} /></button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{tab === 'fareBands' ? (editingFlow ? t(flowLabelKey(editingFlow)) : '') : tab === 'vehicleCategories' ? vehicleCategoryForm.name : tab === 'rentalTiers' ? (editingTierKey ? t(`vp.rentalTier.${editingTierKey}`) : '') : editingId ? t('mr.editTitle') : t('mr.addTitle')}</h2>
+            <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{tab === 'fareBands' ? (editingFlow ? t(flowLabelKey(editingFlow)) : '') : tab === 'vehicleCategories' ? vehicleCategoryForm.name : editingId ? t('mr.editTitle') : t('mr.addTitle')}</h2>
 
             {tab === 'cities' && (
               <div className="space-y-2.5">
@@ -433,34 +403,16 @@ export default function MarketplaceReferencePage() {
                     <Field label={t('mk.overageRatePlaceholder')}><input type="number" value={vehicleCategoryForm.hourly_overage_per_km_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, hourly_overage_per_km_pkr: +e.target.value })} className="input-field" /></Field>
                   </div>
                   <Field label={t('mk.shadiRatePlaceholder')}><input type="number" value={vehicleCategoryForm.shadi_full_day_rate_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, shadi_full_day_rate_pkr: +e.target.value })} className="input-field" /></Field>
+                  <Field label={t('mr.outstationBaseLabel')}><input type="number" value={vehicleCategoryForm.hourly_out_of_city_base_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, hourly_out_of_city_base_pkr: +e.target.value })} placeholder={t('mr.outstationBasePlaceholder')} className="input-field" /></Field>
+                  <Field label={t('mr.outstationPerKmLabel')}><input type="number" value={vehicleCategoryForm.hourly_out_of_city_per_km_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, hourly_out_of_city_per_km_pkr: +e.target.value })} placeholder={t('mr.outstationPerKmPlaceholder')} className="input-field" /></Field>
+                </div>
+                <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface pt-1">{t('mr.rentalRatesHeading')}</p>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <Field label={t('mr.basePkrLabel')}><input type="number" value={vehicleCategoryForm.rental_base_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, rental_base_pkr: +e.target.value })} placeholder={t('mr.basePkrPlaceholder')} className="input-field" /></Field>
+                  <Field label={t('mr.perKmPkrLabel')}><input type="number" value={vehicleCategoryForm.rental_per_km_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, rental_per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" /></Field>
+                  <Field label={t('mr.rentalWaitHourLabel')}><input type="number" value={vehicleCategoryForm.rental_wait_hour_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, rental_wait_hour_pkr: +e.target.value })} className="input-field" /></Field>
                 </div>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.vehicleCategoryEditHint')}</p>
-              </div>
-            )}
-
-            {tab === 'rentalTiers' && (
-              <div className="space-y-2.5">
-                <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface">{t('mr.hourlyRatesHeading')}</p>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <Field label={t('mr.hourlyRateLabel')}><input type="number" value={rentalTierForm.hourly_rate_pkr || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, hourly_rate_pkr: +e.target.value })} placeholder={t('mr.basePkrPlaceholder')} className="input-field" /></Field>
-                  <Field label={t('mr.hourlyIncludedKmLabel')}><input type="number" value={rentalTierForm.hourly_included_km_per_hour || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, hourly_included_km_per_hour: +e.target.value })} className="input-field" /></Field>
-                </div>
-                <Field label={t('mr.hourlyOverageLabel')}><input type="number" value={rentalTierForm.hourly_overage_per_km_pkr || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, hourly_overage_per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" /></Field>
-
-                <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface pt-1">{t('mr.rentalRatesHeading')}</p>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <Field label={t('mr.basePkrLabel')}><input type="number" value={rentalTierForm.rental_base_pkr || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, rental_base_pkr: +e.target.value })} placeholder={t('mr.basePkrPlaceholder')} className="input-field" /></Field>
-                  <Field label={t('mr.perKmPkrLabel')}><input type="number" value={rentalTierForm.rental_per_km_pkr || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, rental_per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" /></Field>
-                </div>
-                <Field label={t('mr.rentalWaitHourLabel')}><input type="number" value={rentalTierForm.rental_wait_hour_pkr || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, rental_wait_hour_pkr: +e.target.value })} className="input-field" /></Field>
-
-                <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface pt-1">{t('mr.outstationRateLabel')}</p>
-                <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.outstationRateHint')}</p>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <Field label={t('mr.outstationBaseLabel')}><input type="number" value={rentalTierForm.out_of_city_base_pkr || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, out_of_city_base_pkr: +e.target.value })} placeholder={t('mr.outstationBasePlaceholder')} className="input-field" /></Field>
-                  <Field label={t('mr.outstationPerKmLabel')}><input type="number" value={rentalTierForm.out_of_city_per_km_pkr || ''} onChange={(e) => setRentalTierForm({ ...rentalTierForm, out_of_city_per_km_pkr: +e.target.value })} placeholder={t('mr.outstationPerKmPlaceholder')} className="input-field" /></Field>
-                </div>
-                <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.rentalTierEditHint')}</p>
               </div>
             )}
 
