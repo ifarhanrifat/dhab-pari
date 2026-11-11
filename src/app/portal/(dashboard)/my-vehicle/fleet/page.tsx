@@ -36,7 +36,9 @@ const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr
 
 interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }
 interface Invite { id: string; invited_phone: string; created_at: string; expires_at: string; redeemed_at: string | null; vehicle_id: string | null }
-interface StaffMember { id: string; portal_user_id: string; full_name: string; added_at: string }
+interface StaffMember { id: string; portal_user_id: string; full_name: string; added_at: string; counter_id: string | null; counter_city: string | null; counter_name: string | null }
+interface Counter { id: string; city: string; name: string | null }
+interface CounterCash { counter_id: string; city: string; name: string | null; total_collected_pkr: number; total_remitted_pkr: number; cash_in_hand_pkr: number }
 interface FleetVehicleSummary {
   vehicle_id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null
   today_earnings_pkr: number; today_expenses_pkr: number; today_profit_pkr: number
@@ -83,6 +85,19 @@ export default function MyFleetPage() {
   const [livePins, setLivePins] = useState<LivePin[]>([])
   const [showMap, setShowMap] = useState(false)
 
+  // 855: city-named booking counters, so the owner always knows which
+  // staff works which city, and cash collected per counter is tracked
+  // separately from the committee's own ledger (same discipline as
+  // vehicle_expenses, 854 — never posted there).
+  const [counters, setCounters] = useState<Counter[]>([])
+  const [counterCash, setCounterCash] = useState<CounterCash[]>([])
+  const [newCounterCity, setNewCounterCity] = useState('')
+  const [newCounterName, setNewCounterName] = useState('')
+  const [creatingCounter, setCreatingCounter] = useState(false)
+  const [remitCounterId, setRemitCounterId] = useState<string | null>(null)
+  const [remitAmount, setRemitAmount] = useState('')
+  const [remitting, setRemitting] = useState(false)
+
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
     const f = mine as { fleet_id: string; name: string; is_owner: boolean } | null
@@ -90,16 +105,20 @@ export default function MyFleetPage() {
     setFleetName(f?.name ?? '')
     setIsOwner(f?.is_owner ?? false)
     if (f) {
-      const [{ data: v }, { data: inv }, { data: plData }, { data: staffData }] = await Promise.all([
+      const [{ data: v }, { data: inv }, { data: plData }, { data: staffData }, { data: countersData }, { data: cashData }] = await Promise.all([
         supabase.rpc('my_fleet_vehicles'),
         f.is_owner ? supabase.rpc('my_fleet_invites', { p_fleet_id: f.fleet_id }) : Promise.resolve({ data: [] }),
         supabase.rpc('fleet_dashboard_summary'),
         supabase.rpc('my_fleet_staff', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('my_fleet_counters', { p_fleet_id: f.fleet_id }),
+        f.is_owner ? supabase.rpc('fleet_counter_cash_positions', { p_fleet_id: f.fleet_id }) : Promise.resolve({ data: [] }),
       ])
       setVehicles((v ?? []) as FleetVehicle[])
       setInvites((inv ?? []) as Invite[])
       setPl(plData as typeof pl)
       setStaff((staffData ?? []) as StaffMember[])
+      setCounters((countersData ?? []) as Counter[])
+      setCounterCash((cashData ?? []) as CounterCash[])
       if ((v ?? []).length > 0) setExpenseVehicleId((v as FleetVehicle[])[0].id)
     }
     setLoading(false)
@@ -166,6 +185,35 @@ export default function MyFleetPage() {
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('mv.expenseLoggedToast'))
     setExpenseAmount(''); setExpenseNote('')
+    load()
+  }
+
+  const createCounter = async () => {
+    if (!fleetId || !newCounterCity.trim()) { toast.error(t('mv.enterCounterCityError')); return }
+    setCreatingCounter(true)
+    const { error } = await supabase.rpc('create_fleet_counter', { p_fleet_id: fleetId, p_city: newCounterCity, p_name: newCounterName || null })
+    setCreatingCounter(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.counterCreatedToast'))
+    setNewCounterCity(''); setNewCounterName('')
+    load()
+  }
+
+  const assignCounter = async (portalUserId: string, counterId: string) => {
+    if (!fleetId) return
+    const { error } = await supabase.rpc('assign_staff_to_counter', { p_fleet_id: fleetId, p_portal_user_id: portalUserId, p_counter_id: counterId || null })
+    if (error) { toast.error(friendlyError(error)); return }
+    load()
+  }
+
+  const recordRemittance = async () => {
+    if (!remitCounterId || !remitAmount) return
+    setRemitting(true)
+    const { error } = await supabase.rpc('record_counter_remittance', { p_counter_id: remitCounterId, p_amount_pkr: Number(remitAmount) })
+    setRemitting(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.remittanceRecordedToast'))
+    setRemitCounterId(null); setRemitAmount('')
     load()
   }
 
@@ -269,6 +317,65 @@ export default function MyFleetPage() {
             </div>
           )}
 
+          {/* 855: city-named booking counters — a 20-bus intercity
+              fleet has counters in Peshawar, Karachi, maybe several
+              per city; each counter's cash position is tracked
+              separately from the committee ledger, same as expenses. */}
+          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
+            <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-2">{t('mv.bookingCountersHeading')}</p>
+            {isOwner && (
+              <div className="flex gap-2 mb-2.5">
+                <input value={newCounterCity} onChange={(e) => setNewCounterCity(e.target.value)} placeholder={t('mv.counterCityPlaceholder')}
+                  className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+                <input value={newCounterName} onChange={(e) => setNewCounterName(e.target.value)} placeholder={t('mv.counterNameOptionalPlaceholder')}
+                  className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+                <button onClick={createCounter} disabled={creatingCounter} className="shrink-0 px-3 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12px] font-bold cursor-pointer disabled:opacity-50">
+                  {creatingCounter ? t('action.loading') : t('mv.addCounterBtn')}
+                </button>
+              </div>
+            )}
+            {counters.length === 0 ? (
+              <p className="font-sans text-[12px] text-[#94a3b8]">{t('mv.noCountersYetHint')}</p>
+            ) : isOwner && counterCash.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                {counterCash.map((c) => (
+                  <div key={c.counter_id} className="border border-[#e5e2d0] rounded-lg px-3 py-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{c.city}{c.name ? ` · ${c.name}` : ''}</span>
+                      <span className="font-sans text-[13px] font-extrabold text-[#166534] ltr-num">₨{fmt(c.cash_in_hand_pkr)}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="font-sans text-[10.5px] text-[#94a3b8] ltr-num">{t('mv.collectedLabel')} ₨{fmt(c.total_collected_pkr)} · {t('mv.remittedLabel')} ₨{fmt(c.total_remitted_pkr)}</span>
+                      <button onClick={() => { setRemitCounterId(c.counter_id); setRemitAmount('') }} className="font-sans text-[11px] font-bold text-[#166534] cursor-pointer">{t('mv.recordRemittanceBtn')}</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {counters.map((c) => (
+                  <div key={c.id} className="border border-[#e5e2d0] rounded-lg px-3 py-2">
+                    <span className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{c.city}{c.name ? ` · ${c.name}` : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {remitCounterId && (
+            <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
+              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-2">{t('mv.recordRemittanceBtn')}</p>
+              <div className="flex gap-2">
+                <input type="number" value={remitAmount} onChange={(e) => setRemitAmount(e.target.value)} placeholder={t('mv.expenseAmountPlaceholder')}
+                  className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                <button onClick={recordRemittance} disabled={remitting} className="shrink-0 px-4 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">
+                  {remitting ? t('action.loading') : t('action.save')}
+                </button>
+                <button onClick={() => setRemitCounterId(null)} className="shrink-0 px-3 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12.5px] font-semibold cursor-pointer">{t('action.cancel')}</button>
+              </div>
+            </div>
+          )}
+
           {/* Fleet Staff — full operational parity, owner-only to add/remove */}
           <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
             <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-2 flex items-center gap-1.5"><UserPlus size={13} /> {t('mv.fleetStaffHeading')}</p>
@@ -287,11 +394,21 @@ export default function MyFleetPage() {
             ) : (
               <div className="flex flex-col gap-1.5">
                 {staff.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-2 border border-[#e5e2d0] rounded-lg px-3 py-2">
-                    <span className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{s.full_name}</span>
-                    {isOwner && (
-                      <button onClick={() => removeStaff(s.portal_user_id)} className="font-sans text-[11px] font-bold text-[#b91c1c] cursor-pointer">{t('action.remove')}</button>
-                    )}
+                  <div key={s.id} className="border border-[#e5e2d0] rounded-lg px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{s.full_name}</span>
+                      {isOwner && (
+                        <button onClick={() => removeStaff(s.portal_user_id)} className="font-sans text-[11px] font-bold text-[#b91c1c] cursor-pointer">{t('action.remove')}</button>
+                      )}
+                    </div>
+                    {isOwner && counters.length > 0 ? (
+                      <select value={s.counter_id ?? ''} onChange={(e) => assignCounter(s.portal_user_id, e.target.value)} className="mt-1.5 w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px]">
+                        <option value="">{t('mv.noCounterOption')}</option>
+                        {counters.map((c) => <option key={c.id} value={c.id}>{c.city}{c.name ? ` · ${c.name}` : ''}</option>)}
+                      </select>
+                    ) : s.counter_city ? (
+                      <p className="font-sans text-[11px] text-[#166534] mt-0.5">{s.counter_city}{s.counter_name ? ` · ${s.counter_name}` : ''}</p>
+                    ) : null}
                   </div>
                 ))}
               </div>

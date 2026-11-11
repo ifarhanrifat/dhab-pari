@@ -31,6 +31,7 @@ import { RouteStopsEditor } from '@/components/mobility/RouteStopsEditor'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
 import { RouteMonthlySubscribersPanel } from '@/components/mobility/RouteMonthlySubscribersPanel'
 import { CityReturnDemandCard } from '@/components/mobility/CityReturnDemandCard'
+import { SeatPicker } from '@/components/mobility/SeatPicker'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -118,6 +119,34 @@ export default function MyVehicleRoutesPage() {
   // more than just their own vehicle picks which one this route is
   // for; everyone else never sees this at all.
   const [fleetVehicles, setFleetVehicles] = useState<{ id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }[]>([])
+  // 855: a counter sells against the SAME shared seat pool a rider's
+  // own app booking would — no separate inventory to keep in sync.
+  const [fleetId, setFleetId] = useState<string | null>(null)
+  const [fleetCounters, setFleetCounters] = useState<{ id: string; city: string; name: string | null }[]>([])
+  const [manualBookingRouteId, setManualBookingRouteId] = useState<string | null>(null)
+  const [manualCounterId, setManualCounterId] = useState('')
+  const [manualPassengerName, setManualPassengerName] = useState('')
+  const [manualPassengerMobile, setManualPassengerMobile] = useState('')
+  const [manualSeats, setManualSeats] = useState(1)
+  const [manualAmount, setManualAmount] = useState('')
+  const [manualMethod, setManualMethod] = useState('cash')
+  const [manualSeatNumbers, setManualSeatNumbers] = useState<number[]>([])
+  const [manualTakenSeats, setManualTakenSeats] = useState<number[]>([])
+  const [recordingManual, setRecordingManual] = useState(false)
+
+  // 856: route-aware luggage, own fare, separate from a seat sale —
+  // staff enters the fare directly, same "cashier physically present"
+  // logic as a walk-up seat sale.
+  const [luggageRouteId, setLuggageRouteId] = useState<string | null>(null)
+  const [luggageCounterId, setLuggageCounterId] = useState('')
+  const [senderName, setSenderName] = useState('')
+  const [senderMobile, setSenderMobile] = useState('')
+  const [receiverName, setReceiverName] = useState('')
+  const [receiverMobile, setReceiverMobile] = useState('')
+  const [luggageDescription, setLuggageDescription] = useState('')
+  const [luggageFare, setLuggageFare] = useState('')
+  const [luggageMethod, setLuggageMethod] = useState('cash')
+  const [recordingLuggage, setRecordingLuggage] = useState(false)
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
   // 848: which vehicle's own kind decides the sensible default for the
   // Local/Non-stop fare toggle below (van-kind used to default to
@@ -251,6 +280,13 @@ export default function MyVehicleRoutesPage() {
         setForm((f) => ({ ...f, fare_mode: kind === 'van' ? 'fixed' : 'flex' }))
         const { data: fleet } = await supabase.rpc('my_fleet_vehicles')
         setFleetVehicles((fleet ?? []) as typeof fleetVehicles)
+        const { data: mf } = await supabase.rpc('my_managed_fleet')
+        const f = mf as { fleet_id: string } | null
+        if (f) {
+          setFleetId(f.fleet_id)
+          const { data: counters } = await supabase.rpc('my_fleet_counters', { p_fleet_id: f.fleet_id })
+          setFleetCounters((counters ?? []) as typeof fleetCounters)
+        }
       }
       setLoading(false)
     })
@@ -497,6 +533,54 @@ export default function MyVehicleRoutesPage() {
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mv.handOffDoneToast'))
     setHandOffRouteId(null); setHandOffSearch(''); setHandOffResults([])
+  }
+
+  // 855: a counter cashier (or a solo driver with no counter at all —
+  // p_counter_id is optional) logs a walk-up cash sale. isVanKindRoute
+  // reuses the same vehicleKind already resolved for the fare-mode
+  // default, no second lookup needed.
+  const isVanKindRoute = vehicleKind === 'van'
+  const openManualBooking = async (routeId: string) => {
+    setManualBookingRouteId(routeId)
+    setManualCounterId(''); setManualPassengerName(''); setManualPassengerMobile(''); setManualSeats(1); setManualAmount(''); setManualMethod('cash'); setManualSeatNumbers([])
+    if (isVanKindRoute) {
+      const { data } = await supabase.rpc('route_seat_status', { p_route_id: routeId, p_travel_date: new Date().toISOString().slice(0, 10), p_direction: 'outbound' })
+      setManualTakenSeats((data as number[]) ?? [])
+    }
+  }
+  const recordManualBooking = async () => {
+    if (!manualBookingRouteId || !manualPassengerName.trim() || !manualAmount) { toast.error(t('mv.fillManualBookingError')); return }
+    if (isVanKindRoute && manualSeatNumbers.length !== manualSeats) { toast.error(t('mv.pickASeatError')); return }
+    setRecordingManual(true)
+    const { error } = await supabase.rpc('record_manual_booking', {
+      p_route_id: manualBookingRouteId, p_travel_date: new Date().toISOString().slice(0, 10), p_seats: manualSeats,
+      p_passenger_name: manualPassengerName, p_total_amount_pkr: Number(manualAmount),
+      p_counter_id: manualCounterId || null, p_passenger_mobile: manualPassengerMobile || null, p_payment_method: manualMethod,
+      p_seat_numbers: isVanKindRoute ? manualSeatNumbers : null,
+    })
+    setRecordingManual(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.manualBookingRecordedToast'))
+    setManualBookingRouteId(null)
+    const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid)
+  }
+
+  const openLuggageBooking = (routeId: string) => {
+    setLuggageRouteId(routeId)
+    setLuggageCounterId(''); setSenderName(''); setSenderMobile(''); setReceiverName(''); setReceiverMobile(''); setLuggageDescription(''); setLuggageFare(''); setLuggageMethod('cash')
+  }
+  const recordLuggage = async () => {
+    if (!luggageRouteId || !senderName.trim() || !receiverName.trim() || !receiverMobile.trim() || !luggageDescription.trim()) { toast.error(t('mv.fillLuggageError')); return }
+    setRecordingLuggage(true)
+    const { error } = await supabase.rpc('record_luggage_booking', {
+      p_route_id: luggageRouteId, p_travel_date: new Date().toISOString().slice(0, 10),
+      p_sender_name: senderName, p_receiver_name: receiverName, p_receiver_mobile: receiverMobile, p_description: luggageDescription,
+      p_fare_pkr: Number(luggageFare) || 0, p_counter_id: luggageCounterId || null, p_sender_mobile: senderMobile || null, p_payment_method: luggageMethod,
+    })
+    setRecordingLuggage(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.luggageRecordedToast'))
+    setLuggageRouteId(null)
   }
 
   const cancelConfirmedBooking = async (id: string) => {
@@ -941,6 +1025,16 @@ export default function MyVehicleRoutesPage() {
                       className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
                       <Users size={10} /> {t('mv.handOffRunBtn')}
                     </button>
+                    {!r.is_monthly_fixed && (
+                      <button onClick={() => openManualBooking(r.id)}
+                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-sans font-semibold cursor-pointer border border-[#166534] text-[#166534] bg-[#F0FDF4]">
+                        <Plus size={10} /> {t('mv.recordWalkUpBtn')}
+                      </button>
+                    )}
+                    <button onClick={() => openLuggageBooking(r.id)}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-sans font-semibold cursor-pointer border border-amber-300 text-amber-700 bg-amber-50">
+                      <Plus size={10} /> {t('mv.recordLuggageBtn')}
+                    </button>
                     {r.is_monthly_fixed && (
                       <>
                         <button onClick={() => setMonthlyRidersRouteId(r.id)}
@@ -1066,6 +1160,109 @@ export default function MyVehicleRoutesPage() {
               </button>
             ))}
             <p className="font-sans text-[11.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">{t('mv.handOffSettleNote')}</p>
+          </div>
+        </MobilityBottomSheet>
+      )}
+      {manualBookingRouteId && (
+        <MobilityBottomSheet title={t('mv.recordWalkUpHeading')} onClose={() => setManualBookingRouteId(null)}>
+          <div className="flex flex-col gap-2.5">
+            {fleetCounters.length > 0 && (
+              <div>
+                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.counterLabel')}</label>
+                <select value={manualCounterId} onChange={(e) => setManualCounterId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                  <option value="">—</option>
+                  {fleetCounters.map((c) => <option key={c.id} value={c.id}>{c.city}{c.name ? ` · ${c.name}` : ''}</option>)}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.passengerNameLabel')}</label>
+              <input value={manualPassengerName} onChange={(e) => setManualPassengerName(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            </div>
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.passengerMobileOptionalLabel')}</label>
+              <input value={manualPassengerMobile} onChange={(e) => setManualPassengerMobile(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="font-sans text-[13px] font-semibold text-[#64748b]">{t('mk.seatsLabel')}</label>
+              <button type="button" onClick={() => setManualSeats((s) => Math.max(1, s - 1))} className="w-8 h-8 rounded-full bg-[#f2f1e8] flex items-center justify-center cursor-pointer">−</button>
+              <span className="font-sans text-[15px] font-bold ltr-num w-6 text-center">{manualSeats}</span>
+              <button type="button" onClick={() => setManualSeats((s) => s + 1)} className="w-8 h-8 rounded-full bg-[#166534] text-white flex items-center justify-center cursor-pointer">+</button>
+            </div>
+            {isVanKindRoute && totalSeats && (
+              <SeatPicker totalSeats={totalSeats} takenSeatNumbers={manualTakenSeats} seatsNeeded={manualSeats} selected={manualSeatNumbers} onChange={setManualSeatNumbers} />
+            )}
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.fareCollectedLabel')}</label>
+              <input type="number" value={manualAmount} onChange={(e) => setManualAmount(e.target.value)} placeholder={t('mv.expenseAmountPlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </div>
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('w.paymentMethod')}</label>
+              <select value={manualMethod} onChange={(e) => setManualMethod(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                <option value="cash">{t('w.cash')}</option>
+                <option value="jazzcash">{t('w.jazzcash')}</option>
+                <option value="easypaisa">{t('w.easypaisa')}</option>
+                <option value="bank">{t('a.bank')}</option>
+              </select>
+            </div>
+            <button onClick={recordManualBooking} disabled={recordingManual} className="mt-1 px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
+              {recordingManual ? t('action.loading') : t('mv.recordWalkUpBtn')}
+            </button>
+          </div>
+        </MobilityBottomSheet>
+      )}
+      {luggageRouteId && (
+        <MobilityBottomSheet title={t('mv.recordLuggageHeading')} onClose={() => setLuggageRouteId(null)}>
+          <div className="flex flex-col gap-2.5">
+            {fleetCounters.length > 0 && (
+              <div>
+                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.counterLabel')}</label>
+                <select value={luggageCounterId} onChange={(e) => setLuggageCounterId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                  <option value="">—</option>
+                  {fleetCounters.map((c) => <option key={c.id} value={c.id}>{c.city}{c.name ? ` · ${c.name}` : ''}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.senderNameLabel')}</label>
+                <input value={senderName} onChange={(e) => setSenderName(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+              </div>
+              <div>
+                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.senderMobileOptionalLabel')}</label>
+                <input value={senderMobile} onChange={(e) => setSenderMobile(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.receiverNameLabel')}</label>
+                <input value={receiverName} onChange={(e) => setReceiverName(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+              </div>
+              <div>
+                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.receiverMobileLabel')}</label>
+                <input value={receiverMobile} onChange={(e) => setReceiverMobile(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+              </div>
+            </div>
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.luggageDescriptionLabel')}</label>
+              <input value={luggageDescription} onChange={(e) => setLuggageDescription(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            </div>
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.fareCollectedLabel')}</label>
+              <input type="number" value={luggageFare} onChange={(e) => setLuggageFare(e.target.value)} placeholder={t('mv.expenseAmountPlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </div>
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('w.paymentMethod')}</label>
+              <select value={luggageMethod} onChange={(e) => setLuggageMethod(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                <option value="cash">{t('w.cash')}</option>
+                <option value="jazzcash">{t('w.jazzcash')}</option>
+                <option value="easypaisa">{t('w.easypaisa')}</option>
+                <option value="bank">{t('a.bank')}</option>
+              </select>
+            </div>
+            <button onClick={recordLuggage} disabled={recordingLuggage} className="mt-1 px-4 py-2.5 rounded-xl bg-amber-600 text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
+              {recordingLuggage ? t('action.loading') : t('mv.recordLuggageBtn')}
+            </button>
           </div>
         </MobilityBottomSheet>
       )}

@@ -13,8 +13,10 @@
 // popup (BookingLifecycleSheet) — this page is just the grouped list.
 
 import { useEffect, useState } from 'react'
-import { Navigation, X } from 'lucide-react'
+import { Navigation, X, Repeat } from 'lucide-react'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { FarePolicyCard } from '@/components/mobility/FarePolicyCard'
@@ -45,6 +47,15 @@ export default function MyRentalBookingsPage() {
   const [returnOffers, setReturnOffers] = useState<ReturnOffer[]>([])
   const [loading, setLoading] = useState(true)
   const [cancellingOfferId, setCancellingOfferId] = useState<string | null>(null)
+  // 856: swap a full-day rental's vehicle for another one in the same
+  // fleet and category — real ask, "swap the whole booked bus for
+  // another one but on the same category". Deliberately a plain fleet-
+  // vehicle picker, not filtered by category client-side — the RPC
+  // itself rejects a mismatched category with a clear error, no need
+  // to fetch vehicle_categories here just to pre-filter.
+  const [fleetVehicles, setFleetVehicles] = useState<{ id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }[]>([])
+  const [swapBookingId, setSwapBookingId] = useState<string | null>(null)
+  const [swapping, setSwapping] = useState(false)
 
   const loadBookings = (vehicleId: string) =>
     supabase.rpc('vehicle_rental_bookings', { p_vehicle_id: vehicleId }).then(({ data }) => setBookings((data ?? []) as Booking[]))
@@ -65,11 +76,26 @@ export default function MyRentalBookingsPage() {
     if (!user) return
     supabase.from('vehicles').select('id, owner_name, commission_mode').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
       setVehicle(data)
-      if (data) await Promise.all([loadBookings(data.id), loadReturnOffers(data.id)])
+      if (data) {
+        await Promise.all([loadBookings(data.id), loadReturnOffers(data.id)])
+        const { data: fleet } = await supabase.rpc('my_fleet_vehicles')
+        setFleetVehicles((fleet ?? []).filter((v: { id: string }) => v.id !== data.id))
+      }
       setLoading(false)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
+
+  const swapVehicle = async (newVehicleId: string) => {
+    if (!swapBookingId) return
+    setSwapping(true)
+    const { error } = await supabase.rpc('fleet_swap_rental_vehicle', { p_booking_id: swapBookingId, p_new_vehicle_id: newVehicleId })
+    setSwapping(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.vehicleSwappedToast'))
+    setSwapBookingId(null)
+    if (vehicle) loadBookings(vehicle.id)
+  }
 
   useEffect(() => {
     if (!vehicle || !bookings.some((b) => ['requested', 'accepted', 'in_progress'].includes(b.status))) return
@@ -152,6 +178,38 @@ export default function MyRentalBookingsPage() {
           meta: `${Math.round(b.km)}km${b.trip_type === 'return' ? ' ↺' : ''}`,
         }))}
       />
+
+      {fleetVehicles.length > 0 && bookings.some((b) => ['accepted', 'in_progress'].includes(b.status)) && (
+        <div className="flex flex-col gap-2">
+          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em]">{t('mv.swapVehicleHeading')}</p>
+          {bookings.filter((b) => ['accepted', 'in_progress'].includes(b.status)).map((b) => (
+            <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-xl p-3 flex items-center justify-between gap-2">
+              <span className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{b.from_address} → {b.to_address}</span>
+              <button onClick={() => setSwapBookingId(b.id)} className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">
+                <Repeat size={11} /> {t('mv.swapBtn')}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {swapBookingId && (
+        <div className="fixed inset-0 z-[150] bg-black/40 flex items-center justify-center p-4" onClick={() => setSwapBookingId(null)}>
+          <div className="bg-white rounded-2xl p-4 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <p className="font-sans text-[13px] font-bold text-[#1e293b] mb-2.5">{t('mv.pickReplacementVehicleLabel')}</p>
+            <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto">
+              {fleetVehicles.map((v) => (
+                <button key={v.id} type="button" onClick={() => swapVehicle(v.id)} disabled={swapping}
+                  className="flex items-center justify-between gap-2 border border-[#e5e2d0] rounded-lg px-3 py-2 cursor-pointer disabled:opacity-50 text-start">
+                  <span className="font-sans text-[13px] font-semibold text-[#1e293b]">{v.owner_name}{v.vehicle_type ? ` · ${v.vehicle_type}` : ''}</span>
+                  {v.vehicle_number && <span className="font-sans text-[11px] text-[#64748b] ltr-num">{v.vehicle_number}</span>}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setSwapBookingId(null)} className="w-full mt-3 px-3 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12.5px] font-semibold cursor-pointer">{t('action.cancel')}</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

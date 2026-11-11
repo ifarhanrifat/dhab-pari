@@ -23,6 +23,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useLiveLocation } from '@/hooks/useLiveLocation'
 import { haversineKm } from '@/lib/roadRoute'
+import { isStale, minutesSince } from '@/lib/liveStaleness'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import type { LeafletMapHandle, MapPin } from '@/components/shared/LeafletMap'
@@ -369,7 +370,13 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
   const mapData = (() => {
     if (!detail?.active_run) return null
     const orderedStops = detail.active_run.direction === 'return' ? [...detail.stops].reverse() : detail.stops
-    const driverPos = detail.live_locations.find((l) => l.is_owner)
+    // 857: route_group_detail's live_locations has no built-in
+    // freshness filter (unlike nearby_open_trips/check_catch_
+    // feasibility, which both drop anything >5min old server-side) —
+    // a stale position here must not drive real ETAs, and must not
+    // render as if it were still live.
+    const driverPosRaw = detail.live_locations.find((l) => l.is_owner)
+    const driverPos = driverPosRaw && !isStale(driverPosRaw.updated_at) ? driverPosRaw : null
     const etas = computeLiveEtas(detail.route_path ?? [], detail.route_duration_min, driverPos ? { lat: driverPos.lat, lng: driverPos.lng } : null, detail.stops, detail.active_run.direction)
     const stopPins: MapPin[] = orderedStops.map((s) => {
       const name = isUrdu && s.label_ur ? s.label_ur : s.label
@@ -377,9 +384,14 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
       const etaLine = e ? (e.passed ? t('mv.stopPassedLabel') : `${e.minutesAway} ${t('mv.minAwaySuffix')}`) : ''
       return { lat: s.lat, lng: s.lng, emoji: '📍', color: '#f59e0b', popupHtml: `<div style="font-family:sans-serif;min-width:140px"><b>${escapeHtml(name)}</b>${etaLine ? `<br/><span style="color:#166534;font-weight:600">${escapeHtml(etaLine)}</span>` : ''}</div>` }
     })
-    const livePins: MapPin[] = detail.live_locations.map((l) => ({
-      lat: l.lat, lng: l.lng, label: l.name, color: l.is_own ? '#D4AF37' : '#166534', emoji: l.is_owner ? '🚐' : '🧍', isVehicle: l.is_owner,
-    }))
+    const livePins: MapPin[] = detail.live_locations.map((l) => {
+      const stale = isStale(l.updated_at)
+      const minsAgo = minutesSince(l.updated_at)
+      return {
+        lat: l.lat, lng: l.lng, color: stale ? '#94a3b8' : (l.is_own ? '#D4AF37' : '#166534'), emoji: l.is_owner ? '🚐' : '🧍', isVehicle: l.is_owner,
+        label: stale ? `${l.name} — ${t('mv.lastSeenMinAgoSuffix').replace('{n}', String(minsAgo))}` : l.name,
+      }
+    })
     // 850: riders trying to catch this departed run, plotted so the
     // driver can see at a glance whether they're actually near the road.
     const catchPins: MapPin[] = unboardedAdHoc
