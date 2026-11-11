@@ -27,8 +27,13 @@ interface Vehicle {
   hourly_rate_pkr: number | null; shadi_full_day_rate_pkr: number | null
   machinery_hourly_rate_pkr: number | null; machinery_mobilization_fee_pkr: number | null
   machinery_hourly_rate_min_pkr: number | null; machinery_hourly_rate_max_pkr: number | null
-  loader_trip_rate_pkr: number | null; rental_base_pkr: number | null; rental_per_km_pkr: number | null
+  loader_trip_rate_pkr: number | null; rental_tier: string | null
 }
+// 838: Hourly/Rental figures come from the committee's fare guide for the
+// vehicle's rental_tier — the only thing riders are actually charged by
+// (787+) — not from the per-vehicle rate columns, which were out of step
+// with it on live data.
+interface FareGuide { tier_key: string; hourly_rate_pkr: number; rental_base_pkr: number; rental_per_km_pkr: number }
 interface RegRequest { owner_id_card_url: string | null; license_url: string | null; vehicle_doc_url: string | null; driver_photo_url: string | null }
 interface TractorService { service_key: string; name_en: string; name_ur: string; rate_pkr: number; unit: string }
 
@@ -49,23 +54,28 @@ export default function MyVehicleVehiclePage() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [regRequest, setRegRequest] = useState<RegRequest | null>(null)
   const [tractorServices, setTractorServices] = useState<TractorService[]>([])
+  const [fareGuide, setFareGuide] = useState<FareGuide | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, owner_mobile, owner_whatsapp, vehicle_type, vehicle_number, total_seats, color, model, commission_mode, created_at, delivers, offers_hourly, offers_shadi, offers_rental, offers_machinery, offers_tractor, offers_loader, hourly_rate_pkr, shadi_full_day_rate_pkr, machinery_hourly_rate_pkr, machinery_mobilization_fee_pkr, machinery_hourly_rate_min_pkr, machinery_hourly_rate_max_pkr, loader_trip_rate_pkr, rental_base_pkr, rental_per_km_pkr')
+    supabase.from('vehicles').select('id, owner_name, owner_mobile, owner_whatsapp, vehicle_type, vehicle_number, total_seats, color, model, commission_mode, created_at, delivers, offers_hourly, offers_shadi, offers_rental, offers_machinery, offers_tractor, offers_loader, hourly_rate_pkr, shadi_full_day_rate_pkr, machinery_hourly_rate_pkr, machinery_mobilization_fee_pkr, machinery_hourly_rate_min_pkr, machinery_hourly_rate_max_pkr, loader_trip_rate_pkr, rental_tier')
       .eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
         setVehicle(data)
         if (data) {
-          const [{ data: reg }, { data: tractor }] = await Promise.all([
+          const [{ data: reg }, { data: tractor }, { data: guides }] = await Promise.all([
             supabase.from('vehicle_registration_requests').select('owner_id_card_url, license_url, vehicle_doc_url, driver_photo_url')
               .eq('portal_user_id', user.id).eq('status', 'approved').order('created_at', { ascending: false }).limit(1).maybeSingle(),
             data.offers_tractor
               ? supabase.from('tractor_services').select('service_key, name_en, name_ur, rate_pkr, unit').eq('vehicle_id', data.id)
               : Promise.resolve({ data: [] }),
+            data.rental_tier && (data.offers_hourly || data.offers_rental)
+              ? supabase.rpc('rental_tier_fare_guides_list')
+              : Promise.resolve({ data: [] }),
           ])
           setRegRequest(reg ?? null)
           setTractorServices((tractor ?? []) as TractorService[])
+          setFareGuide(((guides ?? []) as FareGuide[]).find((g) => g.tier_key === data.rental_tier) ?? null)
         }
         setLoading(false)
       })
@@ -158,8 +168,8 @@ export default function MyVehicleVehiclePage() {
         <div className="bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden">
           <div className="px-4 py-2.5 border-b border-[#f1f5f9]"><h3 className="font-sans text-[13px] font-bold text-[#005A36]">🏷️ {t('vp.ratesHeading')}</h3></div>
           <div className="divide-y divide-[#f8fafc]">
-            {vehicle.offers_hourly && vehicle.hourly_rate_pkr != null && (
-              <div className="flex items-center gap-2 px-4 py-2.5"><span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('mv.tab.hourly')}</span><span dir="ltr" className="font-sans text-[12.5px] font-extrabold text-[#166534] ltr-num">{fmt(vehicle.hourly_rate_pkr)}{t('vp.perHourSuffix')}</span></div>
+            {vehicle.offers_hourly && (fareGuide != null || vehicle.hourly_rate_pkr != null) && (
+              <div className="flex items-center gap-2 px-4 py-2.5"><span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('mv.tab.hourly')}</span><span dir="ltr" className="font-sans text-[12.5px] font-extrabold text-[#166534] ltr-num">{fmt(fareGuide?.hourly_rate_pkr ?? vehicle.hourly_rate_pkr!)}{t('vp.perHourSuffix')}</span></div>
             )}
             {vehicle.offers_shadi && vehicle.shadi_full_day_rate_pkr != null && (
               <div className="flex items-center gap-2 px-4 py-2.5"><span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('mv.tab.shadi')}</span><span dir="ltr" className="font-sans text-[12.5px] font-extrabold text-[#166534] ltr-num">{fmt(vehicle.shadi_full_day_rate_pkr)}{t('vp.perFullDaySuffix')}</span></div>
@@ -182,8 +192,8 @@ export default function MyVehicleVehiclePage() {
             {vehicle.offers_loader && vehicle.loader_trip_rate_pkr != null && (
               <div className="flex items-center gap-2 px-4 py-2.5"><span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('vp.loaderPageTitle')}</span><span dir="ltr" className="font-sans text-[12.5px] font-extrabold text-[#166534] ltr-num">{fmt(vehicle.loader_trip_rate_pkr)}{t('vp.perTripSuffix')}</span></div>
             )}
-            {vehicle.offers_rental && vehicle.rental_base_pkr != null && (
-              <div className="flex items-center gap-2 px-4 py-2.5"><span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('vp.rentalPageTitle')}</span><span dir="ltr" className="font-sans text-[12.5px] font-extrabold text-[#166534] ltr-num">{fmt(vehicle.rental_base_pkr)}{vehicle.rental_per_km_pkr != null ? ` + ${fmt(vehicle.rental_per_km_pkr)}${t('vp.perKmSuffix')}` : ''}</span></div>
+            {vehicle.offers_rental && fareGuide != null && (
+              <div className="flex items-center gap-2 px-4 py-2.5"><span className="flex-1 font-sans text-[13px] font-semibold text-[#1e293b]">{t('vp.rentalPageTitle')}</span><span dir="ltr" className="font-sans text-[12.5px] font-extrabold text-[#166534] ltr-num">{fmt(fareGuide.rental_base_pkr)} + {fmt(fareGuide.rental_per_km_pkr)}{t('vp.perKmSuffix')}</span></div>
             )}
           </div>
           <div className="px-4 py-2.5 bg-[#F9F9F6] font-sans text-[11px] text-[#64748b]">

@@ -43,6 +43,10 @@ interface VehicleCategory {
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null; shadi_full_day_rate_pkr: number | null
   rental_base_pkr: number | null; rental_per_km_pkr: number | null; rental_wait_hour_pkr: number | null
   hourly_out_of_city_base_pkr: number | null; hourly_out_of_city_per_km_pkr: number | null
+  // 838: the rider-facing fare CARD fields (833) — the ± band every
+  // pre-match tile shows around the committee figure, and the "Mehran,
+  // Alto, Wagon R" example line under it. Were never editable before.
+  fare_spread_pct: number | null; example_models_hint: string | null; example_models_hint_ur: string | null
 }
 
 const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, display_order: 0 }
@@ -53,6 +57,7 @@ const emptyVehicleCategory = {
   name: '', name_ur: '', emoji: '', base_fare_pkr: 0, per_km_pkr: 0, intercity_commission_pct: 10, out_of_city_commission_pct: 15, category_group: 'passenger' as 'passenger' | 'loading' | 'machinery', out_of_city_eligible: true, out_of_city_base_fare_pkr: 0, out_of_city_per_km_pkr: 0,
   hourly_rate_pkr: 0, hourly_included_km: 0, hourly_overage_per_km_pkr: 0, shadi_full_day_rate_pkr: 0,
   rental_base_pkr: 0, rental_per_km_pkr: 0, rental_wait_hour_pkr: 0, hourly_out_of_city_base_pkr: 0, hourly_out_of_city_per_km_pkr: 0,
+  fare_spread_pct: 0.25, example_models_hint: '', example_models_hint_ur: '',
 }
 
 function fmt(n: number) { return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -127,6 +132,7 @@ export default function MarketplaceReferencePage() {
       hourly_rate_pkr: vc.hourly_rate_pkr ?? 0, hourly_included_km: vc.hourly_included_km ?? 0, hourly_overage_per_km_pkr: vc.hourly_overage_per_km_pkr ?? 0, shadi_full_day_rate_pkr: vc.shadi_full_day_rate_pkr ?? 0,
       rental_base_pkr: vc.rental_base_pkr ?? 0, rental_per_km_pkr: vc.rental_per_km_pkr ?? 0, rental_wait_hour_pkr: vc.rental_wait_hour_pkr ?? 0,
       hourly_out_of_city_base_pkr: vc.hourly_out_of_city_base_pkr ?? 0, hourly_out_of_city_per_km_pkr: vc.hourly_out_of_city_per_km_pkr ?? 0,
+      fare_spread_pct: vc.fare_spread_pct ?? 0.25, example_models_hint: vc.example_models_hint ?? '', example_models_hint_ur: vc.example_models_hint_ur ?? '',
     })
     setShowForm(true)
   }
@@ -137,7 +143,13 @@ export default function MarketplaceReferencePage() {
       tab === 'cities' ? (editingId ? await supabase.from('cities').update(cityForm).eq('id', editingId) : await supabase.from('cities').insert(cityForm))
       : tab === 'services' ? (editingId ? await supabase.from('service_classes').update(serviceForm).eq('id', editingId) : await supabase.from('service_classes').insert(serviceForm))
       : tab === 'villages' ? (editingId ? await supabase.from('villages').update(villageForm).eq('id', editingId) : await supabase.from('villages').insert(villageForm))
-      : tab === 'vehicleCategories' ? await supabase.from('vehicle_categories').update(vehicleCategoryForm).eq('id', editingId)
+      : tab === 'vehicleCategories' ? await supabase.from('vehicle_categories').update({
+          ...vehicleCategoryForm,
+          // Empty hint = "no example line on the rider card", stored as
+          // NULL so the tiles' `hint && ...` guard stays honest.
+          example_models_hint: vehicleCategoryForm.example_models_hint.trim() || null,
+          example_models_hint_ur: vehicleCategoryForm.example_models_hint_ur.trim() || null,
+        }).eq('id', editingId)
       : await supabase.from('fare_bands').update(fareBandForm).eq('flow', editingFlow)
     setSaving(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -266,6 +278,7 @@ export default function MarketplaceReferencePage() {
                 {vc.hourly_rate_pkr ? <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{t('vr.wantsHourlyLabel')}: {fmt(vc.hourly_rate_pkr)}/hr · {fmt(vc.hourly_included_km ?? 0)}km incl.</p> : null}
                 {vc.shadi_full_day_rate_pkr ? <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{t('vr.wantsShadiLabel')}: {fmt(vc.shadi_full_day_rate_pkr)}/day</p> : null}
                 {vc.rental_base_pkr ? <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{t('mr.rentalRatesHeading')}: {fmt(vc.rental_base_pkr)} base + {fmt(vc.rental_per_km_pkr ?? 0)}/km + {fmt(vc.rental_wait_hour_pkr ?? 0)}/hr {t('mr.waitLabel')}</p> : null}
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{t('mr.fareCardHeading')}: ±{Math.round((vc.fare_spread_pct ?? 0.25) * 100)}%{(isUrdu ? vc.example_models_hint_ur : vc.example_models_hint) ? ` · ${isUrdu ? vc.example_models_hint_ur : vc.example_models_hint}` : ''}</p>
               </div>
               <div className="flex items-center gap-1.5">
                 <button onClick={() => toggleActive('vehicle_categories', vc.id, vc.is_active)} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">{t('mr.deactivateBtn')}</button>
@@ -411,6 +424,17 @@ export default function MarketplaceReferencePage() {
                   <Field label={t('mr.basePkrLabel')}><input type="number" value={vehicleCategoryForm.rental_base_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, rental_base_pkr: +e.target.value })} placeholder={t('mr.basePkrPlaceholder')} className="input-field" /></Field>
                   <Field label={t('mr.perKmPkrLabel')}><input type="number" value={vehicleCategoryForm.rental_per_km_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, rental_per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" /></Field>
                   <Field label={t('mr.rentalWaitHourLabel')}><input type="number" value={vehicleCategoryForm.rental_wait_hour_pkr || ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, rental_wait_hour_pkr: +e.target.value })} className="input-field" /></Field>
+                </div>
+                {/* 838: the rider-facing card — every pre-match tile
+                    (point-to-point, hourly, rental, loading) shows
+                    "Rs min–max" around the committee figure using this
+                    spread, with the example-models line under it. */}
+                <div className="pt-2 mt-1 border-t border-dp-outline-variant space-y-2.5">
+                  <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface">{t('mr.fareCardHeading')}</p>
+                  <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.fareCardHint')}</p>
+                  <Field label={t('mr.fareSpreadLabel')}><input type="number" step="0.01" min="0" max="1" value={vehicleCategoryForm.fare_spread_pct ?? ''} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, fare_spread_pct: Math.min(1, Math.max(0, +e.target.value)) })} className="input-field" /></Field>
+                  <Field label={t('mr.exampleModelsHintLabel')}><input value={vehicleCategoryForm.example_models_hint} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, example_models_hint: e.target.value })} placeholder="Mehran, Alto, Wagon R" className="input-field" /></Field>
+                  <Field label={t('mr.exampleModelsHintUrLabel')}><input value={vehicleCategoryForm.example_models_hint_ur} onChange={(e) => setVehicleCategoryForm({ ...vehicleCategoryForm, example_models_hint_ur: e.target.value })} placeholder="مہران، آلٹو، ویگن آر" className="input-field" dir="rtl" /></Field>
                 </div>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.vehicleCategoryEditHint')}</p>
               </div>

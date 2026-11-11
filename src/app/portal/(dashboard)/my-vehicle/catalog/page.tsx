@@ -26,10 +26,21 @@ interface Vehicle {
   offers_hourly: boolean; offers_shadi: boolean; offers_rental: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
   shadi_full_day_rate_pkr: number | null; shadi_vehicle_class: string | null
-  rental_base_pkr: number | null; rental_per_km_pkr: number | null; rental_wait_hour_pkr: number | null; rental_tier: string | null
+  rental_tier: string | null
 }
 interface Photo { id: string; url: string; is_cover: boolean }
 interface ShadiClass { class_key: string; name_en: string; name_ur: string }
+// 838: Hourly and Rental are matched AND priced by rental_tier →
+// rental_tier_fare_guides (787+), never by anything on the vehicle row.
+// The per-vehicle hourly_rate_pkr / rental_base_pkr columns this page
+// used to show were out of step with what riders are actually charged
+// (one live vehicle showed "800 + 25/km" while riders paid 250 + 16/km),
+// so the figure shown — and the opt-in gate — now come from the real
+// fare guide for the committee-set tier.
+interface FareGuide {
+  tier_key: string; hourly_rate_pkr: number; hourly_included_km_per_hour: number; hourly_overage_per_km_pkr: number
+  rental_base_pkr: number; rental_per_km_pkr: number; rental_wait_hour_pkr: number
+}
 
 // Mirrors set_vehicle_catalog_prefs()'s own keyword check (migration 664)
 // so the picker never offers a class the backend would then reject —
@@ -70,6 +81,7 @@ export default function MyVehicleCatalogPage() {
   const [shadiVehicleClass, setShadiVehicleClass] = useState<string>('')
   const [shadiClasses, setShadiClasses] = useState<ShadiClass[]>([])
   const [rentalTier, setRentalTier] = useState<string>('')
+  const [fareGuides, setFareGuides] = useState<FareGuide[]>([])
   const [saving, setSaving] = useState(false)
 
   const loadPhotos = (vehicleId: string) =>
@@ -78,7 +90,7 @@ export default function MyVehicleCatalogPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, vehicle_type, color, model, model_year, has_ac, offers_hourly, offers_shadi, offers_rental, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_base_pkr, rental_per_km_pkr, rental_wait_hour_pkr, rental_tier')
+    supabase.from('vehicles').select('id, owner_name, vehicle_type, color, model, model_year, has_ac, offers_hourly, offers_shadi, offers_rental, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_tier')
       .eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
         setVehicle(data)
         if (data) {
@@ -91,6 +103,7 @@ export default function MyVehicleCatalogPage() {
         setLoading(false)
       })
     supabase.rpc('shadi_vehicle_classes_list').then(({ data }) => setShadiClasses((data ?? []) as ShadiClass[]))
+    supabase.rpc('rental_tier_fare_guides_list').then(({ data }) => setFareGuides((data ?? []) as FareGuide[]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
@@ -146,9 +159,13 @@ export default function MyVehicleCatalogPage() {
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!vehicle) return <div className="text-center py-12 text-[#64748b] text-[14px]">{t('cm.noVehicleLinked')}</div>
 
-  const hasHourlyRate = vehicle.hourly_rate_pkr != null
+  // Mirrors set_vehicle_catalog_prefs()'s own gate (838): a rental_tier
+  // with a fare guide in this tenant is the one real precondition for
+  // Hourly and Rental; shadi stays per-vehicle priced.
+  const fareGuide = rentalTier ? fareGuides.find((g) => g.tier_key === rentalTier) ?? null : null
+  const hasHourlyRate = fareGuide != null
   const hasShadiRate = vehicle.shadi_full_day_rate_pkr != null
-  const hasRentalRate = vehicle.rental_base_pkr != null && vehicle.rental_per_km_pkr != null
+  const hasRentalRate = fareGuide != null
 
   return (
     <div className="flex flex-col gap-3">
@@ -221,16 +238,16 @@ export default function MyVehicleCatalogPage() {
 
       {/* Hourly opt-in — rate is read-only here, committee-set */}
       <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-        {hasHourlyRate ? (
+        {fareGuide ? (
           <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-[#f1f5f9]">
             <span className="font-sans text-[12.5px] text-[#64748b]">{t('mv.yourRateLabel')}</span>
             <span className="font-bold text-[16px] text-[#166534] ltr-num">
-              {fmt(vehicle.hourly_rate_pkr!)}/{t('mv.perHourShort')}
-              {vehicle.hourly_included_km != null && <span className="font-sans text-[11px] text-[#64748b] font-normal"> · {fmt(vehicle.hourly_included_km)}km {t('mv.includedShort')}</span>}
+              {fmt(fareGuide.hourly_rate_pkr)}/{t('mv.perHourShort')}
+              <span className="font-sans text-[11px] text-[#64748b] font-normal"> · {fmt(fareGuide.hourly_included_km_per_hour)}km/{t('mv.perHourShort')} {t('mv.includedShort')}</span>
             </span>
           </div>
         ) : (
-          <p className="font-sans text-[12.5px] mb-3 pb-3 border-b border-[#f1f5f9] text-[#b91c1c]">{t('mv.noRateSetHint')}</p>
+          <p className="font-sans text-[12.5px] mb-3 pb-3 border-b border-[#f1f5f9] text-[#b91c1c]">{t('mv.noRentalTierHint')}</p>
         )}
         <label className={`flex items-center gap-2 ${hasHourlyRate ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
           <input type="checkbox" checked={offersHourly} disabled={!hasHourlyRate} onChange={(e) => setOffersHourly(e.target.checked)} className="accent-[#166534]" />
@@ -241,15 +258,15 @@ export default function MyVehicleCatalogPage() {
 
       {/* Rental (point-to-point) opt-in — its own rate, its own gate */}
       <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-        {hasRentalRate ? (
+        {fareGuide ? (
           <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-[#f1f5f9]">
             <span className="font-sans text-[12.5px] text-[#64748b]">{t('mv.yourRentalRateLabel')}</span>
             <span className="font-bold text-[16px] text-[#166534] ltr-num">
-              {fmt(vehicle.rental_base_pkr!)} + {fmt(vehicle.rental_per_km_pkr!)}/km
+              {fmt(fareGuide.rental_base_pkr)} + {fmt(fareGuide.rental_per_km_pkr)}/km
             </span>
           </div>
         ) : (
-          <p className="font-sans text-[12.5px] mb-3 pb-3 border-b border-[#f1f5f9] text-[#b91c1c]">{t('mv.noRentalRateSetHint')}</p>
+          <p className="font-sans text-[12.5px] mb-3 pb-3 border-b border-[#f1f5f9] text-[#b91c1c]">{t('mv.noRentalTierHint')}</p>
         )}
         <label className={`flex items-center gap-2 ${hasRentalRate ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
           <input type="checkbox" checked={offersRental} disabled={!hasRentalRate} onChange={(e) => setOffersRental(e.target.checked)} className="accent-[#166534]" />
@@ -259,7 +276,7 @@ export default function MyVehicleCatalogPage() {
         <div className="mt-3 pt-3 border-t border-[#f1f5f9]">
           <label className="block font-sans text-[12px] font-semibold text-[#64748b] mb-1">{t('vp.yourRentalTierLabel')}</label>
           <p className="font-sans text-[13.5px] font-semibold text-[#1e293b]">{rentalTier ? t(`vp.rentalTier.${rentalTier}`) : '—'}</p>
-          <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('vp.rentalTierCommitteeSetNote')}</p>
+          <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('vp.rentalTierCommitteeSetNote')} {t('mv.rateFromCategoryNote')}</p>
         </div>
       </div>
 

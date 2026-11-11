@@ -35,7 +35,7 @@ interface Vehicle {
   allows_out_of_city: boolean; per_km_pkr: number | null; is_online: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
   shadi_full_day_rate_pkr: number | null
-  rental_base_pkr: number | null; rental_per_km_pkr: number | null; rental_wait_hour_pkr: number | null; rental_tier: string | null
+  rental_tier: string | null
   offers_machinery: boolean; machinery_hourly_rate_pkr: number | null; machinery_min_hours: number | null; machinery_mobilization_fee_pkr: number | null
   machinery_hourly_rate_min_pkr: number | null; machinery_hourly_rate_max_pkr: number | null
   offers_tractor: boolean
@@ -80,7 +80,7 @@ const emptyVehicle = {
   allows_out_of_city: true, per_km_pkr: null as number | null,
   hourly_rate_pkr: null as number | null, hourly_included_km: null as number | null, hourly_overage_per_km_pkr: null as number | null,
   shadi_full_day_rate_pkr: null as number | null,
-  rental_base_pkr: null as number | null, rental_per_km_pkr: null as number | null, rental_wait_hour_pkr: null as number | null, rental_tier: '' as string,
+  rental_tier: '' as string,
   offers_machinery: false, machinery_hourly_rate_pkr: null as number | null, machinery_min_hours: null as number | null, machinery_mobilization_fee_pkr: null as number | null,
   machinery_hourly_rate_min_pkr: null as number | null, machinery_hourly_rate_max_pkr: null as number | null,
   offers_tractor: false,
@@ -610,7 +610,7 @@ function AdminVehiclesInner() {
       night_booking_enabled: v.night_booking_enabled, allows_out_of_city: v.allows_out_of_city, per_km_pkr: v.per_km_pkr,
       hourly_rate_pkr: v.hourly_rate_pkr, hourly_included_km: v.hourly_included_km, hourly_overage_per_km_pkr: v.hourly_overage_per_km_pkr,
       shadi_full_day_rate_pkr: v.shadi_full_day_rate_pkr,
-      rental_base_pkr: v.rental_base_pkr, rental_per_km_pkr: v.rental_per_km_pkr, rental_wait_hour_pkr: v.rental_wait_hour_pkr, rental_tier: v.rental_tier ?? '',
+      rental_tier: v.rental_tier ?? '',
       offers_machinery: v.offers_machinery, machinery_hourly_rate_pkr: v.machinery_hourly_rate_pkr, machinery_min_hours: v.machinery_min_hours, machinery_mobilization_fee_pkr: v.machinery_mobilization_fee_pkr,
       machinery_hourly_rate_min_pkr: v.machinery_hourly_rate_min_pkr, machinery_hourly_rate_max_pkr: v.machinery_hourly_rate_max_pkr,
       offers_tractor: v.offers_tractor,
@@ -1279,19 +1279,14 @@ function AdminVehiclesInner() {
               </div>
 
               <div className="pt-2 border-t border-dp-outline-variant/60">
+                {/* 838: the three per-vehicle rental inputs that used to
+                    sit here (rental_base_pkr / per_km / wait_hour) are
+                    retired — nothing has priced from them since 787;
+                    every Hourly/Rental booking is matched and priced by
+                    the rental category below via its fare card
+                    (Marketplace Reference). Columns kept for history. */}
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.rentalRateLabel')}</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <input type="number" value={vehicleForm.rental_base_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, rental_base_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder={t('mk.rentalBasePlaceholder')} />
-                  </div>
-                  <div>
-                    <input type="number" value={vehicleForm.rental_per_km_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, rental_per_km_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder={t('mk.rentalPerKmPlaceholder')} />
-                  </div>
-                  <div>
-                    <input type="number" value={vehicleForm.rental_wait_hour_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, rental_wait_hour_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder={t('mk.rentalWaitHourPlaceholder')} />
-                  </div>
-                </div>
-                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.rentalRateHint')}</p>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.rentalRateFromTierNote')}</p>
                 <div className="mt-2">
                   <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('vp.yourRentalTierLabel')}</label>
                   <select value={vehicleForm.rental_tier} onChange={(e) => setVehicleForm({ ...vehicleForm, rental_tier: e.target.value })} className="input-field">

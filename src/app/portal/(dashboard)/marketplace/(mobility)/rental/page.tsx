@@ -43,10 +43,10 @@ import { FarePolicyCard } from '@/components/mobility/FarePolicyCard'
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 const TIER_EMOJI: Record<string, string> = {
-  small_ac: '🚗', small_non_ac: '🚗', big_ac: '🚘', big_non_ac: '🚖', suv: '🚙', luxury: '🏎️',
+  small_ac: '🚗', small_non_ac: '🚗', compact_ac: '🚗', compact_non_ac: '🚗', big_ac: '🚘', big_non_ac: '🚖', suv: '🚙', luxury: '🏎️',
   van: '🚐', hiace: '🚌', coaster: '🚍', bus: '🚌',
 }
-const TIER_ORDER = ['small_ac', 'small_non_ac', 'big_ac', 'big_non_ac', 'suv', 'luxury', 'van', 'hiace', 'coaster', 'bus']
+const TIER_ORDER = ['small_ac', 'small_non_ac', 'compact_ac', 'compact_non_ac', 'big_ac', 'big_non_ac', 'suv', 'luxury', 'van', 'hiace', 'coaster', 'bus']
 const CURRENT_YEAR = new Date().getFullYear()
 const YEAR_OPTIONS = Array.from({ length: 26 }, (_, i) => CURRENT_YEAR - i)
 
@@ -54,6 +54,9 @@ interface TierOption {
   tier_key: string; vehicle_count: number
   rental_base_pkr: number; rental_per_km_pkr: number; rental_wait_hour_pkr: number
   out_of_city_base_pkr: number; out_of_city_per_km_pkr: number
+  // 838: the linked vehicle_categories row's rider-card fields (may be
+  // null for a tier no category maps onto yet).
+  fare_spread_pct?: number | null; example_models_hint?: string | null; example_models_hint_ur?: string | null
 }
 interface Booking {
   id: string; from_address: string; from_lat: number | null; from_lng: number | null
@@ -346,15 +349,23 @@ export default function RentalPage() {
             <p className="text-center py-10 text-[#94a3b8] text-[14px]">{t('vp.noRentalVehiclesHint')}</p>
           ) : (
             <div className="grid grid-cols-2 gap-2.5">
-              {sortedTiers.map((tier) => (
+              {sortedTiers.map((tier) => {
+                // 842: real ask — "only one number is ever charged,
+                // the range is confusing." Tile now shows the exact
+                // same committee figure the booking sheet below
+                // itemises, not a spread.
+                const hint = isUrdu ? tier.example_models_hint_ur : tier.example_models_hint
+                return (
                 <button key={tier.tier_key} onClick={() => openBooking(tier)}
                   className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
                   <span className="text-[22px]">{TIER_EMOJI[tier.tier_key] ?? '🚗'}</span>
                   <span className="text-[13px] font-bold text-[#1e293b]">{t(`vp.rentalTier.${tier.tier_key}`)}</span>
                   <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{fmt(totalFor(tier))}</span>
+                  {hint && <span className="text-[9.5px] text-[#94a3b8] leading-tight">{hint}</span>}
                   <span className="flex items-center gap-1 text-[10px] text-[#94a3b8] ltr-num"><Users size={10} /> {tier.vehicle_count} {t('mb.availableLabel')}</span>
                 </button>
-              ))}
+                )
+              })}
             </div>
           )}
         </>

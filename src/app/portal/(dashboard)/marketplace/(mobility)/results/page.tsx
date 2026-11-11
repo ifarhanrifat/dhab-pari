@@ -506,22 +506,17 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                       const avgBase = members.reduce((s, c) => s + (isOutOfCity ? (c.out_of_city_base_fare_pkr ?? c.base_fare_pkr) : c.base_fare_pkr), 0) / members.length
                       const avgPerKm = members.reduce((s, c) => s + (isOutOfCity ? (c.out_of_city_per_km_pkr ?? c.per_km_pkr) : c.per_km_pkr), 0) / members.length
                       const fare = Math.round(avgBase + avgPerKm * distanceKm * (isOutOfCity ? 2 : 1))
-                      // Real ask, 2026-11-09: "categories will be in these
-                      // ranges... this 1200-1600 fare" — a range reads
-                      // more honestly than one exact number this early
-                      // (before a specific driver/vehicle is matched),
-                      // same spread fare_band() already uses elsewhere,
-                      // now per-category instead of a flow-level constant.
-                      const avgSpread = members.reduce((s, c) => s + (c.fare_spread_pct ?? 0.25), 0) / members.length
-                      const fareMin = Math.round(fare * (1 - avgSpread) / 10) * 10
-                      const fareMax = Math.round(fare * (1 + avgSpread) / 10) * 10
+                      // 842: real ask — "only one number is ever
+                      // charged, the range is confusing." Tile now
+                      // shows the exact same committee figure the
+                      // booking sheet quotes, not a ±spread.
                       const hint = members.map((c) => (isUrdu ? c.example_models_hint_ur : c.example_models_hint)).find(Boolean)
                       return (
                         <button key={g.ride_group} onClick={() => openGroupSheet(g)}
                           className="flex flex-col items-start gap-1 bg-white border border-[#e5e2d0] rounded-2xl p-3 text-start cursor-pointer hover:border-[#166534]">
                           <span className="text-[20px]">{g.emoji}</span>
                           <span className="text-[12.5px] font-bold text-[#1e293b]">{t(`mb.rideGroup.${g.ride_group}`)}</span>
-                          <span className="font-extrabold text-[14px] text-[#166534] ltr-num">{fmt(fareMin)}–{fmt(fareMax)}</span>
+                          <span className="font-extrabold text-[14px] text-[#166534] ltr-num">{fmt(fare)}</span>
                           <span className="text-[10px] text-[#94a3b8] ltr-num">{distanceKm.toFixed(1)} km</span>
                           {hint && <span className="text-[9.5px] text-[#94a3b8] leading-tight">{hint}</span>}
                         </button>
@@ -559,6 +554,10 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                   const eqBase = isOutOfCityEq ? (c.out_of_city_base_fare_pkr ?? c.base_fare_pkr) : c.base_fare_pkr
                   const eqPerKm = isOutOfCityEq ? (c.out_of_city_per_km_pkr ?? c.per_km_pkr) : c.per_km_pkr
                   const fare = pickup && distanceKm != null ? Math.round(eqBase + eqPerKm * distanceKm * (isOutOfCityEq ? 2 : 1)) : null
+                  // 842: real ask — "only one number is ever charged,
+                  // the range is confusing." Tile now shows the exact
+                  // same committee figure the booking sheet quotes.
+                  const eqHint = isUrdu ? c.example_models_hint_ur : c.example_models_hint
                   const syntheticGroup: RideGroupOption = { ride_group: c.key, emoji: c.emoji, filter_dimension: null, filter_options: [], label: c.name, label_ur: c.name_ur }
                   return (
                     <button key={c.id} onClick={() => (pickup ? openGroupSheet(syntheticGroup) : setShowPickupPicker(true))}
@@ -569,6 +568,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                         <>
                           <span className="font-extrabold text-[15px] text-[#166534] ltr-num">{fmt(fare)}</span>
                           <span className="text-[10px] text-[#94a3b8] ltr-num">{distanceKm!.toFixed(1)} km</span>
+                          {eqHint && <span className="text-[9.5px] text-[#94a3b8] leading-tight">{eqHint}</span>}
                         </>
                       ) : (
                         <span className="text-[10px] text-[#166534] underline">{t('mb.setPickupToSeeRatesBtn')}</span>
