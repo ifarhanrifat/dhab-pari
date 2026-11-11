@@ -57,6 +57,11 @@ interface GoHomeResult {
   origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   approx_fare_pkr: number; seats_available: number; departure_time: string | null; travel_date: string
 }
+interface StandingRequest {
+  id: string; city_id: string; city_name: string; city_name_ur: string | null
+  origin_label: string; desired_time: string | null; expires_at: string
+  status: 'open' | 'matched'; matched_kind: string | null; matched_id: string | null
+}
 
 function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
@@ -182,6 +187,16 @@ export default function MobilityHomePage() {
   const [goHomeResults, setGoHomeResults] = useState<GoHomeResult[] | null>(null)
   const [bookingId, setBookingId] = useState<string | null>(null)
 
+  // Real ask, 2026-11-11: when nothing's going home right now, save the
+  // request instead of showing a dead end — notify the rider the
+  // moment a match appears (843's cron matcher + the existing push
+  // pipeline), rather than making them keep checking back themselves.
+  const [standingRequest, setStandingRequest] = useState<StandingRequest | null>(null)
+  const [standingLoading, setStandingLoading] = useState(false)
+  const [notifyOriginLabel, setNotifyOriginLabel] = useState('')
+  const [notifyTime, setNotifyTime] = useState('')
+  const [creatingStanding, setCreatingStanding] = useState(false)
+
   // Real ask, 2026-11-02: "find a ride" used to navigate to a separate
   // results screen — the list now appears on this same first screen
   // instead, by mounting TravelResultsPanel in place of the search card
@@ -246,10 +261,38 @@ export default function MobilityHomePage() {
     confirmDestPin({ lat: user.home_lat, lng: user.home_lng, label: user.home_label ?? t('mb.gharLabel') })
   }
 
-  const openGoHome = () => {
+  const openGoHome = async () => {
     setShowGoHome(true)
     setGoHomeCity(null)
     setGoHomeResults(null)
+    setStandingLoading(true)
+    const { data } = await supabase.rpc('my_open_ride_home_request')
+    setStandingLoading(false)
+    setStandingRequest((data as StandingRequest | null) ?? null)
+  }
+
+  const createStandingRequest = async () => {
+    if (!goHomeCity) return
+    if (notifyOriginLabel.trim() === '') { toast.error(t('mb.rideHomeOriginRequiredError')); return }
+    setCreatingStanding(true)
+    const desiredIso = notifyTime ? new Date(`${new Date().toISOString().slice(0, 10)}T${notifyTime}:00`).toISOString() : null
+    const { error } = await supabase.rpc('create_ride_home_request', {
+      p_city_id: goHomeCity.id, p_origin_label: notifyOriginLabel, p_desired_time: desiredIso,
+    })
+    setCreatingStanding(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mb.rideHomeNotifyMeSavedToast'))
+    const { data: fresh } = await supabase.rpc('my_open_ride_home_request')
+    setStandingRequest((fresh as StandingRequest | null) ?? null)
+  }
+
+  const cancelStandingRequest = async () => {
+    if (!standingRequest) return
+    setStandingLoading(true)
+    const { error } = await supabase.rpc('cancel_ride_home_request', { p_id: standingRequest.id })
+    setStandingLoading(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    setStandingRequest(null)
   }
 
   // Real ask, 2026-11-04: "when the one-way ride is finished in the
@@ -266,6 +309,8 @@ export default function MobilityHomePage() {
   const pickGoHomeCity = async (c: City) => {
     setGoHomeCity(c)
     setGoHomeLoading(true)
+    setNotifyOriginLabel(user?.home_label ?? '')
+    setNotifyTime('')
     const { data, error } = await supabase.rpc('find_rides_home', { p_city_key: c.name })
     setGoHomeLoading(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -371,7 +416,32 @@ export default function MobilityHomePage() {
               <p className="font-bold text-[15px] text-[#005A36] flex items-center gap-1.5"><HomeIcon size={16} /> {t('mb.goHomeHeading')}</p>
               <button onClick={() => setShowGoHome(false)} className="font-sans text-[12px] font-semibold text-[#64748b] cursor-pointer">{t('action.cancel')}</button>
             </div>
-            {!goHomeCity ? (
+            {/* Real ask, 2026-11-11: riders should be able to read what
+                this button actually does before using it, not just
+                guess from the name. */}
+            <p className="font-sans text-[11.5px] text-[#64748b] leading-[1.5] bg-[#f8fafc] border border-[#e5e2d0] rounded-lg p-2">{t('mb.goHomeInfoText')}</p>
+
+            {standingLoading && !standingRequest ? (
+              <div className="py-6 text-center"><Loader2 size={20} className="animate-spin text-[#166534] mx-auto" /></div>
+            ) : standingRequest ? (
+              <div className="border border-[#D4AF37] bg-[#FFFBEB] rounded-xl p-3 flex flex-col gap-1.5">
+                <p className="font-sans text-[12.5px] font-bold text-[#92400e]">
+                  {standingRequest.status === 'matched' ? t('mb.rideHomeMatchedText') : t('mb.rideHomeWaitingText')}
+                </p>
+                <p className="font-sans text-[11.5px] text-[#92400e]">
+                  {standingRequest.origin_label} ← {isUrdu && standingRequest.city_name_ur ? standingRequest.city_name_ur : standingRequest.city_name}
+                </p>
+                <p className="font-sans text-[10.5px] text-[#92400e]/70 ltr-num">
+                  {t('mb.rideHomeExpiresLabel')}: {new Date(standingRequest.expires_at).toLocaleString(undefined, { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })}
+                </p>
+                {standingRequest.status === 'matched' && (
+                  <button onClick={() => router.push('/portal/marketplace/trips')} className="mt-1 px-3 py-1.5 rounded-lg text-[11.5px] font-bold text-white cursor-pointer bg-[#166534]">
+                    {t('mb.rideHomeViewMatchBtn')}
+                  </button>
+                )}
+                <button onClick={cancelStandingRequest} className="font-sans text-[11px] font-semibold text-[#b91c1c] cursor-pointer text-start mt-0.5">{t('mb.rideHomeCancelBtn')}</button>
+              </div>
+            ) : !goHomeCity ? (
               <>
                 <p className="font-sans text-[12.5px] text-[#64748b]">{t('mb.pickYourCityHint')}</p>
                 <div className="flex gap-1.5 flex-wrap">
@@ -388,7 +458,21 @@ export default function MobilityHomePage() {
               <>
                 <button onClick={() => setGoHomeCity(null)} className="font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer text-start">← {isUrdu && goHomeCity.name_ur ? goHomeCity.name_ur : goHomeCity.name}</button>
                 {(goHomeResults?.length ?? 0) === 0 ? (
-                  <p className="font-sans text-[13px] text-[#94a3b8] text-center py-4">{t('mb.noRidesHomeFound')}</p>
+                  <div className="flex flex-col gap-2 py-1">
+                    <p className="font-sans text-[13px] text-[#94a3b8] text-center py-2">{t('mb.noRidesHomeFound')}</p>
+                    <div className="border border-[#e5e2d0] rounded-xl p-2.5 flex flex-col gap-2">
+                      <p className="font-sans text-[11.5px] font-bold text-[#1e293b]">{t('mb.rideHomeNotifyMeHeading')}</p>
+                      <input value={notifyOriginLabel} onChange={(e) => setNotifyOriginLabel(e.target.value)} placeholder={t('mb.rideHomeOriginLabelPlaceholder')}
+                        className="border border-[#e5e2d0] rounded-lg px-2.5 py-1.5 text-[12.5px]" />
+                      <div className="flex items-center gap-2">
+                        <input type="time" value={notifyTime} onChange={(e) => setNotifyTime(e.target.value)} className="border border-[#e5e2d0] rounded-lg px-2.5 py-1.5 text-[12.5px] flex-1" />
+                        <span className="font-sans text-[10.5px] text-[#94a3b8]">{t('mb.rideHomeAsapHint')}</span>
+                      </div>
+                      <button onClick={createStandingRequest} disabled={creatingStanding} className="px-3 py-2 rounded-lg text-[12.5px] font-bold text-white cursor-pointer bg-[#166534] disabled:opacity-50">
+                        {creatingStanding ? t('action.saving') : t('mb.rideHomeNotifyMeBtn')}
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {goHomeResults!.map((r) => (
@@ -468,15 +552,21 @@ export default function MobilityHomePage() {
               </button>
             )}
 
-            <button onClick={findVehicles} disabled={!toCity} className="w-full bg-[#166534] disabled:bg-[#166534]/40 text-white rounded-xl py-2.5 font-bold text-[13px] cursor-pointer disabled:cursor-not-allowed">
-              {t('mb.findVehiclesBtn')}
-            </button>
             {/* Real ask, 2026-11-02: three competing buttons down to one —
                 "find a ride near a stop" removed (shared-ride search
-                already covers it); weekly commute moved to Account. */}
-            <button onClick={openGoHome} className="w-full border border-[#D4AF37] text-[#0f172a] bg-[#FFFBEB] rounded-xl py-2 font-bold text-[12.5px] cursor-pointer flex items-center justify-center gap-1.5">
-              <HomeIcon size={13} /> {t('mb.goHomeBtn')}
-            </button>
+                already covers it); weekly commute moved to Account.
+                Real ask, 2026-11-11: Go Home was a second full-width
+                button stacked below — "too much big", moved to a 25%-
+                width button sitting to the left of Find Vehicles in
+                one row instead. */}
+            <div className="flex gap-2 items-stretch">
+              <button onClick={openGoHome} className="w-1/4 shrink-0 border border-[#D4AF37] text-[#0f172a] bg-[#FFFBEB] rounded-xl font-bold text-[10.5px] cursor-pointer flex flex-col items-center justify-center gap-0.5 px-1">
+                <HomeIcon size={14} /> {t('mb.goHomeBtn')}
+              </button>
+              <button onClick={findVehicles} disabled={!toCity} className="flex-1 bg-[#166534] disabled:bg-[#166534]/40 text-white rounded-xl py-2.5 font-bold text-[13px] cursor-pointer disabled:cursor-not-allowed">
+                {t('mb.findVehiclesBtn')}
+              </button>
+            </div>
           </>
         )}
       </div>
