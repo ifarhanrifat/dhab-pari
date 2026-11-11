@@ -44,6 +44,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'action.loading': 'Loading...',
     'action.retry': 'Try again',
     'action.copy': 'Copy',
+    'action.remove': 'Remove',
 
     // ── Admin navigation ─────────────────────────────────────────────────
     'nav.dashboard': 'Dashboard',
@@ -364,6 +365,13 @@ export const messages: Record<Locale, Record<string, string>> = {
     'mv.inviteStatusVehicleAdded': 'Vehicle added', 'mv.fleetVehiclesHeading': 'Fleet vehicles',
     'mv.manageMyFleetBtn': 'Manage my fleet', 'mv.haveFleetInviteCodeLabel': 'Have a fleet invite code?', 'mv.redeemInviteBtn': 'Redeem',
     'mv.inviteRedeemedToast': 'Joined {fleet} — register your vehicle below and it will be added to that fleet.',
+    'mv.fleetMapBtn': 'Fleet map', 'mv.noLiveVehiclesHint': 'No fleet vehicle is currently live.',
+    'mv.fleetPLHeading': 'Fleet profit & loss', 'mv.todayProfitLabel': "Today's profit", 'mv.monthProfitLabel': "This month's profit",
+    'mv.logExpenseHeading': 'Log an expense', 'mv.expenseCategoryFuel': 'Fuel', 'mv.expenseCategoryMaintenance': 'Maintenance', 'mv.expenseCategoryToll': 'Toll', 'mv.expenseCategoryOther': 'Other',
+    'mv.expenseAmountPlaceholder': 'Amount (₨)', 'mv.expenseNotePlaceholder': 'Note (optional)', 'mv.logExpenseBtn': 'Log expense',
+    'mv.expenseLoggedToast': 'Expense logged', 'mv.enterExpenseAmountError': 'Pick a vehicle and enter an amount',
+    'mv.fleetStaffHeading': 'Fleet staff', 'mv.fleetStaffHint': "Staff get the same access you do — bookings, payments, replacements — except adding/removing staff or inviting drivers.",
+    'mv.addStaffBtn': 'Add', 'mv.staffAddedToast': 'Staff member added', 'mv.noStaffYetHint': 'No staff added yet.', 'mv.confirmRemoveStaffHint': 'Remove this person from your fleet staff?',
     'mv.totalFarePlaceholder': 'Total fare for the whole vehicle (₨)', 'mv.departureTimeLabel': 'Departure time', 'mv.daysOfWeekLabel': 'Which days',
     'mv.fairPriceHint': 'Fair price for this distance: ₨{price} — you can list this or less, not more.',
     'mv.postingStakeNote': 'Posting this costs ₨{stake} from your wallet (not refundable) — your wallet has ₨{balance}.',
@@ -5952,6 +5960,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'action.loading': 'لوڈ ہو رہا ہے...',
     'action.retry': 'دوبارہ کوشش کریں',
     'action.copy': 'کاپی کریں',
+    'action.remove': 'ہٹائیں',
 
     // ── Admin navigation ─────────────────────────────────────────────────
     'nav.dashboard': 'ڈیش بورڈ',
@@ -6272,6 +6281,13 @@ export const messages: Record<Locale, Record<string, string>> = {
     'mv.inviteStatusVehicleAdded': 'گاڑی شامل ہو گئی', 'mv.fleetVehiclesHeading': 'فلیٹ کی گاڑیاں',
     'mv.manageMyFleetBtn': 'میرا فلیٹ منظم کریں', 'mv.haveFleetInviteCodeLabel': 'فلیٹ دعوتی کوڈ ہے؟', 'mv.redeemInviteBtn': 'استعمال کریں',
     'mv.inviteRedeemedToast': '{fleet} میں شامل ہو گئے — نیچے اپنی گاڑی رجسٹر کریں، یہ اسی فلیٹ میں شامل ہو جائے گی۔',
+    'mv.fleetMapBtn': 'فلیٹ میپ', 'mv.noLiveVehiclesHint': 'فی الحال کوئی فلیٹ گاڑی لائیو نہیں ہے۔',
+    'mv.fleetPLHeading': 'فلیٹ منافع و نقصان', 'mv.todayProfitLabel': 'آج کا منافع', 'mv.monthProfitLabel': 'اس ماہ کا منافع',
+    'mv.logExpenseHeading': 'خرچ درج کریں', 'mv.expenseCategoryFuel': 'ایندھن', 'mv.expenseCategoryMaintenance': 'مرمت', 'mv.expenseCategoryToll': 'ٹول', 'mv.expenseCategoryOther': 'دیگر',
+    'mv.expenseAmountPlaceholder': 'رقم (₨)', 'mv.expenseNotePlaceholder': 'نوٹ (اختیاری)', 'mv.logExpenseBtn': 'خرچ درج کریں',
+    'mv.expenseLoggedToast': 'خرچ درج ہو گیا', 'mv.enterExpenseAmountError': 'گاڑی منتخب کریں اور رقم درج کریں',
+    'mv.fleetStaffHeading': 'فلیٹ سٹاف', 'mv.fleetStaffHint': 'سٹاف کو وہی رسائی ملتی ہے جو آپ کو ملتی ہے — بکنگ، ادائیگیاں، تبدیلی — سوائے سٹاف شامل/ہٹانے یا ڈرائیور مدعو کرنے کے۔',
+    'mv.addStaffBtn': 'شامل کریں', 'mv.staffAddedToast': 'سٹاف ممبر شامل ہو گیا', 'mv.noStaffYetHint': 'ابھی کوئی سٹاف شامل نہیں ہوا۔', 'mv.confirmRemoveStaffHint': 'اس شخص کو اپنے فلیٹ سٹاف سے ہٹائیں؟',
     'mv.totalFarePlaceholder': 'پوری گاڑی کا کل کرایہ (₨)', 'mv.departureTimeLabel': 'روانگی کا وقت', 'mv.daysOfWeekLabel': 'کون سے دن',
     'mv.fairPriceHint': 'اس فاصلے کے لیے مناسب قیمت: ₨{price} — آپ یہ یا اس سے کم رکھ سکتے ہیں، زیادہ نہیں۔',
     'mv.postingStakeNote': 'یہ پوسٹ کرنے پر آپ کے والیٹ سے ₨{stake} کٹیں گے (ناقابل واپسی) — آپ کے والیٹ میں ₨{balance} ہیں۔',
