@@ -43,10 +43,13 @@ const DAYS = [0, 1, 2, 3, 4, 5, 6]
 // one that was never wanted.
 const emptyRouteForm = {
   origin: '', destination: '',
-  // fare_mode is no longer driver-chosen (842: automatic by vehicle
-  // kind, server-derived inside create_vehicle_route_self) — kept here
-  // only as a harmless placeholder value, since the RPC param has no
-  // default and still needs something non-null to be sent.
+  // Real ask, 2026-11-11: fare mode is driver-chosen again, for every
+  // vehicle kind alike (848) — "keep them all same" rather than
+  // locking cars to flat and vans to local. 'fixed' = local, stop-to-
+  // stop fare; 'flex' = non-stop, flat fare regardless of stop. The
+  // default is reset per-vehicle in selectVehicle()/the mount effect
+  // below to match what each vehicle kind used to do automatically,
+  // but it's always overridable here now.
   classification: 'intercity', fare_mode: 'fixed', total_fare_pkr: '' as string | number,
   // Real ask, 2026-10-21: whether a route also runs back used to be
   // implied purely by whether the driver happened to fill in the
@@ -116,6 +119,11 @@ export default function MyVehicleRoutesPage() {
   // for; everyone else never sees this at all.
   const [fleetVehicles, setFleetVehicles] = useState<{ id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }[]>([])
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
+  // 848: which vehicle's own kind decides the sensible default for the
+  // Local/Non-stop fare toggle below (van-kind used to default to
+  // local/fixed automatically, car/suv to non-stop/flex) — still just
+  // a default now, always overridable by the driver for any kind.
+  const [vehicleKind, setVehicleKind] = useState<string | null>(null)
   // Real gap found live, 2026-10-20: this form's distance_km was a bare
   // guessed number the driver typed in — no map, no real coordinates
   // ever reached create_vehicle_route_self's own p_origin_lat/lng
@@ -222,12 +230,25 @@ export default function MyVehicleRoutesPage() {
     } else { setIlansByRoute({}); setStopCounts({}); setNextRunSeats({}); setMonthlyActiveCounts({}) }
   }
 
+  // 848: looks up a vehicle's vehicle_kind (van/car/suv, via its
+  // category) purely to pick a sensible default for the Local/Non-stop
+  // fare toggle — never used to gate or lock anything anymore.
+  const fetchVehicleKind = async (id: string): Promise<string | null> => {
+    const { data: v } = await supabase.from('vehicles').select('category_id').eq('id', id).single()
+    if (!v?.category_id) return null
+    const { data: c } = await supabase.from('vehicle_categories').select('vehicle_kind').eq('id', v.category_id).single()
+    return c?.vehicle_kind ?? null
+  }
+
   useEffect(() => {
     if (!user) return
     supabase.from('vehicles').select('id, commission_mode, total_seats').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
       if (data) {
         setVehicleId(data.id); setCommissionMode(data.commission_mode); setTotalSeats(data.total_seats); setSelectedVehicleId(data.id)
         await reload(data.id)
+        const kind = await fetchVehicleKind(data.id)
+        setVehicleKind(kind)
+        setForm((f) => ({ ...f, fare_mode: kind === 'van' ? 'fixed' : 'flex' }))
         const { data: fleet } = await supabase.rpc('my_fleet_vehicles')
         setFleetVehicles((fleet ?? []) as typeof fleetVehicles)
       }
@@ -248,7 +269,7 @@ export default function MyVehicleRoutesPage() {
     setActionId(null)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mp.bookingConfirmedToast'))
-    if (vehicleId) reload(vehicleId)
+    const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid)
   }
   const cancelBooking = async (id: string) => {
     const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
@@ -257,7 +278,7 @@ export default function MyVehicleRoutesPage() {
     setActionId(null)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mp.bookingRejectedToast'))
-    if (vehicleId) reload(vehicleId)
+    const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid)
   }
   const saveSchedule = async () => {
     if (!editSchedule) return
@@ -276,7 +297,7 @@ export default function MyVehicleRoutesPage() {
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mv.scheduleUpdatedToast'))
     setEditSchedule(null)
-    if (vehicleId) reload(vehicleId)
+    const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid)
   }
 
   const closeRoute = async (routeId: string) => {
@@ -287,13 +308,22 @@ export default function MyVehicleRoutesPage() {
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     const n = (data as { bookings_cancelled?: number } | null)?.bookings_cancelled ?? 0
     toast.success(n > 0 ? t('mp.routeClosedWithBookingsToast').replace('{n}', String(n)) : t('mp.routeClosedToast'))
-    if (vehicleId) reload(vehicleId)
+    const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid)
   }
+  // 848: picking a fleet vehicle here now does two things at once —
+  // sets which vehicle a NEW route gets posted for (as before), and
+  // switches the whole page's "my routes / my bookings" view to that
+  // vehicle (real gap found 2026-11-11: a fleet owner could create a
+  // route for another vehicle but never see/manage it afterward,
+  // since this used to only ever reload the owner's OWN vehicleId).
   const selectVehicle = async (id: string) => {
     setSelectedVehicleId(id)
-    if (id === vehicleId) { if (vehicleId) { const { data } = await supabase.from('vehicles').select('total_seats').eq('id', vehicleId).single(); if (data) setTotalSeats(data.total_seats) } return }
     const { data } = await supabase.from('vehicles').select('total_seats').eq('id', id).single()
     if (data) setTotalSeats(data.total_seats)
+    const kind = await fetchVehicleKind(id)
+    setVehicleKind(kind)
+    setForm((f) => ({ ...f, fare_mode: kind === 'van' ? 'fixed' : 'flex' }))
+    await reload(id)
   }
 
   const toggleDay = (d: number) => {
@@ -423,7 +453,7 @@ export default function MyVehicleRoutesPage() {
     setPathOptions([])
     setChosenPathIdx(0)
     setMultiWaypointPath(null)
-    if (vehicleId) reload(vehicleId)
+    const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid)
     // Real ask, 2026-10-20: "i cant see manage stops feature anywhere
     // while setting the weekly route" — it was a card action the
     // driver had to go find afterward. Opening it immediately, right
@@ -445,7 +475,7 @@ export default function MyVehicleRoutesPage() {
     const { error } = await supabase.rpc('set_route_monthly_pricing', { p_route_id: r.id, p_is_monthly_fixed: true, p_monthly_reference_fee_pkr: fee })
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mv.monthlyFeeUpdatedToast'))
-    if (vehicleId) reload(vehicleId)
+    const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid)
   }
 
   useEffect(() => {
@@ -477,7 +507,7 @@ export default function MyVehicleRoutesPage() {
     setActionId(null)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mp.bookingCancelledToast'))
-    if (vehicleId) reload(vehicleId)
+    const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid)
   }
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
@@ -491,6 +521,27 @@ export default function MyVehicleRoutesPage() {
           <Plus size={14} /> {t('mv.postRouteBtn')}
         </button>
       </div>
+
+      {/* 848: persistent fleet view-switcher — only ever shown when this
+          driver owns other vehicles in a fleet. Picking one here switches
+          the whole page (routes, bookings, schedule edits, closing a
+          route) to that vehicle, not just which vehicle a NEW route gets
+          posted for. The same picker also appears inside the create-route
+          form below, bound to the same selectedVehicleId. */}
+      {fleetVehicles.length > 0 && (
+        <div>
+          <label className="block font-sans text-[11px] font-bold text-[#64748b] mb-1 uppercase tracking-[0.05em]">{t('mv.fleetViewSwitcherLabel')}</label>
+          <div className="flex gap-1.5 flex-wrap">
+            {[{ id: vehicleId!, owner_name: t('mv.fleetMyOwnVehicleLabel'), vehicle_type: '', vehicle_number: null }, ...fleetVehicles].map((v) => (
+              <button key={v.id} type="button" onClick={() => selectVehicle(v.id)}
+                className="px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer border"
+                style={{ background: selectedVehicleId === v.id ? '#166534' : '#F9F9F6', color: selectedVehicleId === v.id ? '#fff' : '#334155', borderColor: selectedVehicleId === v.id ? '#166534' : '#e5e2d0' }}>
+                {v.owner_name}{v.vehicle_type ? ` · ${v.vehicle_type}` : ''}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {coveringToday.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex flex-col gap-2">
@@ -551,6 +602,24 @@ export default function MyVehicleRoutesPage() {
           )}
 
           <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1">{t('mv.routePricingSectionLabel')}</p>
+          {/* Real ask, 2026-11-11: fare mode driver-chosen again, same
+              choice for every vehicle kind ("keep them all same" rather
+              than locking cars to flat) — applies whether or not this is
+              a monthly-fixed route too (monthly fee fractions by stop
+              under Local, stays the full reference fee under Non-stop). */}
+          <div>
+            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.fareModeLabel')}</label>
+            <div className="flex gap-1.5">
+              <button type="button" onClick={() => setForm((f) => ({ ...f, fare_mode: 'fixed' }))} className="flex-1 py-1.5 rounded-lg text-[11.5px] font-sans font-bold cursor-pointer border"
+                style={{ background: form.fare_mode === 'fixed' ? '#166534' : '#F9F9F6', color: form.fare_mode === 'fixed' ? '#fff' : '#64748b', borderColor: form.fare_mode === 'fixed' ? '#166534' : '#e5e2d0' }}>
+                {t('mv.fareMode.fixed')}
+              </button>
+              <button type="button" onClick={() => setForm((f) => ({ ...f, fare_mode: 'flex' }))} className="flex-1 py-1.5 rounded-lg text-[11.5px] font-sans font-bold cursor-pointer border"
+                style={{ background: form.fare_mode === 'flex' ? '#166534' : '#F9F9F6', color: form.fare_mode === 'flex' ? '#fff' : '#64748b', borderColor: form.fare_mode === 'flex' ? '#166534' : '#e5e2d0' }}>
+                {t('mv.fareMode.flex')}
+              </button>
+            </div>
+          </div>
           {/* Real ask, 2026-10-20: "these vehicles can be monthly
               fixed... fix lumpsum charges per month... whether they
               travel or no travel, they must need to pay" — a second
@@ -982,7 +1051,7 @@ export default function MyVehicleRoutesPage() {
         <RouteGroupPanel routeId={groupRouteId} onClose={() => setGroupRouteId(null)} />
       )}
       {monthlyRidersRouteId && (
-        <RouteMonthlySubscribersPanel routeId={monthlyRidersRouteId} onClose={() => { setMonthlyRidersRouteId(null); if (vehicleId) reload(vehicleId) }} />
+        <RouteMonthlySubscribersPanel routeId={monthlyRidersRouteId} onClose={() => { setMonthlyRidersRouteId(null); const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid) }} />
       )}
       {handOffRouteId && (
         <MobilityBottomSheet title={t('mv.handOffRunHeading')} onClose={() => { setHandOffRouteId(null); setHandOffSearch(''); setHandOffResults([]) }}>

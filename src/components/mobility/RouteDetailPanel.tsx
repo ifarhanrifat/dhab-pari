@@ -704,7 +704,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
         {myBookings.length > 0 && (
           <p className="font-sans text-[11.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mb-3">{t('mv.bookNewVsEditHint')}</p>
         )}
-        {!isFlex && stops.length > 0 && (
+        {stops.length > 0 && (
           <div className="mb-4 pb-4 border-b border-dp-outline-variant">
             <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{t('mv.boardAlightHeading')}</p>
             <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mv.boardStopLabel')}</label>
@@ -722,7 +722,11 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
               </>
             )}
             {boardStopId && alightStopId && (
-              <p className="font-sans text-[11.5px] text-dp-secondary mt-1.5">{t('mv.segmentFareHint').replace('{pct}', String(Math.round(segmentFraction * 100)))}</p>
+              isFlex ? (
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('mv.flexStopNoFareChangeHint')}</p>
+              ) : (
+                <p className="font-sans text-[11.5px] text-dp-secondary mt-1.5">{t('mv.segmentFareHint').replace('{pct}', String(Math.round(segmentFraction * 100)))}</p>
+              )
             )}
           </div>
         )}
