@@ -148,8 +148,17 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
       supabase.from('shops').select('id').eq('portal_user_id', user.id).limit(1),
       supabase.from('shop_staff').select('id').eq('portal_user_id', user.id).limit(1),
     ]).then(([owned, staff]) => setHasShop((owned.data?.length ?? 0) > 0 || (staff.data?.length ?? 0) > 0))
-    supabase.from('vehicles').select('id').eq('portal_user_id', user.id).limit(1)
-      .then(({ data }) => setHasVehicle((data?.length ?? 0) > 0))
+    // Real gap found live, 2026-11-11: this only ever checked vehicles.
+    // portal_user_id — the same bug class this file's own hasShop fix
+    // above already covers for shop_staff, just never applied to
+    // vehicles/fleets (844/854). A fleet owner or fleet staff member
+    // with no vehicle of their own now also counts.
+    Promise.all([
+      supabase.from('vehicles').select('id').eq('portal_user_id', user.id).limit(1),
+      supabase.from('fleets').select('id').eq('owning_portal_user_id', user.id).limit(1),
+      supabase.from('fleet_staff').select('id').eq('portal_user_id', user.id).limit(1),
+    ]).then(([owned, fleetOwner, fleetStaff]) =>
+      setHasVehicle((owned.data?.length ?? 0) > 0 || (fleetOwner.data?.length ?? 0) > 0 || (fleetStaff.data?.length ?? 0) > 0))
     Promise.all([
       supabase.from('event_salami_accounts').select('id').eq('manager_portal_user_id', user.id).limit(1),
       supabase.from('chanda_campaigns').select('id').eq('manager_portal_user_id', user.id).limit(1),

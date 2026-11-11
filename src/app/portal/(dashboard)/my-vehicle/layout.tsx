@@ -72,14 +72,32 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
   const [loading, setLoading] = useState(true)
   const [regStatus, setRegStatus] = useState<{ status: string; rejection_reason: string | null } | null>(null)
 
+  const VEHICLE_FIELDS = 'id, owner_name, vehicle_type, commission_mode, delivers, offers_hourly, offers_shadi, offers_rental, is_online, offers_machinery, offers_tractor, offers_loader'
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, vehicle_type, commission_mode, delivers, offers_hourly, offers_shadi, offers_rental, is_online, offers_machinery, offers_tractor, offers_loader').eq('portal_user_id', user.id).maybeSingle().then(({ data }) => {
+    supabase.from('vehicles').select(VEHICLE_FIELDS).eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
+      let own = data
+      // Real gap found live, 2026-11-11: a fleet owner/staff member (844/
+      // 854) with no vehicle of their OWN was blocked by this exact same
+      // "no vehicle linked, register" screen the shop sidebar fix's own
+      // comment (PortalSidebar.tsx) already documented for shops — this
+      // is the vehicle-side equivalent, just never applied here. Falls
+      // back to the first fleet vehicle so the shared chrome/nav below
+      // has something to key off; the Fleet tab itself resolves the
+      // real fleet/vehicle list independently of this fallback.
+      if (!own) {
+        const { data: fleet } = await supabase.rpc('my_fleet_vehicles')
+        const firstFleetId = (fleet as { id: string }[] | null)?.[0]?.id
+        if (firstFleetId) {
+          const { data: fv } = await supabase.from('vehicles').select(VEHICLE_FIELDS).eq('id', firstFleetId).maybeSingle()
+          own = fv
+        }
+      }
       // Shown behind one combined flag — the 3 equipment verticals share
       // a single driver-side screen (my-vehicle/equipment), not a tab
       // each, since most vehicles only ever offer one or two of them.
-      setVehicle(data ? { ...data, offers_equipment: !!(data.offers_machinery || data.offers_tractor || data.offers_loader) } : data)
-      if (!data) supabase.rpc('my_vehicle_registration_status').then(({ data: rs }) => setRegStatus(rs ?? null))
+      setVehicle(own ? { ...own, offers_equipment: !!(own.offers_machinery || own.offers_tractor || own.offers_loader) } : own)
+      if (!own) supabase.rpc('my_vehicle_registration_status').then(({ data: rs }) => setRegStatus(rs ?? null))
       setLoading(false)
     })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps

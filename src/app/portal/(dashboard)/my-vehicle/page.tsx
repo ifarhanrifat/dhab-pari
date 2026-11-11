@@ -82,11 +82,27 @@ export default function MyVehicleHomePage() {
 
   useEffect(() => {
     if (!user) return
+    const VEHICLE_FIELDS = 'id, owner_name, vehicle_type, vehicle_number, is_online, total_seats'
     Promise.all([
-      supabase.from('vehicles').select('id, owner_name, vehicle_type, vehicle_number, is_online, total_seats').eq('portal_user_id', user.id).maybeSingle(),
+      supabase.from('vehicles').select(VEHICLE_FIELDS).eq('portal_user_id', user.id).maybeSingle(),
       supabase.from('cities').select('id, name, name_ur').eq('is_active', true).order('display_order'),
-    ]).then(async ([{ data: v }, { data: c }]) => {
+    ]).then(async ([{ data: ownV }, { data: c }]) => {
       setCities(c ?? [])
+      // Real gap found live, 2026-11-11: a fleet owner/staff with no
+      // vehicle of their own (844/854) saw this whole page render
+      // nothing at all — same fallback now applied here as the layout
+      // (my-vehicle/layout.tsx) and routes/equipment pages already use:
+      // fall back to the first fleet vehicle so the home screen (and
+      // its "Manage my fleet" link) actually renders for them.
+      let v = ownV
+      if (!v) {
+        const { data: fleet } = await supabase.rpc('my_fleet_vehicles')
+        const firstFleetId = (fleet as { id: string }[] | null)?.[0]?.id
+        if (firstFleetId) {
+          const { data: fv } = await supabase.from('vehicles').select(VEHICLE_FIELDS).eq('id', firstFleetId).maybeSingle()
+          v = fv
+        }
+      }
       if (v) {
         setVehicle(v)
         const [{ data: sc }, { data: offers }] = await Promise.all([
