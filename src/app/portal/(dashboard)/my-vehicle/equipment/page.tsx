@@ -53,17 +53,50 @@ export default function MyEquipmentBookingsPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [counteringId, setCounteringId] = useState<string | null>(null)
   const [counterAmount, setCounterAmount] = useState('')
+  // 852: machinery/tractor/loader sit on the same `vehicles` table buses
+  // do, so a fleet owner (844) managing several machines under one
+  // account hits the exact same "which one am I viewing" need the route
+  // page's fleet picker already solves — same picker, same pattern,
+  // reused here rather than invented fresh. Deliberately handles having
+  // NO vehicle of one's own too (a pure fleet manager who personally
+  // owns nothing), not just the common case.
+  const [fleetVehicles, setFleetVehicles] = useState<{ id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }[]>([])
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
+  const [ownVehicleId, setOwnVehicleId] = useState<string | null>(null)
 
+  const vehicleFields = 'id, owner_name, commission_mode, offers_machinery, offers_tractor, offers_loader'
   const loadBookings = (vehicleId: string) =>
     supabase.rpc('vehicle_equipment_bookings', { p_vehicle_id: vehicleId }).then(({ data }) => setBookings((data ?? []) as Booking[]))
   const loadRateOffers = (vehicleId: string) =>
     supabase.rpc('my_machinery_rate_offers', { p_vehicle_id: vehicleId }).then(({ data }) => setRateOffers((data ?? []) as RateOffer[]))
 
+  const selectVehicle = async (id: string) => {
+    setSelectedVehicleId(id)
+    setLoading(true)
+    const { data } = await supabase.from('vehicles').select(vehicleFields).eq('id', id).single()
+    setVehicle(data)
+    if (data) await Promise.all([loadBookings(data.id), loadRateOffers(data.id)])
+    setLoading(false)
+  }
+
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, commission_mode, offers_machinery, offers_tractor, offers_loader').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
-      setVehicle(data)
-      if (data) await Promise.all([loadBookings(data.id), loadRateOffers(data.id)])
+    Promise.all([
+      supabase.from('vehicles').select(vehicleFields).eq('portal_user_id', user.id).maybeSingle(),
+      supabase.rpc('my_fleet_vehicles'),
+    ]).then(async ([{ data: own }, { data: fleet }]) => {
+      setFleetVehicles((fleet ?? []) as typeof fleetVehicles)
+      setOwnVehicleId(own?.id ?? null)
+      const initialId = own?.id ?? (fleet ?? [])[0]?.id ?? null
+      setSelectedVehicleId(initialId)
+      if (own) {
+        setVehicle(own)
+        await Promise.all([loadBookings(own.id), loadRateOffers(own.id)])
+      } else if (initialId) {
+        const { data: v } = await supabase.from('vehicles').select(vehicleFields).eq('id', initialId).single()
+        setVehicle(v)
+        if (v) await Promise.all([loadBookings(v.id), loadRateOffers(v.id)])
+      }
       setLoading(false)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,6 +133,20 @@ export default function MyEquipmentBookingsPage() {
         <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Wrench size={19} /> {t('vp.myEquipmentBookingsHeading')}</h1>
         <p className="text-[12.5px] text-[#64748b] mt-0.5">{t('vp.myEquipmentBookingsSubtitle')}</p>
       </div>
+      {fleetVehicles.length > 0 && (
+        <div>
+          <label className="block font-sans text-[11px] font-bold text-[#64748b] mb-1 uppercase tracking-[0.05em]">{t('mv.fleetViewSwitcherLabel')}</label>
+          <div className="flex gap-1.5 flex-wrap">
+            {[...(ownVehicleId ? [{ id: ownVehicleId, owner_name: t('mv.fleetMyOwnVehicleLabel'), vehicle_type: '', vehicle_number: null }] : []), ...fleetVehicles].map((v) => (
+              <button key={v.id} type="button" onClick={() => selectVehicle(v.id)}
+                className="px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer border"
+                style={{ background: selectedVehicleId === v.id ? '#166534' : '#F9F9F6', color: selectedVehicleId === v.id ? '#fff' : '#334155', borderColor: selectedVehicleId === v.id ? '#166534' : '#e5e2d0' }}>
+                {v.owner_name}{v.vehicle_type ? ` · ${v.vehicle_type}` : ''}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {equipmentKinds.map((k) => <FarePolicyCard key={k} service={k} audience="driver" defaultOpen={false} />)}
 
       {rateOffers.length > 0 && (

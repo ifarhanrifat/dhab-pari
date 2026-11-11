@@ -81,6 +81,25 @@ export default function VehicleRegisterPage() {
   const [newMake, setNewMake] = useState('')
   const [newModel, setNewModel] = useState('')
   const [addingModel, setAddingModel] = useState(false)
+  // 853: purely informational here — submit_vehicle_registration
+  // itself looks up the redeemed invite server-side and tags this
+  // request's fleet_id automatically, nothing else on this page needs
+  // to know about it.
+  const [inviteCode, setInviteCode] = useState('')
+  const [redeemingInvite, setRedeemingInvite] = useState(false)
+  const [redeemedFleetName, setRedeemedFleetName] = useState<string | null>(null)
+
+  const redeemInvite = async () => {
+    if (!inviteCode.trim()) return
+    setRedeemingInvite(true)
+    const { data, error } = await supabase.rpc('redeem_fleet_driver_invite', { p_code: inviteCode.trim() })
+    setRedeemingInvite(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    const fleetName = (data as { fleet_name: string }).fleet_name
+    setRedeemedFleetName(fleetName)
+    setInviteCode('')
+    toast.success(t('mv.inviteRedeemedToast').replace('{fleet}', fleetName))
+  }
 
   useEffect(() => {
     if (!user) return
@@ -182,6 +201,20 @@ export default function VehicleRegisterPage() {
       </button>
       <h1 className="font-bold text-[22px] text-dp-primary flex items-center gap-2 mb-1"><Car size={20} /> {t('vr.pageTitle')}</h1>
       <p className="font-sans text-[13px] text-[#64748b] mb-5">{t('vr.pageSubtitle')}</p>
+
+      {redeemedFleetName ? (
+        <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl p-3 mb-4">
+          <p className="font-sans text-[12.5px] font-semibold text-[#166534]">{t('mv.inviteRedeemedToast').replace('{fleet}', redeemedFleetName)}</p>
+        </div>
+      ) : (
+        <div className="bg-white border border-[#e5e2d0] rounded-xl p-3 mb-4 flex items-center gap-2">
+          <span className="flex-1 font-sans text-[12px] font-semibold text-[#64748b] truncate">{t('mv.haveFleetInviteCodeLabel')}</span>
+          <input value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} className="w-24 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px] ltr-num" />
+          <button onClick={redeemInvite} disabled={redeemingInvite || !inviteCode.trim()} className="shrink-0 px-3 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11.5px] font-bold cursor-pointer disabled:opacity-50">
+            {redeemingInvite ? t('action.loading') : t('mv.redeemInviteBtn')}
+          </button>
+        </div>
+      )}
 
       {status?.status === 'rejected' && (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 mb-5 flex items-start gap-2">

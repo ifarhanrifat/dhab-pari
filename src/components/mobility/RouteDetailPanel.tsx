@@ -473,14 +473,31 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   }
 
   const [catchTakenSeats, setCatchTakenSeats] = useState<number[]>([])
+  // 851: a substitute vehicle running today could have a different
+  // (usually smaller) real seat count than the route's own permanent
+  // vehicle — the picker must never offer a seat that doesn't exist on
+  // whichever vehicle is actually running today.
+  const [catchEffectiveSeats, setCatchEffectiveSeats] = useState<number | null>(null)
   useEffect(() => {
     setCatchSelectedSeats([])
-    if (!isSeatNumbered || !route || !catchFeasibility?.eligible) { setCatchTakenSeats([]); return }
+    if (!isSeatNumbered || !route || !catchFeasibility?.eligible) { setCatchTakenSeats([]); setCatchEffectiveSeats(null); return }
     supabase.rpc('route_seat_status', { p_route_id: route.id, p_travel_date: todayStr(), p_direction: 'outbound' }).then(({ data }) => {
       setCatchTakenSeats((data as number[]) ?? [])
     })
+    supabase.rpc('route_effective_seats_for_date', { p_route_id: route.id, p_travel_date: todayStr() }).then(({ data }) => {
+      setCatchEffectiveSeats((data as number) ?? null)
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route?.id, isSeatNumbered, catchFeasibility?.eligible])
+
+  const [effectiveSeatsForDate, setEffectiveSeatsForDate] = useState<number | null>(null)
+  useEffect(() => {
+    if (!route || !travelDate || wrongDay) { setEffectiveSeatsForDate(null); return }
+    supabase.rpc('route_effective_seats_for_date', { p_route_id: route.id, p_travel_date: travelDate }).then(({ data }) => {
+      setEffectiveSeatsForDate((data as number) ?? null)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route?.id, travelDate, wrongDay])
 
   // Keeps sharing until the driver boards, declines, or cancels this
   // booking — ping_catch_location (850) raises the moment that's no
@@ -793,7 +810,10 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
               ? t('mv.seatsLeftLabel').replace('{n}', String(runStatus.seats_available))
               : t('mv.routeFullLabel')}
           </p>
-          {!route.is_monthly_fixed && (runStatus.seats_available ?? 0) > 0 && (
+          {/* 851: catch now applies to monthly-fixed routes too — a
+              one-off ad-hoc rider pays a fair single-day share of the
+              monthly fee (place_ride_booking), computed server-side. */}
+          {(runStatus.seats_available ?? 0) > 0 && (
             catchBookingId ? (
               <p className="font-sans text-[12px] text-amber-800 mt-2">{t('mv.catchSharingActiveHint')}</p>
             ) : !catchFeasibility ? (
@@ -821,7 +841,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 </div>
                 {isSeatNumbered && vehicle && (
                   <div className="mt-3">
-                    <SeatPicker totalSeats={vehicle.total_seats} takenSeatNumbers={catchTakenSeats} seatsNeeded={catchSeats} selected={catchSelectedSeats} onChange={setCatchSelectedSeats} />
+                    <SeatPicker totalSeats={catchEffectiveSeats ?? vehicle.total_seats} takenSeatNumbers={catchTakenSeats} seatsNeeded={catchSeats} selected={catchSelectedSeats} onChange={setCatchSelectedSeats} />
                   </div>
                 )}
                 {!isPerOrder && (
@@ -907,7 +927,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
 
             {isSeatNumbered && vehicle && (
               <div className="mt-3">
-                <SeatPicker totalSeats={vehicle.total_seats} takenSeatNumbers={takenSeats} seatsNeeded={seats} selected={selectedSeats} onChange={setSelectedSeats} />
+                <SeatPicker totalSeats={effectiveSeatsForDate ?? vehicle.total_seats} takenSeatNumbers={takenSeats} seatsNeeded={seats} selected={selectedSeats} onChange={setSelectedSeats} />
               </div>
             )}
 
@@ -979,7 +999,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
 
           {isSeatNumbered && vehicle && (
             <div className="mt-3">
-              <SeatPicker totalSeats={vehicle.total_seats} takenSeatNumbers={takenSeatsReturn} seatsNeeded={1}
+              <SeatPicker totalSeats={effectiveSeatsForDate ?? vehicle.total_seats} takenSeatNumbers={takenSeatsReturn} seatsNeeded={1}
                 selected={selectedReturnSeat ? [selectedReturnSeat] : []} onChange={(s) => setSelectedReturnSeat(s[0] ?? null)} />
             </div>
           )}
