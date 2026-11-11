@@ -32,6 +32,9 @@ const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 }
+function minutesAgoCount(iso: string) {
+  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
+}
 
 interface Participant { portal_user_id: string; name: string; sharing_location: boolean }
 interface Message { id: string; sender_portal_user_id: string; sender_name: string; is_own: boolean; body: string; created_at: string }
@@ -41,7 +44,12 @@ interface ActiveRun { id: string; started_at: string; direction: 'outbound' | 'r
 interface TodaysRun { id: string; direction: 'outbound' | 'return'; started_at: string; ended_at: string | null }
 interface RosterRow { subscription_id: string; name: string; present: boolean; on_leave_today: boolean }
 interface OutboundBookingRow { booking_id: string; name: string; seats: number; offboarded: boolean }
-interface AdHocBookingRow { id: string; name: string; seats: number; boarded_at: string | null; dropped_off_at: string | null; board_stop_id: string | null; seat_accepted_at?: string | null }
+interface AdHocBookingRow {
+  id: string; name: string; seats: number; boarded_at: string | null; dropped_off_at: string | null; board_stop_id: string | null; seat_accepted_at?: string | null
+  // 850: a "catch" booking has no board_stop_id — it's the rider's own
+  // raw live GPS instead, held here until boarded/declined/cancelled.
+  is_mid_route_catch?: boolean; catch_lat?: number | null; catch_lng?: number | null; catch_updated_at?: string | null
+}
 interface PendingSeatRequest { id: string; name: string; seats: number; travel_date: string; direction: 'outbound' | 'return'; total_amount_pkr: number; announced_method: string | null; announced_proof_url: string | null }
 interface PendingMonthlyApplication { id: string; name: string; monthly_fee_pkr: number; stop_label: string | null; applied_at: string; deposit_pkr: number | null; proof_url: string | null; payment_method: string | null }
 interface Detail {
@@ -372,7 +380,15 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
     const livePins: MapPin[] = detail.live_locations.map((l) => ({
       lat: l.lat, lng: l.lng, label: l.name, color: l.is_own ? '#D4AF37' : '#166534', emoji: l.is_owner ? '🚐' : '🧍', isVehicle: l.is_owner,
     }))
-    return { pins: [...stopPins, ...livePins], orderedStops, etas }
+    // 850: riders trying to catch this departed run, plotted so the
+    // driver can see at a glance whether they're actually near the road.
+    const catchPins: MapPin[] = unboardedAdHoc
+      .filter((b) => b.is_mid_route_catch && b.catch_lat != null && b.catch_lng != null)
+      .map((b) => ({
+        lat: b.catch_lat!, lng: b.catch_lng!, emoji: '🙋', color: '#dc2626',
+        popupHtml: `<div style="font-family:sans-serif;min-width:140px"><b>${escapeHtml(b.name)}</b><br/><span style="color:#dc2626;font-weight:600">${escapeHtml(t('mv.tryingToCatchLabel'))}</span></div>`,
+      }))
+    return { pins: [...stopPins, ...livePins, ...catchPins], orderedStops, etas }
   })()
 
   if (fullscreen && detail && mapData) {
@@ -624,8 +640,12 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
                     <span className="min-w-0 flex-1">
                       <span className="font-sans text-[12px] font-semibold text-[#1e293b] block truncate">{b.name}{b.seats > 1 ? ` (${b.seats})` : ''}</span>
                       <span className="font-sans text-[10.5px] text-sky-700 block truncate">
-                        📍 {b.board_stop_id ? stopLabel(b.board_stop_id) : t('mv.originStopLabel')}
-                        {eta && !eta.passed && ` · ${eta.minutesAway} ${t('mv.minAwaySuffix')}`}
+                        {b.is_mid_route_catch ? (
+                          <>🙋 {t('mv.tryingToCatchLabel')}{b.catch_updated_at && ` · ${t('mv.updatedMinAgoSuffix').replace('{n}', String(minutesAgoCount(b.catch_updated_at)))}`}</>
+                        ) : (
+                          <>📍 {b.board_stop_id ? stopLabel(b.board_stop_id) : t('mv.originStopLabel')}
+                          {eta && !eta.passed && ` · ${eta.minutesAway} ${t('mv.minAwaySuffix')}`}</>
+                        )}
                       </span>
                     </span>
                     <div className="shrink-0 flex items-center gap-1">

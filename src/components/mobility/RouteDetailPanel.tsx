@@ -17,7 +17,7 @@
 // since a flex-split fare depends on who else books that specific
 // date and isn't safe to silently recompute here.
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
@@ -34,6 +34,7 @@ import { SeatPicker } from '@/components/mobility/SeatPicker'
 import { RequestWaitingSheet, type WaitingSummary } from '@/components/mobility/RequestWaitingSheet'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { estimateArrivalTime, estimateReturnArrivalTime, haversineKm } from '@/lib/roadRoute'
+import { useLiveLocation, getCurrentPositionOnce } from '@/hooks/useLiveLocation'
 import type { LeafletMapHandle, MapPin as LeafletMapPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -151,6 +152,21 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   // to its board stop, using the phone's own position. Lazy (tap to
   // check), not an auto geolocation prompt on every open.
   const [distanceByBooking, setDistanceByBooking] = useState<Record<string, string>>({})
+  // 850: "catch a departed ride" — a rider whose live GPS is still
+  // ahead of the vehicle on its own road can book after it's already
+  // left, instead of simply missing it.
+  const [runStatus, setRunStatus] = useState<{ has_active_run: boolean; started_at: string | null; minutes_since_departure: number | null; seats_available: number | null } | null>(null)
+  const [catchChecking, setCatchChecking] = useState(false)
+  const [catchFeasibility, setCatchFeasibility] = useState<{ eligible: boolean; reason: string | null; distance_km?: number } | null>(null)
+  const [catchPoint, setCatchPoint] = useState<{ lat: number; lng: number } | null>(null)
+  const [catchAlightStopId, setCatchAlightStopId] = useState<string | null>(null)
+  const [catchSeats, setCatchSeats] = useState(1)
+  const [catchMethod, setCatchMethod] = useState('cash')
+  const [catchProofPath, setCatchProofPath] = useState('')
+  const [catchSelectedSeats, setCatchSelectedSeats] = useState<number[]>([])
+  const [catchSubmitting, setCatchSubmitting] = useState(false)
+  const [catchBookingId, setCatchBookingId] = useState<string | null>(null)
+
   const checkDistanceToStop = (bookingId: string, lat: number, lng: number) => {
     if (!navigator.geolocation) return
     setDistanceByBooking((d) => ({ ...d, [bookingId]: t('action.loading') }))
@@ -200,6 +216,17 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   }, [routeId])
 
   useEffect(() => { loadMyBookings() }, [user, routeId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 850: polled while the panel is open so "departed Xm ago" and the
+  // seat count stay live without the rider having to reopen the page.
+  useEffect(() => {
+    if (!route) return
+    const load = () => supabase.rpc('route_today_run_status', { p_route_id: route.id }).then(({ data }) => setRunStatus(data as typeof runStatus))
+    load()
+    const interval = setInterval(load, 20000)
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route?.id])
 
   const wrongDay = route && travelDate ? !route.days_of_week.includes(new Date(travelDate + 'T00:00:00').getDay()) : false
 
@@ -406,6 +433,68 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     toast.success(t('mv.monthlyAppliedToast'))
     reloadMonthlyDetail()
   }
+
+  // 850: one-shot location check against the route's actual road path
+  // and the driver's current live position — never shows the driver's
+  // raw coordinates back, just whether THIS rider is close enough and
+  // not yet passed.
+  const checkCatchEligibility = async () => {
+    if (!route) return
+    setCatchChecking(true)
+    setCatchFeasibility(null)
+    try {
+      const pos = await getCurrentPositionOnce()
+      setCatchPoint(pos)
+      const { data, error } = await supabase.rpc('check_catch_feasibility', { p_route_id: route.id, p_lat: pos.lat, p_lng: pos.lng })
+      if (error) { toast.error(friendlyError(error, undefined, isUrdu)); setCatchChecking(false); return }
+      setCatchFeasibility(data as typeof catchFeasibility)
+    } catch {
+      toast.error(t('mv.locationUnavailableHint'))
+    }
+    setCatchChecking(false)
+  }
+
+  const submitCatchBooking = async () => {
+    if (!route || !catchPoint || !catchAlightStopId) { toast.error(t('mv.pickBoardStopLabel')); return }
+    if (isSeatNumbered && catchSelectedSeats.length !== catchSeats) { toast.error(t('mv.pickASeatError')); return }
+    if (!isPerOrder && !catchProofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
+    setCatchSubmitting(true)
+    const { data, error } = await supabase.rpc('place_ride_booking', {
+      p_route_id: route.id, p_travel_date: todayStr(), p_seats: catchSeats, p_method: isPerOrder ? 'direct' : catchMethod, p_proof_url: isPerOrder ? null : catchProofPath,
+      p_alight_stop_id: catchAlightStopId,
+      p_seat_numbers: isSeatNumbered ? catchSelectedSeats : null,
+      p_board_lat: catchPoint.lat, p_board_lng: catchPoint.lng,
+    })
+    setCatchSubmitting(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    setCatchBookingId((data as { booking_id: string }).booking_id)
+    toast.success(t('mv.catchRequestSentToast'))
+    loadMyBookings()
+  }
+
+  const [catchTakenSeats, setCatchTakenSeats] = useState<number[]>([])
+  useEffect(() => {
+    setCatchSelectedSeats([])
+    if (!isSeatNumbered || !route || !catchFeasibility?.eligible) { setCatchTakenSeats([]); return }
+    supabase.rpc('route_seat_status', { p_route_id: route.id, p_travel_date: todayStr(), p_direction: 'outbound' }).then(({ data }) => {
+      setCatchTakenSeats((data as number[]) ?? [])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route?.id, isSeatNumbered, catchFeasibility?.eligible])
+
+  // Keeps sharing until the driver boards, declines, or cancels this
+  // booking — ping_catch_location (850) raises the moment that's no
+  // longer true, which is this client's own signal to stop, same
+  // "learns to stop" pattern TripLiveShareToggle already uses for the
+  // trip-offer live-sharing system.
+  const handleCatchFix = useCallback((pos: { lat: number; lng: number }) => {
+    if (!catchBookingId) return
+    supabase.rpc('ping_catch_location', { p_booking_id: catchBookingId, p_lat: pos.lat, p_lng: pos.lng }).then(({ error }) => {
+      if (error) setCatchBookingId(null)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catchBookingId])
+  useLiveLocation({ enabled: !!catchBookingId, onFix: handleCatchFix, minIntervalMs: 12000 })
 
   const leaveSeat = async () => {
     if (!monthlyDetail?.my_subscription) return
@@ -688,6 +777,74 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 {applying ? t('mp.placingBooking') : t('mv.applyMonthlySeatBtn')}
               </button>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* 850: "departed Xm ago" status + the catch-a-departed-ride flow.
+          Catch mode only applies to ad-hoc (non-monthly) bookings — a
+          monthly rider already has a standing seat, not a one-off catch. */}
+      {runStatus?.has_active_run && (
+        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3.5">
+          <p className="font-sans text-[13px] font-bold text-amber-900 ltr-num">
+            {t('mv.departedAgoLabel').replace('{n}', String(runStatus.minutes_since_departure ?? 0))}
+            {' · '}
+            {(runStatus.seats_available ?? 0) > 0
+              ? t('mv.seatsLeftLabel').replace('{n}', String(runStatus.seats_available))
+              : t('mv.routeFullLabel')}
+          </p>
+          {!route.is_monthly_fixed && (runStatus.seats_available ?? 0) > 0 && (
+            catchBookingId ? (
+              <p className="font-sans text-[12px] text-amber-800 mt-2">{t('mv.catchSharingActiveHint')}</p>
+            ) : !catchFeasibility ? (
+              <button onClick={checkCatchEligibility} disabled={catchChecking} className="mt-2 px-3 py-2 rounded-lg bg-amber-700 text-white font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-50">
+                {catchChecking ? t('action.loading') : t('mv.tryToCatchBtn')}
+              </button>
+            ) : !catchFeasibility.eligible ? (
+              <div className="mt-2">
+                <p className="font-sans text-[12.5px] text-amber-900">{catchFeasibility.reason}</p>
+                <button onClick={checkCatchEligibility} disabled={catchChecking} className="mt-1.5 font-sans text-[12px] font-bold text-amber-800 underline cursor-pointer">{t('action.retry')}</button>
+              </div>
+            ) : (
+              <div className="mt-2.5 bg-white border border-amber-200 rounded-lg p-3">
+                <p className="font-sans text-[12px] text-emerald-700 font-semibold">{t('mv.catchEligibleHint')}</p>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1 mt-2">{t('mv.alightStopLabel')}</label>
+                <select value={catchAlightStopId ?? ''} onChange={(e) => setCatchAlightStopId(e.target.value || null)} className="input-field">
+                  <option value="">—</option>
+                  {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
+                </select>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 mt-3">{t('mk.seatsLabel')}</label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setCatchSeats((s) => Math.max(1, s - 1))} className="w-8 h-8 rounded-full bg-dp-surface-container-high flex items-center justify-center cursor-pointer"><Minus size={14} /></button>
+                  <span className="font-sans text-[15px] font-bold ltr-num w-8 text-center">{catchSeats}</span>
+                  <button onClick={() => setCatchSeats((s) => s + 1)} className="w-8 h-8 rounded-full bg-dp-secondary text-white flex items-center justify-center cursor-pointer"><Plus size={14} /></button>
+                </div>
+                {isSeatNumbered && vehicle && (
+                  <div className="mt-3">
+                    <SeatPicker totalSeats={vehicle.total_seats} takenSeatNumbers={catchTakenSeats} seatsNeeded={catchSeats} selected={catchSelectedSeats} onChange={setCatchSelectedSeats} />
+                  </div>
+                )}
+                {!isPerOrder && (
+                  <>
+                    <div className="mt-3">
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
+                      <select value={catchMethod} onChange={(e) => setCatchMethod(e.target.value)} className="input-field">
+                        <option value="cash">{t('w.cash')}</option>
+                        <option value="jazzcash">{t('w.jazzcash')}</option>
+                        <option value="easypaisa">{t('w.easypaisa')}</option>
+                        <option value="bank">{t('a.bank')}</option>
+                      </select>
+                    </div>
+                    <div className="mt-3">
+                      <DonationReceiptUpload onUpload={setCatchProofPath} />
+                    </div>
+                  </>
+                )}
+                <button onClick={submitCatchBooking} disabled={catchSubmitting} className="mt-3 w-full px-4 py-2.5 rounded-xl bg-amber-700 text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
+                  {catchSubmitting ? t('action.loading') : t('mv.requestToCatchBtn')}
+                </button>
+              </div>
+            )
           )}
         </div>
       )}

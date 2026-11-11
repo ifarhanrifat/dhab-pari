@@ -42,6 +42,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'action.refresh': 'Refresh',
     'action.saving': 'Saving...',
     'action.loading': 'Loading...',
+    'action.retry': 'Try again',
 
     // ── Admin navigation ─────────────────────────────────────────────────
     'nav.dashboard': 'Dashboard',
@@ -347,6 +348,11 @@ export const messages: Record<Locale, Record<string, string>> = {
     'mv.fareModeLabel': 'How is this route priced?', 'mv.fareMode.fixed': 'Local — stop-to-stop fare', 'mv.fareMode.flex': 'Non-stop — flat fare, same for every stop',
     'mv.flexStopNoFareChangeHint': "Picking a stop is just for pickup — the fare stays the same flat price no matter which stop you board or alight at.",
     'mv.fleetViewSwitcherLabel': "Viewing routes for",
+    'mv.departedAgoLabel': 'Departed {n} min ago', 'mv.seatsLeftLabel': '{n} seat(s) left', 'mv.routeFullLabel': 'Full',
+    'mv.tryToCatchBtn': 'Try to catch this ride', 'mv.catchEligibleHint': "You're close enough — the vehicle hasn't passed you yet.",
+    'mv.requestToCatchBtn': 'Request to catch', 'mv.catchRequestSentToast': 'Sent — the driver can now see your live position.',
+    'mv.catchSharingActiveHint': "Your live position is visible to the driver until they pick you up or respond.",
+    'mv.tryingToCatchLabel': 'Trying to catch you', 'mv.updatedMinAgoSuffix': 'updated {n}m ago',
     'mv.totalFarePlaceholder': 'Total fare for the whole vehicle (₨)', 'mv.departureTimeLabel': 'Departure time', 'mv.daysOfWeekLabel': 'Which days',
     'mv.fairPriceHint': 'Fair price for this distance: ₨{price} — you can list this or less, not more.',
     'mv.postingStakeNote': 'Posting this costs ₨{stake} from your wallet (not refundable) — your wallet has ₨{balance}.',
@@ -5933,6 +5939,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'action.refresh': 'تازہ کریں',
     'action.saving': 'محفوظ ہو رہا ہے...',
     'action.loading': 'لوڈ ہو رہا ہے...',
+    'action.retry': 'دوبارہ کوشش کریں',
 
     // ── Admin navigation ─────────────────────────────────────────────────
     'nav.dashboard': 'ڈیش بورڈ',
@@ -6238,6 +6245,11 @@ export const messages: Record<Locale, Record<string, string>> = {
     'mv.fareModeLabel': 'اس روٹ کا کرایہ کیسے لگے گا؟', 'mv.fareMode.fixed': 'لوکل — سٹاپ تا سٹاپ کرایہ', 'mv.fareMode.flex': 'نان سٹاپ — فکس کرایہ، ہر سٹاپ پر یکساں',
     'mv.flexStopNoFareChangeHint': 'سٹاپ منتخب کرنا صرف سوار ہونے کی جگہ کے لیے ہے — کرایہ ہر صورت میں وہی فکس رہے گا، چاہے آپ کسی بھی سٹاپ سے سوار یا اتریں۔',
     'mv.fleetViewSwitcherLabel': 'کس گاڑی کے روٹس دیکھ رہے ہیں',
+    'mv.departedAgoLabel': '{n} منٹ پہلے روانہ ہوئی', 'mv.seatsLeftLabel': '{n} سیٹ باقی', 'mv.routeFullLabel': 'فل',
+    'mv.tryToCatchBtn': 'اس گاڑی کو پکڑنے کی کوشش کریں', 'mv.catchEligibleHint': 'آپ کافی قریب ہیں — گاڑی ابھی آپ سے آگے نہیں گزری۔',
+    'mv.requestToCatchBtn': 'پکڑنے کی درخواست دیں', 'mv.catchRequestSentToast': 'بھیج دیا گیا — ڈرائیور اب آپ کی لائیو پوزیشن دیکھ سکتا ہے۔',
+    'mv.catchSharingActiveHint': 'آپ کی لائیو پوزیشن ڈرائیور کو تب تک نظر آتی رہے گی جب تک وہ آپ کو سوار نہیں کر لیتا یا جواب نہیں دیتا۔',
+    'mv.tryingToCatchLabel': 'آپ کو پکڑنے کی کوشش کر رہا ہے', 'mv.updatedMinAgoSuffix': '{n} منٹ پہلے اپڈیٹ ہوا',
     'mv.totalFarePlaceholder': 'پوری گاڑی کا کل کرایہ (₨)', 'mv.departureTimeLabel': 'روانگی کا وقت', 'mv.daysOfWeekLabel': 'کون سے دن',
     'mv.fairPriceHint': 'اس فاصلے کے لیے مناسب قیمت: ₨{price} — آپ یہ یا اس سے کم رکھ سکتے ہیں، زیادہ نہیں۔',
     'mv.postingStakeNote': 'یہ پوسٹ کرنے پر آپ کے والیٹ سے ₨{stake} کٹیں گے (ناقابل واپسی) — آپ کے والیٹ میں ₨{balance} ہیں۔',
