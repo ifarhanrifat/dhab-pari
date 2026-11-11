@@ -40,7 +40,9 @@ interface Vehicle {
   machinery_hourly_rate_min_pkr: number | null; machinery_hourly_rate_max_pkr: number | null
   offers_tractor: boolean
   offers_loader: boolean; loader_trip_rate_pkr: number | null
+  fleet_id: string | null
 }
+interface Fleet { id: string; name: string; owning_portal_user_id: string }
 interface TractorService { id: string; vehicle_id: string; service_key: string; name_en: string; name_ur: string; rate_pkr: number; unit: string }
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -85,6 +87,7 @@ const emptyVehicle = {
   machinery_hourly_rate_min_pkr: null as number | null, machinery_hourly_rate_max_pkr: null as number | null,
   offers_tractor: false,
   offers_loader: false, loader_trip_rate_pkr: null as number | null,
+  fleet_id: null as string | null,
 }
 const emptyTractorService = { service_key: '', name_en: '', name_ur: '', rate_pkr: 0, unit: 'hour' }
 const emptyRoute = {
@@ -158,6 +161,28 @@ function AdminVehiclesInner() {
   useEffect(() => {
     supabase.from('vehicle_categories').select('id, key, name, name_ur, emoji, per_km_pkr, intercity_commission_pct').eq('is_active', true).order('display_order').then(({ data }) => setCategories(data ?? []))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Minimal fleet-booker support (844): assigning a vehicle to a fleet
+  // is the one admin-side piece of this — no fleet dashboard, just this
+  // dropdown plus a quick inline "+ new fleet" the same shape as the
+  // model quick-add right below it.
+  const [fleets, setFleets] = useState<Fleet[]>([])
+  const [showAddFleet, setShowAddFleet] = useState(false)
+  const [newFleetName, setNewFleetName] = useState('')
+  const [addingFleet, setAddingFleet] = useState(false)
+  useEffect(() => {
+    supabase.from('fleets').select('id, name, owning_portal_user_id').order('name').then(({ data }) => setFleets(data ?? []))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const addNewFleet = async () => {
+    if (!newFleetName.trim() || !vehicleForm.portal_user_id) return
+    setAddingFleet(true)
+    const { data, error } = await supabase.from('fleets').insert({ name: newFleetName.trim(), owning_portal_user_id: vehicleForm.portal_user_id }).select('id, name, owning_portal_user_id').single()
+    setAddingFleet(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    setFleets((f) => [...f, data as Fleet])
+    setVehicleForm((f) => ({ ...f, fleet_id: (data as Fleet).id }))
+    setNewFleetName(''); setShowAddFleet(false)
+    toast.success(t('mk.fleetAddedToast'))
+  }
   // Real ask, 2026-11-03: "please setup the fare of all categories
   // according to Pakistani market like base fare, waiting, per km fare
   // etc." — rental_tier_fare_guides (786) is the real, committee-
@@ -615,6 +640,7 @@ function AdminVehiclesInner() {
       machinery_hourly_rate_min_pkr: v.machinery_hourly_rate_min_pkr, machinery_hourly_rate_max_pkr: v.machinery_hourly_rate_max_pkr,
       offers_tractor: v.offers_tractor,
       offers_loader: v.offers_loader, loader_trip_rate_pkr: v.loader_trip_rate_pkr,
+      fleet_id: v.fleet_id,
     })
     setKeeperMobile('')
     if (v.portal_user_id) {
@@ -1419,6 +1445,30 @@ function AdminVehiclesInner() {
                     <button onClick={findKeeper} disabled={linkingKeeper} className="shrink-0 px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container disabled:opacity-50">{t('sk.linkBtn')}</button>
                   </div>
                 )}
+              </div>
+
+              {/* Minimal fleet-booker support (844): a vehicle can
+                  optionally belong to a fleet, letting its owning
+                  portal_user create/manage routes for every vehicle in
+                  that fleet, not just this one. No fleet dashboard —
+                  this dropdown + inline quick-add is the whole admin
+                  surface for it. */}
+              <div className="pt-2 border-t border-dp-outline-variant/60">
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.fleetLabel')}</label>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2">{t('mk.fleetHint')}</p>
+                <select value={vehicleForm.fleet_id ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, fleet_id: e.target.value || null })} className="input-field">
+                  <option value="">{t('mk.fleetNoneOption')}</option>
+                  {fleets.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+                {showAddFleet ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input value={newFleetName} onChange={(e) => setNewFleetName(e.target.value)} placeholder={t('mk.fleetNamePlaceholder')} className="input-field" />
+                    <button onClick={addNewFleet} disabled={addingFleet || !vehicleForm.portal_user_id} className="shrink-0 px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer disabled:opacity-50">{addingFleet ? t('action.saving') : t('action.add')}</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setShowAddFleet(true)} className="mt-2 font-sans text-[12.5px] font-semibold text-dp-secondary cursor-pointer">+ {t('mk.fleetAddNewBtn')}</button>
+                )}
+                {!vehicleForm.portal_user_id && <p className="font-sans text-[10.5px] text-dp-on-surface-variant mt-1">{t('mk.fleetNeedsKeeperHint')}</p>}
               </div>
 
               <button onClick={saveVehicle} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{saving ? t('action.saving') : t('g.saveChanges')}</button>

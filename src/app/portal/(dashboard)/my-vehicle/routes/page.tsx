@@ -14,7 +14,7 @@
 // tab's route rows.
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus, Megaphone, Users, Route as RouteIcon, Pencil } from 'lucide-react'
@@ -43,6 +43,10 @@ const DAYS = [0, 1, 2, 3, 4, 5, 6]
 // one that was never wanted.
 const emptyRouteForm = {
   origin: '', destination: '',
+  // fare_mode is no longer driver-chosen (842: automatic by vehicle
+  // kind, server-derived inside create_vehicle_route_self) — kept here
+  // only as a harmless placeholder value, since the RPC param has no
+  // default and still needs something non-null to be sent.
   classification: 'intercity', fare_mode: 'fixed', total_fare_pkr: '' as string | number,
   // Real ask, 2026-10-21: whether a route also runs back used to be
   // implied purely by whether the driver happened to fill in the
@@ -93,6 +97,25 @@ export default function MyVehicleRoutesPage() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyRouteForm)
   const [posting, setPosting] = useState(false)
+  // Real ask, 2026-11-11: the driver home page's two buttons
+  // (?mode=monthly / ?mode=regular) replace the old single "Post a
+  // route" entry point — reaching this page with one of those params
+  // auto-opens the form with is_monthly_fixed implied, hiding the
+  // checkbox entirely since it's no longer a decision to make here.
+  // No param (an old bookmark, or "manage route" when one already
+  // exists) keeps today's behaviour, checkbox and all.
+  const searchParams = useSearchParams()
+  const [modeLocked, setModeLocked] = useState<'monthly' | 'regular' | null>(null)
+  // Real ask: "just once, on this date" absorbs the retired home-page
+  // quick-poster's one real capability — a true one-off post, not a
+  // weekly recurrence. Only meaningful for a non-monthly route.
+  const [recurrence, setRecurrence] = useState<'weekly' | 'once'>('weekly')
+  const [oneOffDate, setOneOffDate] = useState('')
+  // Minimal fleet-booker support (844): a driver who owns a fleet with
+  // more than just their own vehicle picks which one this route is
+  // for; everyone else never sees this at all.
+  const [fleetVehicles, setFleetVehicles] = useState<{ id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }[]>([])
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
   // Real gap found live, 2026-10-20: this form's distance_km was a bare
   // guessed number the driver typed in — no map, no real coordinates
   // ever reached create_vehicle_route_self's own p_origin_lat/lng
@@ -202,10 +225,22 @@ export default function MyVehicleRoutesPage() {
   useEffect(() => {
     if (!user) return
     supabase.from('vehicles').select('id, commission_mode, total_seats').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
-      if (data) { setVehicleId(data.id); setCommissionMode(data.commission_mode); setTotalSeats(data.total_seats); await reload(data.id) }
+      if (data) {
+        setVehicleId(data.id); setCommissionMode(data.commission_mode); setTotalSeats(data.total_seats); setSelectedVehicleId(data.id)
+        await reload(data.id)
+        const { data: fleet } = await supabase.rpc('my_fleet_vehicles')
+        setFleetVehicles((fleet ?? []) as typeof fleetVehicles)
+      }
       setLoading(false)
     })
-  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+    const mode = searchParams.get('mode')
+    if (mode === 'monthly' || mode === 'regular') {
+      setModeLocked(mode)
+      setShowForm(true)
+      setForm((f) => ({ ...f, is_monthly_fixed: mode === 'monthly' }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   const fulfillBooking = async (id: string) => {
     setActionId(id)
@@ -254,6 +289,13 @@ export default function MyVehicleRoutesPage() {
     toast.success(n > 0 ? t('mp.routeClosedWithBookingsToast').replace('{n}', String(n)) : t('mp.routeClosedToast'))
     if (vehicleId) reload(vehicleId)
   }
+  const selectVehicle = async (id: string) => {
+    setSelectedVehicleId(id)
+    if (id === vehicleId) { if (vehicleId) { const { data } = await supabase.from('vehicles').select('total_seats').eq('id', vehicleId).single(); if (data) setTotalSeats(data.total_seats) } return }
+    const { data } = await supabase.from('vehicles').select('total_seats').eq('id', id).single()
+    if (data) setTotalSeats(data.total_seats)
+  }
+
   const toggleDay = (d: number) => {
     setForm((f) => ({ ...f, days_of_week: f.days_of_week.includes(d) ? f.days_of_week.filter((x) => x !== d) : [...f.days_of_week, d].sort() }))
   }
@@ -311,8 +353,14 @@ export default function MyVehicleRoutesPage() {
   }, [form.distance_km])
 
   const postRoute = async () => {
-    if (!vehicleId || !form.origin.trim() || !form.destination.trim()) { toast.error(t('mk.nameRequired')); return }
-    if (form.days_of_week.length === 0) { toast.error(t('mv.pickAtLeastOneDayError')); return }
+    const postVehicleId = selectedVehicleId ?? vehicleId
+    if (!postVehicleId || !form.origin.trim() || !form.destination.trim()) { toast.error(t('mk.nameRequired')); return }
+    if (recurrence === 'once' && !form.is_monthly_fixed) {
+      if (!oneOffDate) { toast.error(t('mv.pickOneOffDateError')); return }
+    } else if (form.days_of_week.length === 0) {
+      toast.error(t('mv.pickAtLeastOneDayError')); return
+    }
+    const oneOffDays = recurrence === 'once' && oneOffDate ? [new Date(`${oneOffDate}T00:00:00`).getDay()] : null
     const distanceKm = form.distance_km ? Number(form.distance_km) : null
     const totalFare = form.total_fare_pkr ? Number(form.total_fare_pkr) : null
     const monthlyFee = form.monthly_reference_fee_pkr ? Number(form.monthly_reference_fee_pkr) : null
@@ -332,17 +380,19 @@ export default function MyVehicleRoutesPage() {
     // Urdu mode) still shows this same real name instead of defaulting
     // to blank or some other language.
     const { data, error } = await supabase.rpc('create_vehicle_route_self', {
-      p_vehicle_id: vehicleId,
+      p_vehicle_id: postVehicleId,
       p_origin: form.origin, p_origin_ur: form.origin || null,
       p_destination: form.destination, p_destination_ur: form.destination || null,
       p_classification: form.classification, p_fare_mode: form.fare_mode, p_total_fare_pkr: totalFare,
-      p_departure_time: form.departure_time || null, p_return_departure_time: form.is_two_way ? (form.return_departure_time || null) : null, p_days_of_week: form.days_of_week,
+      p_departure_time: form.departure_time || null, p_return_departure_time: form.is_two_way ? (form.return_departure_time || null) : null,
+      p_days_of_week: oneOffDays ?? form.days_of_week,
       p_distance_km: distanceKm,
       p_origin_lat: originPoint?.lat ?? null, p_origin_lng: originPoint?.lng ?? null,
       p_destination_lat: destPoint?.lat ?? null, p_destination_lng: destPoint?.lng ?? null,
       p_route_path: chosenPath ? chosenPath.path : null, p_route_duration_min: chosenPath ? chosenPath.durationMin : null,
       p_is_monthly_fixed: form.is_monthly_fixed, p_monthly_reference_fee_pkr: monthlyFee,
       p_is_two_way: form.is_two_way, p_return_wait_minutes: form.is_two_way ? form.return_wait_minutes : null,
+      p_one_off_date: oneOffDays ? oneOffDate : null,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -362,6 +412,9 @@ export default function MyVehicleRoutesPage() {
 
     toast.success(t('mv.routePosted'))
     setShowForm(false)
+    setModeLocked(null)
+    setRecurrence('weekly')
+    setOneOffDate('')
     setPendingIlanRoute({ origin: form.origin, destination: form.destination })
     setForm(emptyRouteForm)
     setOriginPoint(null)
@@ -434,7 +487,7 @@ export default function MyVehicleRoutesPage() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Signpost size={19} /> {t('mp.myRoutesHeading')}</h1>
-        <button onClick={() => setShowForm((v) => !v)} className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-semibold cursor-pointer">
+        <button onClick={() => { setShowForm((v) => !v); setModeLocked(null) }} className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-semibold cursor-pointer">
           <Plus size={14} /> {t('mv.postRouteBtn')}
         </button>
       </div>
@@ -452,7 +505,7 @@ export default function MyVehicleRoutesPage() {
       )}
 
       {showForm && (
-        <MobilityBottomSheet title={t('mv.postRouteHeading')} onClose={() => setShowForm(false)}>
+        <MobilityBottomSheet title={t('mv.postRouteHeading')} onClose={() => { setShowForm(false); setModeLocked(null); setRecurrence('weekly'); setOneOffDate('') }}>
         <div className="flex flex-col gap-2.5">
           <CityReturnDemandCard limit={6} />
 
@@ -470,33 +523,48 @@ export default function MyVehicleRoutesPage() {
               <input value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} placeholder={t('mv.destinationUrPlaceholder')} dir="auto" className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.classificationLabel')}</label>
-              <select value={form.classification} onChange={(e) => setForm((f) => ({ ...f, classification: e.target.value }))} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
-                <option value="intercity">{t('mv.classification.intercity')}</option>
-                <option value="out_of_city">{t('mv.classification.out_of_city')}</option>
-              </select>
-            </div>
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.fareModeLabel')}</label>
-              <select value={form.fare_mode} onChange={(e) => setForm((f) => ({ ...f, fare_mode: e.target.value }))} disabled={form.is_monthly_fixed} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] disabled:opacity-40">
-                <option value="fixed">{t('mv.fareMode.fixed')}</option>
-                <option value="flex">{t('mv.fareMode.flex')}</option>
-              </select>
-            </div>
+          <div>
+            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.classificationLabel')}</label>
+            <select value={form.classification} onChange={(e) => setForm((f) => ({ ...f, classification: e.target.value }))} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+              <option value="intercity">{t('mv.classification.intercity')}</option>
+              <option value="out_of_city">{t('mv.classification.out_of_city')}</option>
+            </select>
           </div>
+
+          {/* Real ask, 2026-11-11: minimal fleet-booker support — only
+              ever shown when this driver actually owns other vehicles
+              in a fleet; everyone else never sees this. */}
+          {fleetVehicles.length > 0 && (
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.fleetVehiclePickerLabel')}</label>
+              <div className="flex flex-col gap-1.5">
+                {[{ id: vehicleId!, owner_name: t('mv.fleetMyOwnVehicleLabel'), vehicle_type: '', vehicle_number: null }, ...fleetVehicles].map((v) => (
+                  <button key={v.id} type="button" onClick={() => selectVehicle(v.id)}
+                    className="flex items-center justify-between gap-2 border rounded-lg px-3 py-2 cursor-pointer text-start"
+                    style={{ background: selectedVehicleId === v.id ? '#F0FDF4' : '#fff', borderColor: selectedVehicleId === v.id ? '#166534' : '#e5e2d0' }}>
+                    <span className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{v.owner_name}{v.vehicle_type ? ` · ${v.vehicle_type}` : ''}</span>
+                    {v.vehicle_number && <span className="font-sans text-[11px] text-[#64748b] ltr-num">{v.vehicle_number}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1">{t('mv.routePricingSectionLabel')}</p>
           {/* Real ask, 2026-10-20: "these vehicles can be monthly
               fixed... fix lumpsum charges per month... whether they
               travel or no travel, they must need to pay" — a second
               model alongside the normal per-date open booking above,
-              for a school/teacher van with the same riders every day. */}
-          <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] font-semibold text-[#1e293b] cursor-pointer">
-            <input type="checkbox" checked={form.is_monthly_fixed} onChange={(e) => setForm((f) => ({ ...f, is_monthly_fixed: e.target.checked }))} />
-            {t('mv.monthlyFixedToggleLabel')}
-          </label>
+              for a school/teacher van with the same riders every day.
+              Real ask, 2026-11-11: reaching this form via one of the
+              two home-page buttons already decides this — the checkbox
+              only still shows on the old no-param entry path. */}
+          {!modeLocked && (
+            <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] font-semibold text-[#1e293b] cursor-pointer">
+              <input type="checkbox" checked={form.is_monthly_fixed} onChange={(e) => setForm((f) => ({ ...f, is_monthly_fixed: e.target.checked }))} />
+              {t('mv.monthlyFixedToggleLabel')}
+            </label>
+          )}
           {form.is_monthly_fixed && (
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.monthlyReferenceFeeLabel')}</label>
@@ -665,16 +733,39 @@ export default function MyVehicleRoutesPage() {
               </div>
             </>
           )}
-          <div>
-            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>
-            <div className="flex gap-1.5 flex-wrap">
-              {DAYS.map((d) => (
-                <button key={d} type="button" onClick={() => toggleDay(d)} className={`px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${form.days_of_week.includes(d) ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
-                  {t(`mv.dayShort.${d}`)}
-                </button>
-              ))}
+          {/* Real ask, 2026-11-11: "just once, on this date" absorbs the
+              retired home-page quick-poster's one real capability.
+              Monthly-fixed routes are always weekly — a one-off
+              monthly subscription makes no sense. */}
+          {!form.is_monthly_fixed && (
+            <div className="flex items-center gap-1.5">
+              <button type="button" onClick={() => setRecurrence('weekly')} className="flex-1 py-1.5 rounded-lg text-[11.5px] font-sans font-bold cursor-pointer border"
+                style={{ background: recurrence === 'weekly' ? '#166534' : '#F9F9F6', color: recurrence === 'weekly' ? '#fff' : '#64748b', borderColor: recurrence === 'weekly' ? '#166534' : '#e5e2d0' }}>
+                {t('mv.recurrenceWeeklyBtn')}
+              </button>
+              <button type="button" onClick={() => setRecurrence('once')} className="flex-1 py-1.5 rounded-lg text-[11.5px] font-sans font-bold cursor-pointer border"
+                style={{ background: recurrence === 'once' ? '#166534' : '#F9F9F6', color: recurrence === 'once' ? '#fff' : '#64748b', borderColor: recurrence === 'once' ? '#166534' : '#e5e2d0' }}>
+                {t('mv.recurrenceOnceBtn')}
+              </button>
             </div>
-          </div>
+          )}
+          {recurrence === 'once' && !form.is_monthly_fixed ? (
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.oneOffDateLabel')}</label>
+              <input type="date" value={oneOffDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setOneOffDate(e.target.value)} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num" />
+            </div>
+          ) : (
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {DAYS.map((d) => (
+                  <button key={d} type="button" onClick={() => toggleDay(d)} className={`px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${form.days_of_week.includes(d) ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                    {t(`mv.dayShort.${d}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <button onClick={postRoute} disabled={posting} className="mt-1 px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
             {t('mv.postRouteSubmitBtn')}
           </button>

@@ -30,6 +30,7 @@ import { FarePolicyCard } from '@/components/mobility/FarePolicyCard'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
+import { SeatPicker } from '@/components/mobility/SeatPicker'
 import { RequestWaitingSheet, type WaitingSummary } from '@/components/mobility/RequestWaitingSheet'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { estimateArrivalTime, estimateReturnArrivalTime, haversineKm } from '@/lib/roadRoute'
@@ -46,7 +47,7 @@ interface Route {
   is_two_way: boolean; return_wait_minutes: number | null
   seat_override: number | null
 }
-interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string }
+interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string; category_id: string | null }
 interface Stop { id: string; label: string; label_ur: string | null; lat: number; lng: number; stop_order: number }
 interface MonthlySubscription { id: string; status: string; monthly_fee_pkr: number; queue_position: number | null; scheduled_cancellation_at: string | null }
 interface MonthlyDetail { is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null; seats_total: number; active_count: number; my_subscription: MonthlySubscription | null; my_leave_days: string[] }
@@ -96,6 +97,13 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [available, setAvailable] = useState<number | null>(null)
   const [checkingAvailability, setCheckingAvailability] = useState(false)
   const [seats, setSeats] = useState(1)
+  // 845/846: seat-number picking is van-kind-only (van/bus/coaster/
+  // hiace, per 833's vehicle_kind grouping) — every other kind keeps
+  // the plain seat-count stepper, no change for them at all.
+  const [vehicleKind, setVehicleKind] = useState<string | null>(null)
+  const [takenSeats, setTakenSeats] = useState<number[]>([])
+  const [selectedSeats, setSelectedSeats] = useState<number[]>([])
+  const isSeatNumbered = vehicleKind === 'van'
   const [method, setMethod] = useState('cash')
   const [proofPath, setProofPath] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -113,6 +121,10 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [decliningAttendance, setDecliningAttendance] = useState(false)
   const [returnSeatsAvailable, setReturnSeatsAvailable] = useState<number | null>(null)
   const [returnBoardStopId, setReturnBoardStopId] = useState<string | null>(null)
+  const [takenSeatsReturn, setTakenSeatsReturn] = useState<number[]>([])
+  const [selectedReturnSeat, setSelectedReturnSeat] = useState<number | null>(null)
+  const [takenSeatsMonthly, setTakenSeatsMonthly] = useState<number[]>([])
+  const [selectedMonthlySeat, setSelectedMonthlySeat] = useState<number | null>(null)
   const [returnProofPath, setReturnProofPath] = useState('')
   const [bookingReturn, setBookingReturn] = useState(false)
   const [myBookings, setMyBookings] = useState<MyBooking[]>([])
@@ -164,13 +176,17 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
       setRoute(r)
       if (r) {
         const [{ data: v }, { data: bk }, { data: st }] = await Promise.all([
-          supabase.from('vehicles').select('id, owner_name, owner_mobile, vehicle_type, total_seats, commission_mode').eq('id', r.vehicle_id).single(),
+          supabase.from('vehicles').select('id, owner_name, owner_mobile, vehicle_type, total_seats, commission_mode, category_id').eq('id', r.vehicle_id).single(),
           supabase.rpc('vehicle_bookable', { p_vehicle_id: r.vehicle_id }),
           supabase.from('route_stops').select('id, label, label_ur, lat, lng, stop_order').eq('route_id', r.id).order('stop_order'),
         ])
         setVehicle(v)
         setBookable(bk !== false)
         setStops(st ?? [])
+        if (v?.category_id) {
+          supabase.from('vehicle_categories').select('vehicle_kind').eq('id', v.category_id).single()
+            .then(({ data: vc }) => setVehicleKind(vc?.vehicle_kind ?? null))
+        }
         if (r.is_monthly_fixed) {
           const { data: md } = await supabase.rpc('route_monthly_detail', { p_route_id: r.id })
           setMonthlyDetail(md as MonthlyDetail | null)
@@ -198,6 +214,17 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [travelDate, route?.id, wrongDay])
 
+  // 845: which seat numbers are already held for this date, so the
+  // picker greys them out before the rider even tries to tap one.
+  useEffect(() => {
+    setSelectedSeats([])
+    if (!isSeatNumbered || !travelDate || !route || wrongDay) { setTakenSeats([]); return }
+    supabase.rpc('route_seat_status', { p_route_id: route.id, p_travel_date: travelDate, p_direction: 'outbound' }).then(({ data }) => {
+      setTakenSeats((data as number[]) ?? [])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [travelDate, route?.id, wrongDay, isSeatNumbered])
+
   // Real ask, 2026-10-21: "an alert will be sent to the riders... with 1
   // seat or 2 seat available and now they can join the ride with one way
   // fare" — a seat an outbound rider was offboarded from (see
@@ -210,6 +237,25 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [travelDate, route?.id, route?.is_two_way, wrongDay])
+
+  useEffect(() => {
+    setSelectedReturnSeat(null)
+    if (!isSeatNumbered || !travelDate || !route?.is_two_way || wrongDay) { setTakenSeatsReturn([]); return }
+    supabase.rpc('route_seat_status', { p_route_id: route.id, p_travel_date: travelDate, p_direction: 'return' }).then(({ data }) => {
+      setTakenSeatsReturn((data as number[]) ?? [])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [travelDate, route?.id, route?.is_two_way, wrongDay, isSeatNumbered])
+
+  // Monthly seats are a persistent hold (845), not per-date — one fetch
+  // covers every future day this route runs.
+  useEffect(() => {
+    if (!isSeatNumbered || !route?.is_monthly_fixed) { setTakenSeatsMonthly([]); return }
+    supabase.rpc('route_seat_status', { p_route_id: route.id, p_travel_date: todayStr(), p_direction: 'outbound' }).then(({ data }) => {
+      setTakenSeatsMonthly((data as number[]) ?? [])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route?.id, route?.is_monthly_fixed, isSeatNumbered])
 
   useEffect(() => {
     if (!route || route.fare_mode === 'flex' || !boardStopId || !alightStopId) { setSegmentFraction(1); return }
@@ -238,11 +284,13 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     if (!route) return
     if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
     if (!returnBoardStopId) { toast.error(t('mv.pickBoardStopLabel')); return }
+    if (isSeatNumbered && !selectedReturnSeat) { toast.error(t('mv.pickASeatError')); return }
     if (!isPerOrder && !returnProofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     setBookingReturn(true)
     const { data, error } = await supabase.rpc('book_standalone_return_seat', {
       p_route_id: route.id, p_travel_date: travelDate, p_board_stop_id: returnBoardStopId,
       p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : returnProofPath,
+      p_seat_number: isSeatNumbered ? selectedReturnSeat : null,
     })
     setBookingReturn(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -268,10 +316,12 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
     if (!isPerOrder && !proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     if ((boardStopId && !alightStopId) || (!boardStopId && alightStopId)) { toast.error(t('mv.pickBothStopsError')); return }
+    if (isSeatNumbered && selectedSeats.length !== seats) { toast.error(t('mv.pickASeatError')); return }
     setSubmitting(true)
     const { data: placed, error } = await supabase.rpc('place_ride_booking', {
       p_route_id: route.id, p_travel_date: travelDate, p_seats: seats, p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : proofPath,
       p_board_stop_id: boardStopId, p_alight_stop_id: alightStopId,
+      p_seat_numbers: isSeatNumbered ? selectedSeats : null,
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -343,11 +393,13 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
 
   const applyForSeat = async () => {
     if (!route || !selectedBoardStopId) { toast.error(t('mv.pickBoardStopLabel')); return }
+    if (isSeatNumbered && !selectedMonthlySeat) { toast.error(t('mv.pickASeatError')); return }
     if (!isPerOrder && (depositPreview?.deposit_pkr ?? 0) > 0 && !applyProofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     setApplying(true)
     const { error } = await supabase.rpc('apply_for_monthly_seat', {
       p_route_id: route.id, p_board_stop_id: selectedBoardStopId,
       p_method: isPerOrder ? 'direct' : applyMethod, p_proof_url: isPerOrder ? null : (applyProofPath || null),
+      p_seat_number: isSeatNumbered ? selectedMonthlySeat : null,
     })
     setApplying(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -599,6 +651,10 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 <option value="">—</option>
                 {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
               </select>
+              {isSeatNumbered && vehicle && (
+                <SeatPicker totalSeats={vehicle.total_seats} takenSeatNumbers={takenSeatsMonthly} seatsNeeded={1}
+                  selected={selectedMonthlySeat ? [selectedMonthlySeat] : []} onChange={(s) => setSelectedMonthlySeat(s[0] ?? null)} />
+              )}
               {depositPreview && (
                 <div className="bg-sky-50 border border-sky-200 rounded-lg p-2.5 flex flex-col gap-1">
                   <p className="font-sans text-[12px] text-sky-900">{t('mv.monthlyFeeLabel')}: <span className="font-bold ltr-num">₨{fmt(depositPreview.monthly_fee_pkr)}</span></p>
@@ -628,7 +684,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5">{t('cm.payDirectlyNote')}</p>
               )}
               <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">{t('mv.seatNeedsDriverConfirmNote')}</p>
-              <button onClick={applyForSeat} disabled={applying || !selectedBoardStopId || (!isPerOrder && (depositPreview?.deposit_pkr ?? 0) > 0 && !applyProofPath)} className="w-full bg-dp-secondary text-white rounded-lg py-2.5 font-sans font-semibold active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={applyForSeat} disabled={applying || !selectedBoardStopId || (isSeatNumbered && !selectedMonthlySeat) || (!isPerOrder && (depositPreview?.deposit_pkr ?? 0) > 0 && !applyProofPath)} className="w-full bg-dp-secondary text-white rounded-lg py-2.5 font-sans font-semibold active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                 {applying ? t('mp.placingBooking') : t('mv.applyMonthlySeatBtn')}
               </button>
             </div>
@@ -688,6 +744,12 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
               <button onClick={() => setSeats((s) => Math.min(available, s + 1))} className="w-8 h-8 rounded-full bg-dp-secondary text-white flex items-center justify-center cursor-pointer"><Plus size={14} /></button>
             </div>
 
+            {isSeatNumbered && vehicle && (
+              <div className="mt-3">
+                <SeatPicker totalSeats={vehicle.total_seats} takenSeatNumbers={takenSeats} seatsNeeded={seats} selected={selectedSeats} onChange={setSelectedSeats} />
+              </div>
+            )}
+
             {isFlex && (
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{t('mp.flexEstimateNote').replace('{n}', String(seatsBookedSoFar + seats))}</p>
             )}
@@ -724,7 +786,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 locked-in seat. */}
             <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
             <div className="mt-3"><FarePolicyCard service="seat" defaultOpen={false} /></div>
-            <button onClick={submit} disabled={submitting} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button onClick={submit} disabled={submitting || (isSeatNumbered && selectedSeats.length !== seats)} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {submitting ? t('mp.placingBooking') : t('mp.bookSeatsBtn')}
             </button>
           </>
@@ -754,6 +816,13 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
             ))}
           </select>
 
+          {isSeatNumbered && vehicle && (
+            <div className="mt-3">
+              <SeatPicker totalSeats={vehicle.total_seats} takenSeatNumbers={takenSeatsReturn} seatsNeeded={1}
+                selected={selectedReturnSeat ? [selectedReturnSeat] : []} onChange={(s) => setSelectedReturnSeat(s[0] ?? null)} />
+            </div>
+          )}
+
           {isPerOrder ? (
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-3">{t('cm.payDirectlyNote')}</p>
           ) : (
@@ -763,7 +832,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
           )}
           <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
 
-          <button onClick={bookReturnSeat} disabled={bookingReturn || !returnBoardStopId} className="w-full mt-3 bg-[#166534] text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-[#0f4b27] transition-all disabled:opacity-50">
+          <button onClick={bookReturnSeat} disabled={bookingReturn || !returnBoardStopId || (isSeatNumbered && !selectedReturnSeat)} className="w-full mt-3 bg-[#166534] text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-[#0f4b27] transition-all disabled:opacity-50">
             {bookingReturn ? t('mp.placingBooking') : t('mv.bookReturnSeatBtn')}
           </button>
         </div>

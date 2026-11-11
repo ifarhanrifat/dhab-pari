@@ -182,8 +182,29 @@ export default function BusesPage() {
     if (!crossTenantTarget) return
     const supabase = createClient()
     setBooking(true)
+    // 845/846: a van-kind route (bus/coaster/hiace) now requires seat
+    // numbers. This cross-tenant fallback sheet is a deliberately
+    // simplified secondary path (no map, no stop picker) — rather than
+    // building a full seat picker here too, the lowest free seat
+    // numbers are auto-assigned from route_seat_status, same real
+    // collision protection server-side either way. The primary route
+    // page (RouteDetailPanel) is where a rider picks their own seat.
+    let seatNumbers: number[] | null = null
+    if (crossTenantTarget.kind === 'route') {
+      const { data: routeRow } = await supabase.from('vehicle_routes').select('vehicle_id').eq('id', crossTenantTarget.row.id).single()
+      const { data: veh } = routeRow ? await supabase.from('vehicles').select('total_seats, category_id').eq('id', routeRow.vehicle_id).single() : { data: null }
+      const { data: vc } = veh?.category_id ? await supabase.from('vehicle_categories').select('vehicle_kind').eq('id', veh.category_id).single() : { data: null }
+      if (vc?.vehicle_kind === 'van' && veh) {
+        const { data: taken } = await supabase.rpc('route_seat_status', { p_route_id: crossTenantTarget.row.id, p_travel_date: bookDate, p_direction: 'outbound' })
+        const takenSet = new Set((taken as number[]) ?? [])
+        const free: number[] = []
+        for (let n = 1; n <= veh.total_seats && free.length < bookSeats; n++) if (!takenSet.has(n)) free.push(n)
+        if (free.length < bookSeats) { toast.error(t('bus.notEnoughSeatsError')); setBooking(false); return }
+        seatNumbers = free
+      }
+    }
     const { error } = crossTenantTarget.kind === 'route'
-      ? await supabase.rpc('place_ride_booking', { p_route_id: crossTenantTarget.row.id, p_travel_date: bookDate, p_seats: bookSeats, p_method: 'cash', p_proof_url: null })
+      ? await supabase.rpc('place_ride_booking', { p_route_id: crossTenantTarget.row.id, p_travel_date: bookDate, p_seats: bookSeats, p_method: 'cash', p_proof_url: null, p_seat_numbers: seatNumbers })
       : await supabase.rpc('book_trip_offer', { p_trip_offer_id: crossTenantTarget.row.id, p_seats_requested: bookSeats })
     setBooking(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
