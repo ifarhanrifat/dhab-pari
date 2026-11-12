@@ -371,8 +371,14 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     loadMyBookings()
   }
 
-  const cancelMyBooking = async (bookingId: string) => {
-    if (!window.confirm(t('mp.confirmCancelConfirmedHint'))) return
+  const cancelMyBooking = async (bookingId: string, status: string) => {
+    // Real bug reported live: the "refunded in full... not something to
+    // undo lightly" wording showed even for a still-'announced' booking,
+    // which the platform never actually holds payment for in the first
+    // place (direct P2P, no escrow) — misleadingly implying a platform
+    // refund that doesn't exist at that stage.
+    const hint = status === 'confirmed' ? t('mp.confirmCancelConfirmedHint') : t('mp.confirmCancelAnnouncedHint')
+    if (!window.confirm(hint)) return
     setActionId(bookingId)
     const { error } = await supabase.rpc('cancel_ride_booking', { p_booking_id: bookingId, p_reason: t('mp.riderCancelledReason') })
     setActionId(null)
@@ -681,7 +687,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
               ) : (
                 <div className="flex items-center gap-3 mt-2">
                   <button onClick={() => { setReschedulingId(b.id); setRescheduleDate(b.travel_date); setRescheduleBoardStopId(b.board_stop_id); setRescheduleAlightStopId(b.alight_stop_id) }} disabled={actionId === b.id} className="inline-flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary cursor-pointer disabled:opacity-50"><CalendarClock size={12} /> {t('mv.rescheduleBtn')}</button>
-                  <button onClick={() => cancelMyBooking(b.id)} disabled={actionId === b.id} className="font-sans text-[12px] font-semibold text-dp-error cursor-pointer disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
+                  <button onClick={() => cancelMyBooking(b.id, b.status)} disabled={actionId === b.id} className="font-sans text-[12px] font-semibold text-dp-error cursor-pointer disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
                 </div>
               )}
             </div>

@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
-import { Scale, User, Truck } from 'lucide-react'
+import { Scale, User, Truck, ImageIcon } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -32,6 +32,7 @@ export default function AdminDisputesPage() {
   const { t, isUrdu } = useLocale()
   const access = useSystemAccess()
   const supabase = createClient()
+  const receiptUrl = (path: string) => supabase.storage.from('donation_receipts').getPublicUrl(path).data.publicUrl
 
   const [tab, setTab] = useState<'open' | 'closed'>('open')
   const [rows, setRows] = useState<Dispute[]>([])
@@ -95,8 +96,9 @@ export default function AdminDisputesPage() {
                 <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t(`dq.kind.${d.kind}`)}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">
                   {new Date(d.created_at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                  {d.ref_summary?.vehicle_owner && <> · <Truck size={11} className="inline -mt-0.5" /> {d.ref_summary.vehicle_owner}</>}
+                  {d.ref_summary?.vehicle_owner && <> · <Truck size={11} className="inline -mt-0.5" /> {d.ref_summary.vehicle_owner}{d.ref_summary?.vehicle_mobile ? ` (${d.ref_summary.vehicle_mobile})` : ''}</>}
                   {d.ref_summary?.shop_name && <> · {d.ref_summary.shop_name}</>}
+                  {d.ref_type === 'ride_booking' && d.ref_summary?.origin && <> · {d.ref_summary.origin} → {d.ref_summary.destination} · {d.ref_summary.travel_date}</>}
                 </p>
               </div>
               <div className="text-end shrink-0">
@@ -106,6 +108,14 @@ export default function AdminDisputesPage() {
             </div>
 
             <p className="font-sans text-[13px] text-dp-on-surface mt-2 pt-2 border-t border-dp-outline-variant">{d.note}</p>
+            {d.ref_type === 'ride_booking' && d.ref_summary?.cancellation_reason && (
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('dq.cancellationReasonLabel')}: {d.ref_summary.cancellation_reason}</p>
+            )}
+            {d.ref_type === 'ride_booking' && typeof d.ref_summary?.proof_url === 'string' && d.ref_summary.proof_url && (
+              <a href={receiptUrl(d.ref_summary.proof_url)} target="_blank" rel="noopener noreferrer" className="font-sans text-[12px] font-semibold text-dp-secondary mt-1 inline-flex items-center gap-1 underline">
+                <ImageIcon size={12} /> {t('dq.viewReceiptBtn')}
+              </a>
+            )}
             <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5 flex items-center gap-1"><User size={11} /> {t('dq.filedBy')}: {d.filed_by_name}{d.filed_by_mobile ? ` · ${d.filed_by_mobile}` : ''}</p>
 
             {d.status === 'closed' ? (

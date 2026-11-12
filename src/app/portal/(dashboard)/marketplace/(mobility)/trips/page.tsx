@@ -35,7 +35,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
-import { Receipt, Users, Clock, Wrench, Bus, Sparkles, ShoppingBag, Car, Package, Phone, Store, Navigation, CalendarDays } from 'lucide-react'
+import { Receipt, Users, Clock, Wrench, Bus, Sparkles, ShoppingBag, Car, Package, Phone, Store, Navigation, CalendarDays, AlertCircle, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -46,7 +46,7 @@ import { RouteBookingSheet } from '@/components/mobility/RouteBookingSheet'
 import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
 
 type Kind = 'trip' | 'hourly' | 'equipment' | 'ride' | 'shadi' | 'cityPurchase' | 'rental' | 'parcel' | 'dispatch' | 'shop' | 'rideDispatch' | 'monthly'
-interface BookingRow { id: string; rawId: string; kind: Kind; title: string; subtitle: string; amount: number | null; status: 'pending' | 'confirmed' | 'declined' | 'cancelled' | 'completed'; date: string; href: string | null; note?: string; routeId?: string | null }
+interface BookingRow { id: string; rawId: string; kind: Kind; title: string; subtitle: string; amount: number | null; status: 'pending' | 'confirmed' | 'declined' | 'cancelled' | 'completed'; date: string; href: string | null; note?: string; routeId?: string | null; proofUrl?: string | null }
 // Real ask: hourly/equipment/ride rows used to send the rider to a
 // generic, unscoped browse page instead of their own booking — these 3
 // now pop up that one booking's own status/actions instead (see
@@ -105,6 +105,11 @@ export default function TripsPage() {
   const [openRouteId, setOpenRouteId] = useState<string | null>(null)
   const [openTripBookingId, setOpenTripBookingId] = useState<string | null>(null)
   const [seg, setSeg] = useState<'active' | 'past'>('active')
+  const [disputedIds, setDisputedIds] = useState<Set<string>>(new Set())
+  const [disputingRow, setDisputingRow] = useState<BookingRow | null>(null)
+  const [disputeAmount, setDisputeAmount] = useState('')
+  const [disputeNote, setDisputeNote] = useState('')
+  const [filingDispute, setFilingDispute] = useState(false)
 
   const reloadMine = async () => {
     const [tripShare, hourly, equipment, ride, shadi, cityPurchase, rental, parcel, dispatch, shop, rideDispatch, monthly] = await Promise.all([
@@ -114,7 +119,7 @@ export default function TripsPage() {
       // Filtered to the signed-in rider: ride_bookings' keeper policy also
       // lets a driver read every booking on their own routes, which landed
       // other people's seats in the driver's own "My Bookings".
-      supabase.from('ride_bookings').select('id, route_id, status, total_amount_pkr, travel_date, vehicle_routes(origin, origin_ur, destination, destination_ur)').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
+      supabase.from('ride_bookings').select('id, route_id, status, total_amount_pkr, travel_date, announced_proof_url, vehicle_routes(origin, origin_ur, destination, destination_ur)').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
       supabase.rpc('my_shadi_events'),
       supabase.rpc('my_city_purchase_requests'),
       supabase.rpc('my_rental_bookings'),
@@ -139,9 +144,9 @@ export default function TripsPage() {
     for (const b of (equipment.data ?? []) as Array<{ id: string; kind: string; model: string | null; vehicle_type: string; total_amount_pkr: number | null; rate_pkr: number; status: string; requested_at: string }>) {
       out.push({ id: `equip-${b.id}`, rawId: b.id, kind: 'equipment', title: t(`vp.${b.kind}PageTitle`), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.rate_pkr, status: mapStatus(b.status), date: b.requested_at, href: `/portal/marketplace/${b.kind}` })
     }
-    for (const b of (ride.data ?? []) as unknown as Array<{ id: string; route_id: string | null; status: string; total_amount_pkr: number; travel_date: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }>) {
+    for (const b of (ride.data ?? []) as unknown as Array<{ id: string; route_id: string | null; status: string; total_amount_pkr: number; travel_date: string; announced_proof_url: string | null; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }>) {
       const vr = b.vehicle_routes
-      out.push({ id: `ride-${b.id}`, rawId: b.id, kind: 'ride', title: vr ? t('mv.tab.routes') : t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: '/portal/marketplace', routeId: b.route_id })
+      out.push({ id: `ride-${b.id}`, rawId: b.id, kind: 'ride', title: vr ? t('mv.tab.routes') : t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: '/portal/marketplace', routeId: b.route_id, proofUrl: b.announced_proof_url })
     }
     for (const e of (shadi.data ?? []) as Array<{ id: string; event_date: string; venue_address: string; status: string; advance_amount_pkr: number | null; created_at: string }>) {
       out.push({ id: `shadi-${e.id}`, rawId: e.id, kind: 'shadi', title: t('vp.shadiPageTitle'), subtitle: e.venue_address, amount: e.advance_amount_pkr, status: mapStatus(e.status), date: e.event_date || e.created_at, href: `/portal/marketplace/shadi/${e.id}` })
@@ -179,6 +184,9 @@ export default function TripsPage() {
 
     out.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
     setRows(out)
+
+    const { data: disputes } = await supabase.from('disputes').select('ref_id').eq('ref_type', 'ride_booking').eq('filed_by_portal_user_id', user!.id)
+    setDisputedIds(new Set(((disputes ?? []) as { ref_id: string }[]).map((d) => d.ref_id)))
   }
 
   useEffect(() => {
@@ -186,6 +194,20 @@ export default function TripsPage() {
     reloadMine().then(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
+
+  const fileUnrefundedDispute = async () => {
+    if (!disputingRow || !disputeNote.trim()) { toast.error(t('mp.disputeNoteRequiredError')); return }
+    setFilingDispute(true)
+    const { error } = await supabase.rpc('file_dispute', {
+      p_kind: 'unrefunded_payment', p_ref_type: 'ride_booking', p_ref_id: disputingRow.rawId,
+      p_claimed_amount_pkr: disputeAmount ? Number(disputeAmount) : disputingRow.amount, p_note: disputeNote.trim(),
+    })
+    setFilingDispute(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mp.disputeFiledToast'))
+    setDisputedIds((prev) => new Set(prev).add(disputingRow.rawId))
+    setDisputingRow(null); setDisputeAmount(''); setDisputeNote('')
+  }
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!user) return <div className="text-center py-12 text-[#64748b] text-[14px]">{t('p.couldNotLoad')}</div>
@@ -244,8 +266,46 @@ export default function TripsPage() {
           // booking (no route_id) has no route to map, so it keeps the
           // quick-view as before.
           if (r.kind === 'ride' && r.routeId) {
+            // Real gap reported live: a rider who paid the driver
+            // directly (the whole seat system is direct P2P payment, no
+            // platform escrow) then had to cancel before the driver
+            // confirmed had no way to escalate "I paid and wasn't
+            // refunded" — only shown once there's a real receipt
+            // attached to dispute about.
+            const showDisputeAction = r.status === 'cancelled' && !!r.proofUrl
             return (
-              <button key={r.id} onClick={() => setOpenRouteId(r.routeId!)} className={cls}>{content}</button>
+              <div key={r.id} className="flex flex-col gap-1.5">
+                <button onClick={() => setOpenRouteId(r.routeId!)} className={cls}>{content}</button>
+                {r.status === 'cancelled' && (
+                  <div className="flex gap-1.5 px-1">
+                    {showDisputeAction && (
+                      disputedIds.has(r.rawId) ? (
+                        <span className="flex-1 text-center font-sans text-[11px] font-semibold text-[#64748b] bg-[#f1f5f9] rounded-lg py-1.5">{t('mp.disputeAlreadyFiledHint')}</span>
+                      ) : (
+                        <button onClick={() => { setDisputingRow(r); setDisputeAmount(r.amount != null ? String(r.amount) : ''); setDisputeNote('') }}
+                          className="flex-1 flex items-center justify-center gap-1 font-sans text-[11px] font-semibold text-[#b91c1c] bg-red-50 border border-red-200 rounded-lg py-1.5 cursor-pointer">
+                          <AlertCircle size={12} /> {t('mp.reportUnrefundedBtn')}
+                        </button>
+                      )
+                    )}
+                    <Link href="/portal/marketplace/buses" className="flex-1 flex items-center justify-center gap-1 font-sans text-[11px] font-semibold text-[#166534] bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg py-1.5">
+                      <Search size={12} /> {t('mp.findAnotherRideBtn')}
+                    </Link>
+                  </div>
+                )}
+                {disputingRow?.id === r.id && (
+                  <div className="bg-white border border-[#e5e2d0] rounded-xl p-3 flex flex-col gap-2">
+                    <label className="block font-sans text-[10.5px] font-bold text-[#64748b]">{t('mp.claimedAmountLabel')}</label>
+                    <input type="number" value={disputeAmount} onChange={(e) => setDisputeAmount(e.target.value)} className="px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px] ltr-num" />
+                    <label className="block font-sans text-[10.5px] font-bold text-[#64748b]">{t('mp.disputeNoteLabel')}</label>
+                    <textarea value={disputeNote} onChange={(e) => setDisputeNote(e.target.value)} rows={2} placeholder={t('mp.disputeNotePlaceholder')} className="px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px]" />
+                    <div className="flex gap-2">
+                      <button onClick={fileUnrefundedDispute} disabled={filingDispute} className="flex-1 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12px] font-bold cursor-pointer disabled:opacity-50">{filingDispute ? t('action.loading') : t('mp.submitDisputeBtn')}</button>
+                      <button onClick={() => setDisputingRow(null)} className="flex-1 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12px] font-semibold text-[#64748b] cursor-pointer">{t('action.cancel')}</button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )
           }
           // Real fix, 2026-11-08: this used to navigate to the old
