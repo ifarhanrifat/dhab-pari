@@ -155,7 +155,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   // 850: "catch a departed ride" — a rider whose live GPS is still
   // ahead of the vehicle on its own road can book after it's already
   // left, instead of simply missing it.
-  const [runStatus, setRunStatus] = useState<{ has_active_run: boolean; started_at: string | null; minutes_since_departure: number | null; seats_available: number | null } | null>(null)
+  const [runStatus, setRunStatus] = useState<{ has_active_run: boolean; started_at: string | null; minutes_since_departure: number | null; seats_available: number | null; departure_time_passed: boolean; already_passed: boolean | null } | null>(null)
   const [catchChecking, setCatchChecking] = useState(false)
   const [catchFeasibility, setCatchFeasibility] = useState<{ eligible: boolean; reason: string | null; distance_km?: number } | null>(null)
   const [catchPoint, setCatchPoint] = useState<{ lat: number; lng: number } | null>(null)
@@ -217,16 +217,22 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
 
   useEffect(() => { loadMyBookings() }, [user, routeId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 850: polled while the panel is open so "departed Xm ago" and the
+  // 850/868: polled while the panel is open so "departed Xm ago" and the
   // seat count stay live without the rider having to reopen the page.
+  // The chosen board stop (or the route's own origin, for a full-route
+  // booking) is sent along so already_passed reflects THIS rider's
+  // actual boarding point, not a blanket "run started" flag — a rider
+  // wanting to board hours further down a long route must never be
+  // blocked just because the driver has moved at all.
   useEffect(() => {
     if (!route) return
-    const load = () => supabase.rpc('route_today_run_status', { p_route_id: route.id }).then(({ data }) => setRunStatus(data as typeof runStatus))
+    const boardStop = boardStopId ? stops.find((s) => s.id === boardStopId) : null
+    const load = () => supabase.rpc('route_today_run_status', { p_route_id: route.id, p_lat: boardStop?.lat ?? null, p_lng: boardStop?.lng ?? null }).then(({ data }) => setRunStatus(data as typeof runStatus))
     load()
     const interval = setInterval(load, 20000)
     return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [route?.id])
+  }, [route?.id, boardStopId, stops])
 
   const wrongDay = route && travelDate ? !route.days_of_week.includes(new Date(travelDate + 'T00:00:00').getDay()) : false
 
@@ -910,6 +916,24 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
         <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('mp.travelDateLabel')}</label>
         <input type="date" min={todayStr()} value={travelDate} onChange={(e) => setTravelDate(e.target.value)} className="input-field" />
         {wrongDay && <p className="font-sans text-[12px] text-dp-error mt-1.5">{t('mp.wrongDayError')}</p>}
+
+        {/* 868: real gap — booking for today used to carry zero signal
+            about whether the scheduled departure had already passed.
+            Ambiguous case (no live run yet — delayed, or the driver
+            forgot to tap Start): warn, don't block, since we genuinely
+            don't know if it left. Confirmed case (a live run exists AND
+            this exact board point has already been physically passed):
+            block this board point outright — the "Ride Now" section
+            below is the only way to still catch it from here. A board
+            point still ahead of the vehicle (common on a long route) is
+            never touched by either check. */}
+        {!wrongDay && travelDate === todayStr() && runStatus && (
+          runStatus.has_active_run && runStatus.already_passed ? (
+            <p className="font-sans text-[12px] text-dp-error bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 mt-2.5">{t('mv.boardPointAlreadyPassedHint')}</p>
+          ) : !runStatus.has_active_run && runStatus.departure_time_passed ? (
+            <p className="font-sans text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-2.5">{t('mv.departureTimePassedNoRunHint')}</p>
+          ) : null
+        )}
         {!wrongDay && travelDate && (
           <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">
             {checkingAvailability ? t('action.loading') : available !== null ? `${available} ${t('mp.seatsAvailableSuffix')}` : ''}
@@ -967,7 +991,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 locked-in seat. */}
             <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
             <div className="mt-3"><FarePolicyCard service="seat" defaultOpen={false} /></div>
-            <button onClick={submit} disabled={submitting || (isSeatNumbered && selectedSeats.length !== seats)} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button onClick={submit} disabled={submitting || (isSeatNumbered && selectedSeats.length !== seats) || (travelDate === todayStr() && !!runStatus?.has_active_run && !!runStatus?.already_passed)} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {submitting ? t('mp.placingBooking') : t('mp.bookSeatsBtn')}
             </button>
           </>
