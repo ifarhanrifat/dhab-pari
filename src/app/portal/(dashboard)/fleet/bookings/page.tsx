@@ -16,9 +16,11 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { SeatPicker } from '@/components/mobility/SeatPicker'
 
 interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }
 interface Route { id: string; origin: string; destination: string; departure_time: string | null; fare_per_seat_pkr: number }
+interface VehicleSeating { totalSeats: number; isVanKind: boolean }
 interface Counter { id: string; city: string; name: string | null }
 interface ManualBooking { id: string; passenger_name: string; seats: number; total_amount_pkr: number; payment_method: string; created_at: string }
 
@@ -46,6 +48,16 @@ export default function FleetBookingsPage() {
   const [method, setMethod] = useState('cash')
   const [recording, setRecording] = useState(false)
   const [todayBookings, setTodayBookings] = useState<ManualBooking[]>([])
+  // Van/bus/coaster/hiace-kind vehicles sell by seat number, not just a
+  // count — record_manual_booking (855) REQUIRES p_seat_numbers to match
+  // p_seats exactly for these, same rule the single-vehicle routes page
+  // already enforces. Real gap found live, 2026-11-12: this fleet-wide
+  // Bookings tab skipped seat selection entirely, which would reject
+  // every single booking attempt on a van-kind vehicle (the QA fleet's
+  // own Coaster/Bus are both van-kind) with "Pick exactly N seat(s)".
+  const [seating, setSeating] = useState<VehicleSeating | null>(null)
+  const [takenSeats, setTakenSeats] = useState<number[]>([])
+  const [selectedSeats, setSelectedSeats] = useState<number[]>([])
 
   useEffect(() => {
     if (!user) return
@@ -68,12 +80,15 @@ export default function FleetBookingsPage() {
   }, [user])
 
   const loadRoutesFor = async (vid: string) => {
-    setRouteId(''); setRoutes([]); setTodayBookings([])
+    setRouteId(''); setRoutes([]); setTodayBookings([]); setSeating(null)
     if (!vid) return
-    const { data } = await supabase.from('vehicle_routes')
-      .select('id, origin, destination, departure_time, fare_per_seat_pkr')
-      .eq('vehicle_id', vid).eq('is_active', true)
-    setRoutes((data ?? []) as Route[])
+    const [{ data: r }, { data: v }] = await Promise.all([
+      supabase.from('vehicle_routes').select('id, origin, destination, departure_time, fare_per_seat_pkr').eq('vehicle_id', vid).eq('is_active', true),
+      supabase.from('vehicles').select('total_seats, category_id, vehicle_categories(vehicle_kind)').eq('id', vid).single(),
+    ])
+    setRoutes((r ?? []) as Route[])
+    const vv = v as { total_seats: number; vehicle_categories: { vehicle_kind: string } | null } | null
+    setSeating(vv ? { totalSeats: vv.total_seats, isVanKind: vv.vehicle_categories?.vehicle_kind === 'van' } : null)
   }
 
   useEffect(() => { if (vehicleId) loadRoutesFor(vehicleId) }, [vehicleId]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -84,23 +99,34 @@ export default function FleetBookingsPage() {
     setTodayBookings((data ?? []) as ManualBooking[])
   }
 
-  useEffect(() => { if (routeId) loadTodayBookings(routeId) }, [routeId]) // eslint-disable-line react-hooks/exhaustive-deps
+  const loadTakenSeats = async (rid: string) => {
+    if (!rid || !seating?.isVanKind) { setTakenSeats([]); return }
+    const { data } = await supabase.rpc('route_seat_status', { p_route_id: rid, p_travel_date: new Date().toISOString().slice(0, 10), p_direction: 'outbound' })
+    setTakenSeats((data as number[]) ?? [])
+  }
+
+  useEffect(() => {
+    setSelectedSeats([])
+    if (routeId) { loadTodayBookings(routeId); loadTakenSeats(routeId) }
+  }, [routeId, seating?.isVanKind]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedRoute = routes.find((r) => r.id === routeId)
 
   const recordBooking = async () => {
     if (!routeId || !passengerName.trim() || !amount) { toast.error(t('mv.fillManualBookingError')); return }
+    if (seating?.isVanKind && selectedSeats.length !== seats) { toast.error(t('mv.pickASeatError')); return }
     setRecording(true)
     const { error } = await supabase.rpc('record_manual_booking', {
       p_route_id: routeId, p_travel_date: new Date().toISOString().slice(0, 10), p_seats: seats,
       p_passenger_name: passengerName, p_total_amount_pkr: Number(amount),
       p_counter_id: counterId || null, p_passenger_mobile: passengerMobile || null, p_payment_method: method,
+      p_seat_numbers: seating?.isVanKind ? selectedSeats : null,
     })
     setRecording(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('mv.manualBookingRecordedToast'))
-    setPassengerName(''); setPassengerMobile(''); setSeats(1); setAmount('')
-    loadTodayBookings(routeId)
+    setPassengerName(''); setPassengerMobile(''); setSeats(1); setAmount(''); setSelectedSeats([])
+    loadTodayBookings(routeId); loadTakenSeats(routeId)
   }
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
@@ -137,7 +163,7 @@ export default function FleetBookingsPage() {
                 className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
             </div>
             <div className="flex gap-2 mb-2">
-              <input type="number" min={1} value={seats} onChange={(e) => setSeats(Math.max(1, Number(e.target.value)))}
+              <input type="number" min={1} max={seating?.totalSeats} value={seats} onChange={(e) => setSeats(Math.max(1, Number(e.target.value)))}
                 className="w-20 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
               <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
                 placeholder={selectedRoute ? `₨${fmt(selectedRoute.fare_per_seat_pkr * seats)}` : t('mv.expenseAmountPlaceholder')}
@@ -147,6 +173,11 @@ export default function FleetBookingsPage() {
                 <option value="jazzcash">JazzCash</option>
               </select>
             </div>
+            {seating?.isVanKind && (
+              <div className="mb-2.5 p-3 bg-[#F9F9F6] rounded-lg">
+                <SeatPicker totalSeats={seating.totalSeats} takenSeatNumbers={takenSeats} seatsNeeded={seats} selected={selectedSeats} onChange={setSelectedSeats} />
+              </div>
+            )}
             <button onClick={recordBooking} disabled={recording} className="w-full px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
               {recording ? t('action.loading') : t('mv.recordBookingBtn')}
             </button>
