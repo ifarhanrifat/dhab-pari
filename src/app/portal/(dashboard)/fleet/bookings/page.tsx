@@ -84,11 +84,11 @@ export default function FleetBookingsPage() {
     if (!vid) return
     const [{ data: r }, { data: v }] = await Promise.all([
       supabase.from('vehicle_routes').select('id, origin, destination, departure_time, fare_per_seat_pkr').eq('vehicle_id', vid).eq('is_active', true),
-      supabase.from('vehicles').select('total_seats, is_sleeper, category_id, vehicle_categories(vehicle_kind)').eq('id', vid).single(),
+      supabase.from('vehicles').select('total_seats, category_id, vehicle_categories(vehicle_kind)').eq('id', vid).single(),
     ])
     setRoutes((r ?? []) as Route[])
-    const vv = v as { total_seats: number; is_sleeper: boolean; vehicle_categories: { vehicle_kind: string } | null } | null
-    setSeating(vv ? { totalSeats: vv.total_seats, isVanKind: vv.vehicle_categories?.vehicle_kind === 'van', isSleeper: vv.is_sleeper } : null)
+    const vv = v as { total_seats: number; vehicle_categories: { vehicle_kind: string } | null } | null
+    setSeating(vv ? { totalSeats: vv.total_seats, isVanKind: vv.vehicle_categories?.vehicle_kind === 'van', isSleeper: false } : null)
   }
 
   useEffect(() => { if (vehicleId) loadRoutesFor(vehicleId) }, [vehicleId]) // eslint-disable-line react-hooks/exhaustive-deps

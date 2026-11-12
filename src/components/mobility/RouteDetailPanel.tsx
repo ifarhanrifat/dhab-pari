@@ -48,7 +48,7 @@ interface Route {
   is_two_way: boolean; return_wait_minutes: number | null
   seat_override: number | null
 }
-interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string; category_id: string | null; is_sleeper: boolean }
+interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string; category_id: string | null; is_sleeper?: boolean }
 interface Stop { id: string; label: string; label_ur: string | null; lat: number; lng: number; stop_order: number }
 interface MonthlySubscription { id: string; status: string; monthly_fee_pkr: number; queue_position: number | null; scheduled_cancellation_at: string | null }
 interface MonthlyDetail { is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null; seats_total: number; active_count: number; my_subscription: MonthlySubscription | null; my_leave_days: string[] }
@@ -192,7 +192,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
       setRoute(r)
       if (r) {
         const [{ data: v }, { data: bk }, { data: st }] = await Promise.all([
-          supabase.from('vehicles').select('id, owner_name, owner_mobile, vehicle_type, total_seats, commission_mode, category_id, is_sleeper').eq('id', r.vehicle_id).single(),
+          supabase.from('vehicles').select('id, owner_name, owner_mobile, vehicle_type, total_seats, commission_mode, category_id').eq('id', r.vehicle_id).single(),
           supabase.rpc('vehicle_bookable', { p_vehicle_id: r.vehicle_id }),
           supabase.from('route_stops').select('id, label, label_ur, lat, lng, stop_order').eq('route_id', r.id).order('stop_order'),
         ])

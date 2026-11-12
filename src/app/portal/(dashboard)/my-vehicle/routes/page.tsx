@@ -272,9 +272,9 @@ export default function MyVehicleRoutesPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, commission_mode, total_seats, is_sleeper').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
+    supabase.from('vehicles').select('id, commission_mode, total_seats').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
       if (data) {
-        setVehicleId(data.id); setCommissionMode(data.commission_mode); setTotalSeats(data.total_seats); setIsSleeper(data.is_sleeper); setSelectedVehicleId(data.id)
+        setVehicleId(data.id); setCommissionMode(data.commission_mode); setTotalSeats(data.total_seats); setSelectedVehicleId(data.id)
         await reload(data.id)
         const kind = await fetchVehicleKind(data.id)
         setVehicleKind(kind)
@@ -355,8 +355,8 @@ export default function MyVehicleRoutesPage() {
   // since this used to only ever reload the owner's OWN vehicleId).
   const selectVehicle = async (id: string) => {
     setSelectedVehicleId(id)
-    const { data } = await supabase.from('vehicles').select('total_seats, is_sleeper').eq('id', id).single()
-    if (data) { setTotalSeats(data.total_seats); setIsSleeper(data.is_sleeper) }
+    const { data } = await supabase.from('vehicles').select('total_seats').eq('id', id).single()
+    if (data) setTotalSeats(data.total_seats)
     const kind = await fetchVehicleKind(id)
     setVehicleKind(kind)
     setForm((f) => ({ ...f, fare_mode: kind === 'van' ? 'fixed' : 'flex' }))
