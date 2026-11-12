@@ -342,15 +342,9 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
 
   async function reload(c: City, date?: string) {
     const d = date ?? travelDate
-    void d
-    // HOTFIX: migration 863 (adds p_travel_date to both RPCs) hasn't
-    // landed in production yet — calling with the new param 400s every
-    // real rider's search right now. Reverted to the old signature
-    // until the migration is confirmed live; re-add { p_travel_date: d }
-    // to both calls once it is.
     const [{ data: trips, error: tripsErr }, { data: routeRows, error: routesErr }] = await Promise.all([
-      supabase.rpc('browse_open_trip_offers', { p_city_key: c.name }),
-      supabase.rpc('routes_to_destination', { p_city_name: c.name }),
+      supabase.rpc('browse_open_trip_offers', { p_city_key: c.name, p_travel_date: d }),
+      supabase.rpc('routes_to_destination', { p_city_name: c.name, p_travel_date: d }),
     ])
     if (tripsErr) toast.error(friendlyError(tripsErr, undefined, isUrdu))
     if (routesErr) toast.error(friendlyError(routesErr, undefined, isUrdu))
@@ -742,15 +736,13 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
 function RouteResultCard({ route: r, nm, t, isUrdu }: {
   route: RouteRow; nm: (en: string, ur: string | null) => string; t: (k: string) => string; isUrdu: boolean
 }) {
-  // HOTFIX guard: migration 863 (the fields below) hasn't landed in
-  // production yet, so routes_to_destination is still returning the
-  // old thin shape — every field past fare/owner/origin/destination
-  // can be genuinely absent right now. Remove these `!= null` guards
-  // once 863 is confirmed live; they're a stopgap, not the design.
-  const depTime = r.departure_time != null ? fmtTime(r.departure_time, isUrdu) : null
-  const retTime = r.return_departure_time != null ? fmtTime(r.return_departure_time, isUrdu) : null
-  const hasSeatCount = r.seats_available != null
-  const full = hasSeatCount && r.seats_available <= 0
+  // routes_to_destination (863) only ever returns routes that actually
+  // run on the picked day, with that day's real seat count — so these
+  // are always present; return_departure_time is the one genuinely
+  // optional field (null for one-way-only routes).
+  const depTime = fmtTime(r.departure_time, isUrdu)
+  const retTime = fmtTime(r.return_departure_time, isUrdu)
+  const full = r.seats_available <= 0
   return (
     <Link href={`/portal/marketplace/route/${r.id}`} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2 block">
       <div className="flex items-start justify-between gap-2">
@@ -767,7 +759,7 @@ function RouteResultCard({ route: r, nm, t, isUrdu }: {
               </span>
               {r.is_monthly_fixed && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{t('mv.monthlyFixedBadge')}</span>}
             </div>
-            {r.vehicle_type && <p className="text-[10.5px] text-[#64748b]">{r.vehicle_type}</p>}
+            <p className="text-[10.5px] text-[#64748b]">{r.vehicle_type}</p>
             <p className="text-[10.5px] text-[#64748b]">{nm(r.origin, r.origin_ur)} → {nm(r.destination, r.destination_ur)}</p>
             {depTime && (
               <p className="text-[10.5px] text-[#64748b] flex items-center gap-1 mt-0.5 justify-end">
@@ -781,11 +773,9 @@ function RouteResultCard({ route: r, nm, t, isUrdu }: {
           </span>
         </div>
       </div>
-      {hasSeatCount && (
-        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ltr-num ${full ? 'bg-rose-50 text-rose-600' : r.seats_available <= 3 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
-          <Users size={10} /> {full ? t('vp.notEnoughSeats') : t('vp.seatsLeftLabel').replace('{n}', String(r.seats_available))}
-        </span>
-      )}
+      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ltr-num ${full ? 'bg-rose-50 text-rose-600' : r.seats_available <= 3 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+        <Users size={10} /> {full ? t('vp.notEnoughSeats') : t('vp.seatsLeftLabel').replace('{n}', String(r.seats_available))}
+      </span>
     </Link>
   )
 }
