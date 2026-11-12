@@ -56,7 +56,9 @@ interface TripRow {
 }
 interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
-  fare_per_seat_pkr: number; vehicle_id: string; owner_name: string
+  fare_per_seat_pkr: number; vehicle_id: string; owner_name: string; vehicle_type: string
+  departure_time: string | null; return_departure_time: string | null; is_two_way: boolean
+  classification: string; is_monthly_fixed: boolean; is_sleeper: boolean; total_seats: number; seats_available: number
 }
 interface VehicleCategory {
   id: string; key: string; name: string; name_ur: string | null; emoji: string; base_fare_pkr: number; per_km_pkr: number; out_of_city_base_fare_pkr: number | null; out_of_city_per_km_pkr: number | null; category_group: 'passenger' | 'loading' | 'machinery'; out_of_city_eligible: boolean; ride_group: string | null; variant_filter: string | null
@@ -141,6 +143,12 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [vehicleView, setVehicleView] = useState<'passenger' | 'loading' | 'machinery'>('passenger')
+  // 863: "select the date then the all busses will be appear under
+  // that with there seat avaialblity details" — both browse_open_trip_
+  // offers and routes_to_destination are now date-aware; this screen
+  // owns the date itself (defaulting to today) so the upstream search
+  // step doesn't need a matching change.
+  const [travelDate, setTravelDate] = useState(() => new Date().toISOString().slice(0, 10))
 
   // Real ask, 2026-10-27: "no regular rides are listed like catagory
   // wise list... when user will chose one catagory then the request
@@ -332,10 +340,11 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
     setFallbackOptions(null); setSelectedFallback(new Set()); setScheduleAt('')
   }
 
-  async function reload(c: City) {
+  async function reload(c: City, date?: string) {
+    const d = date ?? travelDate
     const [{ data: trips, error: tripsErr }, { data: routeRows, error: routesErr }] = await Promise.all([
-      supabase.rpc('browse_open_trip_offers', { p_city_key: c.name }),
-      supabase.rpc('routes_to_destination', { p_city_name: c.name }),
+      supabase.rpc('browse_open_trip_offers', { p_city_key: c.name, p_travel_date: d }),
+      supabase.rpc('routes_to_destination', { p_city_name: c.name, p_travel_date: d }),
     ])
     if (tripsErr) toast.error(friendlyError(tripsErr, undefined, isUrdu))
     if (routesErr) toast.error(friendlyError(routesErr, undefined, isUrdu))
@@ -352,6 +361,11 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toId])
+
+  useEffect(() => {
+    if (city) reload(city, travelDate)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [travelDate])
 
   async function bookTrip(trip: TripRow, leg: 'oneway' | 'return') {
     setBusyId(trip.id)
@@ -407,6 +421,12 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
             <p className="text-[12px] text-[#64748b]">{t('mb.resultsHeading')}</p>
           </div>
 
+          {/* 863: "select the date then the all busses will be appear
+              under that with there seat avaialblity details" */}
+          <input type="date" value={travelDate} min={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setTravelDate(e.target.value)}
+            className="px-3 py-2 border border-[#e5e2d0] rounded-xl font-sans text-[13px] ltr-num" />
+
           {(() => {
             const pins: LeafletPin[] = []
             if (fromLat && fromLng) pins.push({ lat: Number(fromLat), lng: Number(fromLng), label: fromName ?? undefined, color: '#005A36' })
@@ -436,20 +456,7 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
                 <TripCard key={trip.id} trip={trip} busy={busyId === trip.id} onBook={bookTrip} onBookReturnOnly={bookReturnOnly} nm={nm} t={t} isUrdu={isUrdu} />
               ))}
               {routes.map((r) => (
-                <Link key={r.id} href={`/portal/marketplace/route/${r.id}`} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-3">
-                  <span className="shrink-0 w-9 h-9 rounded-xl bg-[#dcfce7] flex items-center justify-center"><Bus size={17} className="text-[#166534]" /></span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[13px] font-bold text-[#1e293b]">{nm(r.origin, r.origin_ur)} → {nm(r.destination, r.destination_ur)}</span>
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('mb.weeklyRouteBadge')}</span>
-                    </div>
-                    <p className="text-[11px] text-[#64748b] mt-0.5">{r.owner_name}</p>
-                  </div>
-                  <div className="shrink-0 text-end">
-                    <p className="font-extrabold text-[14px] text-[#005A36]">{fmt(r.fare_per_seat_pkr)}</p>
-                    <p className="text-[9px] text-[#64748b]">{t('mk.perSeat')}</p>
-                  </div>
-                </Link>
+                <RouteResultCard key={r.id} route={r} nm={nm} t={t} isUrdu={isUrdu} />
               ))}
             </div>
           )}
@@ -717,6 +724,55 @@ export function TravelResultsPanel({ toId, fromLat, fromLng, fromName, onBack }:
 
       {openRideBookingId && <RideLifecycleSheet bookingId={openRideBookingId} onClose={() => setOpenRideBookingId(null)} />}
     </div>
+  )
+}
+
+// 863: a weekly-route card used to show only origin/destination, fare,
+// and the owner's name — no departure time, no seats-left, no bus
+// type, nothing a rider actually needs to decide between two buses.
+// Rebuilt to the same visual weight as TripCard (fare first and
+// biggest, a seats-left pill, a real departure time), since both card
+// types now sit in the same results list and should feel consistent.
+function RouteResultCard({ route: r, nm, t, isUrdu }: {
+  route: RouteRow; nm: (en: string, ur: string | null) => string; t: (k: string) => string; isUrdu: boolean
+}) {
+  const depTime = fmtTime(r.departure_time, isUrdu)
+  const retTime = fmtTime(r.return_departure_time, isUrdu)
+  const full = r.seats_available <= 0
+  return (
+    <Link href={`/portal/marketplace/route/${r.id}`} className="bg-white border border-[#e5e2d0] rounded-2xl p-3 space-y-2 block">
+      <div className="flex items-start justify-between gap-2">
+        <div className="shrink-0">
+          <p className="font-sans text-[18px] font-extrabold text-[#166534] ltr-num leading-none">{fmt(r.fare_per_seat_pkr)}</p>
+          <p className="text-[10.5px] text-[#64748b] mt-1">{t('vp.perSeatLabel')}</p>
+        </div>
+        <div className="flex items-start gap-2 text-end">
+          <div>
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              <p className="font-sans text-[12.5px] font-extrabold text-[#1e293b]">{r.owner_name}</p>
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">
+                {r.is_sleeper ? t('mv.isSleeperLabel') : t('mb.weeklyRouteBadge')}
+              </span>
+              {r.is_monthly_fixed && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{t('mv.monthlyFixedBadge')}</span>}
+            </div>
+            <p className="text-[10.5px] text-[#64748b]">{r.vehicle_type}</p>
+            <p className="text-[10.5px] text-[#64748b]">{nm(r.origin, r.origin_ur)} → {nm(r.destination, r.destination_ur)}</p>
+            {depTime && (
+              <p className="text-[10.5px] text-[#64748b] flex items-center gap-1 mt-0.5 justify-end">
+                <Clock size={10} /> {t('vp.departureLabel')} <span className="ltr-num font-semibold text-[#1e293b]">{depTime}</span>
+                {r.is_two_way && retTime && <span className="ltr-num"> · {t('mv.scheduleWaitLabel')} {retTime}</span>}
+              </p>
+            )}
+          </div>
+          <span className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-[#dcfce7]">
+            <Bus size={16} className="text-[#166534]" />
+          </span>
+        </div>
+      </div>
+      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ltr-num ${full ? 'bg-rose-50 text-rose-600' : r.seats_available <= 3 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+        <Users size={10} /> {full ? t('vp.notEnoughSeats') : t('vp.seatsLeftLabel').replace('{n}', String(r.seats_available))}
+      </span>
+    </Link>
   )
 }
 
