@@ -97,6 +97,8 @@ export default function FleetDashboardPage() {
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null)
   const [editDepartureTime, setEditDepartureTime] = useState('')
   const [editReturnTime, setEditReturnTime] = useState('')
+  const [editIsTwoWay, setEditIsTwoWay] = useState(false)
+  const [editReturnWaitMinutes, setEditReturnWaitMinutes] = useState(300)
   const [editDays, setEditDays] = useState<number[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
   const [busyRouteId, setBusyRouteId] = useState<string | null>(null)
@@ -163,6 +165,8 @@ export default function FleetDashboardPage() {
     setEditingRouteId(s.route_id)
     setEditDepartureTime(s.departure_time ?? '')
     setEditReturnTime(s.return_departure_time ?? '')
+    setEditIsTwoWay(s.is_two_way)
+    setEditReturnWaitMinutes(s.return_wait_minutes ?? 300)
     setEditDays(s.days_of_week ?? [])
   }
   const toggleEditDay = (d: number) => setEditDays((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort())
@@ -172,7 +176,7 @@ export default function FleetDashboardPage() {
     setSavingEdit(true)
     const { error } = await supabase.rpc('update_vehicle_route_schedule', {
       p_route_id: s.route_id, p_departure_time: editDepartureTime || null, p_days_of_week: editDays,
-      p_return_departure_time: s.is_two_way ? (editReturnTime || null) : null, p_is_two_way: s.is_two_way, p_return_wait_minutes: s.is_two_way ? s.return_wait_minutes : null,
+      p_return_departure_time: editIsTwoWay ? (editReturnTime || null) : null, p_is_two_way: editIsTwoWay, p_return_wait_minutes: editIsTwoWay ? editReturnWaitMinutes : null,
     })
     setSavingEdit(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -348,13 +352,36 @@ export default function FleetDashboardPage() {
                           <label className="block font-sans text-[10.5px] font-bold text-[#64748b] mb-0.5">{t('mv.departureTimeLabel')}</label>
                           <input type="time" value={editDepartureTime} onChange={(e) => setEditDepartureTime(e.target.value)} className="w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
                         </div>
-                        {s.is_two_way && (
+                        {editIsTwoWay && (
                           <div className="flex-1">
                             <label className="block font-sans text-[10.5px] font-bold text-[#64748b] mb-0.5">{t('cm.returnDepartureTimeLabel')}</label>
                             <input type="time" value={editReturnTime} onChange={(e) => setEditReturnTime(e.target.value)} className="w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
                           </div>
                         )}
                       </div>
+
+                      {/* Real ask, 2026-11-12: "does these vehicles will
+                          have return time schedule as well from Karachi
+                          to Peshawar?" — is_two_way/return_departure_time
+                          already existed backend-side but this quick
+                          editor only ever showed the return field when
+                          already on, with no way to turn it on. */}
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={editIsTwoWay} onChange={(e) => setEditIsTwoWay(e.target.checked)} className="accent-[#166534]" />
+                        <span className="font-sans text-[12px] font-semibold text-[#1e293b]">{t('mv.isTwoWayToggleLabel')}</span>
+                      </label>
+                      {editIsTwoWay && (
+                        <div className="flex gap-1.5 flex-wrap items-center">
+                          <span className="font-sans text-[10.5px] text-[#64748b]">{t('mv.returnWaitMinutesLabel')}</span>
+                          {[300, 360, 480].map((mins) => (
+                            <button key={mins} type="button" onClick={() => setEditReturnWaitMinutes(mins)}
+                              className={`px-2 py-1 rounded-lg font-sans text-[11px] font-semibold cursor-pointer ${editReturnWaitMinutes === mins ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                              {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
                       <div className="flex gap-1 flex-wrap">
                         {[0, 1, 2, 3, 4, 5, 6].map((d) => (
                           <button key={d} type="button" onClick={() => toggleEditDay(d)} className={`px-2 py-1 rounded-lg font-sans text-[11px] font-semibold cursor-pointer ${editDays.includes(d) ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
@@ -362,6 +389,11 @@ export default function FleetDashboardPage() {
                           </button>
                         ))}
                       </div>
+
+                      <Link href={`/portal/my-vehicle/routes?vehicle=${s.vehicle_id}`} className="font-sans text-[11px] font-semibold text-[#166534] underline underline-offset-2">
+                        {t('mv.manageStopsBtn')}
+                      </Link>
+
                       <div className="flex gap-2">
                         <button onClick={() => saveEdit(s)} disabled={savingEdit} className="flex-1 px-2.5 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11.5px] font-bold cursor-pointer disabled:opacity-50">
                           {savingEdit ? t('action.loading') : t('action.save')}
