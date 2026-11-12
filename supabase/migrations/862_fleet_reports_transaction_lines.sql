@@ -11,29 +11,39 @@
 
 CREATE OR REPLACE FUNCTION fleet_expense_transactions(p_fleet_id uuid) RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  WITH numbered AS (
+    SELECT e.id, e.expense_date, e.vehicle_id, v.owner_name, e.category, e.note, e.amount_pkr,
+      row_number() OVER (ORDER BY e.expense_date, e.created_at) AS rn, e.created_at
+    FROM vehicle_expenses e
+    JOIN vehicles v ON v.id = e.vehicle_id
+    WHERE v.fleet_id = p_fleet_id AND can_manage_vehicle(e.vehicle_id)
+  )
   SELECT COALESCE(jsonb_agg(jsonb_build_object(
-    'txn_no', 'EXP-' || to_char(e.created_at, 'YYMM') || '-' || lpad(row_number() OVER (ORDER BY e.expense_date, e.created_at)::text, 4, '0'),
-    'id', e.id, 'expense_date', e.expense_date, 'vehicle_id', e.vehicle_id, 'owner_name', v.owner_name,
-    'category', e.category, 'note', e.note, 'amount_pkr', e.amount_pkr
-  ) ORDER BY e.expense_date DESC, e.created_at DESC), '[]'::jsonb)
-  FROM vehicle_expenses e
-  JOIN vehicles v ON v.id = e.vehicle_id
-  WHERE v.fleet_id = p_fleet_id AND can_manage_vehicle(e.vehicle_id);
+    'txn_no', 'EXP-' || to_char(n.created_at, 'YYMM') || '-' || lpad(n.rn::text, 4, '0'),
+    'id', n.id, 'expense_date', n.expense_date, 'vehicle_id', n.vehicle_id, 'owner_name', n.owner_name,
+    'category', n.category, 'note', n.note, 'amount_pkr', n.amount_pkr
+  ) ORDER BY n.expense_date DESC, n.created_at DESC), '[]'::jsonb)
+  FROM numbered n;
 $$;
 REVOKE ALL ON FUNCTION fleet_expense_transactions(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION fleet_expense_transactions(uuid) TO authenticated;
 
 CREATE OR REPLACE FUNCTION fleet_salary_payment_transactions(p_fleet_id uuid) RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  WITH numbered AS (
+    SELECT p.id, p.paid_on, pu.full_name, p.note, p.amount_pkr, p.created_at,
+      row_number() OVER (ORDER BY p.paid_on, p.created_at) AS rn
+    FROM fleet_staff_salary_payments p
+    JOIN fleet_staff fs ON fs.id = p.fleet_staff_id
+    JOIN portal_users pu ON pu.id = fs.portal_user_id
+    WHERE fs.fleet_id = p_fleet_id
+      AND EXISTS (SELECT 1 FROM fleets f WHERE f.id = p_fleet_id AND f.owning_portal_user_id = current_portal_user_id())
+  )
   SELECT COALESCE(jsonb_agg(jsonb_build_object(
-    'txn_no', 'SAL-' || to_char(p.created_at, 'YYMM') || '-' || lpad(row_number() OVER (ORDER BY p.paid_on, p.created_at)::text, 4, '0'),
-    'id', p.id, 'paid_on', p.paid_on, 'full_name', pu.full_name, 'note', p.note, 'amount_pkr', p.amount_pkr
-  ) ORDER BY p.paid_on DESC, p.created_at DESC), '[]'::jsonb)
-  FROM fleet_staff_salary_payments p
-  JOIN fleet_staff fs ON fs.id = p.fleet_staff_id
-  JOIN portal_users pu ON pu.id = fs.portal_user_id
-  WHERE fs.fleet_id = p_fleet_id
-    AND EXISTS (SELECT 1 FROM fleets f WHERE f.id = p_fleet_id AND f.owning_portal_user_id = current_portal_user_id());
+    'txn_no', 'SAL-' || to_char(n.created_at, 'YYMM') || '-' || lpad(n.rn::text, 4, '0'),
+    'id', n.id, 'paid_on', n.paid_on, 'full_name', n.full_name, 'note', n.note, 'amount_pkr', n.amount_pkr
+  ) ORDER BY n.paid_on DESC, n.created_at DESC), '[]'::jsonb)
+  FROM numbered n;
 $$;
 REVOKE ALL ON FUNCTION fleet_salary_payment_transactions(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION fleet_salary_payment_transactions(uuid) TO authenticated;
