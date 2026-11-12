@@ -181,8 +181,14 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
 
   const loadMyBookings = async () => {
     if (!user) return
+    // Real bug reported live: a seat the driver had already boarded AND
+    // dropped off (end_route_run) kept showing here as an active,
+    // reschedule/cancel-able "upcoming seat" forever — status never
+    // moves off 'announced'/'confirmed' for a route booking (that
+    // dimension only tracks payment, not the physical trip), so
+    // dropped_off_at is the real "this trip is over" signal.
     const { data } = await supabase.from('ride_bookings').select('id, travel_date, seats, total_amount_pkr, status, board_stop_id, alight_stop_id, seat_accepted_at')
-      .eq('route_id', routeId).eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).gte('travel_date', todayStr()).order('travel_date')
+      .eq('route_id', routeId).eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).is('dropped_off_at', null).gte('travel_date', todayStr()).order('travel_date')
     setMyBookings((data ?? []) as MyBooking[])
   }
 

@@ -102,7 +102,7 @@ export default function BusesPage() {
     Promise.all([
       supabase.from('vehicle_routes').select(`id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr, departure_time, return_departure_time, days_of_week, is_two_way, is_monthly_fixed, monthly_reference_fee_pkr, distance_km, route_duration_min, ${veh}`).eq('is_active', true).order('departure_time'),
       supabase.from('vehicle_trip_offers').select(`id, origin, origin_ur, destination, destination_ur, travel_date, departure_time_estimate, seats_available, listed_fare_per_seat_pkr, trip_type, ${veh}`).eq('status', 'open').gte('travel_date', today).order('travel_date'),
-      supabase.from('ride_bookings').select('id, status, seats, travel_date, route_id, boarded_at, dropped_off_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time)').eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).gte('travel_date', today).order('travel_date'),
+      supabase.from('ride_bookings').select('id, status, seats, travel_date, route_id, boarded_at, dropped_off_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time)').eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).is('dropped_off_at', null).gte('travel_date', today).order('travel_date'),
       supabase.rpc('nearby_tehsil_rides'),
     ]).then(([r, o, m, nearby]) => {
       const ownRoutes = (r.data ?? []) as unknown as RouteRow[]

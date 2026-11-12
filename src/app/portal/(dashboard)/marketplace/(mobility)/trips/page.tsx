@@ -119,7 +119,7 @@ export default function TripsPage() {
       // Filtered to the signed-in rider: ride_bookings' keeper policy also
       // lets a driver read every booking on their own routes, which landed
       // other people's seats in the driver's own "My Bookings".
-      supabase.from('ride_bookings').select('id, route_id, status, total_amount_pkr, travel_date, announced_proof_url, vehicle_routes(origin, origin_ur, destination, destination_ur)').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
+      supabase.from('ride_bookings').select('id, route_id, status, total_amount_pkr, travel_date, announced_proof_url, dropped_off_at, vehicle_routes(origin, origin_ur, destination, destination_ur)').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
       supabase.rpc('my_shadi_events'),
       supabase.rpc('my_city_purchase_requests'),
       supabase.rpc('my_rental_bookings'),
@@ -144,9 +144,13 @@ export default function TripsPage() {
     for (const b of (equipment.data ?? []) as Array<{ id: string; kind: string; model: string | null; vehicle_type: string; total_amount_pkr: number | null; rate_pkr: number; status: string; requested_at: string }>) {
       out.push({ id: `equip-${b.id}`, rawId: b.id, kind: 'equipment', title: t(`vp.${b.kind}PageTitle`), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.rate_pkr, status: mapStatus(b.status), date: b.requested_at, href: `/portal/marketplace/${b.kind}` })
     }
-    for (const b of (ride.data ?? []) as unknown as Array<{ id: string; route_id: string | null; status: string; total_amount_pkr: number; travel_date: string; announced_proof_url: string | null; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }>) {
+    for (const b of (ride.data ?? []) as unknown as Array<{ id: string; route_id: string | null; status: string; total_amount_pkr: number; travel_date: string; announced_proof_url: string | null; dropped_off_at: string | null; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }>) {
       const vr = b.vehicle_routes
-      out.push({ id: `ride-${b.id}`, rawId: b.id, kind: 'ride', title: vr ? t('mv.tab.routes') : t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: mapStatus(b.status), date: b.travel_date, href: '/portal/marketplace', routeId: b.route_id, proofUrl: b.announced_proof_url })
+      // Real bug reported live: a seat already boarded AND dropped off
+      // (end_route_run) kept showing in the Active tab forever — status
+      // alone only ever tracks payment ('announced'/'confirmed'), never
+      // the physical trip, so dropped_off_at is the real completion signal.
+      out.push({ id: `ride-${b.id}`, rawId: b.id, kind: 'ride', title: vr ? t('mv.tab.routes') : t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: b.dropped_off_at ? 'completed' : mapStatus(b.status), date: b.travel_date, href: '/portal/marketplace', routeId: b.route_id, proofUrl: b.announced_proof_url })
     }
     for (const e of (shadi.data ?? []) as Array<{ id: string; event_date: string; venue_address: string; status: string; advance_amount_pkr: number | null; created_at: string }>) {
       out.push({ id: `shadi-${e.id}`, rawId: e.id, kind: 'shadi', title: t('vp.shadiPageTitle'), subtitle: e.venue_address, amount: e.advance_amount_pkr, status: mapStatus(e.status), date: e.event_date || e.created_at, href: `/portal/marketplace/shadi/${e.id}` })
