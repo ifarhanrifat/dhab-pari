@@ -75,29 +75,26 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
   const VEHICLE_FIELDS = 'id, owner_name, vehicle_type, commission_mode, delivers, offers_hourly, offers_shadi, offers_rental, is_online, offers_machinery, offers_tractor, offers_loader'
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select(VEHICLE_FIELDS).eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
-      let own = data
-      // Real gap found live, 2026-11-11: a fleet owner/staff member (844/
-      // 854) with no vehicle of their OWN was blocked by this exact same
-      // "no vehicle linked, register" screen the shop sidebar fix's own
-      // comment (PortalSidebar.tsx) already documented for shops — this
-      // is the vehicle-side equivalent, just never applied here. Falls
-      // back to the first fleet vehicle so the shared chrome/nav below
-      // has something to key off; the Fleet tab itself resolves the
-      // real fleet/vehicle list independently of this fallback.
+    supabase.from('vehicles').select(VEHICLE_FIELDS).eq('portal_user_id', user.id).maybeSingle().then(async ({ data: own }) => {
+      // 860: this used to fall back to "the fleet's first vehicle" for an
+      // owner/staff member with no vehicle of their own, which is the bug
+      // that got reported — it put the fleet OWNER inside the single-
+      // driver shell, badged as that vehicle's driver. A fleet owner/
+      // staff member now gets their own separate shell at /portal/fleet
+      // (fleet/layout.tsx) instead; this layout only ever renders for
+      // someone who actually has a personal vehicle of their own.
       if (!own) {
-        const { data: fleet } = await supabase.rpc('my_fleet_vehicles')
-        const firstFleetId = (fleet as { id: string }[] | null)?.[0]?.id
-        if (firstFleetId) {
-          const { data: fv } = await supabase.from('vehicles').select(VEHICLE_FIELDS).eq('id', firstFleetId).maybeSingle()
-          own = fv
+        const { data: managed } = await supabase.rpc('my_managed_fleet')
+        if ((managed as { fleet_id: string } | null)?.fleet_id) {
+          router.replace('/portal/fleet')
+          return
         }
+        supabase.rpc('my_vehicle_registration_status').then(({ data: rs }) => setRegStatus(rs ?? null))
       }
       // Shown behind one combined flag — the 3 equipment verticals share
       // a single driver-side screen (my-vehicle/equipment), not a tab
       // each, since most vehicles only ever offer one or two of them.
       setVehicle(own ? { ...own, offers_equipment: !!(own.offers_machinery || own.offers_tractor || own.offers_loader) } : own)
-      if (!own) supabase.rpc('my_vehicle_registration_status').then(({ data: rs }) => setRegStatus(rs ?? null))
       setLoading(false)
     })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps

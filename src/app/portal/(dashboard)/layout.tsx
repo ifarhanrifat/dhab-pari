@@ -60,6 +60,10 @@ import { FloatingBookingsHub } from '@/components/mobility/FloatingBookingsHub'
 const MOBILITY_MARKETPLACE_SLUGS = ['travel', 'results', 'hourly', 'rental', 'shadi', 'machinery', 'tractor', 'loader', 'trips', 'negotiations', 'account', 'city-purchase', 'notifications', 'shared', 'parcel', 'weekly-commute', 'buses']
 function isMobilityRoute(pathname: string) {
   if (pathname.startsWith('/portal/my-vehicle')) return true
+  // 860: the fleet owner/staff shell gets its own header+nav exactly like
+  // my-vehicle above — same reason, suppress the generic PortalHeader/
+  // AnnouncementBar here so the two chromes never stack.
+  if (pathname.startsWith('/portal/fleet')) return true
   return MOBILITY_MARKETPLACE_SLUGS.some((slug) => pathname === `/portal/marketplace/${slug}` || pathname.startsWith(`/portal/marketplace/${slug}/`))
 }
 

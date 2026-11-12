@@ -237,7 +237,7 @@ export default function MyVehicleHomePage() {
       {/* 853: self-service fleet management — reachable by everyone,
           not just rideEligible, since a machinery/equipment-only owner
           with multiple machines needs this too. */}
-      <Link href="/portal/my-vehicle/fleet" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-2.5 hover:border-[#166534]">
+      <Link href="/portal/fleet" className="bg-white border border-[#e5e2d0] rounded-2xl p-3 flex items-center gap-2.5 hover:border-[#166534]">
         <span className="shrink-0 w-9 h-9 rounded-full bg-[#F0FDF4] flex items-center justify-center"><Users2 size={16} className="text-[#166534]" /></span>
         <span className="font-sans text-[13px] font-bold text-[#1e293b]">{t('mv.manageMyFleetBtn')}</span>
         <ChevronRight size={14} className={`shrink-0 ms-auto ${isUrdu ? 'rotate-180' : ''}`} />

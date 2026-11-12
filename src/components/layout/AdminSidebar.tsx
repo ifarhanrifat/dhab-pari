@@ -246,6 +246,7 @@ const menuItems: MenuEntry[] = [
       { href: '/admin/shadi-bookings', label: 'Shadi Bookings', tKey: 'nav.shadiBookings', icon: Users2, system: 'donors_projects' },
       { href: '/admin/equipment-advances', label: 'Machinery Advances', tKey: 'nav.equipmentAdvances', icon: Wrench, system: 'donors_projects' },
       { href: '/admin/fare-policies', label: 'Fare Policies', tKey: 'nav.farePolicies', icon: Receipt, system: 'donors_projects' },
+      { href: '/admin/fare-requests', label: 'Fare Change Requests', tKey: 'nav.fareRequests', icon: TicketSlash, system: 'donors_projects', badge: 'fare_requests' },
       { href: '/admin/marketplace-overview', label: 'Overview & Fleet Map', tKey: 'nav.marketplaceOverview', icon: LayoutDashboard, system: 'donors_projects' },
       { href: '/admin/marketplace-reference', label: 'Marketplace Reference', tKey: 'nav.marketplaceReference', icon: MapPin, system: 'donors_projects' },
       { href: '/admin/party-complaints', label: 'Marketplace Complaints', tKey: 'nav.partyComplaints', icon: ShieldAlert, system: 'donors_projects', badge: 'party_complaints' },

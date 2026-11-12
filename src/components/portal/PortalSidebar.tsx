@@ -121,6 +121,8 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   const [badges, setBadges] = useState<Record<string, number>>({})
   const [hasShop, setHasShop] = useState(false)
   const [hasVehicle, setHasVehicle] = useState(false)
+  const [hasOwnVehicle, setHasOwnVehicle] = useState(false)
+  const [hasFleet, setHasFleet] = useState(false)
   const [hasManagedFunds, setHasManagedFunds] = useState(false)
 
   // A shop/vehicle only exists for a portal user once staff links one to
@@ -157,8 +159,13 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
       supabase.from('vehicles').select('id').eq('portal_user_id', user.id).limit(1),
       supabase.from('fleets').select('id').eq('owning_portal_user_id', user.id).limit(1),
       supabase.from('fleet_staff').select('id').eq('portal_user_id', user.id).limit(1),
-    ]).then(([owned, fleetOwner, fleetStaff]) =>
-      setHasVehicle((owned.data?.length ?? 0) > 0 || (fleetOwner.data?.length ?? 0) > 0 || (fleetStaff.data?.length ?? 0) > 0))
+    ]).then(([owned, fleetOwner, fleetStaff]) => {
+      const ownsVehicle = (owned.data?.length ?? 0) > 0
+      const inFleet = (fleetOwner.data?.length ?? 0) > 0 || (fleetStaff.data?.length ?? 0) > 0
+      setHasOwnVehicle(ownsVehicle)
+      setHasFleet(inFleet)
+      setHasVehicle(ownsVehicle || inFleet)
+    })
     Promise.all([
       supabase.from('event_salami_accounts').select('id').eq('manager_portal_user_id', user.id).limit(1),
       supabase.from('chanda_campaigns').select('id').eq('manager_portal_user_id', user.id).limit(1),
@@ -205,6 +212,16 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
     .map((entry) => {
       if (!isGroup(entry) && entry.href === '/portal/my-vehicle' && !hasVehicle) {
         return { ...entry, href: '/portal/my-vehicle/register', label: 'Register as a Driver', tKey: 'portal.registerVehicle', requiresVehicleKeeper: false }
+      }
+      // 860: a fleet owner/staff member with no personal vehicle of their
+      // own gets sent straight to the new separate fleet shell, never
+      // into the single-driver my-vehicle one (that redirect was the
+      // actual bug — see fleet/layout.tsx and my-vehicle/layout.tsx).
+      // Someone who BOTH owns a fleet AND personally drives one of its
+      // vehicles keeps the plain "My Vehicle" link here; the fleet
+      // dashboard is one tap away from their own driver Home screen.
+      if (!isGroup(entry) && entry.href === '/portal/my-vehicle' && hasFleet && !hasOwnVehicle) {
+        return { ...entry, href: '/portal/fleet', label: 'My Fleet', tKey: 'portal.myFleet', requiresVehicleKeeper: true }
       }
       return isGroup(entry) ? { ...entry, children: entry.children.filter(isLeafVisible) } : entry
     })
