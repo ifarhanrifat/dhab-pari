@@ -31,7 +31,7 @@ import { RouteStopsEditor } from '@/components/mobility/RouteStopsEditor'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
 import { RouteMonthlySubscribersPanel } from '@/components/mobility/RouteMonthlySubscribersPanel'
 import { CityReturnDemandCard } from '@/components/mobility/CityReturnDemandCard'
-import { SeatPicker } from '@/components/mobility/SeatPicker'
+import { SeatPickerField } from '@/components/mobility/SeatPickerField'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -91,6 +91,7 @@ export default function MyVehicleRoutesPage() {
   const [vehicleId, setVehicleId] = useState<string | null>(null)
   const [commissionMode, setCommissionMode] = useState<string | null>(null)
   const [totalSeats, setTotalSeats] = useState<number | null>(null)
+  const [isSleeper, setIsSleeper] = useState(false)
   const [routeFairPerSeat, setRouteFairPerSeat] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [routes, setRoutes] = useState<Route[]>([])
@@ -271,9 +272,9 @@ export default function MyVehicleRoutesPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, commission_mode, total_seats').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
+    supabase.from('vehicles').select('id, commission_mode, total_seats, is_sleeper').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
       if (data) {
-        setVehicleId(data.id); setCommissionMode(data.commission_mode); setTotalSeats(data.total_seats); setSelectedVehicleId(data.id)
+        setVehicleId(data.id); setCommissionMode(data.commission_mode); setTotalSeats(data.total_seats); setIsSleeper(data.is_sleeper); setSelectedVehicleId(data.id)
         await reload(data.id)
         const kind = await fetchVehicleKind(data.id)
         setVehicleKind(kind)
@@ -354,8 +355,8 @@ export default function MyVehicleRoutesPage() {
   // since this used to only ever reload the owner's OWN vehicleId).
   const selectVehicle = async (id: string) => {
     setSelectedVehicleId(id)
-    const { data } = await supabase.from('vehicles').select('total_seats').eq('id', id).single()
-    if (data) setTotalSeats(data.total_seats)
+    const { data } = await supabase.from('vehicles').select('total_seats, is_sleeper').eq('id', id).single()
+    if (data) { setTotalSeats(data.total_seats); setIsSleeper(data.is_sleeper) }
     const kind = await fetchVehicleKind(id)
     setVehicleKind(kind)
     setForm((f) => ({ ...f, fare_mode: kind === 'van' ? 'fixed' : 'flex' }))
@@ -1190,7 +1191,7 @@ export default function MyVehicleRoutesPage() {
               <button type="button" onClick={() => setManualSeats((s) => s + 1)} className="w-8 h-8 rounded-full bg-[#166534] text-white flex items-center justify-center cursor-pointer">+</button>
             </div>
             {isVanKindRoute && totalSeats && (
-              <SeatPicker totalSeats={totalSeats} takenSeatNumbers={manualTakenSeats} seatsNeeded={manualSeats} selected={manualSeatNumbers} onChange={setManualSeatNumbers} />
+              <SeatPickerField totalSeats={totalSeats} takenSeatNumbers={manualTakenSeats} seatsNeeded={manualSeats} selected={manualSeatNumbers} onChange={setManualSeatNumbers} isSleeper={isSleeper} />
             )}
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.fareCollectedLabel')}</label>

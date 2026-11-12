@@ -13,7 +13,7 @@
 // from the Vehicle tab's settings list.
 
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Star, Trash2, Loader2, Clock3, Users2, Navigation, Lock } from 'lucide-react'
+import { Camera, Star, Trash2, Loader2, Clock3, Users2, Navigation, Lock, BedSingle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -23,10 +23,11 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean; model_year: number | null
-  offers_hourly: boolean; offers_shadi: boolean; offers_rental: boolean
+  offers_hourly: boolean; offers_shadi: boolean; offers_rental: boolean; is_sleeper: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
   shadi_full_day_rate_pkr: number | null; shadi_vehicle_class: string | null
   rental_tier: string | null
+  total_seats: number | null; vehicle_categories: { vehicle_kind: string } | null
 }
 interface Photo { id: string; url: string; is_cover: boolean }
 interface ShadiClass { class_key: string; name_en: string; name_ur: string }
@@ -78,6 +79,7 @@ export default function MyVehicleCatalogPage() {
   const [offersHourly, setOffersHourly] = useState(false)
   const [offersShadi, setOffersShadi] = useState(false)
   const [offersRental, setOffersRental] = useState(false)
+  const [isSleeper, setIsSleeper] = useState(false)
   const [shadiVehicleClass, setShadiVehicleClass] = useState<string>('')
   const [shadiClasses, setShadiClasses] = useState<ShadiClass[]>([])
   const [rentalTier, setRentalTier] = useState<string>('')
@@ -90,12 +92,12 @@ export default function MyVehicleCatalogPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, vehicle_type, color, model, model_year, has_ac, offers_hourly, offers_shadi, offers_rental, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_tier')
+    supabase.from('vehicles').select('id, owner_name, vehicle_type, color, model, model_year, has_ac, offers_hourly, offers_shadi, offers_rental, is_sleeper, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_tier, total_seats, vehicle_categories(vehicle_kind)')
       .eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
-        setVehicle(data)
+        setVehicle(data as unknown as Vehicle)
         if (data) {
           setColor(data.color ?? ''); setModel(data.model ?? ''); setModelYear(data.model_year ?? null); setHasAc(data.has_ac)
-          setOffersHourly(data.offers_hourly); setOffersShadi(data.offers_shadi); setOffersRental(data.offers_rental)
+          setOffersHourly(data.offers_hourly); setOffersShadi(data.offers_shadi); setOffersRental(data.offers_rental); setIsSleeper(data.is_sleeper)
           setShadiVehicleClass(data.shadi_vehicle_class ?? '')
           setRentalTier(data.rental_tier ?? '')
           await loadPhotos(data.id)
@@ -112,12 +114,12 @@ export default function MyVehicleCatalogPage() {
     setSaving(true)
     const { error } = await supabase.rpc('set_vehicle_catalog_prefs', {
       p_vehicle_id: vehicle.id, p_color: color, p_model: model, p_has_ac: hasAc, p_offers_hourly: offersHourly, p_offers_shadi: offersShadi, p_offers_rental: offersRental,
-      p_shadi_vehicle_class: shadiVehicleClass || null, p_rental_tier: rentalTier || null, p_model_year: modelYear,
+      p_shadi_vehicle_class: shadiVehicleClass || null, p_rental_tier: rentalTier || null, p_model_year: modelYear, p_is_sleeper: isSleeper,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('g.saveChanges'))
-    setVehicle((v) => v ? { ...v, color: color.trim() || null, model: model.trim() || null, model_year: modelYear, has_ac: hasAc, offers_hourly: offersHourly, offers_shadi: offersShadi, offers_rental: offersRental, shadi_vehicle_class: shadiVehicleClass || v.shadi_vehicle_class, rental_tier: rentalTier || v.rental_tier } : v)
+    setVehicle((v) => v ? { ...v, color: color.trim() || null, model: model.trim() || null, model_year: modelYear, has_ac: hasAc, offers_hourly: offersHourly, offers_shadi: offersShadi, offers_rental: offersRental, shadi_vehicle_class: shadiVehicleClass || v.shadi_vehicle_class, rental_tier: rentalTier || v.rental_tier, is_sleeper: isSleeper } : v)
   }
 
   const uploadPhoto = async (file: File) => {
@@ -279,6 +281,20 @@ export default function MyVehicleCatalogPage() {
           <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('vp.rentalTierCommitteeSetNote')} {t('mv.rateFromCategoryNote')}</p>
         </div>
       </div>
+
+      {/* 861: only meaningful for van/bus/coaster-kind vehicles that
+          actually sell by seat number — the seat-map booking screen
+          renders berths instead of ordinary seats once this is on. */}
+      {vehicle?.vehicle_categories?.vehicle_kind === 'van' && (vehicle.total_seats ?? 0) >= 10 && (
+        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={isSleeper} onChange={(e) => setIsSleeper(e.target.checked)} className="accent-[#166534]" />
+            <BedSingle size={15} className="text-[#64748b]" />
+            <span className="font-sans text-[13.5px] text-[#1e293b]">{t('mv.isSleeperLabel')}</span>
+          </label>
+          <p className="font-sans text-[11px] text-[#64748b] mt-1.5">{t('mv.isSleeperHint')}</p>
+        </div>
+      )}
 
       {/* Shadi (wedding) opt-in — its own rate, its own gate */}
       <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
