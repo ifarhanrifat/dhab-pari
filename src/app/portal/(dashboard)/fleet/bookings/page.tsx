@@ -259,7 +259,7 @@ export default function FleetBookingsPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{b.passenger_name}{b.passenger_mobile ? ` · ${b.passenger_mobile}` : ''}</p>
-                    <p className="font-sans text-[10.5px] text-[#94a3b8]">{b.origin} → {b.destination} · {b.owner_name} · {b.seats} {t('mv.seatsSuffix')} · {b.travel_date}</p>
+                    <p className="font-sans text-[10.5px] text-[#94a3b8]">{b.origin} → {b.destination} · {b.owner_name} · {b.seats} {t('mv.seatsSuffix')} · <span className="ltr-num">{b.travel_date}</span></p>
                   </div>
                   <span className="shrink-0 font-sans text-[13px] font-bold text-[#166534] ltr-num">₨{fmt(b.amount_pkr)}</span>
                 </div>

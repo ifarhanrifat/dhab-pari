@@ -14,7 +14,8 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Camera, Star, Trash2, Loader2, Clock3, Users2, Navigation, Lock, BedSingle } from 'lucide-react'
+import Link from 'next/link'
+import { Camera, Star, Trash2, Loader2, Clock3, Users2, Navigation, Lock, BedSingle, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -187,6 +188,11 @@ function MyVehicleCatalogInner() {
   return (
     <div className="flex flex-col gap-3">
       <div>
+        {vehicleIdParam && (
+          <Link href="/portal/fleet/vehicles" className="inline-flex items-center gap-1 font-sans text-[12px] font-semibold text-[#166534] mb-1">
+            <ArrowLeft size={13} className={isUrdu ? 'rotate-180' : ''} /> {t('mv.busManagementHeading')}
+          </Link>
+        )}
         <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Camera size={19} /> {t('mv.catalogHeading')}</h1>
         <p className="text-[12.5px] text-[#64748b] mt-0.5">{vehicleIdParam ? vehicle.owner_name : t('mv.catalogSubtitle')}</p>
       </div>

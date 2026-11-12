@@ -17,7 +17,7 @@
 // the file's own driver:home screen owns that card, not its chrome.
 
 import { useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Clock3 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -67,6 +67,13 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
   // register" guard, which would otherwise just show the same prompt
   // again instead of the actual form).
   const isRegisterPage = pathname === '/portal/my-vehicle/register'
+  // 865: "Bus Management" (fleet/vehicles) links a fleet owner/staff
+  // member into catalog/page.tsx's ?vehicle=<id> fetch-by-id path even
+  // when they have no personal vehicle of their own — the redirect-to-
+  // fleet guard below used to fire first and bounce them straight back
+  // out before the page ever rendered, a real dead link confirmed live.
+  const searchParams = useSearchParams()
+  const catalogByIdVehicleId = pathname === '/portal/my-vehicle/catalog' ? searchParams.get('vehicle') : null
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(true)
@@ -75,6 +82,7 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
   const VEHICLE_FIELDS = 'id, owner_name, vehicle_type, commission_mode, delivers, offers_hourly, offers_shadi, offers_rental, is_online, offers_machinery, offers_tractor, offers_loader'
   useEffect(() => {
     if (!user) return
+    if (catalogByIdVehicleId) { setLoading(false); return }
     supabase.from('vehicles').select(VEHICLE_FIELDS).eq('portal_user_id', user.id).maybeSingle().then(async ({ data: own }) => {
       // 860: this used to fall back to "the fleet's first vehicle" for an
       // owner/staff member with no vehicle of their own, which is the bug
@@ -116,6 +124,17 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
   }
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
+
+  if (catalogByIdVehicleId) {
+    return (
+      <div className="min-h-[calc(100vh-1px)] bg-[#e5e2d0] sm:py-5 -m-4 sm:-m-6 md:-m-10">
+        <div dir={isUrdu ? 'rtl' : 'ltr'} className="sm:max-w-[460px] md:max-w-none bg-[#F9F9F6] min-h-[calc(100vh-1px)] sm:min-h-[calc(100vh-40px)] sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,.35)]">
+          <MobilityHeader />
+          <div className="p-3.5 pb-10">{children}</div>
+        </div>
+      </div>
+    )
+  }
 
   if (!vehicle) {
     if (regStatus?.status === 'pending') {
