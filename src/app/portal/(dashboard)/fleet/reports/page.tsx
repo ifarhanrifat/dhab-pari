@@ -93,11 +93,11 @@ export default function FleetReportsPage() {
             {pl.vehicles.map((v) => (
               <div key={v.vehicle_id} className="border border-[#e5e2d0] rounded-lg px-3 py-2">
                 <p className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{v.owner_name}{v.vehicle_type ? ` · ${v.vehicle_type}` : ''}</p>
-                <div className="flex items-center justify-between mt-1 ltr-num">
-                  <span className="font-sans text-[11px] text-[#64748b]">{t('mv.todayLabel')}: ₨{fmt(v.today_earnings_pkr)} − ₨{fmt(v.today_expenses_pkr)} = <span className="font-bold text-[#1e293b]">₨{fmt(v.today_profit_pkr)}</span></span>
-                  <span className="font-sans text-[10.5px] text-[#94a3b8]">{t('mv.walletLabel')} ₨{fmt(v.wallet_balance_pkr)}</span>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="font-sans text-[11px] text-[#64748b] ltr-num">{t('mv.todayLabel')}: ₨{fmt(v.today_earnings_pkr)} − ₨{fmt(v.today_expenses_pkr)} = <span className="font-bold text-[#1e293b]">₨{fmt(v.today_profit_pkr)}</span></span>
+                  <span className="font-sans text-[10.5px] text-[#94a3b8] ltr-num">{t('mv.walletLabel')} ₨{fmt(v.wallet_balance_pkr)}</span>
                 </div>
-                <div className="font-sans text-[11px] text-[#64748b] mt-0.5">{t('mv.monthLabel')}: ₨{fmt(v.month_earnings_pkr)} − ₨{fmt(v.month_expenses_pkr)} = <span className="font-bold text-[#1e293b]">₨{fmt(v.month_profit_pkr)}</span></div>
+                <div className="font-sans text-[11px] text-[#64748b] mt-0.5 ltr-num">{t('mv.monthLabel')}: ₨{fmt(v.month_earnings_pkr)} − ₨{fmt(v.month_expenses_pkr)} = <span className="font-bold text-[#1e293b]">₨{fmt(v.month_profit_pkr)}</span></div>
               </div>
             ))}
           </div>
@@ -166,7 +166,7 @@ export default function FleetReportsPage() {
                 {counterCash.map((c) => (
                   <div key={c.counter_id} className="border border-[#e5e2d0] rounded-lg px-3 py-2 flex items-center justify-between">
                     <span className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{c.city}{c.name ? ` · ${c.name}` : ''}</span>
-                    <span className="font-sans text-[13px] font-bold text-[#166534] ltr-num">₨{fmt(c.cash_in_hand_pkr)}</span>
+                    <span className="font-sans text-[13px] font-bold ltr-num" style={{ color: c.cash_in_hand_pkr < 0 ? '#b91c1c' : '#166534' }}>₨{fmt(c.cash_in_hand_pkr)}</span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between pt-1.5 border-t border-[#e5e2d0]">

@@ -118,7 +118,7 @@ export default function FleetBookingsPage() {
 
         <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.selectRouteLabel')}</label>
         <select value={routeId} onChange={(e) => setRouteId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5">
-          <option value="">{t('mv.noCounterOption')}</option>
+          <option value="">{t('mv.selectRoutePlaceholder')}</option>
           {routes.map((r) => <option key={r.id} value={r.id}>{r.origin} → {r.destination}{r.departure_time ? ` · ${r.departure_time}` : ''}</option>)}
         </select>
 

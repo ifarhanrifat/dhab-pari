@@ -95,7 +95,7 @@ export default function FleetFareRequestsPage() {
       <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
         <p className="font-sans text-[11.5px] text-[#64748b] mb-2.5">{t('mv.fareRequestHint')}</p>
         <select value={routeId} onChange={(e) => setRouteId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2">
-          <option value="">{t('mv.selectRouteLabel')}</option>
+          <option value="">{t('mv.selectRoutePlaceholder')}</option>
           {routes.map((r) => <option key={r.id} value={r.id}>{r.origin} → {r.destination} (₨{fmt(r.fare_per_seat_pkr)})</option>)}
         </select>
         {routeId && (

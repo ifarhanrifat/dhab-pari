@@ -78,7 +78,7 @@ export default function FleetCashPage() {
             <div key={c.counter_id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
               <div className="flex items-center justify-between">
                 <span className="font-sans text-[13.5px] font-bold text-[#1e293b]">{c.city}{c.name ? ` · ${c.name}` : ''}</span>
-                <span className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num">₨{fmt(c.cash_in_hand_pkr)}</span>
+                <span className="font-sans text-[16px] font-extrabold ltr-num" style={{ color: c.cash_in_hand_pkr < 0 ? '#b91c1c' : '#166534' }}>₨{fmt(c.cash_in_hand_pkr)}</span>
               </div>
               <div className="flex items-center justify-between mt-1.5">
                 <span className="font-sans text-[11px] text-[#94a3b8] ltr-num">{t('mv.collectedLabel')} ₨{fmt(c.total_collected_pkr)} · {t('mv.remittedLabel')} ₨{fmt(c.total_remitted_pkr)}</span>
