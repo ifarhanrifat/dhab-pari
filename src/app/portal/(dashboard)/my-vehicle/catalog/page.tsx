@@ -12,7 +12,8 @@
 // Phase 5: re-skinned to the new Mobility design — same RPCs, reached
 // from the Vehicle tab's settings list.
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Camera, Star, Trash2, Loader2, Clock3, Users2, Navigation, Lock, BedSingle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -23,7 +24,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean; model_year: number | null
-  offers_hourly: boolean; offers_shadi: boolean; offers_rental: boolean
+  offers_hourly: boolean; offers_shadi: boolean; offers_rental: boolean; is_sleeper: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
   shadi_full_day_rate_pkr: number | null; shadi_vehicle_class: string | null
   rental_tier: string | null
@@ -62,10 +63,23 @@ function fmt(n: number) {
 
 
 export default function MyVehicleCatalogPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12"><LoadingDots /></div>}>
+      <MyVehicleCatalogInner />
+    </Suspense>
+  )
+}
+
+function MyVehicleCatalogInner() {
   const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
   const fileRef = useRef<HTMLInputElement>(null)
+  // 865: "Bus Management" (fleet/vehicles) links here with ?vehicle=<id>
+  // so an owner/staff member can edit any fleet vehicle's catalog
+  // settings, not just one they personally drive (set_vehicle_catalog_
+  // prefs and vehicle_media's RLS were both widened for this in 864/865).
+  const vehicleIdParam = useSearchParams().get('vehicle')
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [photos, setPhotos] = useState<Photo[]>([])
@@ -92,12 +106,13 @@ export default function MyVehicleCatalogPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, vehicle_type, color, model, model_year, has_ac, offers_hourly, offers_shadi, offers_rental, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_tier, total_seats, vehicle_categories(vehicle_kind)')
-      .eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
+    const query = supabase.from('vehicles').select('id, owner_name, vehicle_type, color, model, model_year, has_ac, offers_hourly, offers_shadi, offers_rental, is_sleeper, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr, shadi_vehicle_class, rental_tier, total_seats, vehicle_categories(vehicle_kind)')
+    ;(vehicleIdParam ? query.eq('id', vehicleIdParam) : query.eq('portal_user_id', user.id)).maybeSingle().then(async ({ data }) => {
         setVehicle(data as unknown as Vehicle)
         if (data) {
           setColor(data.color ?? ''); setModel(data.model ?? ''); setModelYear(data.model_year ?? null); setHasAc(data.has_ac)
           setOffersHourly(data.offers_hourly); setOffersShadi(data.offers_shadi); setOffersRental(data.offers_rental)
+          setIsSleeper(data.is_sleeper ?? false)
           setShadiVehicleClass(data.shadi_vehicle_class ?? '')
           setRentalTier(data.rental_tier ?? '')
           await loadPhotos(data.id)
@@ -107,19 +122,19 @@ export default function MyVehicleCatalogPage() {
     supabase.rpc('shadi_vehicle_classes_list').then(({ data }) => setShadiClasses((data ?? []) as ShadiClass[]))
     supabase.rpc('rental_tier_fare_guides_list').then(({ data }) => setFareGuides((data ?? []) as FareGuide[]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
+  }, [user, vehicleIdParam])
 
   const save = async () => {
     if (!vehicle) return
     setSaving(true)
     const { error } = await supabase.rpc('set_vehicle_catalog_prefs', {
       p_vehicle_id: vehicle.id, p_color: color, p_model: model, p_has_ac: hasAc, p_offers_hourly: offersHourly, p_offers_shadi: offersShadi, p_offers_rental: offersRental,
-      p_shadi_vehicle_class: shadiVehicleClass || null, p_rental_tier: rentalTier || null, p_model_year: modelYear,
+      p_shadi_vehicle_class: shadiVehicleClass || null, p_rental_tier: rentalTier || null, p_model_year: modelYear, p_is_sleeper: isSleeper,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('g.saveChanges'))
-    setVehicle((v) => v ? { ...v, color: color.trim() || null, model: model.trim() || null, model_year: modelYear, has_ac: hasAc, offers_hourly: offersHourly, offers_shadi: offersShadi, offers_rental: offersRental, shadi_vehicle_class: shadiVehicleClass || v.shadi_vehicle_class, rental_tier: rentalTier || v.rental_tier } : v)
+    setVehicle((v) => v ? { ...v, color: color.trim() || null, model: model.trim() || null, model_year: modelYear, has_ac: hasAc, offers_hourly: offersHourly, offers_shadi: offersShadi, offers_rental: offersRental, is_sleeper: isSleeper, shadi_vehicle_class: shadiVehicleClass || v.shadi_vehicle_class, rental_tier: rentalTier || v.rental_tier } : v)
   }
 
   const uploadPhoto = async (file: File) => {
@@ -173,7 +188,7 @@ export default function MyVehicleCatalogPage() {
     <div className="flex flex-col gap-3">
       <div>
         <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Camera size={19} /> {t('mv.catalogHeading')}</h1>
-        <p className="text-[12.5px] text-[#64748b] mt-0.5">{t('mv.catalogSubtitle')}</p>
+        <p className="text-[12.5px] text-[#64748b] mt-0.5">{vehicleIdParam ? vehicle.owner_name : t('mv.catalogSubtitle')}</p>
       </div>
 
       {/* Photos */}

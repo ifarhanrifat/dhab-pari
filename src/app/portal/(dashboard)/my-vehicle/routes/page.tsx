@@ -61,6 +61,9 @@ const emptyRouteForm = {
   is_two_way: false, return_wait_minutes: 300 as number,
   departure_time: '', return_departure_time: '', days_of_week: [] as number[], distance_km: '' as string,
   is_monthly_fixed: false, monthly_reference_fee_pkr: '' as string | number,
+  // 864: optional, cosmetic/organizational route label shown on the
+  // fleet dashboard's schedule cards and bookings list (e.g. "PK-KH101").
+  service_code: '',
 }
 
 interface Booking {
@@ -75,6 +78,7 @@ interface Route {
   is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
   is_two_way: boolean; return_wait_minutes: number | null
   seat_override: number | null
+  service_code: string | null
 }
 interface RouteIlan { id: string; vehicle_route_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 
@@ -207,7 +211,7 @@ export default function MyVehicleRoutesPage() {
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
-      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override')
+      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override, service_code')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, seat_accepted_at, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
@@ -460,6 +464,7 @@ export default function MyVehicleRoutesPage() {
       p_is_monthly_fixed: form.is_monthly_fixed, p_monthly_reference_fee_pkr: monthlyFee,
       p_is_two_way: form.is_two_way, p_return_wait_minutes: form.is_two_way ? form.return_wait_minutes : null,
       p_one_off_date: oneOffDays ? oneOffDate : null,
+      p_service_code: form.service_code.trim() || null,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -829,6 +834,10 @@ export default function MyVehicleRoutesPage() {
               </div>
             </>
           )}
+          <div>
+            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.serviceCodeOptionalLabel')}</label>
+            <input value={form.service_code} onChange={(e) => setForm((f) => ({ ...f, service_code: e.target.value }))} placeholder={t('mv.serviceCodePlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+          </div>
           {!form.is_monthly_fixed && (
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mk.totalFareLabel')}</label>
@@ -941,7 +950,10 @@ export default function MyVehicleRoutesPage() {
               <div key={r.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-sans text-[13.5px] font-semibold text-[#1e293b] truncate flex items-center gap-1"><Signpost size={12} className="shrink-0 text-[#166534]" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
+                    <p className="font-sans text-[13.5px] font-semibold text-[#1e293b] truncate flex items-center gap-1">
+                      <Signpost size={12} className="shrink-0 text-[#166534]" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}
+                      {r.service_code && <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{r.service_code}</span>}
+                    </p>
                     <p className="font-sans text-[12px] text-[#64748b] mt-0.5">
                       {r.is_monthly_fixed
                         ? `${t('mv.monthlyReferenceFeeLabel')}: ${fmt(r.monthly_reference_fee_pkr ?? 0)}`
