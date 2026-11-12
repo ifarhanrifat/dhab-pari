@@ -17,7 +17,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus, Megaphone, Users, Route as RouteIcon, Pencil } from 'lucide-react'
+import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus, Megaphone, Users, Route as RouteIcon, Pencil, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -283,15 +283,28 @@ export default function MyVehicleRoutesPage() {
         const kind = await fetchVehicleKind(data.id)
         setVehicleKind(kind)
         setForm((f) => ({ ...f, fare_mode: kind === 'van' ? 'fixed' : 'flex' }))
-        const { data: fleet } = await supabase.rpc('my_fleet_vehicles')
-        setFleetVehicles((fleet ?? []) as typeof fleetVehicles)
-        const { data: mf } = await supabase.rpc('my_managed_fleet')
-        const f = mf as { fleet_id: string } | null
-        if (f) {
-          setFleetId(f.fleet_id)
-          const { data: counters } = await supabase.rpc('my_fleet_counters', { p_fleet_id: f.fleet_id })
-          setFleetCounters((counters ?? []) as typeof fleetCounters)
-        }
+      }
+      // Real gap, 2026-11-12: a fleet owner/staff member with no personal
+      // vehicle of their own (reached here from Bus Management's "Routes"
+      // link) used to get nothing at all — this whole switcher assumed
+      // the signed-in account always drove a vehicle too. my_fleet_
+      // vehicles/my_managed_fleet now run regardless, and the ?vehicle=
+      // param (or the first fleet vehicle) seeds selectedVehicleId when
+      // there's no vehicle of the user's own to default to.
+      const { data: fleet } = await supabase.rpc('my_fleet_vehicles')
+      const fv = (fleet ?? []) as typeof fleetVehicles
+      setFleetVehicles(fv)
+      const { data: mf } = await supabase.rpc('my_managed_fleet')
+      const f = mf as { fleet_id: string } | null
+      if (f) {
+        setFleetId(f.fleet_id)
+        const { data: counters } = await supabase.rpc('my_fleet_counters', { p_fleet_id: f.fleet_id })
+        setFleetCounters((counters ?? []) as typeof fleetCounters)
+      }
+      if (!data && fv.length > 0) {
+        const vehicleParam = searchParams.get('vehicle')
+        const initial = (vehicleParam && fv.some((v) => v.id === vehicleParam)) ? vehicleParam : fv[0].id
+        await selectVehicle(initial)
       }
       setLoading(false)
     })
@@ -601,10 +614,15 @@ export default function MyVehicleRoutesPage() {
   }
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
-  if (!vehicleId) return null
+  if (!vehicleId && !selectedVehicleId) return null
 
   return (
     <div className="flex flex-col gap-3">
+      {!vehicleId && (
+        <Link href="/portal/fleet/vehicles" className="inline-flex items-center gap-1 font-sans text-[12px] font-semibold text-[#166534] -mb-1">
+          <ArrowLeft size={13} className={isUrdu ? 'rotate-180' : ''} /> {t('mv.busManagementHeading')}
+        </Link>
+      )}
       <div className="flex items-center justify-between gap-2">
         <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Signpost size={19} /> {t('mp.myRoutesHeading')}</h1>
         <button onClick={() => { setShowForm((v) => !v); setModeLocked(null) }} className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-semibold cursor-pointer">
@@ -622,7 +640,7 @@ export default function MyVehicleRoutesPage() {
         <div>
           <label className="block font-sans text-[11px] font-bold text-[#64748b] mb-1 uppercase tracking-[0.05em]">{t('mv.fleetViewSwitcherLabel')}</label>
           <div className="flex gap-1.5 flex-wrap">
-            {[{ id: vehicleId!, owner_name: t('mv.fleetMyOwnVehicleLabel'), vehicle_type: '', vehicle_number: null }, ...fleetVehicles].map((v) => (
+            {[...(vehicleId ? [{ id: vehicleId, owner_name: t('mv.fleetMyOwnVehicleLabel'), vehicle_type: '', vehicle_number: null }] : []), ...fleetVehicles].map((v) => (
               <button key={v.id} type="button" onClick={() => selectVehicle(v.id)}
                 className="px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer border"
                 style={{ background: selectedVehicleId === v.id ? '#166534' : '#F9F9F6', color: selectedVehicleId === v.id ? '#fff' : '#334155', borderColor: selectedVehicleId === v.id ? '#166534' : '#e5e2d0' }}>
@@ -679,7 +697,7 @@ export default function MyVehicleRoutesPage() {
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.fleetVehiclePickerLabel')}</label>
               <div className="flex flex-col gap-1.5">
-                {[{ id: vehicleId!, owner_name: t('mv.fleetMyOwnVehicleLabel'), vehicle_type: '', vehicle_number: null }, ...fleetVehicles].map((v) => (
+                {[...(vehicleId ? [{ id: vehicleId, owner_name: t('mv.fleetMyOwnVehicleLabel'), vehicle_type: '', vehicle_number: null }] : []), ...fleetVehicles].map((v) => (
                   <button key={v.id} type="button" onClick={() => selectVehicle(v.id)}
                     className="flex items-center justify-between gap-2 border rounded-lg px-3 py-2 cursor-pointer text-start"
                     style={{ background: selectedVehicleId === v.id ? '#F0FDF4' : '#fff', borderColor: selectedVehicleId === v.id ? '#166534' : '#e5e2d0' }}>

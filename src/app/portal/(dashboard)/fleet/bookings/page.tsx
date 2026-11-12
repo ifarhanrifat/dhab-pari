@@ -26,6 +26,7 @@ interface FoundBooking {
   id: string; source: 'manual' | 'app'; passenger_name: string; passenger_mobile: string | null
   route_id: string; origin: string; destination: string; owner_name: string
   travel_date: string; seats: number; amount_pkr: number; status: string; payment_method: string | null
+  vehicle_id: string; is_van_kind: boolean; total_seats: number; is_sleeper: boolean; seat_numbers: number[] | null
 }
 
 function fmt(n: number) {
@@ -68,6 +69,8 @@ export default function FleetBookingsPage() {
   const [searching, setSearching] = useState(false)
   const [rescheduling, setRescheduling] = useState<FoundBooking | null>(null)
   const [rescheduleDate, setRescheduleDate] = useState('')
+  const [rescheduleTakenSeats, setRescheduleTakenSeats] = useState<number[]>([])
+  const [rescheduleSeats, setRescheduleSeats] = useState<number[]>([])
   const [busyId, setBusyId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -126,6 +129,20 @@ export default function FleetBookingsPage() {
 
   useEffect(() => { if (fleetId) runSearch() }, [fleetId, searchDate]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Real bug fixed, 2026-11-12: rescheduling used to carry the booking's
+  // old seat numbers straight onto the new date with no visibility into
+  // which seats are actually free that day and no way to pick different
+  // ones — a clash just threw a flat error. Now loads real vacancy for
+  // the chosen date and lets the seat picker drive the choice.
+  useEffect(() => {
+    if (!rescheduling || !rescheduling.is_van_kind || !rescheduleDate) { setRescheduleTakenSeats([]); return }
+    supabase.rpc('route_seat_status', { p_route_id: rescheduling.route_id, p_travel_date: rescheduleDate, p_direction: 'outbound' }).then(({ data }) => {
+      const taken = (data as number[]) ?? []
+      const ownCurrentSeats = rescheduleDate === rescheduling.travel_date ? (rescheduling.seat_numbers ?? []) : []
+      setRescheduleTakenSeats(taken.filter((n) => !ownCurrentSeats.includes(n)))
+    })
+  }, [rescheduling, rescheduleDate]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const selectedRoute = routes.find((r) => r.id === routeId)
 
   const recordBooking = async () => {
@@ -160,14 +177,18 @@ export default function FleetBookingsPage() {
 
   const confirmReschedule = async () => {
     if (!rescheduling || !rescheduleDate) return
+    if (rescheduling.is_van_kind && rescheduleSeats.length !== rescheduling.seats) { toast.error(t('mv.pickASeatError')); return }
     setBusyId(rescheduling.id)
+    const seatNumbers = rescheduling.is_van_kind ? rescheduleSeats : null
     const rpc = rescheduling.source === 'manual' ? 'reschedule_manual_booking' : 'reschedule_ride_booking'
-    const params = rescheduling.source === 'manual' ? { p_id: rescheduling.id, p_new_travel_date: rescheduleDate } : { p_booking_id: rescheduling.id, p_new_travel_date: rescheduleDate }
+    const params = rescheduling.source === 'manual'
+      ? { p_id: rescheduling.id, p_new_travel_date: rescheduleDate, p_seat_numbers: seatNumbers }
+      : { p_booking_id: rescheduling.id, p_new_travel_date: rescheduleDate, p_seat_numbers: seatNumbers }
     const { error } = await supabase.rpc(rpc, params)
     setBusyId(null)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('mv.bookingRescheduledToast'))
-    setRescheduling(null); setRescheduleDate('')
+    setRescheduling(null); setRescheduleDate(''); setRescheduleSeats([])
     runSearch()
   }
 
@@ -264,15 +285,20 @@ export default function FleetBookingsPage() {
                   <span className="shrink-0 font-sans text-[13px] font-bold text-[#166534] ltr-num">₨{fmt(b.amount_pkr)}</span>
                 </div>
                 {rescheduling?.id === b.id ? (
-                  <div className="flex gap-2 mt-2">
-                    <input type="date" value={rescheduleDate} min={today()} onChange={(e) => setRescheduleDate(e.target.value)}
-                      className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
-                    <button onClick={confirmReschedule} disabled={busyId === b.id} className="px-3 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11.5px] font-bold cursor-pointer disabled:opacity-50">{t('action.save')}</button>
-                    <button onClick={() => setRescheduling(null)} className="p-1.5 text-[#64748b] cursor-pointer"><X size={15} /></button>
+                  <div className="flex flex-col gap-2 mt-2">
+                    <div className="flex gap-2">
+                      <input type="date" value={rescheduleDate} min={today()} onChange={(e) => { setRescheduleDate(e.target.value); setRescheduleSeats([]) }}
+                        className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
+                      <button onClick={confirmReschedule} disabled={busyId === b.id} className="px-3 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11.5px] font-bold cursor-pointer disabled:opacity-50">{t('action.save')}</button>
+                      <button onClick={() => setRescheduling(null)} className="p-1.5 text-[#64748b] cursor-pointer"><X size={15} /></button>
+                    </div>
+                    {b.is_van_kind && (
+                      <SeatPickerField totalSeats={b.total_seats} takenSeatNumbers={rescheduleTakenSeats} seatsNeeded={b.seats} selected={rescheduleSeats} onChange={setRescheduleSeats} isSleeper={b.is_sleeper} />
+                    )}
                   </div>
                 ) : (
                   <div className="flex gap-2 mt-2">
-                    <button onClick={() => { setRescheduling(b); setRescheduleDate(b.travel_date) }} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer">{t('mv.rescheduleBtn')}</button>
+                    <button onClick={() => { setRescheduling(b); setRescheduleDate(b.travel_date); setRescheduleSeats(b.seat_numbers ?? []) }} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer">{t('mv.rescheduleBtn')}</button>
                     <button onClick={() => cancelFound(b)} disabled={busyId === b.id} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#b91c1c] cursor-pointer disabled:opacity-50">{t('action.cancel')}</button>
                   </div>
                 )}

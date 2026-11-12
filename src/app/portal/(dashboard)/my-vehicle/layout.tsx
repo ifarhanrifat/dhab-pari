@@ -67,13 +67,18 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
   // register" guard, which would otherwise just show the same prompt
   // again instead of the actual form).
   const isRegisterPage = pathname === '/portal/my-vehicle/register'
-  // 865: "Bus Management" (fleet/vehicles) links a fleet owner/staff
-  // member into catalog/page.tsx's ?vehicle=<id> fetch-by-id path even
-  // when they have no personal vehicle of their own — the redirect-to-
-  // fleet guard below used to fire first and bounce them straight back
-  // out before the page ever rendered, a real dead link confirmed live.
+  // 865/866: "Bus Management" (fleet/vehicles) links a fleet owner/staff
+  // member into catalog's ?vehicle=<id> fetch-by-id path, and into
+  // routes' own pre-existing fleet-vehicle switcher, even when they have
+  // no personal vehicle of their own — the redirect-to-fleet guard below
+  // used to fire first and bounce them straight back out before either
+  // page ever rendered, both confirmed live dead links.
   const searchParams = useSearchParams()
-  const catalogByIdVehicleId = pathname === '/portal/my-vehicle/catalog' ? searchParams.get('vehicle') : null
+  const isCatalogPage = pathname === '/portal/my-vehicle/catalog'
+  const isRoutesPage = pathname === '/portal/my-vehicle/routes'
+  const catalogByIdVehicleId = isCatalogPage ? searchParams.get('vehicle') : null
+  const [fleetOnlyNoOwnVehicle, setFleetOnlyNoOwnVehicle] = useState(false)
+  const bypassChrome = !!catalogByIdVehicleId || fleetOnlyNoOwnVehicle
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(true)
@@ -93,7 +98,13 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
       // someone who actually has a personal vehicle of their own.
       if (!own) {
         const { data: managed } = await supabase.rpc('my_managed_fleet')
-        if ((managed as { fleet_id: string } | null)?.fleet_id) {
+        const hasFleet = !!(managed as { fleet_id: string } | null)?.fleet_id
+        if (hasFleet && isRoutesPage) {
+          setFleetOnlyNoOwnVehicle(true)
+          setLoading(false)
+          return
+        }
+        if (hasFleet) {
           router.replace('/portal/fleet')
           return
         }
@@ -125,7 +136,7 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
 
-  if (catalogByIdVehicleId) {
+  if (bypassChrome) {
     return (
       <div className="min-h-[calc(100vh-1px)] bg-[#e5e2d0] sm:py-5 -m-4 sm:-m-6 md:-m-10">
         <div dir={isUrdu ? 'rtl' : 'ltr'} className="sm:max-w-[460px] md:max-w-none bg-[#F9F9F6] min-h-[calc(100vh-1px)] sm:min-h-[calc(100vh-40px)] sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,.35)]">
