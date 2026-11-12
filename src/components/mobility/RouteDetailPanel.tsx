@@ -106,7 +106,6 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [selectedSeats, setSelectedSeats] = useState<number[]>([])
   const isSeatNumbered = vehicleKind === 'van'
   const [method, setMethod] = useState('cash')
-  const [proofPath, setProofPath] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [waiting, setWaiting] = useState<{ id: string; summary: WaitingSummary } | null>(null)
   const [bookable, setBookable] = useState(true)
@@ -347,12 +346,22 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const submit = async () => {
     if (!route) return
     if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
-    if (!isPerOrder && !proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     if ((boardStopId && !alightStopId) || (!boardStopId && alightStopId)) { toast.error(t('mv.pickBothStopsError')); return }
     if (isSeatNumbered && selectedSeats.length !== seats) { toast.error(t('mv.pickASeatError')); return }
     setSubmitting(true)
+    // Real fix, 2026-11-12: "first let the rider book the bus... then a
+    // message will appear that you have booked the seat but it will
+    // remain unconfirmed... if you want to confirm this seat then go
+    // ahead and pay the amount" — the clear unconfirmed-seat message
+    // already existed on the waiting sheet below, but the form here
+    // still forced the rider to upload a payment screenshot BEFORE the
+    // booking could even be placed, defeating the whole point: by the
+    // time they saw "pay to confirm," they'd already paid — too late to
+    // back out if the bus had already departed. Booking and paying are
+    // now two separate, deliberate steps; paying happens afterward, from
+    // the same waiting sheet, once the rider has actually decided to.
     const { data: placed, error } = await supabase.rpc('place_ride_booking', {
-      p_route_id: route.id, p_travel_date: travelDate, p_seats: seats, p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : proofPath,
+      p_route_id: route.id, p_travel_date: travelDate, p_seats: seats, p_method: isPerOrder ? 'direct' : null, p_proof_url: null,
       p_board_stop_id: boardStopId, p_alight_stop_id: alightStopId,
       p_seat_numbers: isSeatNumbered ? selectedSeats : null,
     })
@@ -972,30 +981,15 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
             {isPerOrder ? (
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-4">{t('cm.payDirectlyNote')}</p>
             ) : (
-              <>
-                <div className="mt-4">
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
-                  <select value={method} onChange={(e) => setMethod(e.target.value)} className="input-field">
-                    <option value="cash">{t('w.cash')}</option>
-                    <option value="jazzcash">{t('w.jazzcash')}</option>
-                    <option value="easypaisa">{t('w.easypaisa')}</option>
-                    <option value="bank">{t('a.bank')}</option>
-                  </select>
-                </div>
-                <div className="mt-3">
-                  <DonationReceiptUpload onUpload={setProofPath} />
-                </div>
-              </>
+              /* Real fix, 2026-11-12: booking and paying are now two
+                 separate steps — the payment method + receipt upload
+                 moved to the waiting sheet, shown only once the rider
+                 has read the unconfirmed-seat notice and decided to pay.
+                 Requiring it here, before the booking even existed,
+                 meant a rider could pay for a bus that had already left
+                 with no chance to find that out first. */
+              <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-4">{t('mv.seatNeedsDriverConfirmNote')}</p>
             )}
-            {/* Real ask, 2026-11-09: "we will let the user to book a ride,
-                but after the successful booking... let the user read a
-                text that your seat is booked but its not confirmed, any
-                paid rider will replace your seat, you need to pay the
-                amount directly to driver to confirm" — booking is never
-                blocked on a receipt; the rider is told plainly up front
-                that paying the driver is what turns this into a real,
-                locked-in seat. */}
-            <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
             <div className="mt-3"><FarePolicyCard service="seat" defaultOpen={false} /></div>
             <button onClick={submit} disabled={submitting || (isSeatNumbered && selectedSeats.length !== seats) || (travelDate === todayStr() && !!runStatus?.has_active_run && !!runStatus?.already_passed)} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {submitting ? t('mp.placingBooking') : t('mp.bookSeatsBtn')}
@@ -1049,7 +1043,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
         </div>
       )}
       {waiting && (
-        <RequestWaitingSheet kind="seat" bookingId={waiting.id} summary={waiting.summary}
+        <RequestWaitingSheet kind="seat" bookingId={waiting.id} summary={waiting.summary} isPerOrder={isPerOrder}
           onClose={() => setWaiting(null)}
           onViewBooking={() => { setWaiting(null); router.push('/portal/marketplace/trips') }} />
       )}

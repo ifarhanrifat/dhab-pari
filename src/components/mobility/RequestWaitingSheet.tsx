@@ -20,7 +20,7 @@
 // poll underneath.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Car, Clock, Tractor, Bus, Check, X as XIcon, Phone, Loader2, CircleSlash, MessageCircle, Radio, type LucideIcon } from 'lucide-react'
+import { Car, Clock, Tractor, Bus, Check, X as XIcon, Phone, Loader2, CircleSlash, MessageCircle, Radio, CreditCard, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -29,6 +29,7 @@ import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import { BookingChatPanel, type BookingChatRefType } from '@/components/mobility/BookingChatPanel'
 import { UnreadDot } from '@/components/mobility/UnreadDot'
 import { useChatUnread } from '@/hooks/useChatUnread'
+import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 
 export type WaitingKind = 'hourly' | 'rental' | 'equipment' | 'seat'
 // Only these three have a real negotiation thread (422/658) — seat
@@ -51,6 +52,10 @@ interface Live {
   // Hourly only (813) — lets the rider see the driver paused the wait
   // clock instead of wondering why nothing is moving.
   pausedAt?: string | null
+  // Seat only (870) — whether payment proof has been attached yet, so
+  // the "pay now to confirm" prompt only shows once, and flips to a
+  // "sent, waiting on the driver" note once it has.
+  proofUrl?: string | null
 }
 
 const TABLE: Record<WaitingKind, string> = { hourly: 'hourly_bookings', rental: 'rental_bookings', equipment: 'equipment_bookings', seat: 'ride_bookings' }
@@ -86,9 +91,9 @@ function phaseOf(kind: WaitingKind, status: string, seatAccepted?: boolean): Pha
 async function loadLive(kind: WaitingKind, id: string): Promise<Live | null> {
   const supabase = createClient()
   if (kind === 'seat') {
-    const { data } = await supabase.from('ride_bookings').select('status, rejected_reason, cancellation_reason, seat_accepted_at').eq('id', id).maybeSingle()
+    const { data } = await supabase.from('ride_bookings').select('status, rejected_reason, cancellation_reason, seat_accepted_at, announced_proof_url').eq('id', id).maybeSingle()
     if (!data) return null
-    return { phase: phaseOf(kind, data.status, !!data.seat_accepted_at), reason: data.rejected_reason ?? data.cancellation_reason ?? null, pin: null, driverName: null, driverMobile: null }
+    return { phase: phaseOf(kind, data.status, !!data.seat_accepted_at), reason: data.rejected_reason ?? data.cancellation_reason ?? null, pin: null, driverName: null, driverMobile: null, proofUrl: data.announced_proof_url }
   }
   const rpc = kind === 'hourly' ? 'my_hourly_bookings' : kind === 'rental' ? 'my_rental_bookings' : 'my_equipment_bookings'
   const { data } = await supabase.rpc(rpc)
@@ -136,9 +141,14 @@ interface Props {
   // waiting time" — onSwitchReturn now takes the chosen wait hours
   // instead of always resubmitting at 0.
   oneWayFallback?: { afterSeconds: number; onSwitchShared: () => void; onSwitchReturn: (waitHours: number) => void | Promise<void> }
+  // Seat only (870) — per-order vehicles are paid directly, cash in
+  // hand, with no in-app receipt at all; the "pay now to confirm"
+  // upload step only makes sense for the ordinary commission vehicles
+  // that already ask for a screenshot.
+  isPerOrder?: boolean
 }
 
-export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, onViewBooking, oneWayFallback }: Props) {
+export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, onViewBooking, oneWayFallback, isPerOrder }: Props) {
   const { t, isUrdu } = useLocale()
   const [live, setLive] = useState<Live | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
@@ -147,6 +157,10 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
   const [showReturnWaitPicker, setShowReturnWaitPicker] = useState(false)
   const [returnWaitHours, setReturnWaitHours] = useState(0)
   const [switchingReturn, setSwitchingReturn] = useState(false)
+  const [showPayForm, setShowPayForm] = useState(false)
+  const [payMethod, setPayMethod] = useState('cash')
+  const [payProofPath, setPayProofPath] = useState('')
+  const [submittingProof, setSubmittingProof] = useState(false)
   const [startedAt] = useState(() => (since ? new Date(since).getTime() : Date.now()))
   const [now, setNow] = useState(() => Date.now())
 
@@ -182,6 +196,18 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); setConfirmCancel(false); return }
     toast.success(t('rw.cancelledToast'))
     onClose()
+  }
+
+  const submitPaymentProof = async () => {
+    if (!payProofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
+    setSubmittingProof(true)
+    const supabase = createClient()
+    const { error } = await supabase.rpc('submit_booking_payment_proof', { p_booking_id: bookingId, p_method: payMethod, p_proof_url: payProofPath })
+    setSubmittingProof(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('rw.paymentProofSentToast'))
+    setShowPayForm(false)
+    reload()
   }
 
   const confirmSwitchToReturn = async () => {
@@ -311,6 +337,37 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
             <div className="rounded-2xl bg-[#fffbeb] border border-[#fde68a] p-3.5">
               <p className="font-sans text-[13px] font-bold text-[#92400e]">{t('rw.seatNotConfirmedHeading')}</p>
               <p className="font-sans text-[12px] text-[#92400e]/80 leading-snug mt-1">{t('rw.seatNotConfirmedHint')}</p>
+
+              {/* Real fix, 2026-11-12: paying is now a deliberate, separate
+                  step taken here, after reading the notice above — not a
+                  precondition the booking form forced before the rider
+                  could even see it. */}
+              {!isPerOrder && (
+                live?.proofUrl ? (
+                  <p className="font-sans text-[12px] font-semibold text-[#166534] bg-white/60 rounded-lg px-2.5 py-2 mt-2.5">{t('rw.paymentProofSentHint')}</p>
+                ) : !showPayForm ? (
+                  <button onClick={() => setShowPayForm(true)} className="mt-2.5 w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#92400e] text-white font-sans text-[12.5px] font-bold cursor-pointer">
+                    <CreditCard size={14} /> {t('rw.payNowToConfirmBtn')}
+                  </button>
+                ) : (
+                  <div className="mt-2.5 bg-white border border-[#fde68a] rounded-xl p-3 flex flex-col gap-2.5">
+                    <div>
+                      <label className="block font-sans text-[11px] font-semibold text-[#92400e] mb-1">{t('w.paymentMethod')}</label>
+                      <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="input-field">
+                        <option value="cash">{t('w.cash')}</option>
+                        <option value="jazzcash">{t('w.jazzcash')}</option>
+                        <option value="easypaisa">{t('w.easypaisa')}</option>
+                        <option value="bank">{t('a.bank')}</option>
+                      </select>
+                    </div>
+                    <DonationReceiptUpload onUpload={setPayProofPath} />
+                    <div className="flex gap-2">
+                      <button onClick={submitPaymentProof} disabled={submittingProof} className="flex-1 py-2 rounded-lg bg-[#92400e] text-white font-sans text-[12px] font-bold cursor-pointer disabled:opacity-50">{submittingProof ? t('action.loading') : t('rw.submitPaymentProofBtn')}</button>
+                      <button onClick={() => setShowPayForm(false)} className="flex-1 py-2 rounded-lg border border-[#fde68a] font-sans text-[12px] font-semibold text-[#92400e] cursor-pointer">{t('action.cancel')}</button>
+                    </div>
+                  </div>
+                )
+              )}
             </div>
           )}
 
