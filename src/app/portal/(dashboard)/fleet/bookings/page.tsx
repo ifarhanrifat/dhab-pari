@@ -30,7 +30,7 @@ interface FoundBooking {
   travel_date: string; seats: number; amount_pkr: number; status: string; payment_method: string | null
   vehicle_id: string; is_van_kind: boolean; total_seats: number; is_sleeper: boolean; seat_numbers: number[] | null
   ticket_no: string | null; boarded_at: string | null; vehicle_number: string | null; service_code: string | null
-  emergency_contact_phone: string | null
+  emergency_contact_phone: string | null; luggage_note: string | null
 }
 interface PaidPassenger { full_name: string; gender: string }
 interface FreeChild { full_name: string; age: string }
@@ -84,6 +84,7 @@ export default function FleetBookingsPage() {
   const [rescheduleTakenSeats, setRescheduleTakenSeats] = useState<number[]>([])
   const [rescheduleSeats, setRescheduleSeats] = useState<number[]>([])
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [luggageDrafts, setLuggageDrafts] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!user) return
@@ -211,13 +212,30 @@ export default function FleetBookingsPage() {
 
   const boardFound = async (b: FoundBooking) => {
     setBusyId(b.id)
+    const note = luggageDrafts[b.id] || null
     const { error } = b.source === 'manual'
-      ? await supabase.rpc('board_manual_ticket', { p_id: b.id })
-      : await supabase.rpc('board_ride_bookings', { p_booking_ids: [b.id] })
+      ? await supabase.rpc('board_manual_ticket', { p_id: b.id, p_luggage_note: note })
+      : await supabase.rpc('board_ride_bookings', { p_booking_ids: [b.id], p_luggage_note: note })
     setBusyId(null)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('mv.boardedToast'))
     runSearch()
+  }
+
+  const sendTicketWhatsapp = (data: ManualTicketData) => {
+    if (!data.passengerMobile) return
+    const lines = [
+      `Ticket #${data.ticketNo}`,
+      `${data.passengerName}`,
+      `${data.origin} → ${data.destination}`,
+      `${data.travelDate}${data.departureTime ? ` · ${data.departureTime}` : ''}`,
+      `${data.seats} seat(s)${data.seatNumbers?.length ? ` (#${data.seatNumbers.join(', ')})` : ''}`,
+      `${data.ownerName}${data.vehicleNumber ? ` · ${data.vehicleNumber}` : ''}`,
+      `Fare: ₨${fmt(data.amountPkr)}`,
+      `Present this ticket number at boarding.`,
+    ]
+    const url = `https://wa.me/${normalizePakPhone(data.passengerMobile)}?text=${encodeURIComponent(lines.join('\n'))}`
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   const cancelFound = async (b: FoundBooking) => {
@@ -379,6 +397,7 @@ export default function FleetBookingsPage() {
                     <p className="font-sans text-[10.5px] text-[#94a3b8] ltr-num">
                       {b.ticket_no ? `#${b.ticket_no}` : ''}{b.boarded_at ? ` · ${t('mv.boardedLabel')}` : ''}
                     </p>
+                    {b.luggage_note && <p className="font-sans text-[10.5px] text-[#94a3b8]">🧳 {b.luggage_note}</p>}
                   </div>
                   <div className="shrink-0 flex items-center gap-2">
                     {b.passenger_mobile && (
@@ -403,14 +422,20 @@ export default function FleetBookingsPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex flex-col gap-1.5 mt-2">
                     {!b.boarded_at && (
-                      <button onClick={() => boardFound(b)} disabled={busyId === b.id} className="flex items-center justify-center gap-1 flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer disabled:opacity-50">
-                        <UserCheck size={13} /> {t('mv.boardBtn')}
-                      </button>
+                      <input value={luggageDrafts[b.id] ?? ''} onChange={(e) => setLuggageDrafts((d) => ({ ...d, [b.id]: e.target.value }))}
+                        placeholder={t('mv.luggageNotePlaceholder')} className="w-full px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" />
                     )}
-                    <button onClick={() => { setRescheduling(b); setRescheduleDate(b.travel_date); setRescheduleSeats(b.seat_numbers ?? []) }} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer">{t('mv.rescheduleBtn')}</button>
-                    <button onClick={() => cancelFound(b)} disabled={busyId === b.id} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#b91c1c] cursor-pointer disabled:opacity-50">{t('action.cancel')}</button>
+                    <div className="flex gap-2">
+                      {!b.boarded_at && (
+                        <button onClick={() => boardFound(b)} disabled={busyId === b.id} className="flex items-center justify-center gap-1 flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer disabled:opacity-50">
+                          <UserCheck size={13} /> {t('mv.boardBtn')}
+                        </button>
+                      )}
+                      <button onClick={() => { setRescheduling(b); setRescheduleDate(b.travel_date); setRescheduleSeats(b.seat_numbers ?? []) }} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer">{t('mv.rescheduleBtn')}</button>
+                      <button onClick={() => cancelFound(b)} disabled={busyId === b.id} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#b91c1c] cursor-pointer disabled:opacity-50">{t('action.cancel')}</button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -427,6 +452,11 @@ export default function FleetBookingsPage() {
               <button onClick={printTicket} className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13px] font-bold cursor-pointer">
                 <Printer size={15} /> {t('mv.printTicketBtn')}
               </button>
+              {printedTicket.passengerMobile && (
+                <button onClick={() => sendTicketWhatsapp(printedTicket)} className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#166534] text-[#166534] font-sans text-[13px] font-bold cursor-pointer">
+                  <MessageCircle size={15} /> {t('mv.sendWhatsappBtn')}
+                </button>
+              )}
               <button onClick={() => setPrintedTicket(null)} className="px-4 py-2.5 rounded-xl border border-[#e5e2d0] font-sans text-[13px] font-semibold text-[#64748b] cursor-pointer">{t('action.close')}</button>
             </div>
           </div>

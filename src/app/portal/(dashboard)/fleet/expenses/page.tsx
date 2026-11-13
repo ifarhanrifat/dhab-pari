@@ -6,16 +6,17 @@
 // wasn't shown anywhere before).
 
 import { useEffect, useState } from 'react'
-import { Fuel } from 'lucide-react'
+import { Fuel, FileImage } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 
 interface FleetVehicle { id: string; owner_name: string; vehicle_type: string }
-interface Expense { id: string; vehicle_id: string; category: string; amount_pkr: number; note: string | null; expense_date: string }
+interface Expense { id: string; vehicle_id: string; category: string; amount_pkr: number; note: string | null; expense_date: string; receipt_url: string | null }
 interface RecentRun { id: string; started_at: string; vehicle_routes: { origin: string; destination: string } | null }
 
 function fmt(n: number) {
@@ -34,6 +35,7 @@ export default function FleetExpensesPage() {
   const [fleetId, setFleetId] = useState<string | null>(null)
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
+  const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({})
   const [vehicleId, setVehicleId] = useState('')
   const [category, setCategory] = useState('fuel')
   const [amount, setAmount] = useState('')
@@ -42,6 +44,7 @@ export default function FleetExpensesPage() {
   const [routeRunId, setRouteRunId] = useState('')
   const [recentRuns, setRecentRuns] = useState<RecentRun[]>([])
   const [logging, setLogging] = useState(false)
+  const [receiptPath, setReceiptPath] = useState('')
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
@@ -53,9 +56,19 @@ export default function FleetExpensesPage() {
       setVehicles(vs)
       if (vs.length > 0) setVehicleId((prev) => prev || vs[0].id)
       const { data: exp } = await supabase.from('vehicle_expenses')
-        .select('id, vehicle_id, category, amount_pkr, note, expense_date')
+        .select('id, vehicle_id, category, amount_pkr, note, expense_date, receipt_url')
         .in('vehicle_id', vs.map((x) => x.id)).order('expense_date', { ascending: false }).limit(50)
-      setExpenses((exp ?? []) as Expense[])
+      const list = (exp ?? []) as Expense[]
+      setExpenses(list)
+      const withReceipts = list.filter((e) => e.receipt_url)
+      if (withReceipts.length > 0) {
+        const urls: Record<string, string> = {}
+        await Promise.all(withReceipts.map(async (e) => {
+          const { data: signed } = await supabase.storage.from('vehicle_expense_receipts').createSignedUrl(e.receipt_url!, 300)
+          if (signed) urls[e.id] = signed.signedUrl
+        }))
+        setReceiptUrls(urls)
+      }
     }
     setLoading(false)
   }
@@ -78,11 +91,12 @@ export default function FleetExpensesPage() {
     const { error } = await supabase.rpc('record_vehicle_expense', {
       p_vehicle_id: vehicleId, p_category: category, p_amount_pkr: Number(amount), p_note: note || null,
       p_route_run_id: routeRunId || null, p_station_name: category === 'fuel' ? (stationName || null) : null,
+      p_receipt_url: receiptPath || null,
     })
     setLogging(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('mv.expenseLoggedToast'))
-    setAmount(''); setNote(''); setStationName(''); setRouteRunId('')
+    setAmount(''); setNote(''); setStationName(''); setRouteRunId(''); setReceiptPath('')
     load()
   }
 
@@ -114,6 +128,9 @@ export default function FleetExpensesPage() {
             <input value={stationName} onChange={(e) => setStationName(e.target.value)} placeholder={t('mv.stationNamePlaceholder')}
               className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5" />
           )}
+          <div className="mb-2.5">
+            <DonationReceiptUpload bucket="vehicle_expense_receipts" label={t('mv.uploadReceiptLabel')} onUpload={setReceiptPath} />
+          </div>
           {recentRuns.length > 0 && (
             <>
               <label className="block font-sans text-[11px] font-bold text-[#64748b] mb-1">{t('mv.attributeToTripLabel')}</label>
@@ -142,6 +159,11 @@ export default function FleetExpensesPage() {
                   <div>
                     <p className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{v?.owner_name ?? ''} · {t(`mv.expenseCategory${e.category.charAt(0).toUpperCase()}${e.category.slice(1)}`)}</p>
                     <p className="font-sans text-[10.5px] text-[#94a3b8]">{fmtDate(e.expense_date)}{e.note ? ` · ${e.note}` : ''}</p>
+                    {receiptUrls[e.id] && (
+                      <a href={receiptUrls[e.id]} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#166534]">
+                        <FileImage size={11} /> {t('mv.viewReceiptBtn')}
+                      </a>
+                    )}
                   </div>
                   <span className="font-sans text-[13px] font-bold text-[#b91c1c] ltr-num">₨{fmt(e.amount_pkr)}</span>
                 </div>

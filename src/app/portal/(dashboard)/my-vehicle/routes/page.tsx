@@ -17,7 +17,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus, Megaphone, Users, Route as RouteIcon, Pencil, ArrowLeft } from 'lucide-react'
+import { MapPin, Signpost, CheckCircle2, XCircle, Ban, Clock, Plus, Megaphone, Users, Route as RouteIcon, Pencil, ArrowLeft, Ticket as TicketIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -32,6 +32,7 @@ import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
 import { RouteMonthlySubscribersPanel } from '@/components/mobility/RouteMonthlySubscribersPanel'
 import { CityReturnDemandCard } from '@/components/mobility/CityReturnDemandCard'
 import { SeatPickerField } from '@/components/mobility/SeatPickerField'
+import { TicketBoardSheet } from '@/components/mobility/TicketBoardSheet'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -153,6 +154,7 @@ export default function MyVehicleRoutesPage() {
   const [luggageMethod, setLuggageMethod] = useState('cash')
   const [recordingLuggage, setRecordingLuggage] = useState(false)
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
+  const [showTicketSearch, setShowTicketSearch] = useState(false)
   // 848: which vehicle's own kind decides the sensible default for the
   // Local/Non-stop fare toggle below (van-kind used to default to
   // local/fixed automatically, car/suv to non-stop/flex) — still just
@@ -626,9 +628,14 @@ export default function MyVehicleRoutesPage() {
       )}
       <div className="flex items-center justify-between gap-2">
         <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Signpost size={19} /> {t('mp.myRoutesHeading')}</h1>
-        <button onClick={() => { setShowForm((v) => !v); setModeLocked(null) }} className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-semibold cursor-pointer">
-          <Plus size={14} /> {t('mv.postRouteBtn')}
-        </button>
+        <div className="shrink-0 flex items-center gap-1.5">
+          <button onClick={() => setShowTicketSearch(true)} className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#166534] text-[#166534] font-sans text-[12.5px] font-semibold cursor-pointer">
+            <TicketIcon size={14} /> {t('mv.searchBtn')}
+          </button>
+          <button onClick={() => { setShowForm((v) => !v); setModeLocked(null) }} className="flex items-center gap-1 px-3 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-semibold cursor-pointer">
+            <Plus size={14} /> {t('mv.postRouteBtn')}
+          </button>
+        </div>
       </div>
 
       {/* 848: persistent fleet view-switcher — only ever shown when this
@@ -1194,6 +1201,9 @@ export default function MyVehicleRoutesPage() {
             <p className="font-sans text-[11.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">{t('mv.handOffSettleNote')}</p>
           </div>
         </MobilityBottomSheet>
+      )}
+      {showTicketSearch && (selectedVehicleId ?? vehicleId) && (
+        <TicketBoardSheet vehicleId={(selectedVehicleId ?? vehicleId)!} onClose={() => setShowTicketSearch(false)} />
       )}
       {manualBookingRouteId && (
         <MobilityBottomSheet title={t('mv.recordWalkUpHeading')} onClose={() => setManualBookingRouteId(null)}>

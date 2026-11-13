@@ -21,7 +21,7 @@
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, CheckCircle2, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react'
+import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, CheckCircle2, Plus, Pencil, Trash2, RotateCcw, IdCard } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -446,6 +446,11 @@ export default function FleetDashboardPage() {
         <Link href="/portal/fleet/chalan" className="bg-white border border-[#e5e2d0] rounded-xl p-3 flex items-center gap-2">
           <Ticket size={16} className="text-[#166534] shrink-0" />
           <span className="font-sans text-[12.5px] font-bold text-[#1e293b]">{t('mv.chalanHeading')}</span>
+          <ChevronRight size={13} className={`shrink-0 ms-auto text-[#94a3b8] ${isUrdu ? 'rotate-180' : ''}`} />
+        </Link>
+        <Link href="/portal/fleet/drivers" className="bg-white border border-[#e5e2d0] rounded-xl p-3 flex items-center gap-2">
+          <IdCard size={16} className="text-[#166534] shrink-0" />
+          <span className="font-sans text-[12.5px] font-bold text-[#1e293b]">{t('mv.driverRosterHeading')}</span>
           <ChevronRight size={13} className={`shrink-0 ms-auto text-[#94a3b8] ${isUrdu ? 'rotate-180' : ''}`} />
         </Link>
         {isOwner && (
