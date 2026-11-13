@@ -9,10 +9,11 @@
 // no search/reschedule at all, across either booking source.
 
 import { useEffect, useState } from 'react'
-import { Ticket, Search, X } from 'lucide-react'
+import { Ticket, Search, X, Phone, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
+import { normalizePakPhone } from '@/lib/receiptExport'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
@@ -282,7 +283,15 @@ export default function FleetBookingsPage() {
                     <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{b.passenger_name}{b.passenger_mobile ? ` · ${b.passenger_mobile}` : ''}</p>
                     <p className="font-sans text-[10.5px] text-[#94a3b8]">{b.origin} → {b.destination} · {b.owner_name} · {b.seats} {t('mv.seatsSuffix')} · <span className="ltr-num">{b.travel_date}</span></p>
                   </div>
-                  <span className="shrink-0 font-sans text-[13px] font-bold text-[#166534] ltr-num">₨{fmt(b.amount_pkr)}</span>
+                  <div className="shrink-0 flex items-center gap-2">
+                    {b.passenger_mobile && (
+                      <>
+                        <a href={`tel:${b.passenger_mobile}`} className="p-1 text-[#64748b]"><Phone size={13} /></a>
+                        <a href={`https://wa.me/${normalizePakPhone(b.passenger_mobile)}`} target="_blank" rel="noopener noreferrer" className="p-1 text-[#166534]"><MessageCircle size={13} /></a>
+                      </>
+                    )}
+                    <span className="font-sans text-[13px] font-bold text-[#166534] ltr-num">₨{fmt(b.amount_pkr)}</span>
+                  </div>
                 </div>
                 {rescheduling?.id === b.id ? (
                   <div className="flex flex-col gap-2 mt-2">

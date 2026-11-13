@@ -17,10 +17,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Receipt, Users2, Wallet, ChevronRight, X, RotateCcw } from 'lucide-react'
+import { Receipt, Users2, Wallet, ChevronRight, X, RotateCcw, Phone, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
+import { normalizePakPhone } from '@/lib/receiptExport'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
@@ -175,6 +176,12 @@ export default function FleetChalanPage() {
           </span>
         </div>
       </div>
+      {p.passenger_mobile && (
+        <div className="flex items-center gap-3 mt-1.5">
+          <a href={`tel:${p.passenger_mobile}`} className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#64748b]"><Phone size={11} /> {t('vp.callBtn')}</a>
+          <a href={`https://wa.me/${normalizePakPhone(p.passenger_mobile)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#166534]"><MessageCircle size={11} /> WhatsApp</a>
+        </div>
+      )}
       {transferring?.id === p.id ? (
         <div className="mt-2 pt-2 border-t border-[#f1f5f9] flex flex-col gap-2">
           <input type="date" value={transferDate} min={today()} onChange={(e) => setTransferDate(e.target.value)} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
