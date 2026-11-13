@@ -443,6 +443,11 @@ export default function FleetDashboardPage() {
           <span className="font-sans text-[12.5px] font-bold text-[#1e293b]">{t('mv.busManagementHeading')}</span>
           <ChevronRight size={13} className={`shrink-0 ms-auto text-[#94a3b8] ${isUrdu ? 'rotate-180' : ''}`} />
         </Link>
+        <Link href="/portal/fleet/chalan" className="bg-white border border-[#e5e2d0] rounded-xl p-3 flex items-center gap-2">
+          <Ticket size={16} className="text-[#166534] shrink-0" />
+          <span className="font-sans text-[12.5px] font-bold text-[#1e293b]">{t('mv.chalanHeading')}</span>
+          <ChevronRight size={13} className={`shrink-0 ms-auto text-[#94a3b8] ${isUrdu ? 'rotate-180' : ''}`} />
+        </Link>
         {isOwner && (
           <Link href="/portal/fleet/invite" className="bg-white border border-[#e5e2d0] rounded-xl p-3 flex items-center gap-2">
             <UserPlus size={16} className="text-[#166534] shrink-0" />
