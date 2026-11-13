@@ -16,6 +16,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface FleetVehicle { id: string; owner_name: string; vehicle_type: string }
 interface Expense { id: string; vehicle_id: string; category: string; amount_pkr: number; note: string | null; expense_date: string }
+interface RecentRun { id: string; started_at: string; vehicle_routes: { origin: string; destination: string } | null }
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -37,6 +38,9 @@ export default function FleetExpensesPage() {
   const [category, setCategory] = useState('fuel')
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
+  const [stationName, setStationName] = useState('')
+  const [routeRunId, setRouteRunId] = useState('')
+  const [recentRuns, setRecentRuns] = useState<RecentRun[]>([])
   const [logging, setLogging] = useState(false)
 
   const load = async () => {
@@ -62,16 +66,23 @@ export default function FleetExpensesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
+  useEffect(() => {
+    if (!vehicleId) { setRecentRuns([]); return }
+    supabase.from('route_runs').select('id, started_at, vehicle_routes!inner(origin, destination, vehicle_id)').eq('vehicle_routes.vehicle_id', vehicleId)
+      .order('started_at', { ascending: false }).limit(10).then(({ data }) => setRecentRuns((data ?? []) as unknown as RecentRun[]))
+  }, [vehicleId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const logExpense = async () => {
     if (!vehicleId || !amount) { toast.error(t('mv.enterExpenseAmountError')); return }
     setLogging(true)
     const { error } = await supabase.rpc('record_vehicle_expense', {
       p_vehicle_id: vehicleId, p_category: category, p_amount_pkr: Number(amount), p_note: note || null,
+      p_route_run_id: routeRunId || null, p_station_name: category === 'fuel' ? (stationName || null) : null,
     })
     setLogging(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('mv.expenseLoggedToast'))
-    setAmount(''); setNote('')
+    setAmount(''); setNote(''); setStationName(''); setRouteRunId('')
     load()
   }
 
@@ -99,6 +110,19 @@ export default function FleetExpensesPage() {
           </div>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('mv.expenseNotePlaceholder')}
             className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5" />
+          {category === 'fuel' && (
+            <input value={stationName} onChange={(e) => setStationName(e.target.value)} placeholder={t('mv.stationNamePlaceholder')}
+              className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5" />
+          )}
+          {recentRuns.length > 0 && (
+            <>
+              <label className="block font-sans text-[11px] font-bold text-[#64748b] mb-1">{t('mv.attributeToTripLabel')}</label>
+              <select value={routeRunId} onChange={(e) => setRouteRunId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5">
+                <option value="">—</option>
+                {recentRuns.map((r) => <option key={r.id} value={r.id}>{r.vehicle_routes?.origin} → {r.vehicle_routes?.destination} · {new Date(r.started_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</option>)}
+              </select>
+            </>
+          )}
           <button onClick={logExpense} disabled={logging} className="w-full px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
             {logging ? t('action.loading') : t('mv.logExpenseBtn')}
           </button>

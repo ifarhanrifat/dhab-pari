@@ -253,6 +253,7 @@ const menuItems: MenuEntry[] = [
       { href: '/admin/user-verification', label: 'User Verification', tKey: 'nav.userVerification', icon: ShieldCheck, system: 'donors_projects' },
       { href: '/admin/disputes', label: 'Disputes', tKey: 'nav.disputes', icon: Scale, system: 'donors_projects' },
       { href: '/admin/fleet-map', label: 'Fleet Map', tKey: 'nav.fleetMap', icon: Radar, system: 'donors_projects' },
+      { href: '/admin/trip-history', label: 'Trip History', tKey: 'nav.tripHistory', icon: History, system: 'donors_projects' },
     ],
   },
   { href: '/admin/talent-showcase', label: 'Talent Showcase', tKey: 'nav.talentShowcase', icon: Sparkles, adminAndAbove: true, system: 'donors_projects' },
