@@ -18,7 +18,7 @@ import type { MapPin } from '@/components/shared/LeafletMap'
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface FleetPin {
-  source: 'trip' | 'hourly'; ref_id: string; owner_name: string; owner_mobile: string | null
+  source: 'trip' | 'hourly' | 'route'; ref_id: string; owner_name: string; owner_mobile: string | null
   vehicle_type: string; vehicle_number: string | null; context: string; lat: number; lng: number; updated_at: string
 }
 
@@ -48,7 +48,7 @@ export default function AdminFleetMapPage() {
   }
 
   const mapPins: MapPin[] = pins.map((p) => ({
-    lat: p.lat, lng: p.lng, emoji: p.source === 'hourly' ? '🚖' : '🚐',
+    lat: p.lat, lng: p.lng, emoji: p.source === 'hourly' ? '🚖' : p.source === 'route' ? '🚌' : '🚐',
     popupHtml: `<strong>${p.owner_name}</strong><br/>${p.vehicle_type}${p.vehicle_number ? ` · ${p.vehicle_number}` : ''}<br/>${p.context}`,
   }))
 
