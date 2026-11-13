@@ -8,16 +8,17 @@
 // building this: the old version hardcoded every date to today and had
 // no search/reschedule at all, across either booking source.
 
-import { useEffect, useState } from 'react'
-import { Ticket, Search, X, Phone, MessageCircle } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Ticket, Search, X, Phone, MessageCircle, Printer, UserCheck, Baby } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
-import { normalizePakPhone } from '@/lib/receiptExport'
+import { normalizePakPhone, printNodeInPopup } from '@/lib/receiptExport'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { SeatPickerField } from '@/components/mobility/SeatPickerField'
+import { ManualTicketDocument, type ManualTicketData } from '@/components/mobility/ManualTicketDocument'
 
 interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }
 interface Route { id: string; origin: string; destination: string; departure_time: string | null; fare_per_seat_pkr: number }
@@ -28,7 +29,11 @@ interface FoundBooking {
   route_id: string; origin: string; destination: string; owner_name: string
   travel_date: string; seats: number; amount_pkr: number; status: string; payment_method: string | null
   vehicle_id: string; is_van_kind: boolean; total_seats: number; is_sleeper: boolean; seat_numbers: number[] | null
+  ticket_no: string | null; boarded_at: string | null; vehicle_number: string | null; service_code: string | null
+  emergency_contact_phone: string | null
 }
+interface PaidPassenger { full_name: string; gender: string }
+interface FreeChild { full_name: string; age: string }
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -54,6 +59,12 @@ export default function FleetBookingsPage() {
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState('cash')
   const [recording, setRecording] = useState(false)
+  const [emergencyPhone, setEmergencyPhone] = useState('')
+  const [showPassengers, setShowPassengers] = useState(false)
+  const [paidPassengers, setPaidPassengers] = useState<PaidPassenger[]>([{ full_name: '', gender: '' }])
+  const [freeChildren, setFreeChildren] = useState<FreeChild[]>([])
+  const [printedTicket, setPrintedTicket] = useState<ManualTicketData | null>(null)
+  const ticketRef = useRef<HTMLDivElement>(null)
   // Real ask: "a currently booking position of any bus which is going
   // to depart after few days" — the whole form used to hardcode today.
   const [bookTravelDate, setBookTravelDate] = useState(today())
@@ -119,6 +130,18 @@ export default function FleetBookingsPage() {
     if (routeId) loadTakenSeats()
   }, [routeId, bookTravelDate, seating?.isVanKind]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Keep the paid-passenger name rows in step with the seat count; a single
+  // paid seat can only carry a free INFANT (age <= 2, enforced server-side
+  // too), 2+ paid seats can carry any under-10 child free.
+  useEffect(() => {
+    setPaidPassengers((prev) => {
+      const next = [...prev]
+      while (next.length < seats) next.push({ full_name: '', gender: '' })
+      return next.slice(0, seats)
+    })
+    if (seats === 1) setFreeChildren((prev) => prev.slice(0, 1))
+  }, [seats])
+
   const runSearch = async () => {
     if (!fleetId) return
     setSearching(true)
@@ -150,18 +173,51 @@ export default function FleetBookingsPage() {
     if (!routeId || !passengerName.trim() || !amount) { toast.error(t('mv.fillManualBookingError')); return }
     if (seating?.isVanKind && selectedSeats.length !== seats) { toast.error(t('mv.pickASeatError')); return }
     setRecording(true)
-    const { error } = await supabase.rpc('record_manual_booking', {
+    const passengers = showPassengers
+      ? [
+          ...paidPassengers.filter((p) => p.full_name.trim()).map((p) => ({ full_name: p.full_name.trim(), gender: p.gender || null, is_free_child: false })),
+          ...freeChildren.filter((c) => c.full_name.trim()).map((c) => ({ full_name: c.full_name.trim(), age: c.age ? Number(c.age) : null, is_free_child: true })),
+        ]
+      : null
+    const { data, error } = await supabase.rpc('record_manual_booking', {
       p_route_id: routeId, p_travel_date: bookTravelDate, p_seats: seats,
       p_passenger_name: passengerName, p_total_amount_pkr: Number(amount),
       p_counter_id: counterId || null, p_passenger_mobile: passengerMobile || null, p_payment_method: method,
       p_seat_numbers: seating?.isVanKind ? selectedSeats : null,
+      p_emergency_contact_phone: emergencyPhone || null, p_passengers: passengers,
     })
     setRecording(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('mv.manualBookingRecordedToast'))
+    const ticketNo = (data as { ticket_no?: string } | null)?.ticket_no
+    const vehicle = vehicles.find((v) => v.id === vehicleId)
+    if (ticketNo && selectedRoute && vehicle) {
+      setPrintedTicket({
+        ticketNo, passengerName, passengerMobile: passengerMobile || null, emergencyContactPhone: emergencyPhone || null,
+        origin: selectedRoute.origin, destination: selectedRoute.destination, travelDate: bookTravelDate,
+        departureTime: selectedRoute.departure_time, seats, seatNumbers: seating?.isVanKind ? selectedSeats : null,
+        amountPkr: Number(amount), ownerName: vehicle.owner_name, vehicleNumber: vehicle.vehicle_number, serviceCode: null,
+      })
+    }
     setPassengerName(''); setPassengerMobile(''); setSeats(1); setAmount(''); setSelectedSeats([])
+    setEmergencyPhone(''); setPaidPassengers([{ full_name: '', gender: '' }]); setFreeChildren([]); setShowPassengers(false)
     loadTakenSeats()
     if (bookTravelDate === searchDate) runSearch()
+  }
+
+  const printTicket = () => {
+    if (ticketRef.current) printNodeInPopup(ticketRef.current, 'Ticket')
+  }
+
+  const boardFound = async (b: FoundBooking) => {
+    setBusyId(b.id)
+    const { error } = b.source === 'manual'
+      ? await supabase.rpc('board_manual_ticket', { p_id: b.id })
+      : await supabase.rpc('board_ride_bookings', { p_booking_ids: [b.id] })
+    setBusyId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.boardedToast'))
+    runSearch()
   }
 
   const cancelFound = async (b: FoundBooking) => {
@@ -231,6 +287,44 @@ export default function FleetBookingsPage() {
               <input value={passengerMobile} onChange={(e) => setPassengerMobile(e.target.value)} placeholder={t('mv.passengerMobileOptionalPlaceholder')}
                 className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
             </div>
+            <input value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} placeholder={t('mv.emergencyContactPlaceholder')}
+              className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2 ltr-num" />
+
+            <button type="button" onClick={() => setShowPassengers((s) => !s)} className="font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer mb-2">
+              {showPassengers ? t('mv.hidePassengerDetailsBtn') : t('mv.addPassengerDetailsBtn')}
+            </button>
+            {showPassengers && (
+              <div className="bg-[#f8f6ee] rounded-lg p-2.5 mb-2.5 flex flex-col gap-2">
+                <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b]">{t('mv.paidPassengersLabel')}</p>
+                {paidPassengers.map((p, i) => (
+                  <div key={i} className="flex gap-2">
+                    <input value={p.full_name} onChange={(e) => setPaidPassengers((arr) => arr.map((x, j) => j === i ? { ...x, full_name: e.target.value } : x))}
+                      placeholder={t('mv.passengerNamePlaceholder')} className="flex-1 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px]" />
+                    <select value={p.gender} onChange={(e) => setPaidPassengers((arr) => arr.map((x, j) => j === i ? { ...x, gender: e.target.value } : x))}
+                      className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]">
+                      <option value="">{t('mv.genderPlaceholder')}</option>
+                      <option value="male">{t('mv.genderMale')}</option>
+                      <option value="female">{t('mv.genderFemale')}</option>
+                    </select>
+                  </div>
+                ))}
+                <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mt-1">{t('mv.freeChildrenLabel')}</p>
+                <p className="font-sans text-[10.5px] text-[#94a3b8]">{seats >= 2 ? t('mv.freeChildPolicyMulti') : t('mv.freeChildPolicySingle')}</p>
+                {freeChildren.map((c, i) => (
+                  <div key={i} className="flex gap-2">
+                    <input value={c.full_name} onChange={(e) => setFreeChildren((arr) => arr.map((x, j) => j === i ? { ...x, full_name: e.target.value } : x))}
+                      placeholder={t('mv.childNamePlaceholder')} className="flex-1 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px]" />
+                    <input type="number" min={0} value={c.age} onChange={(e) => setFreeChildren((arr) => arr.map((x, j) => j === i ? { ...x, age: e.target.value } : x))}
+                      placeholder={t('mv.childAgePlaceholder')} className="w-20 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
+                    <button type="button" onClick={() => setFreeChildren((arr) => arr.filter((_, j) => j !== i))} className="p-1.5 text-[#b91c1c] cursor-pointer"><X size={14} /></button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setFreeChildren((arr) => [...arr, { full_name: '', age: '' }])}
+                  className="flex items-center gap-1 font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer">
+                  <Baby size={13} /> {t('mv.addFreeChildBtn')}
+                </button>
+              </div>
+            )}
             <div className="flex gap-2 mb-2">
               <input type="number" min={1} max={seating?.totalSeats} value={seats} onChange={(e) => setSeats(Math.max(1, Number(e.target.value)))}
                 className="w-20 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
@@ -282,6 +376,9 @@ export default function FleetBookingsPage() {
                   <div className="min-w-0">
                     <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{b.passenger_name}{b.passenger_mobile ? ` · ${b.passenger_mobile}` : ''}</p>
                     <p className="font-sans text-[10.5px] text-[#94a3b8]">{b.origin} → {b.destination} · {b.owner_name} · {b.seats} {t('mv.seatsSuffix')} · <span className="ltr-num">{b.travel_date}</span></p>
+                    <p className="font-sans text-[10.5px] text-[#94a3b8] ltr-num">
+                      {b.ticket_no ? `#${b.ticket_no}` : ''}{b.boarded_at ? ` · ${t('mv.boardedLabel')}` : ''}
+                    </p>
                   </div>
                   <div className="shrink-0 flex items-center gap-2">
                     {b.passenger_mobile && (
@@ -307,6 +404,11 @@ export default function FleetBookingsPage() {
                   </div>
                 ) : (
                   <div className="flex gap-2 mt-2">
+                    {!b.boarded_at && (
+                      <button onClick={() => boardFound(b)} disabled={busyId === b.id} className="flex items-center justify-center gap-1 flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer disabled:opacity-50">
+                        <UserCheck size={13} /> {t('mv.boardBtn')}
+                      </button>
+                    )}
                     <button onClick={() => { setRescheduling(b); setRescheduleDate(b.travel_date); setRescheduleSeats(b.seat_numbers ?? []) }} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer">{t('mv.rescheduleBtn')}</button>
                     <button onClick={() => cancelFound(b)} disabled={busyId === b.id} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#b91c1c] cursor-pointer disabled:opacity-50">{t('action.cancel')}</button>
                   </div>
@@ -316,6 +418,20 @@ export default function FleetBookingsPage() {
           </div>
         )}
       </div>
+
+      {printedTicket && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPrintedTicket(null)}>
+          <div className="bg-white rounded-2xl max-w-[460px] w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div ref={ticketRef}><ManualTicketDocument data={printedTicket} /></div>
+            <div className="flex gap-2 p-4 pt-0">
+              <button onClick={printTicket} className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13px] font-bold cursor-pointer">
+                <Printer size={15} /> {t('mv.printTicketBtn')}
+              </button>
+              <button onClick={() => setPrintedTicket(null)} className="px-4 py-2.5 rounded-xl border border-[#e5e2d0] font-sans text-[13px] font-semibold text-[#64748b] cursor-pointer">{t('action.close')}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

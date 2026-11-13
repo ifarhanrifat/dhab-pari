@@ -571,7 +571,7 @@ export default function MyVehicleRoutesPage() {
     if (!manualBookingRouteId || !manualPassengerName.trim() || !manualAmount) { toast.error(t('mv.fillManualBookingError')); return }
     if (isVanKindRoute && manualSeatNumbers.length !== manualSeats) { toast.error(t('mv.pickASeatError')); return }
     setRecordingManual(true)
-    const { error } = await supabase.rpc('record_manual_booking', {
+    const { data, error } = await supabase.rpc('record_manual_booking', {
       p_route_id: manualBookingRouteId, p_travel_date: new Date().toISOString().slice(0, 10), p_seats: manualSeats,
       p_passenger_name: manualPassengerName, p_total_amount_pkr: Number(manualAmount),
       p_counter_id: manualCounterId || null, p_passenger_mobile: manualPassengerMobile || null, p_payment_method: manualMethod,
@@ -579,7 +579,8 @@ export default function MyVehicleRoutesPage() {
     })
     setRecordingManual(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    toast.success(t('mv.manualBookingRecordedToast'))
+    const ticketNo = (data as { ticket_no?: string } | null)?.ticket_no
+    toast.success(ticketNo ? `${t('mv.manualBookingRecordedToast')} · #${ticketNo}` : t('mv.manualBookingRecordedToast'))
     setManualBookingRouteId(null)
     const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid)
   }
