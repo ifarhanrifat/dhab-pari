@@ -19,6 +19,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { SeatPickerField } from '@/components/mobility/SeatPickerField'
 import { ManualTicketDocument, type ManualTicketData } from '@/components/mobility/ManualTicketDocument'
+import { StopMapPicker, type PickableStop } from '@/components/mobility/StopMapPicker'
 
 interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }
 interface Route { id: string; origin: string; destination: string; departure_time: string | null; fare_per_seat_pkr: number }
@@ -65,6 +66,9 @@ export default function FleetBookingsPage() {
   const [freeChildren, setFreeChildren] = useState<FreeChild[]>([])
   const [printedTicket, setPrintedTicket] = useState<ManualTicketData | null>(null)
   const ticketRef = useRef<HTMLDivElement>(null)
+  const [routeStops, setRouteStops] = useState<PickableStop[]>([])
+  const [boardStopId, setBoardStopId] = useState<string | null>(null)
+  const [showStopPicker, setShowStopPicker] = useState(false)
   // Real ask: "a currently booking position of any bus which is going
   // to depart after few days" — the whole form used to hardcode today.
   const [bookTravelDate, setBookTravelDate] = useState(today())
@@ -131,6 +135,13 @@ export default function FleetBookingsPage() {
     if (routeId) loadTakenSeats()
   }, [routeId, bookTravelDate, seating?.isVanKind]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    setBoardStopId(null)
+    if (!routeId) { setRouteStops([]); return }
+    supabase.from('route_stops').select('id, label, label_ur, lat, lng, stop_order').eq('route_id', routeId).order('stop_order')
+      .then(({ data }) => setRouteStops((data ?? []) as PickableStop[]))
+  }, [routeId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Keep the paid-passenger name rows in step with the seat count; a single
   // paid seat can only carry a free INFANT (age <= 2, enforced server-side
   // too), 2+ paid seats can carry any under-10 child free.
@@ -186,22 +197,26 @@ export default function FleetBookingsPage() {
       p_counter_id: counterId || null, p_passenger_mobile: passengerMobile || null, p_payment_method: method,
       p_seat_numbers: seating?.isVanKind ? selectedSeats : null,
       p_emergency_contact_phone: emergencyPhone || null, p_passengers: passengers,
+      p_board_stop_id: boardStopId,
     })
     setRecording(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('mv.manualBookingRecordedToast'))
     const ticketNo = (data as { ticket_no?: string } | null)?.ticket_no
     const vehicle = vehicles.find((v) => v.id === vehicleId)
+    const boardStop = boardStopId ? routeStops.find((s) => s.id === boardStopId) : null
     if (ticketNo && selectedRoute && vehicle) {
       setPrintedTicket({
         ticketNo, passengerName, passengerMobile: passengerMobile || null, emergencyContactPhone: emergencyPhone || null,
         origin: selectedRoute.origin, destination: selectedRoute.destination, travelDate: bookTravelDate,
         departureTime: selectedRoute.departure_time, seats, seatNumbers: seating?.isVanKind ? selectedSeats : null,
         amountPkr: Number(amount), ownerName: vehicle.owner_name, vehicleNumber: vehicle.vehicle_number, serviceCode: null,
+        boardStopLabel: boardStop?.label ?? null,
       })
     }
     setPassengerName(''); setPassengerMobile(''); setSeats(1); setAmount(''); setSelectedSeats([])
     setEmergencyPhone(''); setPaidPassengers([{ full_name: '', gender: '' }]); setFreeChildren([]); setShowPassengers(false)
+    setBoardStopId(null)
     loadTakenSeats()
     if (bookTravelDate === searchDate) runSearch()
   }
@@ -298,6 +313,13 @@ export default function FleetBookingsPage() {
                 <option value="">{t('mv.noCounterOption')}</option>
                 {counters.map((c) => <option key={c.id} value={c.id}>{c.city}{c.name ? ` · ${c.name}` : ''}</option>)}
               </select>
+            )}
+            {routeStops.length > 0 && selectedRoute && (
+              <button type="button" onClick={() => setShowStopPicker(true)}
+                className="w-full flex items-center justify-between px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2 cursor-pointer">
+                <span className="text-[#64748b]">{t('mv.boardingStopLabel')}</span>
+                <span className="font-semibold text-[#166534]">{boardStopId ? routeStops.find((s) => s.id === boardStopId)?.label : selectedRoute.origin}</span>
+              </button>
             )}
             <div className="flex gap-2 mb-2">
               <input value={passengerName} onChange={(e) => setPassengerName(e.target.value)} placeholder={t('mv.passengerNamePlaceholder')}
@@ -443,6 +465,10 @@ export default function FleetBookingsPage() {
           </div>
         )}
       </div>
+
+      {showStopPicker && selectedRoute && (
+        <StopMapPicker stops={routeStops} value={boardStopId} onChange={setBoardStopId} originLabel={selectedRoute.origin} onClose={() => setShowStopPicker(false)} />
+      )}
 
       {printedTicket && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPrintedTicket(null)}>

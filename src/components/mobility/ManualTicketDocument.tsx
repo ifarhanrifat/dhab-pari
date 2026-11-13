@@ -26,6 +26,7 @@ export interface ManualTicketData {
   ownerName: string
   vehicleNumber: string | null
   serviceCode: string | null
+  boardStopLabel: string | null
 }
 
 function fmt(n: number) {
@@ -56,7 +57,7 @@ export function ManualTicketDocument({ data }: { data: ManualTicketData }) {
       <div className="grid grid-cols-2 gap-2.5 text-[12.5px] mb-3">
         <div><p className="text-[#64748b] text-[10.5px]">Passenger</p><p className="font-semibold">{data.passengerName}</p></div>
         <div><p className="text-[#64748b] text-[10.5px]">Mobile</p><p className="font-semibold ltr-num">{data.passengerMobile ?? '—'}</p></div>
-        <div><p className="text-[#64748b] text-[10.5px]">From</p><p className="font-semibold">{data.origin}</p></div>
+        <div><p className="text-[#64748b] text-[10.5px]">From</p><p className="font-semibold">{data.boardStopLabel ?? data.origin}</p></div>
         <div><p className="text-[#64748b] text-[10.5px]">To</p><p className="font-semibold">{data.destination}</p></div>
         <div><p className="text-[#64748b] text-[10.5px]">Travel Date</p><p className="font-semibold ltr-num">{data.travelDate}{data.departureTime ? ` · ${data.departureTime}` : ''}</p></div>
         <div><p className="text-[#64748b] text-[10.5px]">Seats</p><p className="font-semibold ltr-num">{data.seats}{data.seatNumbers?.length ? ` (#${data.seatNumbers.join(', ')})` : ''}</p></div>
