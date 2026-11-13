@@ -17,7 +17,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Receipt, Users2, Wallet, ChevronRight, X, RotateCcw, Phone, MessageCircle } from 'lucide-react'
+import { Receipt, Users2, Wallet, ChevronRight, X, RotateCcw, Phone, MessageCircle, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -66,6 +66,10 @@ export default function FleetChalanPage() {
   const [transferSeats, setTransferSeats] = useState<number[]>([])
   const [transferTaken, setTransferTaken] = useState<number[]>([])
   const [vehicleSeating, setVehicleSeating] = useState<{ totalSeats: number; isVanKind: boolean; isSleeper: boolean } | null>(null)
+  const [showMessageForm, setShowMessageForm] = useState(false)
+  const [messageTitle, setMessageTitle] = useState('')
+  const [messageBody, setMessageBody] = useState('')
+  const [sendingMessage, setSendingMessage] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -159,6 +163,16 @@ export default function FleetChalanPage() {
     loadChalan(routeId, travelDate)
   }
 
+  const sendMessage = async () => {
+    if (!messageTitle.trim() || !messageBody.trim()) { toast.error(t('mv.messageRequiredError')); return }
+    setSendingMessage(true)
+    const { data, error } = await supabase.rpc('fleet_notify_route_riders', { p_route_id: routeId, p_travel_date: travelDate, p_title: messageTitle.trim(), p_body: messageBody.trim() })
+    setSendingMessage(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.messageSentToast').replace('{n}', String(data ?? 0)))
+    setShowMessageForm(false); setMessageTitle(''); setMessageBody('')
+  }
+
   const renderRow = (p: Passenger) => (
     <div key={`${p.source}-${p.id}`} className="border border-[#e5e2d0] rounded-lg px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
@@ -250,6 +264,22 @@ export default function FleetChalanPage() {
               <p className="font-sans text-[16px] font-extrabold text-[#1e293b] ltr-num mt-0.5">₨{fmt(chalan.cash_collected_pkr)}</p>
             </div>
           </div>
+
+          {showMessageForm ? (
+            <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5 flex flex-col gap-2">
+              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b]">{t('mv.messageRidersHeading')}</p>
+              <input value={messageTitle} onChange={(e) => setMessageTitle(e.target.value)} placeholder={t('mv.messageTitlePlaceholder')} className="px-2.5 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+              <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={2} placeholder={t('mv.messageBodyPlaceholder')} className="px-2.5 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+              <div className="flex gap-2">
+                <button onClick={sendMessage} disabled={sendingMessage} className="flex-1 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">{sendingMessage ? t('action.loading') : t('mv.sendMessageBtn')}</button>
+                <button onClick={() => setShowMessageForm(false)} className="flex-1 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12.5px] font-semibold text-[#64748b] cursor-pointer">{t('action.cancel')}</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShowMessageForm(true)} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[#e5e2d0] font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer">
+              <Send size={13} /> {t('mv.messageRidersHeading')}
+            </button>
+          )}
 
           <div>
             <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-1.5">{t('mv.onboardNowHeading')}</p>

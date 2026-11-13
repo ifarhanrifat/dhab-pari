@@ -23,7 +23,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
-type ReportType = 'pl' | 'expenses' | 'commission' | 'remittances' | 'salaries'
+type ReportType = 'pl' | 'bookings' | 'expenses' | 'commission' | 'remittances' | 'salaries'
 
 interface FleetVehicleSummary {
   vehicle_id: string; owner_name: string; vehicle_type: string
@@ -35,6 +35,10 @@ interface ExpenseTxn { txn_no: string; id: string; expense_date: string; owner_n
 interface SalaryTxn { txn_no: string; id: string; paid_on: string; full_name: string; note: string | null; amount_pkr: number }
 interface LedgerTxn { txn_no: string | null; id: string; entry_date: string; owner_name: string; particular: string; debit: number; credit: number }
 interface RemittanceTxn { id: string; created_at: string; amount_pkr: number; note: string | null; fleet_counters: { city: string; name: string | null } | null }
+interface BookingSummaryRow {
+  travel_date: string; manual_count: number; manual_amount_pkr: number
+  online_confirmed_count: number; online_confirmed_amount_pkr: number; online_unconfirmed_count: number; online_unconfirmed_amount_pkr: number
+}
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -65,6 +69,7 @@ export default function FleetReportsPage() {
   const [salaries, setSalaries] = useState<SalaryTxn[]>([])
   const [ledgerLines, setLedgerLines] = useState<LedgerTxn[]>([])
   const [remittances, setRemittances] = useState<RemittanceTxn[]>([])
+  const [bookingSummary, setBookingSummary] = useState<BookingSummaryRow[]>([])
 
   useEffect(() => {
     if (!user) return
@@ -101,6 +106,11 @@ export default function FleetReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
+  useEffect(() => {
+    if (!fleetId || reportType !== 'bookings') return
+    supabase.rpc('fleet_booking_summary', { p_fleet_id: fleetId, p_from: from, p_to: to }).then(({ data }) => setBookingSummary((data ?? []) as BookingSummaryRow[]))
+  }, [fleetId, reportType, from, to]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const inRange = (iso: string) => iso >= from && iso <= to
   const visibleExpenses = useMemo(() => expenses.filter((e) => inRange(e.expense_date)), [expenses, from, to])
   const visibleSalaries = useMemo(() => salaries.filter((s) => inRange(s.paid_on)), [salaries, from, to])
@@ -108,7 +118,7 @@ export default function FleetReportsPage() {
   const visibleRemittances = useMemo(() => remittances.filter((r) => inRange(r.created_at.slice(0, 10))), [remittances, from, to])
 
   const reportTitles: Record<ReportType, string> = {
-    pl: t('mv.fleetPLHeading'), expenses: t('mv.vehicleExpensesHeading'), commission: t('mv.commissionSettlementsHeading'),
+    pl: t('mv.fleetPLHeading'), bookings: t('mv.bookingSummaryHeading'), expenses: t('mv.vehicleExpensesHeading'), commission: t('mv.commissionSettlementsHeading'),
     remittances: t('mv.remittanceHistoryHeading'), salaries: t('mv.staffSalariesHeading'),
   }
 
@@ -144,6 +154,7 @@ export default function FleetReportsPage() {
           <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.reportTypeLabel')}</label>
           <select value={reportType} onChange={(e) => setReportType(e.target.value as ReportType)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
             <option value="pl">{t('mv.fleetPLHeading')}</option>
+            <option value="bookings">{t('mv.bookingSummaryHeading')}</option>
             <option value="expenses">{t('mv.vehicleExpensesHeading')}</option>
             <option value="commission">{t('mv.commissionSettlementsHeading')}</option>
             {isOwner && <option value="remittances">{t('mv.remittanceHistoryHeading')}</option>}
@@ -204,6 +215,61 @@ export default function FleetReportsPage() {
             </div>
           </div>
         )}
+
+        {reportType === 'bookings' && (() => {
+          const totals = bookingSummary.reduce((s, r) => ({
+            manual: s.manual + r.manual_count, manualAmt: s.manualAmt + Number(r.manual_amount_pkr),
+            onlineConfirmed: s.onlineConfirmed + r.online_confirmed_count, onlineConfirmedAmt: s.onlineConfirmedAmt + Number(r.online_confirmed_amount_pkr),
+            onlineUnconfirmed: s.onlineUnconfirmed + r.online_unconfirmed_count, onlineUnconfirmedAmt: s.onlineUnconfirmedAmt + Number(r.online_unconfirmed_amount_pkr),
+          }), { manual: 0, manualAmt: 0, onlineConfirmed: 0, onlineConfirmedAmt: 0, onlineUnconfirmed: 0, onlineUnconfirmedAmt: 0 })
+          return (
+            <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
+              <div className="flex gap-2 mb-3 flex-wrap">
+                <div className="flex-1 min-w-[90px] bg-[#F9F9F6] border border-[#e5e2d0] rounded-lg p-2.5">
+                  <p className="font-sans text-[10px] text-[#64748b]">{t('mv.sourceManualLabel')}</p>
+                  <p className="font-sans text-[16px] font-extrabold text-[#1e293b] ltr-num">{totals.manual}</p>
+                  <p className="font-sans text-[10px] text-[#64748b] ltr-num">₨{fmt(totals.manualAmt)}</p>
+                </div>
+                <div className="flex-1 min-w-[90px] bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg p-2.5">
+                  <p className="font-sans text-[10px] text-[#166534]">{t('mv.confirmedLabel')}</p>
+                  <p className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num">{totals.onlineConfirmed}</p>
+                  <p className="font-sans text-[10px] text-[#166534] ltr-num">₨{fmt(totals.onlineConfirmedAmt)}</p>
+                </div>
+                <div className="flex-1 min-w-[90px] bg-[#FFFBEB] border border-[#fde68a] rounded-lg p-2.5">
+                  <p className="font-sans text-[10px] text-[#92400e]">{t('mv.unconfirmedLabel')}</p>
+                  <p className="font-sans text-[16px] font-extrabold text-[#92400e] ltr-num">{totals.onlineUnconfirmed}</p>
+                  <p className="font-sans text-[10px] text-[#92400e] ltr-num">₨{fmt(totals.onlineUnconfirmedAmt)}</p>
+                </div>
+              </div>
+              {bookingSummary.length === 0 ? (
+                <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noBookingsFoundHint')}</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-start border-collapse">
+                    <thead>
+                      <tr className="text-[#94a3b8] text-[10.5px] font-sans font-bold uppercase tracking-[0.04em] border-b border-[#e5e2d0]">
+                        <th className="p-2">{t('w.date')}</th>
+                        <th className="p-2 text-end">{t('mv.sourceManualLabel')}</th>
+                        <th className="p-2 text-end">{t('mv.confirmedLabel')}</th>
+                        <th className="p-2 text-end">{t('mv.unconfirmedLabel')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-sans text-[12.5px]">
+                      {bookingSummary.map((r) => (
+                        <tr key={r.travel_date} className="border-t border-[#f1f5f9]">
+                          <td className="p-2 ltr-num text-[#94a3b8]">{fmtDate(r.travel_date)}</td>
+                          <td className="p-2 text-end ltr-num">{r.manual_count}</td>
+                          <td className="p-2 text-end ltr-num text-[#166534] font-bold">{r.online_confirmed_count}</td>
+                          <td className="p-2 text-end ltr-num text-[#92400e]">{r.online_unconfirmed_count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {reportType === 'expenses' && (
           <ReportTable emptyHint={t('mv.noExpensesYetHint')} totalLabel={t('mv.totalLabel')} total={visibleExpenses.reduce((s, e) => s + Number(e.amount_pkr), 0)}

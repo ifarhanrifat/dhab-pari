@@ -315,3 +315,92 @@ END;
 $$;
 REVOKE ALL ON FUNCTION route_departure_chalan(uuid, date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION route_departure_chalan(uuid, date) TO authenticated;
+
+-- ═════════════════════════════════════════════════════════════════════
+-- 4. fleet_booking_summary — real ask: "the current seat positions...
+--    datewise how many seats booked... monthwise how much online booked
+--    and how much manually booked, how much are confirmed seats with
+--    payments and how much are unconfirmed." One daily-grouped report,
+--    reused for both a single day and a full month by the date range
+--    the caller passes — no separate "monthly" RPC needed.
+-- ═════════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION fleet_booking_summary(p_fleet_id uuid, p_from date, p_to date) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_result jsonb;
+BEGIN
+  IF NOT (EXISTS (SELECT 1 FROM fleets f WHERE f.id = p_fleet_id AND f.owning_portal_user_id = current_portal_user_id())
+      OR EXISTS (SELECT 1 FROM fleet_staff fs WHERE fs.fleet_id = p_fleet_id AND fs.portal_user_id = current_portal_user_id())) THEN
+    RAISE EXCEPTION 'You do not manage this fleet.' USING ERRCODE = 'P0001';
+  END IF;
+
+  WITH manual AS (
+    SELECT mb.travel_date, COUNT(*) AS cnt, SUM(mb.total_amount_pkr) AS amt
+    FROM manual_ride_bookings mb JOIN vehicle_routes vr ON vr.id = mb.route_id JOIN vehicles v ON v.id = vr.vehicle_id
+    WHERE v.fleet_id = p_fleet_id AND mb.status = 'confirmed' AND mb.travel_date BETWEEN p_from AND p_to
+    GROUP BY mb.travel_date
+  ),
+  online_confirmed AS (
+    SELECT rb.travel_date, COUNT(*) AS cnt, SUM(rb.total_amount_pkr) AS amt
+    FROM ride_bookings rb JOIN vehicle_routes vr ON vr.id = rb.route_id JOIN vehicles v ON v.id = vr.vehicle_id
+    WHERE v.fleet_id = p_fleet_id AND rb.status = 'confirmed' AND rb.travel_date BETWEEN p_from AND p_to
+    GROUP BY rb.travel_date
+  ),
+  online_unconfirmed AS (
+    SELECT rb.travel_date, COUNT(*) AS cnt, SUM(rb.total_amount_pkr) AS amt
+    FROM ride_bookings rb JOIN vehicle_routes vr ON vr.id = rb.route_id JOIN vehicles v ON v.id = vr.vehicle_id
+    WHERE v.fleet_id = p_fleet_id AND rb.status = 'announced' AND rb.travel_date BETWEEN p_from AND p_to
+    GROUP BY rb.travel_date
+  ),
+  days AS (
+    SELECT generate_series(p_from, p_to, interval '1 day')::date AS travel_date
+  )
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'travel_date', d.travel_date,
+    'manual_count', COALESCE(m.cnt, 0), 'manual_amount_pkr', COALESCE(m.amt, 0),
+    'online_confirmed_count', COALESCE(oc.cnt, 0), 'online_confirmed_amount_pkr', COALESCE(oc.amt, 0),
+    'online_unconfirmed_count', COALESCE(ou.cnt, 0), 'online_unconfirmed_amount_pkr', COALESCE(ou.amt, 0)
+  ) ORDER BY d.travel_date), '[]'::jsonb) INTO v_result
+  FROM days d
+  LEFT JOIN manual m ON m.travel_date = d.travel_date
+  LEFT JOIN online_confirmed oc ON oc.travel_date = d.travel_date
+  LEFT JOIN online_unconfirmed ou ON ou.travel_date = d.travel_date;
+
+  RETURN v_result;
+END;
+$$;
+REVOKE ALL ON FUNCTION fleet_booking_summary(uuid, date, date) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION fleet_booking_summary(uuid, date, date) TO authenticated;
+
+-- ═════════════════════════════════════════════════════════════════════
+-- 5. fleet_notify_route_riders — real gap confirmed in the audit: only
+--    a platform-wide admin broadcast existed (every rider on the
+--    platform, no scoping at all) — a booking officer had no way to
+--    message just the online riders on a specific route/date. Manual
+--    (walk-up) passengers are reached via their stored mobile number
+--    (tap-to-call/WhatsApp, same migration's frontend) since they have
+--    no portal account to push a notification to at all.
+-- ═════════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION fleet_notify_route_riders(p_route_id uuid, p_travel_date date, p_title varchar, p_body text) RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_count int;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM vehicle_routes vr WHERE vr.id = p_route_id AND can_manage_vehicle(vr.vehicle_id)) THEN
+    RAISE EXCEPTION 'You do not manage this route.' USING ERRCODE = 'P0001';
+  END IF;
+  IF trim(coalesce(p_title, '')) = '' OR trim(coalesce(p_body, '')) = '' THEN
+    RAISE EXCEPTION 'Enter a title and message.' USING ERRCODE = 'P0001';
+  END IF;
+
+  WITH riders AS (
+    SELECT DISTINCT portal_user_id FROM ride_bookings
+    WHERE route_id = p_route_id AND travel_date = p_travel_date AND status IN ('announced', 'confirmed')
+  )
+  INSERT INTO portal_notifications (portal_user_id, event_type, title, body, link)
+  SELECT portal_user_id, 'fleet_message', trim(p_title), trim(p_body), '/portal/marketplace/route/' || p_route_id FROM riders;
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+
+  RETURN v_count;
+END;
+$$;
+REVOKE ALL ON FUNCTION fleet_notify_route_riders(uuid, date, varchar, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION fleet_notify_route_riders(uuid, date, varchar, text) TO authenticated;
