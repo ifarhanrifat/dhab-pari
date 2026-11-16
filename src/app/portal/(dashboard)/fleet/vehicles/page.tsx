@@ -101,8 +101,13 @@ export default function FleetVehiclesPage() {
         <div className="flex flex-col gap-2">
           {vehicles.map((v) => (
             <div key={v.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
-              <p className="font-sans text-[13.5px] font-bold text-[#1e293b] truncate">{v.owner_name}</p>
-              <p className="font-sans text-[11.5px] text-[#64748b] mt-0.5">{v.vehicle_type}{v.vehicle_number ? ` · ${v.vehicle_number}` : ''}</p>
+              {/* 2026-11-16: real complaint — "Bus Management" showed the
+                  driver's personal name as the bus's primary identifier.
+                  A bus is identified by its registration first, same
+                  rule fleet/drivers (875) already follows; the driver's
+                  name moves to the secondary line. */}
+              <p className="font-sans text-[13.5px] font-bold text-[#1e293b] truncate ltr-num">{v.vehicle_number || v.vehicle_type}</p>
+              <p className="font-sans text-[11.5px] text-[#64748b] mt-0.5">{v.vehicle_type} · {v.owner_name}</p>
               <div className="flex gap-2 mt-2.5">
                 {/* Real bug reported live: this used to navigate clean out
                     of the Fleet shell into my-vehicle's own layout — a

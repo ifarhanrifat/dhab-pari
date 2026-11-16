@@ -131,8 +131,8 @@ export default function FleetInvitePage() {
           <div className="flex flex-col gap-1.5">
             {vehicles.map((v) => (
               <div key={v.id} className="bg-white border border-[#e5e2d0] rounded-lg px-3 py-2">
-                <p className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{v.owner_name}{v.vehicle_type ? ` · ${v.vehicle_type}` : ''}</p>
-                {v.vehicle_number && <p className="font-sans text-[11px] text-[#64748b] ltr-num">{v.vehicle_number}</p>}
+                <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] ltr-num">{v.vehicle_number || v.vehicle_type}</p>
+                <p className="font-sans text-[11px] text-[#64748b]">{v.vehicle_type}{v.vehicle_type && v.vehicle_number ? ' · ' : ''}{v.owner_name}</p>
               </div>
             ))}
           </div>

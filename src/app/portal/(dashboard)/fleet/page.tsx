@@ -377,8 +377,15 @@ export default function FleetDashboardPage() {
                         <div className="w-9 h-9 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0"><Bus size={15} className="text-[#166534]" /></div>
                       )}
                       <div className="min-w-0">
-                        <p className="font-sans text-[13.5px] font-bold text-[#1e293b] truncate flex items-center gap-1.5">
-                          {s.owner_name}{s.vehicle_type ? ` · ${s.vehicle_type}` : ''}
+                        {/* 2026-11-16: real complaint, confirmed live and
+                            against SAFAR's own reference — a bus should
+                            be identified by its registration number
+                            first (matching the already-established rule
+                            in fleet/drivers, 875), not by who happens to
+                            be driving it today. The driver's name stays
+                            visible below, unchanged. */}
+                        <p className="font-sans text-[13.5px] font-bold text-[#1e293b] truncate flex items-center gap-1.5 ltr-num">
+                          {s.vehicle_number || s.vehicle_type}{s.vehicle_number && s.vehicle_type ? ` · ${s.vehicle_type}` : ''}
                           {s.service_code && <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[9.5px] font-bold ltr-num">{s.service_code}</span>}
                         </p>
                         <p className="font-sans text-[12.5px] text-[#64748b] mt-0.5">{s.origin} → {s.destination}</p>
