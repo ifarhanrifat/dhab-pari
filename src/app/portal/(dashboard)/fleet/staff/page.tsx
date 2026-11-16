@@ -22,6 +22,11 @@ interface StaffMember {
   role: string; commission_amount_pkr: number | null; commission_this_month_pkr: number
 }
 interface Counter { id: string; city: string; name: string | null }
+interface RolePermission { role: string; module: string; can_edit: boolean }
+interface AuditEntry { id: string; actor_name: string | null; action: string; details: Record<string, unknown> | null; created_at: string }
+
+const PERMISSION_ROLES = ['booking_officer', 'terminal_manager', 'accountant', 'other'] as const
+const PERMISSION_MODULES = ['staff_payroll', 'cash'] as const
 
 export default function FleetStaffPage() {
   const { t, isUrdu } = useLocale()
@@ -38,6 +43,9 @@ export default function FleetStaffPage() {
   const [salaryDraft, setSalaryDraft] = useState<Record<string, string>>({})
   const [paymentDraft, setPaymentDraft] = useState<Record<string, string>>({})
   const [commissionDraft, setCommissionDraft] = useState<Record<string, string>>({})
+  const [permissions, setPermissions] = useState<RolePermission[]>([])
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
+  const [showAudit, setShowAudit] = useState(false)
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
@@ -45,12 +53,16 @@ export default function FleetStaffPage() {
     setFleetId(f?.fleet_id ?? null)
     setIsOwner(f?.is_owner ?? false)
     if (f?.is_owner) {
-      const [{ data: s }, { data: c }] = await Promise.all([
+      const [{ data: s }, { data: c }, { data: p }, { data: a }] = await Promise.all([
         supabase.rpc('my_fleet_staff', { p_fleet_id: f.fleet_id }),
         supabase.rpc('my_fleet_counters', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('fleet_role_permissions_matrix', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('fleet_audit_log_recent', { p_fleet_id: f.fleet_id, p_limit: 50 }),
       ])
       setStaff((s ?? []) as StaffMember[])
       setCounters((c ?? []) as Counter[])
+      setPermissions((p ?? []) as RolePermission[])
+      setAuditLog((a ?? []) as AuditEntry[])
     }
     setLoading(false)
   }
@@ -117,6 +129,17 @@ export default function FleetStaffPage() {
     toast.success(t('mv.commissionSetToast'))
     setCommissionDraft((d) => ({ ...d, [fleetStaffId]: '' }))
     load()
+  }
+
+  // 885: a trusted role can be granted a specific capability the owner
+  // would otherwise have to do personally — payroll or cash handling.
+  // No permission row at all = today's exact behavior (owner-only), so
+  // this can only ever widen access, never take something away.
+  const togglePermission = async (role: string, module: string, canEdit: boolean) => {
+    if (!fleetId) return
+    const { error } = await supabase.rpc('set_fleet_role_permission', { p_fleet_id: fleetId, p_role: role, p_module: module, p_can_edit: canEdit })
+    if (error) { toast.error(friendlyError(error)); return }
+    setPermissions((perms) => perms.map((p) => (p.role === role && p.module === module ? { ...p, can_edit: canEdit } : p)))
   }
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
@@ -193,6 +216,67 @@ export default function FleetStaffPage() {
               ))}
             </div>
           )}
+
+          {/* 885: delegate a specific capability to a trusted role —
+              no row at all means today's exact owner-only behavior, so
+              checking a box here can only widen access, never narrow it. */}
+          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
+            <p className="font-sans text-[13px] font-bold text-[#1e293b] mb-1">{t('mv.permissionsHeading')}</p>
+            <p className="font-sans text-[11px] text-[#64748b] mb-3">{t('mv.permissionsHint')}</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr>
+                    <th className="font-sans text-[10.5px] font-bold text-[#64748b] pb-1.5"></th>
+                    {PERMISSION_MODULES.map((m) => (
+                      <th key={m} className="font-sans text-[10.5px] font-bold text-[#64748b] pb-1.5 text-center px-2">{t(`mv.permModule.${m}`)}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {PERMISSION_ROLES.map((role) => (
+                    <tr key={role} className="border-t border-[#f1f5f9]">
+                      <td className="font-sans text-[11.5px] text-[#1e293b] py-1.5 pe-2">{t(`mv.role.${role}`)}</td>
+                      {PERMISSION_MODULES.map((module) => {
+                        const perm = permissions.find((p) => p.role === role && p.module === module)
+                        return (
+                          <td key={module} className="text-center">
+                            <input type="checkbox" checked={perm?.can_edit ?? false} onChange={(e) => togglePermission(role, module, e.target.checked)} className="cursor-pointer" />
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 885: a real audit trail for sensitive fleet actions —
+              staff/payroll/cash changes, bookings cancelled. */}
+          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
+            <button onClick={() => setShowAudit((v) => !v)} className="w-full flex items-center justify-between cursor-pointer">
+              <span className="font-sans text-[13px] font-bold text-[#1e293b]">{t('mv.auditLogHeading')}</span>
+              <span className="font-sans text-[11px] text-[#166534] font-semibold">{showAudit ? t('action.showLess') : t('action.showMore')}</span>
+            </button>
+            {showAudit && (
+              auditLog.length === 0 ? (
+                <p className="font-sans text-[11.5px] text-[#94a3b8] text-center py-4">{t('mv.noAuditEntriesHint')}</p>
+              ) : (
+                <div className="flex flex-col gap-1.5 mt-2.5">
+                  {auditLog.map((e) => (
+                    <div key={e.id} className="flex items-start justify-between gap-2 py-1.5 border-t border-[#f1f5f9]">
+                      <div>
+                        <p className="font-sans text-[11.5px] text-[#1e293b]">{t(`mv.auditAction.${e.action}`)}</p>
+                        <p className="font-sans text-[10.5px] text-[#94a3b8]">{e.actor_name ?? '—'}</p>
+                      </div>
+                      <span className="font-sans text-[10px] text-[#94a3b8] shrink-0 ltr-num">{new Date(e.created_at).toLocaleString(isUrdu ? 'ur-PK' : 'en-PK', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
         </>
       )}
     </div>

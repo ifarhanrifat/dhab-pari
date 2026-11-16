@@ -88,7 +88,10 @@ interface Route {
   seat_override: number | null
   service_code: string | null
   service_class: string | null
+  amenities: string[]
 }
+
+const AMENITY_OPTIONS = ['ac', 'wifi', 'meal', 'charging', 'tv', 'toilet', 'water'] as const
 interface RouteIlan { id: string; vehicle_route_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 
 function fmt(n: number) {
@@ -199,7 +202,7 @@ export default function MyVehicleRoutesPage() {
   const [stopsRouteId, setStopsRouteId] = useState<string | null>(null)
   const [pendingIlanRoute, setPendingIlanRoute] = useState<{ origin: string; destination: string } | null>(null)
   const [groupRouteId, setGroupRouteId] = useState<string | null>(null)
-  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[]; is_two_way: boolean; return_wait_minutes: number; seat_override: string; returnOnDifferentDays: boolean; return_days_of_week: number[]; coDriverMobile: string; minShiftHours: string; serviceClass: string } | null>(null)
+  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[]; is_two_way: boolean; return_wait_minutes: number; seat_override: string; returnOnDifferentDays: boolean; return_days_of_week: number[]; coDriverMobile: string; minShiftHours: string; serviceClass: string; amenities: string[] } | null>(null)
   const [coDriverName, setCoDriverName] = useState<string | null>(null)
   const [savingSchedule, setSavingSchedule] = useState(false)
   const [stopCounts, setStopCounts] = useState<Record<string, number>>({})
@@ -222,7 +225,7 @@ export default function MyVehicleRoutesPage() {
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
-      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override, service_code, return_days_of_week, co_driver_portal_user_id, min_shift_hours, service_class')
+      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override, service_code, return_days_of_week, co_driver_portal_user_id, min_shift_hours, service_class, amenities')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, seat_accepted_at, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
@@ -376,6 +379,12 @@ export default function MyVehicleRoutesPage() {
       const { error: classError } = await supabase.rpc('set_route_service_class', { p_route_id: editSchedule.id, p_service_class: editSchedule.serviceClass || null })
       if (classError) { setSavingSchedule(false); toast.error(friendlyError(classError, undefined, isUrdu)); return }
     }
+    // 886: non-monetary perks (AC/WiFi/meal/etc) a rider sees before
+    // booking — deliberately not a fare discount, own RPC.
+    if (!error) {
+      const { error: amenitiesError } = await supabase.rpc('set_route_amenities', { p_route_id: editSchedule.id, p_amenities: editSchedule.amenities })
+      if (amenitiesError) { setSavingSchedule(false); toast.error(friendlyError(amenitiesError, undefined, isUrdu)); return }
+    }
     setSavingSchedule(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mv.scheduleUpdatedToast'))
@@ -388,7 +397,7 @@ export default function MyVehicleRoutesPage() {
       id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [],
       is_two_way: r.is_two_way, return_wait_minutes: r.return_wait_minutes ?? 300, seat_override: r.seat_override != null ? String(r.seat_override) : '',
       returnOnDifferentDays: !!r.return_days_of_week?.length, return_days_of_week: r.return_days_of_week ?? r.days_of_week ?? [],
-      coDriverMobile: '', minShiftHours: String(r.min_shift_hours ?? 8), serviceClass: r.service_class ?? '',
+      coDriverMobile: '', minShiftHours: String(r.min_shift_hours ?? 8), serviceClass: r.service_class ?? '', amenities: r.amenities ?? [],
     })
     setCoDriverName(null)
     if (r.co_driver_portal_user_id) {
@@ -1478,6 +1487,23 @@ export default function MyVehicleRoutesPage() {
                 <option value="sleeper">{t('mv.serviceClass.sleeper')}</option>
                 <option value="luxury">{t('mv.serviceClass.luxury')}</option>
               </select>
+            </div>
+            {/* 886: non-monetary perks shown to a rider deciding
+                between buses — deliberately not a fare discount. */}
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.amenitiesLabel')}</label>
+              <div className="flex flex-wrap gap-1.5">
+                {AMENITY_OPTIONS.map((a) => {
+                  const checked = editSchedule.amenities.includes(a)
+                  return (
+                    <button key={a} type="button"
+                      onClick={() => setEditSchedule({ ...editSchedule, amenities: checked ? editSchedule.amenities.filter((x) => x !== a) : [...editSchedule.amenities, a] })}
+                      className={`px-2.5 py-1 rounded-full font-sans text-[11.5px] font-semibold cursor-pointer border ${checked ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#64748b] border-[#e5e2d0]'}`}>
+                      {t(`mv.amenity.${a}`)}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             <button onClick={saveSchedule} disabled={savingSchedule} className="w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
               {savingSchedule ? t('action.saving') : t('action.save')}

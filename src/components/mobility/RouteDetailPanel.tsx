@@ -47,6 +47,8 @@ interface Route {
   is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
   is_two_way: boolean; return_wait_minutes: number | null
   seat_override: number | null
+  service_class: string | null
+  amenities: string[]
 }
 interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string; category_id: string | null; is_sleeper?: boolean }
 interface Stop { id: string; label: string; label_ur: string | null; lat: number; lng: number; stop_order: number }
@@ -586,6 +588,18 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
         {' · '}
         {route.days_of_week.length === 7 ? t('mk.everyDay') : route.days_of_week.map((d) => t(DAY_KEYS[d])).join('، ')}
       </p>
+      {/* 886/883: the two owner-set descriptive labels a rider sees
+          before booking — named service class, non-monetary perks. */}
+      {(route.service_class || route.amenities.length > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+          {route.service_class && (
+            <span className="px-2 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary font-sans text-[11px] font-bold">{t(`mv.serviceClass.${route.service_class}`)}</span>
+          )}
+          {route.amenities.map((a) => (
+            <span key={a} className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[11px] font-semibold">{t(`mv.amenity.${a}`)}</span>
+          ))}
+        </div>
+      )}
       {route.is_monthly_fixed ? (
         <p className="font-heading text-[18px] font-bold text-amber-700 mt-2 flex items-center gap-1.5">
           ✅ {t('mv.monthlyFixedBadge')} · {fmt(route.monthly_reference_fee_pkr ?? 0)} <span className="font-sans font-normal text-dp-on-surface-variant text-[13px]">{t('mv.monthlyReferenceFeeLabel')}</span>
