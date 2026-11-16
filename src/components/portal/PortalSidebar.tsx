@@ -30,6 +30,7 @@ import {
   Search,
   AlertTriangle,
   Tag,
+  Users2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -123,6 +124,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   const [hasVehicle, setHasVehicle] = useState(false)
   const [hasOwnVehicle, setHasOwnVehicle] = useState(false)
   const [hasFleet, setHasFleet] = useState(false)
+  const [fleetName, setFleetName] = useState('')
   const [hasManagedFunds, setHasManagedFunds] = useState(false)
 
   // A shop/vehicle only exists for a portal user once staff links one to
@@ -159,12 +161,19 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
       supabase.from('vehicles').select('id').eq('portal_user_id', user.id).limit(1),
       supabase.from('fleets').select('id').eq('owning_portal_user_id', user.id).limit(1),
       supabase.from('fleet_staff').select('id').eq('portal_user_id', user.id).limit(1),
-    ]).then(([owned, fleetOwner, fleetStaff]) => {
+      // Real gap reported live: a fleet owner/staff who ALSO drives their
+      // own vehicle had no direct sidebar link to their fleet at all —
+      // only to "My Vehicle" — with the fleet dashboard one extra tap
+      // away behind a generic "Manage My Fleet" button, never shown by
+      // its own name. my_managed_fleet() already returns the real name.
+      supabase.rpc('my_managed_fleet'),
+    ]).then(([owned, fleetOwner, fleetStaff, managed]) => {
       const ownsVehicle = (owned.data?.length ?? 0) > 0
       const inFleet = (fleetOwner.data?.length ?? 0) > 0 || (fleetStaff.data?.length ?? 0) > 0
       setHasOwnVehicle(ownsVehicle)
       setHasFleet(inFleet)
       setHasVehicle(ownsVehicle || inFleet)
+      setFleetName((managed.data as { name?: string } | null)?.name ?? '')
     })
     Promise.all([
       supabase.from('event_salami_accounts').select('id').eq('manager_portal_user_id', user.id).limit(1),
@@ -217,15 +226,32 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
       // own gets sent straight to the new separate fleet shell, never
       // into the single-driver my-vehicle one (that redirect was the
       // actual bug — see fleet/layout.tsx and my-vehicle/layout.tsx).
-      // Someone who BOTH owns a fleet AND personally drives one of its
-      // vehicles keeps the plain "My Vehicle" link here; the fleet
-      // dashboard is one tap away from their own driver Home screen.
+      // Labeled with the real fleet name now (real ask: "the naming of
+      // fleet from where admin and fleet manager can navigate to there
+      // dashboard"), not a generic "My Fleet".
       if (!isGroup(entry) && entry.href === '/portal/my-vehicle' && hasFleet && !hasOwnVehicle) {
-        return { ...entry, href: '/portal/fleet', label: 'My Fleet', tKey: 'portal.myFleet', requiresVehicleKeeper: true }
+        // 'portal.myFleetNamed' is deliberately not a real translation
+        // key — t()'s fallback chain (locale → en → fallback) lands on
+        // `label` below, so the real fleet name shows instead of a
+        // generic "My Fleet" string that a real key would always win over.
+        return { ...entry, href: '/portal/fleet', label: fleetName || 'My Fleet', tKey: 'portal.myFleetNamed', requiresVehicleKeeper: true }
       }
       return isGroup(entry) ? { ...entry, children: entry.children.filter(isLeafVisible) } : entry
     })
     .filter((entry) => (isGroup(entry) ? entry.children.length > 0 : isLeafVisible(entry)))
+
+  // Real gap reported live: someone who BOTH owns/staffs a fleet AND
+  // personally drives one of its vehicles had NO direct sidebar link to
+  // their fleet at all — only to "My Vehicle", with the fleet dashboard
+  // one extra, generically-labeled tap away. Inserted right after "My
+  // Vehicle" rather than overloading that one slot, so both stay
+  // independently visible.
+  if (hasFleet && hasOwnVehicle) {
+    const myVehicleIdx = visibleMenuItems.findIndex((e) => !isGroup(e) && e.href === '/portal/my-vehicle')
+    const fleetEntry: LeafItem = { href: '/portal/fleet', label: fleetName || 'My Fleet', tKey: 'portal.myFleetNamed', icon: Users2 }
+    if (myVehicleIdx >= 0) visibleMenuItems.splice(myVehicleIdx + 1, 0, fleetEntry)
+    else visibleMenuItems.push(fleetEntry)
+  }
 
   const flatVisibleItems = visibleMenuItems.flatMap((entry) => (isGroup(entry) ? entry.children : [entry]))
 

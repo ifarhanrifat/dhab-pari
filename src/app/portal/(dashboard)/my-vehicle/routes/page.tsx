@@ -61,6 +61,12 @@ const emptyRouteForm = {
   // half-filled field can never silently leave a route two-way.
   is_two_way: false, return_wait_minutes: 300 as number,
   departure_time: '', return_departure_time: '', days_of_week: [] as number[], distance_km: '' as string,
+  // Real bug reported live: a long route's return leg genuinely departs
+  // a different calendar day than the outbound (24h Peshawar→Karachi
+  // comes back the NEXT day, not the same evening) — reusing days_of_week
+  // for both legs was a real scheduling conflict. null/empty = same days
+  // as outbound (unchanged default for a same-day round trip).
+  returnOnDifferentDays: false, return_days_of_week: [] as number[],
   is_monthly_fixed: false, monthly_reference_fee_pkr: '' as string | number,
   // 864: optional, cosmetic/organizational route label shown on the
   // fleet dashboard's schedule cards and bookings list (e.g. "PK-KH101").
@@ -77,7 +83,7 @@ interface Route {
   departure_time: string | null; return_departure_time: string | null; days_of_week: number[]
   route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
   is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
-  is_two_way: boolean; return_wait_minutes: number | null
+  is_two_way: boolean; return_wait_minutes: number | null; return_days_of_week: number[] | null
   seat_override: number | null
   service_code: string | null
 }
@@ -191,7 +197,7 @@ export default function MyVehicleRoutesPage() {
   const [stopsRouteId, setStopsRouteId] = useState<string | null>(null)
   const [pendingIlanRoute, setPendingIlanRoute] = useState<{ origin: string; destination: string } | null>(null)
   const [groupRouteId, setGroupRouteId] = useState<string | null>(null)
-  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[]; is_two_way: boolean; return_wait_minutes: number; seat_override: string } | null>(null)
+  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[]; is_two_way: boolean; return_wait_minutes: number; seat_override: string; returnOnDifferentDays: boolean; return_days_of_week: number[] } | null>(null)
   const [savingSchedule, setSavingSchedule] = useState(false)
   const [stopCounts, setStopCounts] = useState<Record<string, number>>({})
   const [nextRunSeats, setNextRunSeats] = useState<Record<string, number>>({})
@@ -213,7 +219,7 @@ export default function MyVehicleRoutesPage() {
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
-      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override, service_code')
+      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override, service_code, return_days_of_week')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, seat_accepted_at, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
@@ -339,11 +345,13 @@ export default function MyVehicleRoutesPage() {
   const saveSchedule = async () => {
     if (!editSchedule) return
     if (editSchedule.days_of_week.length === 0) { toast.error(t('mv.pickAtLeastOneDayError')); return }
+    if (editSchedule.is_two_way && editSchedule.returnOnDifferentDays && editSchedule.return_days_of_week.length === 0) { toast.error(t('mv.pickAtLeastOneReturnDayError')); return }
     setSavingSchedule(true)
     const { error } = await supabase.rpc('update_vehicle_route_schedule', {
       p_route_id: editSchedule.id, p_departure_time: editSchedule.departure_time || null, p_days_of_week: editSchedule.days_of_week,
       p_return_departure_time: editSchedule.is_two_way ? (editSchedule.return_departure_time || null) : null,
       p_is_two_way: editSchedule.is_two_way, p_return_wait_minutes: editSchedule.is_two_way ? editSchedule.return_wait_minutes : null,
+      p_return_days_of_week: editSchedule.is_two_way && editSchedule.returnOnDifferentDays ? editSchedule.return_days_of_week : null,
     })
     if (!error) {
       const seatOverride = editSchedule.seat_override.trim() ? Number(editSchedule.seat_override) : null
@@ -384,6 +392,9 @@ export default function MyVehicleRoutesPage() {
 
   const toggleDay = (d: number) => {
     setForm((f) => ({ ...f, days_of_week: f.days_of_week.includes(d) ? f.days_of_week.filter((x) => x !== d) : [...f.days_of_week, d].sort() }))
+  }
+  const toggleReturnDay = (d: number) => {
+    setForm((f) => ({ ...f, return_days_of_week: f.return_days_of_week.includes(d) ? f.return_days_of_week.filter((x) => x !== d) : [...f.return_days_of_week, d].sort() }))
   }
 
   useEffect(() => {
@@ -446,6 +457,9 @@ export default function MyVehicleRoutesPage() {
     } else if (form.days_of_week.length === 0) {
       toast.error(t('mv.pickAtLeastOneDayError')); return
     }
+    if (form.is_two_way && form.returnOnDifferentDays && form.return_days_of_week.length === 0) {
+      toast.error(t('mv.pickAtLeastOneReturnDayError')); return
+    }
     const oneOffDays = recurrence === 'once' && oneOffDate ? [new Date(`${oneOffDate}T00:00:00`).getDay()] : null
     const distanceKm = form.distance_km ? Number(form.distance_km) : null
     const totalFare = form.total_fare_pkr ? Number(form.total_fare_pkr) : null
@@ -480,6 +494,7 @@ export default function MyVehicleRoutesPage() {
       p_is_two_way: form.is_two_way, p_return_wait_minutes: form.is_two_way ? form.return_wait_minutes : null,
       p_one_off_date: oneOffDays ? oneOffDate : null,
       p_service_code: form.service_code.trim() || null,
+      p_return_days_of_week: form.is_two_way && form.returnOnDifferentDays ? form.return_days_of_week : null,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -920,6 +935,27 @@ export default function MyVehicleRoutesPage() {
                 <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
                 <input type="time" value={form.return_departure_time} onChange={(e) => setForm((f) => ({ ...f, return_departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
               </div>
+              {/* Real bug reported live: a long route's return leg (e.g.
+                  Peshawar→Karachi, ~24h) departs the NEXT day, not the
+                  same day — reusing days_of_week for both legs was a
+                  real scheduling conflict. Off by default (same days as
+                  outbound, unchanged for a same-day round trip). */}
+              <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px] font-semibold text-[#1e293b] cursor-pointer">
+                <input type="checkbox" checked={form.returnOnDifferentDays} onChange={(e) => setForm((f) => ({ ...f, returnOnDifferentDays: e.target.checked, return_days_of_week: e.target.checked ? f.return_days_of_week : [] }))} />
+                {t('mv.returnOnDifferentDaysLabel')}
+              </label>
+              {form.returnOnDifferentDays && (
+                <div>
+                  <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.returnDaysOfWeekLabel')}</label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {DAYS.map((d) => (
+                      <button key={d} type="button" onClick={() => toggleReturnDay(d)} className={`px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${form.return_days_of_week.includes(d) ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                        {t(`mv.dayShort.${d}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
           {/* Real ask, 2026-11-11: "just once, on this date" absorbs the
@@ -1048,7 +1084,7 @@ export default function MyVehicleRoutesPage() {
                   // being cut off; tightened padding/text keeps most of
                   // them on one row on a normal phone width.
                   <div className="flex items-center flex-wrap gap-1 mt-2 pt-2 border-t border-[#f1f5f9]">
-                    <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [], is_two_way: r.is_two_way, return_wait_minutes: r.return_wait_minutes ?? 300, seat_override: r.seat_override != null ? String(r.seat_override) : '' })}
+                    <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [], is_two_way: r.is_two_way, return_wait_minutes: r.return_wait_minutes ?? 300, seat_override: r.seat_override != null ? String(r.seat_override) : '', returnOnDifferentDays: !!r.return_days_of_week?.length, return_days_of_week: r.return_days_of_week ?? r.days_of_week ?? [] })}
                       className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
                       <Pencil size={10} /> {t('mv.editScheduleBtn')}
                     </button>
@@ -1338,6 +1374,26 @@ export default function MyVehicleRoutesPage() {
                   <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
                   <input type="time" value={editSchedule.return_departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, return_departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
                 </div>
+                <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px] font-semibold text-[#1e293b] cursor-pointer">
+                  <input type="checkbox" checked={editSchedule.returnOnDifferentDays} onChange={(e) => setEditSchedule({ ...editSchedule, returnOnDifferentDays: e.target.checked, return_days_of_week: e.target.checked ? (editSchedule.return_days_of_week.length ? editSchedule.return_days_of_week : editSchedule.days_of_week) : [] })} />
+                  {t('mv.returnOnDifferentDaysLabel')}
+                </label>
+                {editSchedule.returnOnDifferentDays && (
+                  <div>
+                    <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.returnDaysOfWeekLabel')}</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {DAYS.map((d) => {
+                        const on = editSchedule.return_days_of_week.includes(d)
+                        return (
+                          <button key={d} type="button" onClick={() => setEditSchedule({ ...editSchedule, return_days_of_week: on ? editSchedule.return_days_of_week.filter((x) => x !== d) : [...editSchedule.return_days_of_week, d].sort() })}
+                            className={`px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${on ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                            {t(`mv.dayShort.${d}`)}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </>
             )}
             <div>

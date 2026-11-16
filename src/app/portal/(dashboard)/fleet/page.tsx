@@ -36,7 +36,7 @@ interface ScheduleCard {
   vehicle_id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null
   route_id: string; origin: string; destination: string; service_code: string | null
   is_active: boolean; departure_time: string | null; return_departure_time: string | null; return_wait_minutes: number | null
-  is_two_way: boolean; days_of_week: number[]; runs_today: boolean; state: string
+  is_two_way: boolean; days_of_week: number[]; return_days_of_week: number[] | null; runs_today: boolean; state: string
   current_driver_name: string; covered_by_substitute: boolean
 }
 interface DepartureStats { bookings_today_count: number; runs_scheduled: number; runs_departed: number }
@@ -100,6 +100,8 @@ export default function FleetDashboardPage() {
   const [editIsTwoWay, setEditIsTwoWay] = useState(false)
   const [editReturnWaitMinutes, setEditReturnWaitMinutes] = useState(300)
   const [editDays, setEditDays] = useState<number[]>([])
+  const [editReturnOnDifferentDays, setEditReturnOnDifferentDays] = useState(false)
+  const [editReturnDays, setEditReturnDays] = useState<number[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
   const [busyRouteId, setBusyRouteId] = useState<string | null>(null)
 
@@ -168,15 +170,20 @@ export default function FleetDashboardPage() {
     setEditIsTwoWay(s.is_two_way)
     setEditReturnWaitMinutes(s.return_wait_minutes ?? 300)
     setEditDays(s.days_of_week ?? [])
+    setEditReturnOnDifferentDays(!!s.return_days_of_week?.length)
+    setEditReturnDays(s.return_days_of_week ?? s.days_of_week ?? [])
   }
   const toggleEditDay = (d: number) => setEditDays((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort())
+  const toggleEditReturnDay = (d: number) => setEditReturnDays((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort())
 
   const saveEdit = async (s: ScheduleCard) => {
     if (editDays.length === 0) { toast.error(t('mv.pickAtLeastOneDayError')); return }
+    if (editIsTwoWay && editReturnOnDifferentDays && editReturnDays.length === 0) { toast.error(t('mv.pickAtLeastOneReturnDayError')); return }
     setSavingEdit(true)
     const { error } = await supabase.rpc('update_vehicle_route_schedule', {
       p_route_id: s.route_id, p_departure_time: editDepartureTime || null, p_days_of_week: editDays,
       p_return_departure_time: editIsTwoWay ? (editReturnTime || null) : null, p_is_two_way: editIsTwoWay, p_return_wait_minutes: editIsTwoWay ? editReturnWaitMinutes : null,
+      p_return_days_of_week: editIsTwoWay && editReturnOnDifferentDays ? editReturnDays : null,
     })
     setSavingEdit(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -297,14 +304,21 @@ export default function FleetDashboardPage() {
 
         {view === 'map' ? (
           <div className="bg-white border border-[#e5e2d0] rounded-2xl p-2">
-            {livePins.length === 0 ? (
-              <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noLiveVehiclesHint')}</p>
-            ) : (
-              <LeafletMap
-                pins={livePins.map((p): MapPin => ({ lat: p.lat, lng: p.lng, label: `${p.owner_name} · ${p.context}`, color: '#166534', emoji: '🚐', isVehicle: true }))}
-                height={220} className="rounded-xl"
-              />
+            {/* Real bug reported live: "why is there no map visible on
+                the dashboard" — the map component itself used to never
+                mount at all whenever no vehicle was currently mid-run and
+                pinging its live location (the normal state most of the
+                time), leaving just a text hint with no map underneath it.
+                Now the map always renders (LeafletMap's own Pakistan-wide
+                fallback view when there are no pins to fit), with the
+                hint as a caption rather than a full replacement. */}
+            {livePins.length === 0 && (
+              <p className="font-sans text-[11.5px] text-[#94a3b8] text-center pb-1.5">{t('mv.noLiveVehiclesHint')}</p>
             )}
+            <LeafletMap
+              pins={livePins.map((p): MapPin => ({ lat: p.lat, lng: p.lng, label: `${p.owner_name} · ${p.context}`, color: '#166534', emoji: '🚐', isVehicle: true }))}
+              height={220} className="rounded-xl"
+            />
           </div>
         ) : filtered.length === 0 ? (
           <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
@@ -389,6 +403,29 @@ export default function FleetDashboardPage() {
                           </button>
                         ))}
                       </div>
+
+                      {/* Real bug reported live: a long route's return
+                          leg (e.g. 24h Peshawar→Karachi) departs the NEXT
+                          day, not the same day the outbound left — reusing
+                          the same days-of-week list for both legs was a
+                          real scheduling conflict. */}
+                      {editIsTwoWay && (
+                        <>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={editReturnOnDifferentDays} onChange={(e) => { setEditReturnOnDifferentDays(e.target.checked); if (e.target.checked && editReturnDays.length === 0) setEditReturnDays(editDays) }} className="accent-[#166534]" />
+                            <span className="font-sans text-[12px] font-semibold text-[#1e293b]">{t('mv.returnOnDifferentDaysLabel')}</span>
+                          </label>
+                          {editReturnOnDifferentDays && (
+                            <div className="flex gap-1 flex-wrap">
+                              {[0, 1, 2, 3, 4, 5, 6].map((d) => (
+                                <button key={d} type="button" onClick={() => toggleEditReturnDay(d)} className={`px-2 py-1 rounded-lg font-sans text-[11px] font-semibold cursor-pointer ${editReturnDays.includes(d) ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                                  {t(`mv.dayShort.${d}`)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
 
                       <Link href={`/portal/my-vehicle/routes?vehicle=${s.vehicle_id}`} className="font-sans text-[11px] font-semibold text-[#166534] underline underline-offset-2">
                         {t('mv.manageStopsBtn')}
