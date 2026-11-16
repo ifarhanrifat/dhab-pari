@@ -16,11 +16,15 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 
 interface StaffMember {
   id: string; portal_user_id: string; full_name: string; counter_id: string | null; counter_city: string | null; counter_name: string | null
   role: string; commission_amount_pkr: number | null; commission_this_month_pkr: number
+  license_number: string | null; license_expiry: string | null; cnic_number: string | null
+  date_of_birth: string | null; blood_group: string | null; medical_report_url: string | null; photo_url: string | null
 }
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const
 interface Counter { id: string; city: string; name: string | null }
 interface RolePermission { role: string; module: string; can_edit: boolean }
 interface AuditEntry { id: string; actor_name: string | null; action: string; details: Record<string, unknown> | null; created_at: string }
@@ -46,6 +50,7 @@ export default function FleetStaffPage() {
   const [permissions, setPermissions] = useState<RolePermission[]>([])
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
   const [showAudit, setShowAudit] = useState(false)
+  const [driverDraft, setDriverDraft] = useState<Record<string, { license_number: string; license_expiry: string; cnic_number: string; date_of_birth: string; blood_group: string }>>({})
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
@@ -131,6 +136,39 @@ export default function FleetStaffPage() {
     load()
   }
 
+  // 888: "driver" is now a real role with the fields an actual driver
+  // registration needs, so adding one lives inside this page instead
+  // of a disconnected invite-and-self-register flow.
+  const driverField = (s: StaffMember, key: 'license_number' | 'license_expiry' | 'cnic_number' | 'date_of_birth' | 'blood_group') =>
+    driverDraft[s.id]?.[key] ?? (s[key] ?? '')
+  const setDriverField = (fleetStaffId: string, key: 'license_number' | 'license_expiry' | 'cnic_number' | 'date_of_birth' | 'blood_group', value: string) =>
+    setDriverDraft((d) => {
+      const base = d[fleetStaffId] ?? { license_number: '', license_expiry: '', cnic_number: '', date_of_birth: '', blood_group: '' }
+      return { ...d, [fleetStaffId]: { ...base, [key]: value } }
+    })
+  const saveDriverDetails = async (s: StaffMember) => {
+    const draft = driverDraft[s.id]
+    const { error } = await supabase.rpc('set_fleet_staff_driver_details', {
+      p_fleet_staff_id: s.id,
+      p_license_number: draft?.license_number ?? s.license_number ?? null,
+      p_license_expiry: (draft?.license_expiry ?? s.license_expiry) || null,
+      p_cnic_number: draft?.cnic_number ?? s.cnic_number ?? null,
+      p_date_of_birth: (draft?.date_of_birth ?? s.date_of_birth) || null,
+      p_blood_group: (draft?.blood_group ?? s.blood_group) || null,
+    })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.driverDetailsSavedToast'))
+    load()
+  }
+  const uploadDriverFile = async (fleetStaffId: string, field: 'medical_report_url' | 'photo_url', path: string) => {
+    const { error } = await supabase.rpc('set_fleet_staff_driver_details', {
+      p_fleet_staff_id: fleetStaffId, p_medical_report_url: field === 'medical_report_url' ? path : null, p_photo_url: field === 'photo_url' ? path : null,
+    })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.driverDetailsSavedToast'))
+    load()
+  }
+
   // 885: a trusted role can be granted a specific capability the owner
   // would otherwise have to do personally — payroll or cash handling.
   // No permission row at all = today's exact behavior (owner-only), so
@@ -182,6 +220,7 @@ export default function FleetStaffPage() {
                     <option value="terminal_manager">{t('mv.role.terminal_manager')}</option>
                     <option value="accountant">{t('mv.role.accountant')}</option>
                     <option value="other">{t('mv.role.other')}</option>
+                    <option value="driver">{t('mv.role.driver')}</option>
                   </select>
                   {counters.length > 0 && (
                     <select value={s.counter_id ?? ''} onChange={(e) => assignCounter(s.portal_user_id, e.target.value)} className="mt-1.5 w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px]">
@@ -211,6 +250,35 @@ export default function FleetStaffPage() {
                   </div>
                   {s.commission_amount_pkr != null && (
                     <p className="font-sans text-[10.5px] text-[#166534] mt-1">{t('mv.commissionThisMonthLabel')}: ₨{s.commission_this_month_pkr.toLocaleString()}</p>
+                  )}
+                  {/* 888: a real driver registration — licence, CNIC, DOB,
+                      blood group, medical report, photo — the same
+                      information /my-vehicle/register already collects
+                      for a self-registering driver, now available right
+                      here for a driver added as staff. */}
+                  {s.role === 'driver' && (
+                    <div className="mt-2 pt-2 border-t border-[#f1f5f9] flex flex-col gap-1.5">
+                      <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-[#64748b]">{t('mv.driverDetailsHeading')}</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <input value={driverField(s, 'license_number')} onChange={(e) => setDriverField(s.id, 'license_number', e.target.value)}
+                          placeholder={t('mv.licenseNumberPlaceholder')} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
+                        <input type="date" value={driverField(s, 'license_expiry')} onChange={(e) => setDriverField(s.id, 'license_expiry', e.target.value)}
+                          className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
+                        <input value={driverField(s, 'cnic_number')} onChange={(e) => setDriverField(s.id, 'cnic_number', e.target.value)}
+                          placeholder={t('vr.cnicPlaceholder')} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
+                        <input type="date" value={driverField(s, 'date_of_birth')} onChange={(e) => setDriverField(s.id, 'date_of_birth', e.target.value)}
+                          className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
+                        <select value={driverField(s, 'blood_group')} onChange={(e) => setDriverField(s.id, 'blood_group', e.target.value)} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] col-span-2">
+                          <option value="">{t('mv.bloodGroupLabel')}</option>
+                          {BLOOD_GROUPS.map((bg) => <option key={bg} value={bg}>{bg}</option>)}
+                        </select>
+                      </div>
+                      <button onClick={() => saveDriverDetails(s)} className="px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('action.save')}</button>
+                      <div className="grid grid-cols-2 gap-1.5 mt-1">
+                        <DonationReceiptUpload bucket="vehicle_registration_documents" label={t('vr.driverPhotoLabel')} required={false} onUpload={(path) => uploadDriverFile(s.id, 'photo_url', path)} />
+                        <DonationReceiptUpload bucket="vehicle_registration_documents" label={t('mv.medicalReportLabel')} required={false} onUpload={(path) => uploadDriverFile(s.id, 'medical_report_url', path)} />
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}

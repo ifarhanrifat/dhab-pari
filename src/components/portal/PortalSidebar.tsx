@@ -31,6 +31,16 @@ import {
   AlertTriangle,
   Tag,
   Users2,
+  Route,
+  Building2,
+  Car,
+  IdCard,
+  Ticket,
+  ClipboardList,
+  Fuel,
+  Wallet,
+  BarChart3,
+  UserPlus,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -106,6 +116,28 @@ const menuItems: MenuEntry[] = [
   },
   { href: '/portal/notification-preferences', label: 'Notification Preferences', tKey: 'np.pageTitle', icon: Bell },
   { href: '/portal/profile', label: 'My Profile', tKey: 'portal.profile', icon: UserCog },
+]
+
+// Real gap found live, 2026-11-16: the Fleet dashboard itself has no
+// sidebar at all — every module (Routes/Terminals/Staff/Bookings/Cash/
+// Reports) only exists as a scattered quick-link card on the dashboard
+// page, so none of it is reachable from the one nav drawer the app
+// already has. Modeled on SAFAR's reference admin dashboard's grouped
+// sidebar structure, but built as children of THIS drawer's existing
+// group mechanism rather than a second, separate sidebar component.
+const fleetChildren = (fleetName?: string | null): LeafItem[] => [
+  { href: '/portal/fleet', label: fleetName || 'Overview', tKey: 'portal.myFleetNamed', icon: LayoutDashboard },
+  { href: '/portal/my-vehicle/routes', label: 'Routes', tKey: 'mv.manageRoutesBtn', icon: Route },
+  { href: '/portal/fleet/counters', label: 'Terminals', tKey: 'mv.bookingCountersHeading', icon: Building2 },
+  { href: '/portal/fleet/vehicles', label: 'Vehicles', tKey: 'mv.busManagementHeading', icon: Car },
+  { href: '/portal/fleet/drivers', label: 'Drivers', tKey: 'mv.driverRosterHeading', icon: IdCard },
+  { href: '/portal/fleet/staff', label: 'Staff', tKey: 'mv.fleetStaffHeading', icon: Users2 },
+  { href: '/portal/fleet/bookings', label: 'Bookings', tKey: 'mv.fleetBookingsHeading', icon: Ticket },
+  { href: '/portal/fleet/chalan', label: 'Chalan', tKey: 'mv.chalanHeading', icon: ClipboardList },
+  { href: '/portal/fleet/expenses', label: 'Expenses', tKey: 'mv.fleetExpensesHeading', icon: Fuel },
+  { href: '/portal/fleet/cash', label: 'Cash & Accounts', tKey: 'mv.fleetCashHeading', icon: Wallet },
+  { href: '/portal/fleet/reports', label: 'Reports', tKey: 'mv.fleetPLHeading', icon: BarChart3 },
+  { href: '/portal/fleet/invite', label: 'Invite a Driver', tKey: 'mv.inviteDriverHeading', icon: UserPlus },
 ]
 
 interface PortalSidebarProps {
@@ -230,11 +262,13 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
       // fleet from where admin and fleet manager can navigate to there
       // dashboard"), not a generic "My Fleet".
       if (!isGroup(entry) && entry.href === '/portal/my-vehicle' && hasFleet && !hasOwnVehicle) {
-        // 'portal.myFleetNamed' is deliberately not a real translation
-        // key — t()'s fallback chain (locale → en → fallback) lands on
-        // `label` below, so the real fleet name shows instead of a
-        // generic "My Fleet" string that a real key would always win over.
-        return { ...entry, href: '/portal/fleet', label: fleetName || 'My Fleet', tKey: 'portal.myFleetNamed', requiresVehicleKeeper: true }
+        // 2026-11-16: was a single dead-end link to the dashboard; every
+        // other fleet module (Routes/Terminals/Staff/Bookings/Cash/
+        // Reports) only ever lived on scattered quick-link cards with
+        // no path here at all. Now a real expandable group, same
+        // mechanism the other nav groups already use.
+        const group: GroupItem = { groupKey: 'fleet', label: fleetName || 'My Fleet', tKey: 'portal.myFleetNamed', icon: Users2, children: fleetChildren(fleetName) }
+        return group
       }
       return isGroup(entry) ? { ...entry, children: entry.children.filter(isLeafVisible) } : entry
     })
@@ -248,7 +282,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   // independently visible.
   if (hasFleet && hasOwnVehicle) {
     const myVehicleIdx = visibleMenuItems.findIndex((e) => !isGroup(e) && e.href === '/portal/my-vehicle')
-    const fleetEntry: LeafItem = { href: '/portal/fleet', label: fleetName || 'My Fleet', tKey: 'portal.myFleetNamed', icon: Users2 }
+    const fleetEntry: GroupItem = { groupKey: 'fleet', label: fleetName || 'My Fleet', tKey: 'portal.myFleetNamed', icon: Users2, children: fleetChildren(fleetName) }
     if (myVehicleIdx >= 0) visibleMenuItems.splice(myVehicleIdx + 1, 0, fleetEntry)
     else visibleMenuItems.push(fleetEntry)
   }

@@ -140,6 +140,7 @@ export default function MyVehicleRoutesPage() {
   // own app booking would — no separate inventory to keep in sync.
   const [fleetId, setFleetId] = useState<string | null>(null)
   const [fleetCounters, setFleetCounters] = useState<{ id: string; city: string; name: string | null }[]>([])
+  const [fleetDrivers, setFleetDrivers] = useState<{ id: string; portal_user_id: string; full_name: string; mobile: string; routes_assigned_count: number }[]>([])
   const [manualBookingRouteId, setManualBookingRouteId] = useState<string | null>(null)
   const [manualCounterId, setManualCounterId] = useState('')
   const [manualPassengerName, setManualPassengerName] = useState('')
@@ -314,6 +315,8 @@ export default function MyVehicleRoutesPage() {
         setFleetId(f.fleet_id)
         const { data: counters } = await supabase.rpc('my_fleet_counters', { p_fleet_id: f.fleet_id })
         setFleetCounters((counters ?? []) as typeof fleetCounters)
+        const { data: drv } = await supabase.rpc('my_fleet_drivers', { p_fleet_id: f.fleet_id })
+        setFleetDrivers((drv ?? []) as typeof fleetDrivers)
       }
       if (!data && fv.length > 0) {
         const vehicleParam = searchParams.get('vehicle')
@@ -1466,8 +1469,23 @@ export default function MyVehicleRoutesPage() {
             <div className="bg-[#F9F9F6] rounded-xl p-3">
               <p className="font-sans text-[11px] font-bold uppercase tracking-[0.05em] text-[#64748b] mb-2">{t('mv.coDriverHeading')}</p>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.coDriverMobileLabel')}</label>
-              <input value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}
-                placeholder={t('mv.driverPhonePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num mb-2" />
+              {/* 888: was a free-text mobile number with no idea whether
+                  it belonged to a real fleet driver — now a dropdown of
+                  the fleet's own registered drivers (plus each one's
+                  current route count as a lightweight availability
+                  signal) whenever any exist; falls back to free text for
+                  a solo driver with no fleet, or until any driver has
+                  been added as staff. */}
+              {fleetDrivers.length > 0 ? (
+                <select value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}
+                  className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full mb-2">
+                  <option value="">{t('mv.noCoDriverOption')}</option>
+                  {fleetDrivers.map((d) => <option key={d.id} value={d.mobile}>{d.full_name} · {d.routes_assigned_count} {t('mv.routesAssignedSuffix')}</option>)}
+                </select>
+              ) : (
+                <input value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}
+                  placeholder={t('mv.driverPhonePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num mb-2" />
+              )}
               {coDriverName && <p className="font-sans text-[11px] text-[#166534] -mt-1 mb-2">{t('mv.coDriverCurrentlyLabel')}: {coDriverName}</p>}
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.minShiftHoursLabel')}</label>
               <input type="number" min={1} value={editSchedule.minShiftHours} onChange={(e) => setEditSchedule({ ...editSchedule, minShiftHours: e.target.value })}
