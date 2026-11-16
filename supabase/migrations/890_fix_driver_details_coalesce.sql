@@ -33,7 +33,10 @@ $$;
 
 -- my_fleet_drivers also needs mobile: set_route_co_driver (879) takes a
 -- mobile number, not a portal_user_id, and the frontend has no other
--- way to resolve one from the dropdown selection without it.
+-- way to resolve one from the dropdown selection without it. Postgres
+-- won't let CREATE OR REPLACE change a RETURNS TABLE shape, hence the
+-- explicit drop first.
+DROP FUNCTION IF EXISTS my_fleet_drivers(uuid);
 CREATE OR REPLACE FUNCTION my_fleet_drivers(p_fleet_id uuid)
 RETURNS TABLE(id uuid, portal_user_id uuid, full_name varchar, mobile varchar, license_number varchar, license_expiry date, routes_assigned_count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -44,3 +47,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
     AND EXISTS (SELECT 1 FROM fleets f WHERE f.id = p_fleet_id AND (f.owning_portal_user_id = current_portal_user_id() OR EXISTS (SELECT 1 FROM fleet_staff fs2 WHERE fs2.fleet_id = p_fleet_id AND fs2.portal_user_id = current_portal_user_id())))
   ORDER BY pu.full_name;
 $$;
+-- DROP FUNCTION clears prior grants and Postgres defaults a freshly
+-- created function to PUBLIC-executable — re-apply 888's original lockdown.
+REVOKE ALL ON FUNCTION my_fleet_drivers(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION my_fleet_drivers(uuid) TO authenticated;
