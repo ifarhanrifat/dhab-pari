@@ -87,6 +87,7 @@ interface Route {
   co_driver_portal_user_id: string | null; min_shift_hours: number
   seat_override: number | null
   service_code: string | null
+  service_class: string | null
 }
 interface RouteIlan { id: string; vehicle_route_id: string; status: string; is_paused: boolean; ends_at: string; created_at: string }
 
@@ -198,7 +199,7 @@ export default function MyVehicleRoutesPage() {
   const [stopsRouteId, setStopsRouteId] = useState<string | null>(null)
   const [pendingIlanRoute, setPendingIlanRoute] = useState<{ origin: string; destination: string } | null>(null)
   const [groupRouteId, setGroupRouteId] = useState<string | null>(null)
-  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[]; is_two_way: boolean; return_wait_minutes: number; seat_override: string; returnOnDifferentDays: boolean; return_days_of_week: number[]; coDriverMobile: string; minShiftHours: string } | null>(null)
+  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[]; is_two_way: boolean; return_wait_minutes: number; seat_override: string; returnOnDifferentDays: boolean; return_days_of_week: number[]; coDriverMobile: string; minShiftHours: string; serviceClass: string } | null>(null)
   const [coDriverName, setCoDriverName] = useState<string | null>(null)
   const [savingSchedule, setSavingSchedule] = useState(false)
   const [stopCounts, setStopCounts] = useState<Record<string, number>>({})
@@ -221,7 +222,7 @@ export default function MyVehicleRoutesPage() {
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
-      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override, service_code, return_days_of_week, co_driver_portal_user_id, min_shift_hours')
+      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override, service_code, return_days_of_week, co_driver_portal_user_id, min_shift_hours, service_class')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, seat_accepted_at, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
@@ -369,6 +370,12 @@ export default function MyVehicleRoutesPage() {
       })
       if (coDriverError) { setSavingSchedule(false); toast.error(friendlyError(coDriverError, undefined, isUrdu)); return }
     }
+    // 883: a named service class the way Daewoo Express shows "Luxury"
+    // vs "Sleeper" — own RPC, deliberately not touching fare at all.
+    if (!error) {
+      const { error: classError } = await supabase.rpc('set_route_service_class', { p_route_id: editSchedule.id, p_service_class: editSchedule.serviceClass || null })
+      if (classError) { setSavingSchedule(false); toast.error(friendlyError(classError, undefined, isUrdu)); return }
+    }
     setSavingSchedule(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mv.scheduleUpdatedToast'))
@@ -381,7 +388,7 @@ export default function MyVehicleRoutesPage() {
       id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [],
       is_two_way: r.is_two_way, return_wait_minutes: r.return_wait_minutes ?? 300, seat_override: r.seat_override != null ? String(r.seat_override) : '',
       returnOnDifferentDays: !!r.return_days_of_week?.length, return_days_of_week: r.return_days_of_week ?? r.days_of_week ?? [],
-      coDriverMobile: '', minShiftHours: String(r.min_shift_hours ?? 8),
+      coDriverMobile: '', minShiftHours: String(r.min_shift_hours ?? 8), serviceClass: r.service_class ?? '',
     })
     setCoDriverName(null)
     if (r.co_driver_portal_user_id) {
@@ -1457,6 +1464,20 @@ export default function MyVehicleRoutesPage() {
               <input type="number" min={1} value={editSchedule.minShiftHours} onChange={(e) => setEditSchedule({ ...editSchedule, minShiftHours: e.target.value })}
                 className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num" />
               <p className="font-sans text-[10.5px] text-[#94a3b8] mt-1">{t('mv.minShiftHoursHint')}</p>
+            </div>
+            {/* 883: a named service class the way Daewoo Express shows
+                "Luxury" vs "Sleeper" — deliberately just a label, not a
+                fare multiplier (fare stays owner-set directly). */}
+            <div>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.serviceClassLabel')}</label>
+              <select value={editSchedule.serviceClass} onChange={(e) => setEditSchedule({ ...editSchedule, serviceClass: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full">
+                <option value="">—</option>
+                <option value="economy">{t('mv.serviceClass.economy')}</option>
+                <option value="business">{t('mv.serviceClass.business')}</option>
+                <option value="executive">{t('mv.serviceClass.executive')}</option>
+                <option value="sleeper">{t('mv.serviceClass.sleeper')}</option>
+                <option value="luxury">{t('mv.serviceClass.luxury')}</option>
+              </select>
             </div>
             <button onClick={saveSchedule} disabled={savingSchedule} className="w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
               {savingSchedule ? t('action.saving') : t('action.save')}

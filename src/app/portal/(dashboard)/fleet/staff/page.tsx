@@ -17,7 +17,10 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
-interface StaffMember { id: string; portal_user_id: string; full_name: string; counter_id: string | null; counter_city: string | null; counter_name: string | null }
+interface StaffMember {
+  id: string; portal_user_id: string; full_name: string; counter_id: string | null; counter_city: string | null; counter_name: string | null
+  role: string; commission_amount_pkr: number | null; commission_this_month_pkr: number
+}
 interface Counter { id: string; city: string; name: string | null }
 
 export default function FleetStaffPage() {
@@ -34,6 +37,7 @@ export default function FleetStaffPage() {
   const [adding, setAdding] = useState(false)
   const [salaryDraft, setSalaryDraft] = useState<Record<string, string>>({})
   const [paymentDraft, setPaymentDraft] = useState<Record<string, string>>({})
+  const [commissionDraft, setCommissionDraft] = useState<Record<string, string>>({})
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
@@ -100,6 +104,21 @@ export default function FleetStaffPage() {
     setPaymentDraft((d) => ({ ...d, [fleetStaffId]: '' }))
   }
 
+  const setRole = async (fleetStaffId: string, role: string) => {
+    const { error } = await supabase.rpc('set_fleet_staff_role', { p_fleet_staff_id: fleetStaffId, p_role: role })
+    if (error) { toast.error(friendlyError(error)); return }
+    load()
+  }
+
+  const saveCommission = async (fleetStaffId: string) => {
+    const amount = commissionDraft[fleetStaffId]
+    const { error } = await supabase.rpc('set_fleet_staff_commission', { p_fleet_staff_id: fleetStaffId, p_commission_amount_pkr: amount ? Number(amount) : null })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.commissionSetToast'))
+    setCommissionDraft((d) => ({ ...d, [fleetStaffId]: '' }))
+    load()
+  }
+
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
 
   return (
@@ -134,6 +153,13 @@ export default function FleetStaffPage() {
                     <span className="font-sans text-[13px] font-bold text-[#1e293b]">{s.full_name}</span>
                     <button onClick={() => removeStaff(s.portal_user_id)} className="font-sans text-[11px] font-bold text-[#b91c1c] cursor-pointer">{t('action.remove')}</button>
                   </div>
+                  <select value={s.role} onChange={(e) => setRole(s.id, e.target.value)} className="mt-1.5 w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px]">
+                    <option value="staff">{t('mv.role.staff')}</option>
+                    <option value="booking_officer">{t('mv.role.booking_officer')}</option>
+                    <option value="terminal_manager">{t('mv.role.terminal_manager')}</option>
+                    <option value="accountant">{t('mv.role.accountant')}</option>
+                    <option value="other">{t('mv.role.other')}</option>
+                  </select>
                   {counters.length > 0 && (
                     <select value={s.counter_id ?? ''} onChange={(e) => assignCounter(s.portal_user_id, e.target.value)} className="mt-1.5 w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px]">
                       <option value="">{t('mv.noCounterOption')}</option>
@@ -150,6 +176,19 @@ export default function FleetStaffPage() {
                       placeholder={t('mv.expenseAmountPlaceholder')} className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
                     <button onClick={() => recordPayment(s.id)} className="shrink-0 px-2.5 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11px] font-semibold cursor-pointer">{t('mv.recordPaymentBtn')}</button>
                   </div>
+                  {/* 883: real gap — commission was never tied to actual
+                      bookings, only a flat salary. PKR per confirmed
+                      seat, credited when this staff member records a
+                      sale and reversed if it's later cancelled. */}
+                  <div className="flex gap-2 mt-1.5 pt-1.5 border-t border-[#f1f5f9]">
+                    <input type="number" value={commissionDraft[s.id] ?? (s.commission_amount_pkr != null ? String(s.commission_amount_pkr) : '')}
+                      onChange={(e) => setCommissionDraft((d) => ({ ...d, [s.id]: e.target.value }))}
+                      placeholder={t('mv.commissionPerSeatPlaceholder')} className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
+                    <button onClick={() => saveCommission(s.id)} className="shrink-0 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('mv.setSalaryBtn')}</button>
+                  </div>
+                  {s.commission_amount_pkr != null && (
+                    <p className="font-sans text-[10.5px] text-[#166534] mt-1">{t('mv.commissionThisMonthLabel')}: ₨{s.commission_this_month_pkr.toLocaleString()}</p>
+                  )}
                 </div>
               ))}
             </div>

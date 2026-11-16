@@ -45,7 +45,7 @@ function fmt(n: number) {
 }
 
 interface DocStatus { document_type: string; expiry_date: string; file_url: string | null; days_remaining: number; status: 'valid' | 'expiring_soon' | 'expired' }
-const DOC_TYPES = ['route_permit', 'fitness_certificate', 'insurance'] as const
+const DOC_TYPES = ['route_permit', 'fitness_certificate', 'insurance', 'driver_licence'] as const
 
 export function VehicleCatalogForm({ vehicleId, showHeading = true }: { vehicleId: string; showHeading?: boolean }) {
   const { t, isUrdu } = useLocale()
