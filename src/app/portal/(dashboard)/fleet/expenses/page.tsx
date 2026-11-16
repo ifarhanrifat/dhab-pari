@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import { Fuel, FileImage, Plus, History } from 'lucide-react'
-import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels } from '@/components/portal/FleetPanel'
+import { FleetPanel, FleetPanelHead, FleetPanelBody } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -157,25 +157,37 @@ export default function FleetExpensesPage() {
           <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noExpensesYetHint')}</p>
         ) : (
           <>
-            <FleetColumnLabels labels={[t('w.particular'), t('w.amount')]} />
-            <div className="flex flex-col divide-y divide-[#f1f5f9]">
-              {expenses.map((e) => {
-                const v = vehicles.find((x) => x.id === e.vehicle_id)
-                return (
-                  <div key={e.id} className="px-3.5 py-2.5 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate"><span className="ltr-num">{v?.vehicle_number || v?.vehicle_type || v?.owner_name || ''}</span> · {t(`mv.expenseCategory${e.category.charAt(0).toUpperCase()}${e.category.slice(1)}`)}</p>
-                      <p className="font-sans text-[10.5px] text-[#94a3b8]"><span className="ltr-num">{fmtDate(e.expense_date)}</span>{e.note ? ` · ${e.note}` : ''}</p>
-                      {receiptUrls[e.id] && (
-                        <a href={receiptUrls[e.id]} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#166534]">
-                          <FileImage size={11} /> {t('mv.viewReceiptBtn')}
-                        </a>
-                      )}
-                    </div>
-                    <span className="shrink-0 font-sans text-[13px] font-bold text-[#b91c1c] ltr-num">₨{fmt(e.amount_pkr)}</span>
-                  </div>
-                )
-              })}
+            <div className="overflow-x-auto">
+              <table className="w-full text-start border-collapse">
+                <thead>
+                  <tr className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#94a3b8] bg-[#F9F9F6] border-b border-[#f1f5f9]">
+                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('w.date')}</th>
+                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.vehicleColumnLabel')}</th>
+                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('w.particular')}</th>
+                    <th className="px-3.5 py-1.5 text-end whitespace-nowrap">{t('w.amount')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses.map((e) => {
+                    const v = vehicles.find((x) => x.id === e.vehicle_id)
+                    return (
+                      <tr key={e.id} className="border-t border-[#f1f5f9] align-middle">
+                        <td className="px-3.5 py-2.5 font-sans text-[11px] text-[#94a3b8] ltr-num whitespace-nowrap">{fmtDate(e.expense_date)}</td>
+                        <td className="px-3.5 py-2.5 font-sans text-[12.5px] font-semibold text-[#1e293b] ltr-num whitespace-nowrap">{v?.vehicle_number || v?.vehicle_type || v?.owner_name || ''}</td>
+                        <td className="px-3.5 py-2.5">
+                          <p className="font-sans text-[12.5px] text-[#1e293b] whitespace-nowrap">{t(`mv.expenseCategory${e.category.charAt(0).toUpperCase()}${e.category.slice(1)}`)}{e.note ? <span className="text-[#94a3b8]"> · {e.note}</span> : null}</p>
+                          {receiptUrls[e.id] && (
+                            <a href={receiptUrls[e.id]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#166534] whitespace-nowrap">
+                              <FileImage size={11} /> {t('mv.viewReceiptBtn')}
+                            </a>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-end font-sans text-[13px] font-bold text-[#b91c1c] ltr-num whitespace-nowrap">₨{fmt(e.amount_pkr)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           </>
         )}

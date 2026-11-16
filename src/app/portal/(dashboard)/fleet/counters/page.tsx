@@ -13,7 +13,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels } from '@/components/portal/FleetPanel'
+import { FleetPanel, FleetPanelHead, FleetPanelBody } from '@/components/portal/FleetPanel'
 
 interface Counter { id: string; city: string; name: string | null; cash_office_code: string | null; manager_name: string | null; today_bookings_count: number }
 
@@ -100,22 +100,29 @@ export default function FleetCountersPage() {
           <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noCountersYetHint')}</p>
         ) : (
           <>
-            <FleetColumnLabels labels={[t('mv.bookingCountersHeading'), t('mv.todayLabel')]} />
-            <div className="divide-y divide-[#f1f5f9]">
-              {counters.map((c) => (
-                <div key={c.id} className="px-3.5 py-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-sans text-[13px] font-semibold text-[#1e293b] truncate min-w-0">{c.city}{c.name ? ` · ${c.name}` : ''}</span>
-                    <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10.5px] font-bold ltr-num">{c.today_bookings_count} {t('mv.todayLabel')}</span>
-                  </div>
-                  {(c.manager_name || c.cash_office_code) && (
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
-                      {c.manager_name && <p className="font-sans text-[11px] text-[#64748b]"><span className="text-[#94a3b8]">{t('mv.managedByLabel')}:</span> {c.manager_name}</p>}
-                      {c.cash_office_code && <p className="font-sans text-[11px] text-[#64748b] ltr-num"><span className="text-[#94a3b8]">{t('mv.cashOfficeCodeLabel')}:</span> {c.cash_office_code}</p>}
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-start border-collapse">
+                <thead>
+                  <tr className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#94a3b8] bg-[#F9F9F6] border-b border-[#f1f5f9]">
+                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.bookingCountersHeading')}</th>
+                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.managedByLabel')}</th>
+                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.cashOfficeCodeLabel')}</th>
+                    <th className="px-3.5 py-1.5 text-end whitespace-nowrap">{t('mv.todayLabel')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {counters.map((c) => (
+                    <tr key={c.id} className="border-t border-[#f1f5f9] align-middle">
+                      <td className="px-3.5 py-2.5 font-sans text-[13px] font-semibold text-[#1e293b] whitespace-nowrap">{c.city}{c.name ? ` · ${c.name}` : ''}</td>
+                      <td className="px-3.5 py-2.5 font-sans text-[11px] text-[#64748b] whitespace-nowrap">{c.manager_name || '—'}</td>
+                      <td className="px-3.5 py-2.5 font-sans text-[11px] text-[#64748b] ltr-num whitespace-nowrap">{c.cash_office_code || '—'}</td>
+                      <td className="px-3.5 py-2.5 text-end">
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10.5px] font-bold ltr-num whitespace-nowrap">{c.today_bookings_count} {t('mv.todayLabel')}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </>
         )}

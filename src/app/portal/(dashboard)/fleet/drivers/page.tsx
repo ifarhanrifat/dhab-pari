@@ -17,7 +17,7 @@ import { normalizePakPhone } from '@/lib/receiptExport'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { FleetPanel, FleetPanelHead, FleetColumnLabels, FleetStatusPill } from '@/components/portal/FleetPanel'
+import { FleetPanel, FleetPanelHead, FleetStatusPill } from '@/components/portal/FleetPanel'
 
 interface RosterRow {
   vehicle_id: string; vehicle_number: string | null; owner_name: string; owner_mobile: string | null; vehicle_type: string
@@ -67,34 +67,45 @@ export default function FleetDriversPage() {
           <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noVehiclesYetHint')}</p>
         ) : (
           <>
-            <FleetColumnLabels labels={[t('mv.vehicleColumnLabel'), t('w.status')]} />
-            <div className="divide-y divide-[#f1f5f9]">
-              {roster.map((r) => (
-                <div key={r.vehicle_id} className="px-3.5 py-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-sans text-[14px] font-extrabold text-[#1e293b] ltr-num">{r.vehicle_number ?? '—'}</p>
-                      <p className="font-sans text-[11.5px] text-[#64748b]">{r.owner_name}{r.vehicle_type ? ` · ${r.vehicle_type}` : ''}</p>
-                    </div>
-                    <FleetStatusPill tone={r.status === 'on_trip' ? 'blue' : 'green'} className="shrink-0">
-                      {r.status === 'on_trip' ? t('mv.onTripLabel') : t('mv.freeLabel')}
-                    </FleetStatusPill>
-                  </div>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-[#f1f5f9]">
-                    <span className="font-sans text-[11.5px] text-[#64748b]">
-                      {r.status === 'on_trip' && r.active_route
-                        ? `${r.active_route.origin} → ${r.active_route.destination}`
-                        : r.free_at_station ? `${t('mv.freeAtLabel')}: ${r.free_at_station}` : ''}
-                    </span>
-                    {r.owner_mobile && (
-                      <div className="flex items-center gap-2 shrink-0">
-                        <a href={`tel:${r.owner_mobile}`} className="p-1 text-[#64748b]"><Phone size={13} /></a>
-                        <a href={`https://wa.me/${normalizePakPhone(r.owner_mobile)}`} target="_blank" rel="noopener noreferrer" className="p-1 text-[#166534]"><MessageCircle size={13} /></a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-start border-collapse">
+                <thead>
+                  <tr className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#94a3b8] bg-[#F9F9F6] border-b border-[#f1f5f9]">
+                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.vehicleColumnLabel')}</th>
+                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.freeAtLabel')}</th>
+                    <th className="px-3.5 py-1.5 text-end whitespace-nowrap">{t('w.status')}</th>
+                    <th className="px-3.5 py-1.5 text-end" aria-hidden="true" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {roster.map((r) => (
+                    <tr key={r.vehicle_id} className="border-t border-[#f1f5f9] align-middle">
+                      <td className="px-3.5 py-2.5">
+                        <p className="font-sans text-[14px] font-extrabold text-[#1e293b] ltr-num whitespace-nowrap">{r.vehicle_number ?? '—'}</p>
+                        <p className="font-sans text-[11.5px] text-[#64748b] whitespace-nowrap">{r.owner_name}{r.vehicle_type ? ` · ${r.vehicle_type}` : ''}</p>
+                      </td>
+                      <td className="px-3.5 py-2.5 font-sans text-[11.5px] text-[#64748b] whitespace-nowrap">
+                        {r.status === 'on_trip' && r.active_route
+                          ? `${r.active_route.origin} → ${r.active_route.destination}`
+                          : r.free_at_station ? r.free_at_station : ''}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-end">
+                        <FleetStatusPill tone={r.status === 'on_trip' ? 'blue' : 'green'}>
+                          {r.status === 'on_trip' ? t('mv.onTripLabel') : t('mv.freeLabel')}
+                        </FleetStatusPill>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-end">
+                        {r.owner_mobile && (
+                          <div className="flex items-center justify-end gap-2">
+                            <a href={`tel:${r.owner_mobile}`} className="p-1 text-[#64748b]"><Phone size={13} /></a>
+                            <a href={`https://wa.me/${normalizePakPhone(r.owner_mobile)}`} target="_blank" rel="noopener noreferrer" className="p-1 text-[#166534]"><MessageCircle size={13} /></a>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </>
         )}
