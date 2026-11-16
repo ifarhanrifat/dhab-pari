@@ -3,11 +3,16 @@
 // 873: admin trip-history — real spec given live: click a bus's travel
 // route and see the full map of where it actually went (planned path
 // vs its real recorded GPS trail), fuel cost and where it was bought,
-// who's driving and how many times they shuffled (surfaces the
-// EXISTING route_run_substitutions data only — the shuffle mechanism
-// itself stays exactly as it is, per direct instruction), how many
-// passengers and how much luggage boarded along the way, and earnings
-// vs cost for that specific run.
+// who's driving and how many times they shuffled, how many passengers
+// and how much luggage boarded along the way, and earnings vs cost for
+// that specific run.
+//
+// 879: driver_timeline widened beyond route_run_substitutions (the
+// whole-day substitute-vehicle swap) to also show real mid-route
+// driver-shift intervals (route_run_driver_shifts) — the actual
+// shuffle mechanism this page's own original comment said would stay
+// untouched; that instruction was explicitly reversed by direct
+// confirmation when 879 was built.
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
@@ -25,7 +30,7 @@ const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr
 interface RunRow { id: string; route_id: string; direction: string; started_at: string; ended_at: string | null; origin: string; destination: string; owner_name: string; vehicle_type: string }
 interface Passenger { id: string; source: 'manual' | 'app'; passenger_name: string; seats: number; amount: number; boarded_at: string | null; dropped_off_at: string | null }
 interface Luggage { id: string; sender_name: string; receiver_name: string; fare_pkr: number; status: string; loaded_at: string | null; delivered_at: string | null }
-interface DriverEntry { owner_name: string; reason: string; created_at: string | null }
+interface DriverEntry { owner_name: string; reason: string; created_at: string | null; ended_at?: string | null }
 interface ExpenseEntry { id: string; category: string; amount_pkr: number; note: string | null; station_name: string | null; lat: number | null; lng: number | null; expense_date: string }
 interface RunDetail {
   route_run_id: string; route_id: string; origin: string; destination: string; owner_name: string; vehicle_type: string
@@ -126,7 +131,11 @@ export default function AdminTripHistoryPage() {
                 {detail.driver_timeline.map((d, i) => (
                   <div key={i} className="p-2.5 flex items-center justify-between">
                     <span className="font-sans text-[12.5px] font-semibold text-dp-on-surface">{d.owner_name}</span>
-                    <span className="font-sans text-[10.5px] text-dp-on-surface-variant">{d.reason === 'regular' ? t('th.regularDriverLabel') : fmtDateTime(d.created_at)}</span>
+                    <span className="font-sans text-[10.5px] text-dp-on-surface-variant">
+                      {d.reason === 'regular' ? t('th.regularDriverLabel')
+                        : d.reason === 'shift' ? `${fmtDateTime(d.created_at)} → ${d.ended_at ? fmtDateTime(d.ended_at) : t('th.stillOnDutyLabel')}`
+                        : fmtDateTime(d.created_at)}
+                    </span>
                   </div>
                 ))}
               </div>

@@ -28,6 +28,7 @@ import { MobilityHeader } from '@/components/mobility/MobilityHeader'
 import { DriverMobilityNav } from '@/components/mobility/DriverMobilityNav'
 import { DriverJobsBadgeProvider, useDriverJobsBadge } from '@/components/mobility/DriverJobsBadgeContext'
 import { useVehicleLocationRefresh } from '@/hooks/useVehicleLocationRefresh'
+import { DriverShuffleFloatingButton } from '@/components/mobility/DriverShuffleFloatingButton'
 
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; commission_mode: string
@@ -54,6 +55,7 @@ function Chrome({ children }: { children: React.ReactNode }) {
             hidden behind the WhatsApp bubble. */}
         <div className="p-3.5 pb-36">{children}</div>
       </div>
+      <DriverShuffleFloatingButton />
       <DriverMobilityNav jobsBadge={count} />
     </div>
   )

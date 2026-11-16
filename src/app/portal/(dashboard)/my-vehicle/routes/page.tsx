@@ -84,6 +84,7 @@ interface Route {
   route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
   is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null
   is_two_way: boolean; return_wait_minutes: number | null; return_days_of_week: number[] | null
+  co_driver_portal_user_id: string | null; min_shift_hours: number
   seat_override: number | null
   service_code: string | null
 }
@@ -197,7 +198,8 @@ export default function MyVehicleRoutesPage() {
   const [stopsRouteId, setStopsRouteId] = useState<string | null>(null)
   const [pendingIlanRoute, setPendingIlanRoute] = useState<{ origin: string; destination: string } | null>(null)
   const [groupRouteId, setGroupRouteId] = useState<string | null>(null)
-  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[]; is_two_way: boolean; return_wait_minutes: number; seat_override: string; returnOnDifferentDays: boolean; return_days_of_week: number[] } | null>(null)
+  const [editSchedule, setEditSchedule] = useState<{ id: string; departure_time: string; return_departure_time: string; days_of_week: number[]; is_two_way: boolean; return_wait_minutes: number; seat_override: string; returnOnDifferentDays: boolean; return_days_of_week: number[]; coDriverMobile: string; minShiftHours: string } | null>(null)
+  const [coDriverName, setCoDriverName] = useState<string | null>(null)
   const [savingSchedule, setSavingSchedule] = useState(false)
   const [stopCounts, setStopCounts] = useState<Record<string, number>>({})
   const [nextRunSeats, setNextRunSeats] = useState<Record<string, number>>({})
@@ -219,7 +221,7 @@ export default function MyVehicleRoutesPage() {
 
   const reload = async (id: string) => {
     const [{ data: rts }, { data: b }] = await Promise.all([
-      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override, service_code, return_days_of_week')
+      supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override, service_code, return_days_of_week, co_driver_portal_user_id, min_shift_hours')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, seat_accepted_at, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
@@ -357,11 +359,36 @@ export default function MyVehicleRoutesPage() {
       const seatOverride = editSchedule.seat_override.trim() ? Number(editSchedule.seat_override) : null
       await supabase.rpc('set_route_seat_override', { p_route_id: editSchedule.id, p_seat_override: seatOverride })
     }
+    // 879: real spec — a long route can name a second driver who shares
+    // driving duty. Own RPC, own error handling, since it's logically
+    // separate from the departure/days schedule above.
+    if (!error) {
+      const { error: coDriverError } = await supabase.rpc('set_route_co_driver', {
+        p_route_id: editSchedule.id, p_co_driver_mobile: editSchedule.coDriverMobile.trim() || null,
+        p_min_shift_hours: Number(editSchedule.minShiftHours) || 8,
+      })
+      if (coDriverError) { setSavingSchedule(false); toast.error(friendlyError(coDriverError, undefined, isUrdu)); return }
+    }
     setSavingSchedule(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mv.scheduleUpdatedToast'))
     setEditSchedule(null)
     const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid)
+  }
+
+  const openEditSchedule = async (r: Route) => {
+    setEditSchedule({
+      id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [],
+      is_two_way: r.is_two_way, return_wait_minutes: r.return_wait_minutes ?? 300, seat_override: r.seat_override != null ? String(r.seat_override) : '',
+      returnOnDifferentDays: !!r.return_days_of_week?.length, return_days_of_week: r.return_days_of_week ?? r.days_of_week ?? [],
+      coDriverMobile: '', minShiftHours: String(r.min_shift_hours ?? 8),
+    })
+    setCoDriverName(null)
+    if (r.co_driver_portal_user_id) {
+      const { data } = await supabase.from('portal_users').select('full_name, mobile').eq('id', r.co_driver_portal_user_id).maybeSingle()
+      const pu = data as { full_name: string; mobile: string } | null
+      if (pu) { setCoDriverName(pu.full_name); setEditSchedule((s) => s ? { ...s, coDriverMobile: pu.mobile } : s) }
+    }
   }
 
   const closeRoute = async (routeId: string) => {
@@ -1084,7 +1111,7 @@ export default function MyVehicleRoutesPage() {
                   // being cut off; tightened padding/text keeps most of
                   // them on one row on a normal phone width.
                   <div className="flex items-center flex-wrap gap-1 mt-2 pt-2 border-t border-[#f1f5f9]">
-                    <button onClick={() => setEditSchedule({ id: r.id, departure_time: r.departure_time ?? '', return_departure_time: r.return_departure_time ?? '', days_of_week: r.days_of_week ?? [], is_two_way: r.is_two_way, return_wait_minutes: r.return_wait_minutes ?? 300, seat_override: r.seat_override != null ? String(r.seat_override) : '', returnOnDifferentDays: !!r.return_days_of_week?.length, return_days_of_week: r.return_days_of_week ?? r.days_of_week ?? [] })}
+                    <button onClick={() => openEditSchedule(r)}
                       className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-sans font-semibold cursor-pointer border border-[#e5e2d0] text-[#334155]">
                       <Pencil size={10} /> {t('mv.editScheduleBtn')}
                     </button>
@@ -1416,6 +1443,20 @@ export default function MyVehicleRoutesPage() {
               <input type="number" min={1} value={editSchedule.seat_override} onChange={(e) => setEditSchedule({ ...editSchedule, seat_override: e.target.value })}
                 placeholder={totalSeats ? String(totalSeats) : ''} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num" />
               <p className="font-sans text-[10.5px] text-[#94a3b8] mt-1">{t('mv.seatOverrideHint').replace('{n}', String(totalSeats ?? '—'))}</p>
+            </div>
+            {/* 879: real spec — a long route can have a second driver who
+                shares duty, with a floating "shuffle" button on both
+                drivers' apps once the minimum shift length is reached. */}
+            <div className="bg-[#F9F9F6] rounded-xl p-3">
+              <p className="font-sans text-[11px] font-bold uppercase tracking-[0.05em] text-[#64748b] mb-2">{t('mv.coDriverHeading')}</p>
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.coDriverMobileLabel')}</label>
+              <input value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}
+                placeholder={t('mv.driverPhonePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num mb-2" />
+              {coDriverName && <p className="font-sans text-[11px] text-[#166534] -mt-1 mb-2">{t('mv.coDriverCurrentlyLabel')}: {coDriverName}</p>}
+              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.minShiftHoursLabel')}</label>
+              <input type="number" min={1} value={editSchedule.minShiftHours} onChange={(e) => setEditSchedule({ ...editSchedule, minShiftHours: e.target.value })}
+                className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num" />
+              <p className="font-sans text-[10.5px] text-[#94a3b8] mt-1">{t('mv.minShiftHoursHint')}</p>
             </div>
             <button onClick={saveSchedule} disabled={savingSchedule} className="w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
               {savingSchedule ? t('action.saving') : t('action.save')}
