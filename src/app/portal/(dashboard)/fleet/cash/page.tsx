@@ -20,7 +20,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface CounterCash { counter_id: string; city: string; name: string | null; total_collected_pkr: number; total_remitted_pkr: number; cash_in_hand_pkr: number }
-interface VehicleCash { vehicle_id: string; owner_name: string; total_collected_pkr: number; total_remitted_pkr: number; cash_in_hand_pkr: number }
+interface VehicleCash { vehicle_id: string; owner_name: string; vehicle_type: string | null; vehicle_number: string | null; total_collected_pkr: number; total_remitted_pkr: number; cash_in_hand_pkr: number }
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -137,9 +137,10 @@ export default function FleetCashPage() {
           {vehicleCash.map((v) => (
             <div key={v.vehicle_id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
               <div className="flex items-center justify-between">
-                <span className="font-sans text-[13.5px] font-bold text-[#1e293b]">{v.owner_name}</span>
+                <span className="font-sans text-[13.5px] font-bold text-[#1e293b] ltr-num">{v.vehicle_number || v.vehicle_type || v.owner_name}</span>
                 <span className="font-sans text-[16px] font-extrabold ltr-num" style={{ color: v.cash_in_hand_pkr < 0 ? '#b91c1c' : '#166534' }}>₨{fmt(v.cash_in_hand_pkr)}</span>
               </div>
+              <p className="font-sans text-[10.5px] text-[#94a3b8] -mt-0.5">{v.vehicle_type} · {v.owner_name}</p>
               <div className="flex items-center justify-between mt-1.5">
                 <span className="font-sans text-[11px] text-[#94a3b8] ltr-num">{t('mv.collectedLabel')} ₨{fmt(v.total_collected_pkr)} · {t('mv.remittedLabel')} ₨{fmt(v.total_remitted_pkr)}</span>
                 <button onClick={() => { setRemitVehicleId(v.vehicle_id); setRemitVehicleAmount('') }} className="font-sans text-[11.5px] font-bold text-[#166534] cursor-pointer">{t('mv.recordRemittanceBtn')}</button>

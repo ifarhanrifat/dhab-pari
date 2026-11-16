@@ -26,7 +26,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 type ReportType = 'pl' | 'bookings' | 'expenses' | 'commission' | 'remittances' | 'salaries'
 
 interface FleetVehicleSummary {
-  vehicle_id: string; owner_name: string; vehicle_type: string
+  vehicle_id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null
   today_earnings_pkr: number; today_expenses_pkr: number; today_profit_pkr: number
   month_earnings_pkr: number; month_expenses_pkr: number; month_profit_pkr: number
   wallet_balance_pkr: number
@@ -204,7 +204,7 @@ export default function FleetReportsPage() {
                   {(pl?.vehicles ?? []).length === 0 && <tr><td colSpan={4} className="p-6 text-center text-[#94a3b8]">{t('mv.noFleetYetHint')}</td></tr>}
                   {(pl?.vehicles ?? []).map((v) => (
                     <tr key={v.vehicle_id} className="border-t border-[#f1f5f9]">
-                      <td className="p-2">{v.owner_name}{v.vehicle_type ? ` · ${v.vehicle_type}` : ''}</td>
+                      <td className="p-2"><span className="ltr-num font-semibold">{v.vehicle_number || v.vehicle_type}</span><span className="text-[#94a3b8]"> · {v.owner_name}</span></td>
                       <td className="p-2 text-end ltr-num">₨{fmt(v.today_profit_pkr)}</td>
                       <td className="p-2 text-end font-bold ltr-num">₨{fmt(v.month_profit_pkr)}</td>
                       <td className="p-2 text-end text-[#94a3b8] ltr-num">₨{fmt(v.wallet_balance_pkr)}</td>

@@ -27,10 +27,10 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { SeatPickerField } from '@/components/mobility/SeatPickerField'
 
-interface RouteOption { route_id: string; origin: string; destination: string; owner_name: string; vehicle_id: string; days_of_week: number[] }
+interface RouteOption { route_id: string; origin: string; destination: string; owner_name: string; vehicle_type: string | null; vehicle_number: string | null; vehicle_id: string; days_of_week: number[] }
 interface Passenger { id: string; source: 'manual' | 'app'; passenger_name: string; passenger_mobile: string | null; seats: number; seat_numbers: number[] | null; amount: number; payment_method: string | null; is_confirmed: boolean }
 interface Chalan {
-  route_id: string; origin: string; destination: string; travel_date: string; owner_name: string; vehicle_type: string
+  route_id: string; origin: string; destination: string; travel_date: string; owner_name: string; vehicle_type: string; vehicle_number: string | null
   run_started_at: string | null; run_ended_at: string | null
   onboard_now: Passenger[]; next_stops: { label: string; passengers: Passenger[] }[]
   total_confirmed_count: number; total_unconfirmed_count: number; cash_collected_pkr: number
@@ -79,12 +79,12 @@ export default function FleetChalanPage() {
       setFleetId(f?.fleet_id ?? null)
       if (f) {
         const { data: sched } = await supabase.rpc('fleet_vehicle_schedule', { p_fleet_id: f.fleet_id })
-        const rows = (sched ?? []) as { route_id: string; origin: string; destination: string; owner_name: string; vehicle_id: string; is_active: boolean }[]
+        const rows = (sched ?? []) as { route_id: string; origin: string; destination: string; owner_name: string; vehicle_type: string | null; vehicle_number: string | null; vehicle_id: string; is_active: boolean }[]
         const active = rows.filter((r) => r.is_active)
         const opts: RouteOption[] = []
         for (const r of active) {
           const { data: vr } = await supabase.from('vehicle_routes').select('days_of_week').eq('id', r.route_id).single()
-          opts.push({ route_id: r.route_id, origin: r.origin, destination: r.destination, owner_name: r.owner_name, vehicle_id: r.vehicle_id, days_of_week: vr?.days_of_week ?? [] })
+          opts.push({ route_id: r.route_id, origin: r.origin, destination: r.destination, owner_name: r.owner_name, vehicle_type: r.vehicle_type, vehicle_number: r.vehicle_number, vehicle_id: r.vehicle_id, days_of_week: vr?.days_of_week ?? [] })
         }
         setRoutes(opts)
         if (opts.length > 0) setRouteId(opts[0].route_id)
@@ -235,7 +235,7 @@ export default function FleetChalanPage() {
           value. shrink-0 + an explicit width keep it fully readable. */}
       <div className="flex flex-col sm:flex-row gap-2">
         <select value={routeId} onChange={(e) => setRouteId(e.target.value)} className="flex-1 min-w-0 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] truncate">
-          {routes.map((r) => <option key={r.route_id} value={r.route_id}>{r.owner_name} · {r.origin} → {r.destination}</option>)}
+          {routes.map((r) => <option key={r.route_id} value={r.route_id}>{r.vehicle_number || r.vehicle_type || r.owner_name} · {r.origin} → {r.destination}</option>)}
         </select>
         <input type="date" value={travelDate} onChange={(e) => setTravelDate(e.target.value)} className="shrink-0 w-full sm:w-[150px] px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
       </div>
@@ -247,7 +247,8 @@ export default function FleetChalanPage() {
       ) : (
         <>
           <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
-            <p className="font-sans text-[13.5px] font-bold text-[#1e293b]">{chalan.owner_name} · {chalan.vehicle_type}</p>
+            <p className="font-sans text-[13.5px] font-bold text-[#1e293b] ltr-num">{chalan.vehicle_number || chalan.vehicle_type}</p>
+            <p className="font-sans text-[11px] text-[#94a3b8]">{chalan.vehicle_type} · {chalan.owner_name}</p>
             <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{chalan.origin} → {chalan.destination}</p>
             <p className="font-sans text-[11px] mt-1" style={{ color: chalan.run_started_at ? '#166534' : '#94a3b8' }}>
               {chalan.run_started_at ? t('mv.chalanDepartedLabel') : t('mv.chalanNotDepartedLabel')}
