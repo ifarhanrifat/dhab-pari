@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import { Fuel, FileImage, Plus, History } from 'lucide-react'
-import { FleetPanel, FleetPanelHead, FleetPanelBody } from '@/components/portal/FleetPanel'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetFormGrid, FleetFormField } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -112,40 +112,49 @@ export default function FleetExpensesPage() {
         <FleetPanel>
           <FleetPanelHead icon={<Plus size={14} />} title={t('mv.logExpenseBtn')} description={t('mv.panelDesc.logExpense')} />
           <FleetPanelBody>
-          <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2">
-            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.vehicle_number || v.vehicle_type || v.owner_name}{v.vehicle_type && v.vehicle_number ? ` · ${v.vehicle_type}` : ''}</option>)}
-          </select>
-          <div className="flex gap-2 mb-2">
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
-              <option value="fuel">{t('mv.expenseCategoryFuel')}</option>
-              <option value="maintenance">{t('mv.expenseCategoryMaintenance')}</option>
-              <option value="toll">{t('mv.expenseCategoryToll')}</option>
-              <option value="other">{t('mv.expenseCategoryOther')}</option>
-            </select>
-            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t('mv.expenseAmountPlaceholder')}
-              className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-          </div>
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('mv.expenseNotePlaceholder')}
-            className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5" />
-          {category === 'fuel' && (
-            <input value={stationName} onChange={(e) => setStationName(e.target.value)} placeholder={t('mv.stationNamePlaceholder')}
-              className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5" />
-          )}
-          <div className="mb-2.5">
-            <DonationReceiptUpload bucket="vehicle_expense_receipts" label={t('mv.uploadReceiptLabel')} onUpload={setReceiptPath} required={false} />
-          </div>
-          {recentRuns.length > 0 && (
-            <>
-              <label className="block font-sans text-[11px] font-bold text-[#64748b] mb-1">{t('mv.attributeToTripLabel')}</label>
-              <select value={routeRunId} onChange={(e) => setRouteRunId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5">
-                <option value="">—</option>
-                {recentRuns.map((r) => <option key={r.id} value={r.id}>{r.vehicle_routes?.origin} → {r.vehicle_routes?.destination} · {new Date(r.started_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</option>)}
+          <FleetFormGrid>
+            <FleetFormField label={t('mv.vehicleColumnLabel')} full>
+              <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                {vehicles.map((v) => <option key={v.id} value={v.id}>{v.vehicle_number || v.vehicle_type || v.owner_name}{v.vehicle_type && v.vehicle_number ? ` · ${v.vehicle_type}` : ''}</option>)}
               </select>
-            </>
-          )}
-          <button onClick={logExpense} disabled={logging} className="w-full px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
-            {logging ? t('action.loading') : t('mv.logExpenseBtn')}
-          </button>
+            </FleetFormField>
+            <FleetFormField label={t('cm.categoryLabel')}>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                <option value="fuel">{t('mv.expenseCategoryFuel')}</option>
+                <option value="maintenance">{t('mv.expenseCategoryMaintenance')}</option>
+                <option value="toll">{t('mv.expenseCategoryToll')}</option>
+                <option value="other">{t('mv.expenseCategoryOther')}</option>
+              </select>
+            </FleetFormField>
+            <FleetFormField label={t('mv.expenseAmountPlaceholder')}>
+              <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t('mv.expenseAmountPlaceholder')}
+                className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </FleetFormField>
+            <FleetFormField label={t('mv.expenseNotePlaceholder')} full={category !== 'fuel'}>
+              <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('mv.expenseNotePlaceholder')}
+                className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            </FleetFormField>
+            {category === 'fuel' && (
+              <FleetFormField label={t('mv.stationNamePlaceholder')}>
+                <input value={stationName} onChange={(e) => setStationName(e.target.value)} placeholder={t('mv.stationNamePlaceholder')}
+                  className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+              </FleetFormField>
+            )}
+            <div className="col-span-2">
+              <DonationReceiptUpload bucket="vehicle_expense_receipts" label={t('mv.uploadReceiptLabel')} onUpload={setReceiptPath} required={false} />
+            </div>
+            {recentRuns.length > 0 && (
+              <FleetFormField label={t('mv.attributeToTripLabel')} full>
+                <select value={routeRunId} onChange={(e) => setRouteRunId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                  <option value="">—</option>
+                  {recentRuns.map((r) => <option key={r.id} value={r.id}>{r.vehicle_routes?.origin} → {r.vehicle_routes?.destination} · {new Date(r.started_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</option>)}
+                </select>
+              </FleetFormField>
+            )}
+            <button onClick={logExpense} disabled={logging} className="col-span-2 w-full px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
+              {logging ? t('action.loading') : t('mv.logExpenseBtn')}
+            </button>
+          </FleetFormGrid>
           </FleetPanelBody>
         </FleetPanel>
       )}

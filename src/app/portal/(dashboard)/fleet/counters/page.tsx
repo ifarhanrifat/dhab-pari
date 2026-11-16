@@ -13,7 +13,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { FleetPanel, FleetPanelHead, FleetPanelBody } from '@/components/portal/FleetPanel'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetFormGrid, FleetFormField } from '@/components/portal/FleetPanel'
 
 interface Counter { id: string; city: string; name: string | null; cash_office_code: string | null; manager_name: string | null; today_bookings_count: number }
 
@@ -75,20 +75,26 @@ export default function FleetCountersPage() {
         <FleetPanel>
           <FleetPanelHead icon={<Plus size={14} />} title={t('mv.addCounterBtn')} description={t('mv.panelDesc.newCounter')} />
           <FleetPanelBody>
-          <div className="flex gap-2 mb-2.5">
-            <input value={newCity} onChange={(e) => setNewCity(e.target.value)} placeholder={t('mv.counterCityPlaceholder')}
-              className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t('mv.counterNameOptionalPlaceholder')}
-              className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-          </div>
-          {/* 883: real gap — a counter was just a city+name label, with
-              no cash-office identity and no visibility into who manages
-              it or what it's actually doing today. */}
-          <input value={newCashOfficeCode} onChange={(e) => setNewCashOfficeCode(e.target.value)} placeholder={t('mv.cashOfficeCodePlaceholder')}
-            className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5 ltr-num" />
-          <button onClick={createCounter} disabled={creating} className="w-full px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
-            {creating ? t('action.loading') : t('mv.addCounterBtn')}
-          </button>
+          <FleetFormGrid>
+            <FleetFormField label={t('mv.counterCityPlaceholder')}>
+              <input value={newCity} onChange={(e) => setNewCity(e.target.value)} placeholder={t('mv.counterCityPlaceholder')}
+                className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            </FleetFormField>
+            <FleetFormField label={t('mv.counterNameOptionalPlaceholder')}>
+              <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t('mv.counterNameOptionalPlaceholder')}
+                className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            </FleetFormField>
+            {/* 883: real gap — a counter was just a city+name label, with
+                no cash-office identity and no visibility into who manages
+                it or what it's actually doing today. */}
+            <FleetFormField label={t('mv.cashOfficeCodeLabel')} full>
+              <input value={newCashOfficeCode} onChange={(e) => setNewCashOfficeCode(e.target.value)} placeholder={t('mv.cashOfficeCodePlaceholder')}
+                className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </FleetFormField>
+            <button onClick={createCounter} disabled={creating} className="col-span-2 w-full px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
+              {creating ? t('action.loading') : t('mv.addCounterBtn')}
+            </button>
+          </FleetFormGrid>
           </FleetPanelBody>
         </FleetPanel>
       )}

@@ -9,7 +9,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Bus, Plus, Milestone, Settings2 } from 'lucide-react'
-import { FleetPanel, FleetPanelHead } from '@/components/portal/FleetPanel'
+import { FleetPanel, FleetPanelHead, FleetFormGrid, FleetFormField } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -147,55 +147,44 @@ export default function FleetVehiclesPage() {
 
       {showAddBus && (
         <MobilityBottomSheet title={t('mv.addBusBtn')} onClose={() => setShowAddBus(false)}>
-          <div className="flex flex-col gap-3">
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.vehicleCategoryLabel')}</label>
+          <FleetFormGrid>
+            <FleetFormField label={t('mv.vehicleCategoryLabel')} full>
               <select value={busForm.category_id} onChange={(e) => setBusForm({ ...busForm, category_id: e.target.value })} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
                 <option value="">—</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('vr.modelSearchPlaceholder')}</label>
-                <input value={busForm.model} onChange={(e) => setBusForm({ ...busForm, model: e.target.value })} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-              </div>
-              <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('vr.colorPlaceholder')}</label>
-                <input value={busForm.color} onChange={(e) => setBusForm({ ...busForm, color: e.target.value })} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('vr.vehicleNumberPlaceholder')}</label>
-                <input value={busForm.vehicle_number} onChange={(e) => setBusForm({ ...busForm, vehicle_number: e.target.value })} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-              </div>
-              <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.modelYearLabel')}</label>
-                <input type="number" value={busForm.model_year} onChange={(e) => setBusForm({ ...busForm, model_year: e.target.value })} placeholder="2022" className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 items-end">
-              <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('vr.totalSeatsPlaceholder')}</label>
-                <input type="number" value={busForm.total_seats} onChange={(e) => setBusForm({ ...busForm, total_seats: e.target.value })} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-              </div>
+            </FleetFormField>
+            <FleetFormField label={t('vr.modelSearchPlaceholder')}>
+              <input value={busForm.model} onChange={(e) => setBusForm({ ...busForm, model: e.target.value })} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            </FleetFormField>
+            <FleetFormField label={t('vr.colorPlaceholder')}>
+              <input value={busForm.color} onChange={(e) => setBusForm({ ...busForm, color: e.target.value })} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            </FleetFormField>
+            <FleetFormField label={t('vr.vehicleNumberPlaceholder')}>
+              <input value={busForm.vehicle_number} onChange={(e) => setBusForm({ ...busForm, vehicle_number: e.target.value })} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </FleetFormField>
+            <FleetFormField label={t('mv.modelYearLabel')}>
+              <input type="number" value={busForm.model_year} onChange={(e) => setBusForm({ ...busForm, model_year: e.target.value })} placeholder="2022" className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </FleetFormField>
+            <FleetFormField label={t('vr.totalSeatsPlaceholder')}>
+              <input type="number" value={busForm.total_seats} onChange={(e) => setBusForm({ ...busForm, total_seats: e.target.value })} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </FleetFormField>
+            <div className="flex items-end min-w-0">
               <label className="flex items-center gap-2 font-sans text-[12.5px] text-[#1e293b] pb-2.5">
                 <input type="checkbox" checked={busForm.has_ac} onChange={(e) => setBusForm({ ...busForm, has_ac: e.target.checked })} className="accent-[#166534]" /> {t('mv.hasAcLabel')}
               </label>
             </div>
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.primaryDriverLabel')}</label>
+            <FleetFormField label={t('mv.primaryDriverLabel')} full>
               <select value={busForm.primary_driver_fleet_staff_id} onChange={(e) => setBusForm({ ...busForm, primary_driver_fleet_staff_id: e.target.value })} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
                 <option value="">{t('mv.noDriverYetOption')}</option>
                 {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name} · {d.routes_assigned_count} {t('mv.routesAssignedSuffix')}</option>)}
               </select>
               <p className="font-sans text-[10px] text-[#94a3b8] mt-1">{t('mv.addDriverFirstHint')}</p>
-            </div>
-            <button onClick={createBus} disabled={savingBus} className="w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
+            </FleetFormField>
+            <button onClick={createBus} disabled={savingBus} className="col-span-2 w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
               {savingBus ? t('action.saving') : t('action.save')}
             </button>
-          </div>
+          </FleetFormGrid>
         </MobilityBottomSheet>
       )}
     </div>

@@ -33,7 +33,7 @@ import { RouteMonthlySubscribersPanel } from '@/components/mobility/RouteMonthly
 import { CityReturnDemandCard } from '@/components/mobility/CityReturnDemandCard'
 import { SeatPickerField } from '@/components/mobility/SeatPickerField'
 import { TicketBoardSheet } from '@/components/mobility/TicketBoardSheet'
-import { FleetPanel, FleetPanelHead } from '@/components/portal/FleetPanel'
+import { FleetPanel, FleetPanelHead, FleetFormGrid, FleetFormField } from '@/components/portal/FleetPanel'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -742,23 +742,20 @@ export default function MyVehicleRoutesPage() {
           {/* Labelled, not placeholder-only: a placeholder vanishes the moment
               a driver starts typing, leaving two identical unnamed boxes.
               dir="auto" so a name typed in English isn't forced right-aligned. */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mb.fromLabel')}</label>
+          <FleetFormGrid>
+            <FleetFormField label={t('mb.fromLabel')}>
               <input value={form.origin} onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))} placeholder={t('mv.originUrPlaceholder')} dir="auto" className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-            </div>
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mb.toLabel')}</label>
+            </FleetFormField>
+            <FleetFormField label={t('mb.toLabel')}>
               <input value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} placeholder={t('mv.destinationUrPlaceholder')} dir="auto" className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-            </div>
-          </div>
-          <div>
-            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.classificationLabel')}</label>
-            <select value={form.classification} onChange={(e) => setForm((f) => ({ ...f, classification: e.target.value }))} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
-              <option value="intercity">{t('mv.classification.intercity')}</option>
-              <option value="out_of_city">{t('mv.classification.out_of_city')}</option>
-            </select>
-          </div>
+            </FleetFormField>
+            <FleetFormField label={t('mv.classificationLabel')} full>
+              <select value={form.classification} onChange={(e) => setForm((f) => ({ ...f, classification: e.target.value }))} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                <option value="intercity">{t('mv.classification.intercity')}</option>
+                <option value="out_of_city">{t('mv.classification.out_of_city')}</option>
+              </select>
+            </FleetFormField>
+          </FleetFormGrid>
 
           {/* Real ask, 2026-11-11: minimal fleet-booker support — only
               ever shown when this driver actually owns other vehicles
@@ -922,16 +919,16 @@ export default function MyVehicleRoutesPage() {
               </div>
             </>
           )}
-          <div>
-            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.serviceCodeOptionalLabel')}</label>
-            <input value={form.service_code} onChange={(e) => setForm((f) => ({ ...f, service_code: e.target.value }))} placeholder={t('mv.serviceCodePlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-          </div>
-          {!form.is_monthly_fixed && (
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mk.totalFareLabel')}</label>
-              <input type="number" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-            </div>
-          )}
+          <FleetFormGrid>
+            <FleetFormField label={t('mv.serviceCodeOptionalLabel')} full={form.is_monthly_fixed}>
+              <input value={form.service_code} onChange={(e) => setForm((f) => ({ ...f, service_code: e.target.value }))} placeholder={t('mv.serviceCodePlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </FleetFormField>
+            {!form.is_monthly_fixed && (
+              <FleetFormField label={t('mk.totalFareLabel')}>
+                <input type="number" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+              </FleetFormField>
+            )}
+          </FleetFormGrid>
           {totalSeats != null && (
             <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('mv.yourVehicleSeatsNote').replace('{n}', String(totalSeats))}</p>
           )}
@@ -941,21 +938,24 @@ export default function MyVehicleRoutesPage() {
             </p>
           )}
           <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-[#e5e2d0]">{t('mv.routeScheduleSectionLabel')}</p>
-          <div>
-            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
-            <input type="time" value={form.departure_time} onChange={(e) => setForm((f) => ({ ...f, departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
-          </div>
-          {/* Real ask, 2026-10-21: "the return ride button is displaying
-              like going back empty? why?" traced back to this form never
-              asking whether a route runs back at all — two-way used to be
-              implied purely by whether the optional return-time field
-              below happened to get filled in, with nothing explaining
-              that connection. An explicit toggle now owns that decision;
-              turning it off always clears return_departure_time. */}
-          <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] font-semibold text-[#1e293b] cursor-pointer">
-            <input type="checkbox" checked={form.is_two_way} onChange={(e) => setForm((f) => ({ ...f, is_two_way: e.target.checked, return_departure_time: e.target.checked ? f.return_departure_time : '' }))} />
-            {t('mv.isTwoWayToggleLabel')}
-          </label>
+          <FleetFormGrid>
+            <FleetFormField label={t('mv.departureTimeLabel')}>
+              <input type="time" value={form.departure_time} onChange={(e) => setForm((f) => ({ ...f, departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+            </FleetFormField>
+            {/* Real ask, 2026-10-21: "the return ride button is displaying
+                like going back empty? why?" traced back to this form never
+                asking whether a route runs back at all — two-way used to be
+                implied purely by whether the optional return-time field
+                below happened to get filled in, with nothing explaining
+                that connection. An explicit toggle now owns that decision;
+                turning it off always clears return_departure_time. */}
+            <div className="flex items-end min-w-0">
+              <label className="w-full flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] font-semibold text-[#1e293b] cursor-pointer">
+                <input type="checkbox" checked={form.is_two_way} onChange={(e) => setForm((f) => ({ ...f, is_two_way: e.target.checked, return_departure_time: e.target.checked ? f.return_departure_time : '' }))} />
+                {t('mv.isTwoWayToggleLabel')}
+              </label>
+            </div>
+          </FleetFormGrid>
           {form.is_two_way && (
             <>
               {/* Real ask, 2026-10-21: "it should work like this... it
@@ -965,32 +965,34 @@ export default function MyVehicleRoutesPage() {
                   alongside the existing return-time field as a display
                   hint ("usually leaves around...") since drivers still
                   find a clock time easier to picture than a duration. */}
-              <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.returnWaitMinutesLabel')}</label>
-                <div className="flex gap-1.5 flex-wrap">
-                  {[300, 360, 480].map((mins) => (
-                    <button key={mins} type="button" onClick={() => setForm((f) => ({ ...f, return_wait_minutes: mins }))}
-                      className={`px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${form.return_wait_minutes === mins ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
-                      {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
-                    </button>
-                  ))}
-                  <input type="number" min={30} step={30} value={form.return_wait_minutes} onChange={(e) => setForm((f) => ({ ...f, return_wait_minutes: Number(e.target.value) }))}
-                    className="w-24 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" placeholder={t('mv.customMinutesPlaceholder')} />
+              <FleetFormGrid>
+                <FleetFormField label={t('mv.returnWaitMinutesLabel')} full>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {[300, 360, 480].map((mins) => (
+                      <button key={mins} type="button" onClick={() => setForm((f) => ({ ...f, return_wait_minutes: mins }))}
+                        className={`px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${form.return_wait_minutes === mins ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
+                        {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
+                      </button>
+                    ))}
+                    <input type="number" min={30} step={30} value={form.return_wait_minutes} onChange={(e) => setForm((f) => ({ ...f, return_wait_minutes: Number(e.target.value) }))}
+                      className="w-24 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" placeholder={t('mv.customMinutesPlaceholder')} />
+                  </div>
+                </FleetFormField>
+                <FleetFormField label={t('cm.returnDepartureTimeLabel')}>
+                  <input type="time" value={form.return_departure_time} onChange={(e) => setForm((f) => ({ ...f, return_departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+                </FleetFormField>
+                {/* Real bug reported live: a long route's return leg (e.g.
+                    Peshawar→Karachi, ~24h) departs the NEXT day, not the
+                    same day — reusing days_of_week for both legs was a
+                    real scheduling conflict. Off by default (same days as
+                    outbound, unchanged for a same-day round trip). */}
+                <div className="flex items-end min-w-0">
+                  <label className="w-full flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px] font-semibold text-[#1e293b] cursor-pointer">
+                    <input type="checkbox" checked={form.returnOnDifferentDays} onChange={(e) => setForm((f) => ({ ...f, returnOnDifferentDays: e.target.checked, return_days_of_week: e.target.checked ? f.return_days_of_week : [] }))} />
+                    {t('mv.returnOnDifferentDaysLabel')}
+                  </label>
                 </div>
-              </div>
-              <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
-                <input type="time" value={form.return_departure_time} onChange={(e) => setForm((f) => ({ ...f, return_departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
-              </div>
-              {/* Real bug reported live: a long route's return leg (e.g.
-                  Peshawar→Karachi, ~24h) departs the NEXT day, not the
-                  same day — reusing days_of_week for both legs was a
-                  real scheduling conflict. Off by default (same days as
-                  outbound, unchanged for a same-day round trip). */}
-              <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px] font-semibold text-[#1e293b] cursor-pointer">
-                <input type="checkbox" checked={form.returnOnDifferentDays} onChange={(e) => setForm((f) => ({ ...f, returnOnDifferentDays: e.target.checked, return_days_of_week: e.target.checked ? f.return_days_of_week : [] }))} />
-                {t('mv.returnOnDifferentDaysLabel')}
-              </label>
+              </FleetFormGrid>
               {form.returnOnDifferentDays && (
                 <div>
                   <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.returnDaysOfWeekLabel')}</label>
@@ -1395,19 +1397,19 @@ export default function MyVehicleRoutesPage() {
       )}
       {editSchedule && (
         <MobilityBottomSheet title={t('mv.editScheduleHeading')} onClose={() => setEditSchedule(null)}>
-          <div className="flex flex-col gap-3">
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
+          <FleetFormGrid>
+            <FleetFormField label={t('mv.departureTimeLabel')}>
               <input type="time" value={editSchedule.departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+            </FleetFormField>
+            <div className="flex items-end min-w-0">
+              <label className="w-full flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] font-semibold text-[#1e293b] cursor-pointer">
+                <input type="checkbox" checked={editSchedule.is_two_way} onChange={(e) => setEditSchedule({ ...editSchedule, is_two_way: e.target.checked, return_departure_time: e.target.checked ? editSchedule.return_departure_time : '' })} />
+                {t('mv.isTwoWayToggleLabel')}
+              </label>
             </div>
-            <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] font-semibold text-[#1e293b] cursor-pointer">
-              <input type="checkbox" checked={editSchedule.is_two_way} onChange={(e) => setEditSchedule({ ...editSchedule, is_two_way: e.target.checked, return_departure_time: e.target.checked ? editSchedule.return_departure_time : '' })} />
-              {t('mv.isTwoWayToggleLabel')}
-            </label>
             {editSchedule.is_two_way && (
               <>
-                <div>
-                  <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.returnWaitMinutesLabel')}</label>
+                <FleetFormField label={t('mv.returnWaitMinutesLabel')} full>
                   <div className="flex gap-1.5 flex-wrap">
                     {[300, 360, 480].map((mins) => (
                       <button key={mins} type="button" onClick={() => setEditSchedule({ ...editSchedule, return_wait_minutes: mins })}
@@ -1418,18 +1420,18 @@ export default function MyVehicleRoutesPage() {
                     <input type="number" min={30} step={30} value={editSchedule.return_wait_minutes} onChange={(e) => setEditSchedule({ ...editSchedule, return_wait_minutes: Number(e.target.value) })}
                       className="w-24 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" placeholder={t('mv.customMinutesPlaceholder')} />
                   </div>
-                </div>
-                <div>
-                  <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('cm.returnDepartureTimeLabel')}</label>
+                </FleetFormField>
+                <FleetFormField label={t('cm.returnDepartureTimeLabel')}>
                   <input type="time" value={editSchedule.return_departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, return_departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
+                </FleetFormField>
+                <div className="flex items-end min-w-0">
+                  <label className="w-full flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px] font-semibold text-[#1e293b] cursor-pointer">
+                    <input type="checkbox" checked={editSchedule.returnOnDifferentDays} onChange={(e) => setEditSchedule({ ...editSchedule, returnOnDifferentDays: e.target.checked, return_days_of_week: e.target.checked ? (editSchedule.return_days_of_week.length ? editSchedule.return_days_of_week : editSchedule.days_of_week) : [] })} />
+                    {t('mv.returnOnDifferentDaysLabel')}
+                  </label>
                 </div>
-                <label className="flex items-center gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px] font-semibold text-[#1e293b] cursor-pointer">
-                  <input type="checkbox" checked={editSchedule.returnOnDifferentDays} onChange={(e) => setEditSchedule({ ...editSchedule, returnOnDifferentDays: e.target.checked, return_days_of_week: e.target.checked ? (editSchedule.return_days_of_week.length ? editSchedule.return_days_of_week : editSchedule.days_of_week) : [] })} />
-                  {t('mv.returnOnDifferentDaysLabel')}
-                </label>
                 {editSchedule.returnOnDifferentDays && (
-                  <div>
-                    <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.returnDaysOfWeekLabel')}</label>
+                  <FleetFormField label={t('mv.returnDaysOfWeekLabel')} full>
                     <div className="flex gap-1.5 flex-wrap">
                       {DAYS.map((d) => {
                         const on = editSchedule.return_days_of_week.includes(d)
@@ -1441,12 +1443,11 @@ export default function MyVehicleRoutesPage() {
                         )
                       })}
                     </div>
-                  </div>
+                  </FleetFormField>
                 )}
               </>
             )}
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.daysOfWeekLabel')}</label>
+            <FleetFormField label={t('mv.daysOfWeekLabel')} full>
               <div className="flex gap-1.5 flex-wrap">
                 {DAYS.map((d) => {
                   const on = editSchedule.days_of_week.includes(d)
@@ -1459,47 +1460,16 @@ export default function MyVehicleRoutesPage() {
                   )
                 })}
               </div>
-            </div>
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.seatOverrideLabel')}</label>
+            </FleetFormField>
+            <FleetFormField label={t('mv.seatOverrideLabel')}>
               <input type="number" min={1} value={editSchedule.seat_override} onChange={(e) => setEditSchedule({ ...editSchedule, seat_override: e.target.value })}
                 placeholder={totalSeats ? String(totalSeats) : ''} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num" />
               <p className="font-sans text-[10.5px] text-[#94a3b8] mt-1">{t('mv.seatOverrideHint').replace('{n}', String(totalSeats ?? '—'))}</p>
-            </div>
-            {/* 879: real spec — a long route can have a second driver who
-                shares duty, with a floating "shuffle" button on both
-                drivers' apps once the minimum shift length is reached. */}
-            <div className="bg-[#F9F9F6] rounded-xl p-3">
-              <p className="font-sans text-[11px] font-bold uppercase tracking-[0.05em] text-[#64748b] mb-2">{t('mv.coDriverHeading')}</p>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.coDriverMobileLabel')}</label>
-              {/* 888: was a free-text mobile number with no idea whether
-                  it belonged to a real fleet driver — now a dropdown of
-                  the fleet's own registered drivers (plus each one's
-                  current route count as a lightweight availability
-                  signal) whenever any exist; falls back to free text for
-                  a solo driver with no fleet, or until any driver has
-                  been added as staff. */}
-              {fleetDrivers.length > 0 ? (
-                <select value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}
-                  className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full mb-2">
-                  <option value="">{t('mv.noCoDriverOption')}</option>
-                  {fleetDrivers.map((d) => <option key={d.id} value={d.mobile}>{d.full_name} · {d.routes_assigned_count} {t('mv.routesAssignedSuffix')}</option>)}
-                </select>
-              ) : (
-                <input value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}
-                  placeholder={t('mv.driverPhonePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num mb-2" />
-              )}
-              {coDriverName && <p className="font-sans text-[11px] text-[#166534] -mt-1 mb-2">{t('mv.coDriverCurrentlyLabel')}: {coDriverName}</p>}
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.minShiftHoursLabel')}</label>
-              <input type="number" min={1} value={editSchedule.minShiftHours} onChange={(e) => setEditSchedule({ ...editSchedule, minShiftHours: e.target.value })}
-                className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num" />
-              <p className="font-sans text-[10.5px] text-[#94a3b8] mt-1">{t('mv.minShiftHoursHint')}</p>
-            </div>
+            </FleetFormField>
             {/* 883: a named service class the way Daewoo Express shows
                 "Luxury" vs "Sleeper" — deliberately just a label, not a
                 fare multiplier (fare stays owner-set directly). */}
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.serviceClassLabel')}</label>
+            <FleetFormField label={t('mv.serviceClassLabel')}>
               <select value={editSchedule.serviceClass} onChange={(e) => setEditSchedule({ ...editSchedule, serviceClass: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full">
                 <option value="">—</option>
                 <option value="economy">{t('mv.serviceClass.economy')}</option>
@@ -1508,11 +1478,43 @@ export default function MyVehicleRoutesPage() {
                 <option value="sleeper">{t('mv.serviceClass.sleeper')}</option>
                 <option value="luxury">{t('mv.serviceClass.luxury')}</option>
               </select>
+            </FleetFormField>
+            {/* 879: real spec — a long route can have a second driver who
+                shares duty, with a floating "shuffle" button on both
+                drivers' apps once the minimum shift length is reached. */}
+            <div className="col-span-2 bg-[#F9F9F6] rounded-xl p-3">
+              <p className="font-sans text-[11px] font-bold uppercase tracking-[0.05em] text-[#64748b] mb-2">{t('mv.coDriverHeading')}</p>
+              <FleetFormGrid>
+                <FleetFormField label={t('mv.coDriverMobileLabel')}>
+                  {/* 888: was a free-text mobile number with no idea whether
+                      it belonged to a real fleet driver — now a dropdown of
+                      the fleet's own registered drivers (plus each one's
+                      current route count as a lightweight availability
+                      signal) whenever any exist; falls back to free text for
+                      a solo driver with no fleet, or until any driver has
+                      been added as staff. */}
+                  {fleetDrivers.length > 0 ? (
+                    <select value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}
+                      className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full">
+                      <option value="">{t('mv.noCoDriverOption')}</option>
+                      {fleetDrivers.map((d) => <option key={d.id} value={d.mobile}>{d.full_name} · {d.routes_assigned_count} {t('mv.routesAssignedSuffix')}</option>)}
+                    </select>
+                  ) : (
+                    <input value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}
+                      placeholder={t('mv.driverPhonePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num" />
+                  )}
+                  {coDriverName && <p className="font-sans text-[11px] text-[#166534] mt-1">{t('mv.coDriverCurrentlyLabel')}: {coDriverName}</p>}
+                </FleetFormField>
+                <FleetFormField label={t('mv.minShiftHoursLabel')}>
+                  <input type="number" min={1} value={editSchedule.minShiftHours} onChange={(e) => setEditSchedule({ ...editSchedule, minShiftHours: e.target.value })}
+                    className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num" />
+                  <p className="font-sans text-[10.5px] text-[#94a3b8] mt-1">{t('mv.minShiftHoursHint')}</p>
+                </FleetFormField>
+              </FleetFormGrid>
             </div>
             {/* 886: non-monetary perks shown to a rider deciding
                 between buses — deliberately not a fare discount. */}
-            <div>
-              <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.amenitiesLabel')}</label>
+            <FleetFormField label={t('mv.amenitiesLabel')} full>
               <div className="flex flex-wrap gap-1.5">
                 {AMENITY_OPTIONS.map((a) => {
                   const checked = editSchedule.amenities.includes(a)
@@ -1525,11 +1527,11 @@ export default function MyVehicleRoutesPage() {
                   )
                 })}
               </div>
-            </div>
-            <button onClick={saveSchedule} disabled={savingSchedule} className="w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
+            </FleetFormField>
+            <button onClick={saveSchedule} disabled={savingSchedule} className="col-span-2 w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
               {savingSchedule ? t('action.saving') : t('action.save')}
             </button>
-          </div>
+          </FleetFormGrid>
         </MobilityBottomSheet>
       )}
     </div>

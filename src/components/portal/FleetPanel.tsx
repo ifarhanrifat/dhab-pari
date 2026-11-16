@@ -81,6 +81,23 @@ export function FleetStat({ label, value, icon, foot, valueClassName = 'text-[#1
   )
 }
 
+/** 2-column field grid for create/add/record forms (SAFAR-reference `.form-grid`). */
+export function FleetFormGrid({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={`grid grid-cols-2 gap-2.5 ${className}`}>{children}</div>
+}
+
+/** One stacked label + control cell inside `FleetFormGrid`; `full` spans both columns. */
+export function FleetFormField({ label, full = false, children, className = '' }: {
+  label: ReactNode; full?: boolean; children: ReactNode; className?: string
+}) {
+  return (
+    <div className={`min-w-0 ${full ? 'col-span-2' : ''} ${className}`}>
+      <label className="block font-sans text-[11px] font-bold text-[#64748b] mb-1">{label}</label>
+      {children}
+    </div>
+  )
+}
+
 const PILL: Record<'green' | 'amber' | 'red' | 'blue' | 'gray', { bg: string; fg: string }> = {
   green: { bg: '#F0FDF4', fg: '#166534' },
   amber: { bg: '#FFFBEB', fg: '#b45309' },
