@@ -21,7 +21,7 @@
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, CheckCircle2, Plus, Pencil, Trash2, RotateCcw, IdCard } from 'lucide-react'
+import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, CheckCircle2, Plus, Pencil, Trash2, RotateCcw, IdCard, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -45,6 +45,7 @@ interface FleetVehicleSummary {
   today_profit_pkr: number; month_profit_pkr: number; wallet_balance_pkr: number
 }
 interface LivePin { owner_name: string; vehicle_type: string; context: string; lat: number; lng: number }
+interface DocAlert { vehicle_id: string; owner_name: string; vehicle_number: string | null; document_type: string; expiry_date: string; days_remaining: number; status: 'expired' | 'expiring_soon' }
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -91,6 +92,7 @@ export default function FleetDashboardPage() {
   const [livePins, setLivePins] = useState<LivePin[]>([])
   const [view, setView] = useState<'list' | 'map'>('list')
   const [stats, setStats] = useState<DepartureStats | null>(null)
+  const [docAlerts, setDocAlerts] = useState<DocAlert[]>([])
   const [photoByVehicle, setPhotoByVehicle] = useState<Record<string, string | null>>({})
   const [scheduleDate, setScheduleDate] = useState(today())
   const [filter, setFilter] = useState('all')
@@ -121,13 +123,15 @@ export default function FleetDashboardPage() {
     setFleetName(f?.name ?? '')
     setIsOwner(f?.is_owner ?? false)
     if (f) {
-      const [{ data: plData }, { data: statsData }] = await Promise.all([
+      const [{ data: plData }, { data: statsData }, { data: docData }] = await Promise.all([
         supabase.rpc('fleet_dashboard_summary'),
         supabase.rpc('fleet_departure_stats', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('fleet_document_alerts', { p_fleet_id: f.fleet_id }),
         loadSchedule(f.fleet_id, scheduleDate),
       ])
       setPl(plData as typeof pl)
       setStats(statsData as DepartureStats)
+      setDocAlerts((docData ?? []) as DocAlert[])
     }
     setLoading(false)
   }
@@ -249,6 +253,25 @@ export default function FleetDashboardPage() {
           <div className="shrink-0 min-w-[120px] bg-white border border-[#e5e2d0] rounded-xl p-3">
             <div className="flex items-center gap-1.5 text-[#166534]"><CheckCircle2 size={13} /><span className="font-sans text-[10px] font-bold uppercase tracking-[0.04em]">{t('mv.statDeparturesLabel')}</span></div>
             <p className="font-sans text-[18px] font-extrabold text-[#1e293b] mt-1 ltr-num">{stats.runs_departed}/{stats.runs_scheduled}</p>
+          </div>
+        </div>
+      )}
+
+      {/* 881: real gap — no document expiry was ever tracked anywhere,
+          so a lapsed route permit/fitness certificate/insurance went
+          completely unnoticed. Alerting only, ranked soonest-first. */}
+      {docAlerts.length > 0 && (
+        <div className="bg-white border border-[#fecaca] rounded-2xl p-3.5 mb-3">
+          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.05em] text-[#b91c1c] mb-2 flex items-center gap-1.5"><ShieldAlert size={13} /> {t('mv.documentAlertsHeading')}</p>
+          <div className="flex flex-col gap-1.5">
+            {docAlerts.map((a, i) => (
+              <div key={i} className="flex items-center justify-between gap-2 text-[12px] font-sans">
+                <span className="text-[#1e293b] font-semibold truncate">{a.owner_name}{a.vehicle_number ? ` · ${a.vehicle_number}` : ''} · {t(`mv.docType.${a.document_type}`)}</span>
+                <span className={`shrink-0 font-bold ltr-num ${a.status === 'expired' ? 'text-[#b91c1c]' : 'text-[#b45309]'}`}>
+                  {a.status === 'expired' ? t('mv.expiredDaysAgoLabel').replace('{n}', String(Math.abs(a.days_remaining))) : t('mv.expiresInDaysLabel').replace('{n}', String(a.days_remaining))}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}

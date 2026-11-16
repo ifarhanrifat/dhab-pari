@@ -18,7 +18,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 interface Props {
   onUpload: (path: string) => void
   label?: string
-  bucket?: 'donation_receipts' | 'bill_payment_proofs' | 'wazifa_agreement_documents' | 'vehicle_registration_documents' | 'city_purchase_attachments' | 'vehicle_expense_receipts'
+  bucket?: 'donation_receipts' | 'bill_payment_proofs' | 'wazifa_agreement_documents' | 'vehicle_registration_documents' | 'city_purchase_attachments' | 'vehicle_expense_receipts' | 'vehicle_compliance_documents'
   // Real bug reported live: the trailing " *" rendered unconditionally,
   // so an explicitly "(optional)" label like the vehicle-expense
   // receipt upload read as "Receipt photo (optional) *" — contradicting

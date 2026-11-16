@@ -9,12 +9,13 @@
 // a jarring context switch for something that's really just a form.
 
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Star, Trash2, Loader2, Clock3, Users2, Navigation, Lock, BedSingle } from 'lucide-react'
+import { Camera, Star, Trash2, Loader2, Clock3, Users2, Navigation, Lock, BedSingle, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean; model_year: number | null
@@ -43,6 +44,9 @@ function fmt(n: number) {
   return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
+interface DocStatus { document_type: string; expiry_date: string; file_url: string | null; days_remaining: number; status: 'valid' | 'expiring_soon' | 'expired' }
+const DOC_TYPES = ['route_permit', 'fitness_certificate', 'insurance'] as const
+
 export function VehicleCatalogForm({ vehicleId, showHeading = true }: { vehicleId: string; showHeading?: boolean }) {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
@@ -66,6 +70,9 @@ export function VehicleCatalogForm({ vehicleId, showHeading = true }: { vehicleI
   const [rentalTier, setRentalTier] = useState<string>('')
   const [fareGuides, setFareGuides] = useState<FareGuide[]>([])
   const [saving, setSaving] = useState(false)
+  const [docs, setDocs] = useState<DocStatus[]>([])
+  const [docDraftDate, setDocDraftDate] = useState<Record<string, string>>({})
+  const [savingDoc, setSavingDoc] = useState<string | null>(null)
 
   const loadPhotos = (vid: string) =>
     supabase.from('vehicle_media').select('id, url, is_cover').eq('vehicle_id', vid).order('is_cover', { ascending: false })
@@ -89,8 +96,38 @@ export function VehicleCatalogForm({ vehicleId, showHeading = true }: { vehicleI
       })
     supabase.rpc('shadi_vehicle_classes_list').then(({ data }) => setShadiClasses((data ?? []) as ShadiClass[]))
     supabase.rpc('rental_tier_fare_guides_list').then(({ data }) => setFareGuides((data ?? []) as FareGuide[]))
+    loadDocs()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicleId])
+
+  const loadDocs = () => {
+    supabase.rpc('vehicle_document_status', { p_vehicle_id: vehicleId }).then(({ data }) => setDocs((data ?? []) as DocStatus[]))
+  }
+
+  const saveDoc = async (docType: string) => {
+    const date = docDraftDate[docType]
+    if (!date) { toast.error(t('mv.enterExpiryDateError')); return }
+    setSavingDoc(docType)
+    const { error } = await supabase.rpc('set_vehicle_document', { p_vehicle_id: vehicleId, p_document_type: docType, p_expiry_date: date })
+    setSavingDoc(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('g.saveChanges'))
+    setDocDraftDate((d) => ({ ...d, [docType]: '' }))
+    loadDocs()
+  }
+
+  const saveDocFile = async (docType: string, path: string) => {
+    if (!path) return
+    const existing = docs.find((d) => d.document_type === docType)
+    const expiryDate = existing?.expiry_date ?? docDraftDate[docType]
+    if (!expiryDate) { toast.error(t('mv.enterExpiryDateFirstError')); return }
+    const { error } = await supabase.rpc('set_vehicle_document', {
+      p_vehicle_id: vehicleId, p_document_type: docType, p_expiry_date: expiryDate, p_file_url: path,
+    })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.documentUploadedToast'))
+    loadDocs()
+  }
 
   const save = async () => {
     if (!vehicle) return
@@ -283,6 +320,45 @@ export function VehicleCatalogForm({ vehicleId, showHeading = true }: { vehicleI
             {shadiClasses.filter((c) => shadiClassMatchesVehicleType(c.class_key, vehicle?.vehicle_type ?? '')).map((c) => <option key={c.class_key} value={c.class_key}>{isUrdu ? c.name_ur : c.name_en}</option>)}
           </select>
           <p className="font-sans text-[11px] text-[#64748b] mt-1">{t('vp.fleetClassLockedToVehicleNote').replace('{vehicleType}', vehicle?.vehicle_type ?? '')}</p>
+        </div>
+      </div>
+
+      {/* 881: real gap — vehicle_registration_requests only ever
+          captured documents once, at approval, with no expiry date
+          tracked anywhere. These three track renewal dates so a lapsed
+          route permit/fitness certificate/insurance doesn't go
+          unnoticed; alerting only, doesn't block dispatch. */}
+      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
+        <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-2.5 flex items-center gap-1.5"><ShieldAlert size={13} /> {t('mv.complianceDocsHeading')}</p>
+        <div className="flex flex-col gap-3">
+          {DOC_TYPES.map((docType) => {
+            const existing = docs.find((d) => d.document_type === docType)
+            return (
+              <div key={docType} className="border border-[#e5e2d0] rounded-xl p-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="font-sans text-[13px] font-semibold text-[#1e293b]">{t(`mv.docType.${docType}`)}</span>
+                  {existing && (
+                    <span className="shrink-0 px-2 py-0.5 rounded-full font-sans text-[9.5px] font-bold"
+                      style={{
+                        background: existing.status === 'expired' ? '#FEF2F2' : existing.status === 'expiring_soon' ? '#FFFBEB' : '#F0FDF4',
+                        color: existing.status === 'expired' ? '#b91c1c' : existing.status === 'expiring_soon' ? '#b45309' : '#166534',
+                      }}>
+                      {existing.status === 'expired' ? t('mv.docStatusExpired') : existing.status === 'expiring_soon' ? t('mv.docStatusExpiringSoon') : t('mv.docStatusValid')}
+                    </span>
+                  )}
+                </div>
+                {existing && <p className="font-sans text-[11px] text-[#64748b] mb-2 ltr-num">{t('mv.expiresOnLabel')}: {existing.expiry_date}</p>}
+                <div className="flex gap-2 mb-2">
+                  <input type="date" value={docDraftDate[docType] ?? ''} onChange={(e) => setDocDraftDate((d) => ({ ...d, [docType]: e.target.value }))}
+                    className="flex-1 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
+                  <button onClick={() => saveDoc(docType)} disabled={savingDoc === docType} className="shrink-0 px-3 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11.5px] font-bold cursor-pointer disabled:opacity-50">
+                    {savingDoc === docType ? t('action.loading') : t('action.save')}
+                  </button>
+                </div>
+                <DonationReceiptUpload bucket="vehicle_compliance_documents" label={t('mv.uploadDocumentLabel')} required={false} onUpload={(path) => saveDocFile(docType, path)} />
+              </div>
+            )
+          })}
         </div>
       </div>
 
