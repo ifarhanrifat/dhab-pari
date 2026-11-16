@@ -240,20 +240,47 @@ export default function FleetDashboardPage() {
     <div className="flex flex-col gap-3">
       <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Users2 size={19} /> {fleetName}</h1>
 
-      {/* 864: a horizontally-scrollable stat-card row — today's bookings
-          and how many of today's scheduled runs have actually departed,
-          from fleet_departure_stats; mirrors the dashboard-stat-row
-          pattern of the EasyBus reference, in our own theme. */}
+      {/* 2026-11-16: unified into one SAFAR-style stat grid (icon chip,
+          uppercase label, big bold value, muted footnote, same shell
+          for every tile) — previously two visually different rows
+          (plain white cards here, green cards for P&L below) for data
+          that's conceptually the same "today's operational position"
+          SAFAR's own dashboard groups into one 4-card row. Pure visual
+          pass: still fleet_departure_stats/fleet P&L, no new RPCs. */}
       {stats && (
-        <div className="flex gap-2 overflow-x-auto -mx-0.5 px-0.5" style={{ scrollbarWidth: 'none' }}>
-          <div className="shrink-0 min-w-[120px] bg-white border border-[#e5e2d0] rounded-xl p-3">
-            <div className="flex items-center gap-1.5 text-[#166534]"><Ticket size={13} /><span className="font-sans text-[10px] font-bold uppercase tracking-[0.04em]">{t('mv.statBookingsTodayLabel')}</span></div>
-            <p className="font-sans text-[18px] font-extrabold text-[#1e293b] mt-1 ltr-num">{stats.bookings_today_count}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-white border border-[#e5e2d0] rounded-xl p-3">
+            <div className="flex items-center justify-between">
+              <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('mv.statBookingsTodayLabel')}</span>
+              <span className="w-6 h-6 rounded-lg bg-[#F0FDF4] flex items-center justify-center text-[#166534]"><Ticket size={12} /></span>
+            </div>
+            <p className="font-sans text-[20px] font-extrabold text-[#166534] mt-1.5 ltr-num">{stats.bookings_today_count}</p>
           </div>
-          <div className="shrink-0 min-w-[120px] bg-white border border-[#e5e2d0] rounded-xl p-3">
-            <div className="flex items-center gap-1.5 text-[#166534]"><CheckCircle2 size={13} /><span className="font-sans text-[10px] font-bold uppercase tracking-[0.04em]">{t('mv.statDeparturesLabel')}</span></div>
-            <p className="font-sans text-[18px] font-extrabold text-[#1e293b] mt-1 ltr-num">{stats.runs_departed}/{stats.runs_scheduled}</p>
+          <div className="bg-white border border-[#e5e2d0] rounded-xl p-3">
+            <div className="flex items-center justify-between">
+              <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('mv.statDeparturesLabel')}</span>
+              <span className="w-6 h-6 rounded-lg bg-[#F0FDF4] flex items-center justify-center text-[#166534]"><CheckCircle2 size={12} /></span>
+            </div>
+            <p className="font-sans text-[20px] font-extrabold text-[#166534] mt-1.5 ltr-num">{stats.runs_departed}<span className="text-[13px] font-semibold text-[#94a3b8]">/{stats.runs_scheduled}</span></p>
           </div>
+          {pl && pl.vehicles.length > 0 && (
+            <>
+              <div className="bg-white border border-[#e5e2d0] rounded-xl p-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('mv.todayProfitLabel')}</span>
+                  <span className="w-6 h-6 rounded-lg bg-[#F0FDF4] flex items-center justify-center text-[#166534] font-bold text-[11px]">₨</span>
+                </div>
+                <p className="font-sans text-[20px] font-extrabold text-[#166534] mt-1.5 ltr-num">₨{fmt(pl.fleet_today_profit_pkr)}</p>
+              </div>
+              <div className="bg-white border border-[#e5e2d0] rounded-xl p-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('mv.monthProfitLabel')}</span>
+                  <span className="w-6 h-6 rounded-lg bg-[#F0FDF4] flex items-center justify-center text-[#166534] font-bold text-[11px]">₨</span>
+                </div>
+                <p className="font-sans text-[20px] font-extrabold text-[#166534] mt-1.5 ltr-num">₨{fmt(pl.fleet_month_profit_pkr)}</p>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -276,19 +303,6 @@ export default function FleetDashboardPage() {
         </div>
       )}
 
-      {/* Condensed fleet P&L — full breakdown lives in the Reports tab now. */}
-      {pl && pl.vehicles.length > 0 && (
-        <div className="flex gap-2">
-          <div className="flex-1 bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl p-3">
-            <p className="font-sans text-[10.5px] text-[#166534]">{t('mv.todayProfitLabel')}</p>
-            <p className="font-sans text-[18px] font-extrabold text-[#166534] ltr-num">₨{fmt(pl.fleet_today_profit_pkr)}</p>
-          </div>
-          <div className="flex-1 bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl p-3">
-            <p className="font-sans text-[10.5px] text-[#166534]">{t('mv.monthProfitLabel')}</p>
-            <p className="font-sans text-[18px] font-extrabold text-[#166534] ltr-num">₨{fmt(pl.fleet_month_profit_pkr)}</p>
-          </div>
-        </div>
-      )}
 
       {/* 867: date picker (view any day, not just today), status filter
           chips, and List/Map toggle — real reference shared live
