@@ -9,7 +9,8 @@
 // no search/reschedule at all, across either booking source.
 
 import { useEffect, useRef, useState } from 'react'
-import { Ticket, Search, X, Phone, MessageCircle, Printer, UserCheck, Baby } from 'lucide-react'
+import { Ticket, Search, X, Phone, MessageCircle, Printer, UserCheck, Baby, Plus } from 'lucide-react'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels, FleetStatusPill } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -288,10 +289,12 @@ export default function FleetBookingsPage() {
   return (
     <div className="flex flex-col gap-3">
       <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Ticket size={19} /> {t('mv.fleetBookingsHeading')}</h1>
+      <p className="font-sans text-[11px] text-[#64748b] -mt-1">{t('mv.panelDesc.bookings')}</p>
 
       {/* Record a new booking */}
-      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-        <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-2.5">{t('mv.recordBookingBtn')}</p>
+      <FleetPanel>
+        <FleetPanelHead icon={<Plus size={14} />} title={t('mv.recordBookingBtn')} description={selectedRoute ? `${selectedRoute.origin} → ${selectedRoute.destination}` : undefined} />
+        <FleetPanelBody>
         <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.selectVehicleLabel')}</label>
         <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5">
           {vehicles.map((v) => <option key={v.id} value={v.id}>{v.vehicle_number || v.vehicle_type || v.owner_name}{v.vehicle_type && v.vehicle_number ? ` · ${v.vehicle_type}` : ''}</option>)}
@@ -386,14 +389,16 @@ export default function FleetBookingsPage() {
             </button>
           </>
         )}
-      </div>
+        </FleetPanelBody>
+      </FleetPanel>
 
       {/* Find a booking — defaults to today (= "today's bookings"),
           change the date to check a future run's position, type a
           name/mobile to find one specific booking either source. */}
-      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-        <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-2.5">{t('mv.findBookingHeading')}</p>
-        <div className="flex gap-2 mb-2.5">
+      <FleetPanel>
+        <FleetPanelHead icon={<Search size={14} />} title={t('mv.findBookingHeading')} description={t('mv.panelDesc.findBooking')}
+          action={found.length > 0 ? <span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{found.length}</span> : undefined} />
+        <div className="flex gap-2 px-3.5 py-2.5 border-b border-[#f1f5f9] bg-[#F9F9F6]">
           <input type="date" value={searchDate} onChange={(e) => setSearchDate(e.target.value)}
             className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
           <div className="relative flex-1">
@@ -407,17 +412,20 @@ export default function FleetBookingsPage() {
         </div>
 
         {found.length === 0 ? (
-          <p className="font-sans text-[12px] text-[#94a3b8] text-center py-4">{t('mv.noBookingsFoundHint')}</p>
+          <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noBookingsFoundHint')}</p>
         ) : (
-          <div className="flex flex-col gap-1.5">
+          <>
+          <FleetColumnLabels labels={[t('mv.passengerNamePlaceholder'), t('w.amount')]} />
+          <div className="flex flex-col divide-y divide-[#f1f5f9]">
             {found.map((b) => (
-              <div key={`${b.source}-${b.id}`} className="border border-[#e5e2d0] rounded-lg px-3 py-2.5">
+              <div key={`${b.source}-${b.id}`} className="px-3.5 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{b.passenger_name}{b.passenger_mobile ? ` · ${b.passenger_mobile}` : ''}</p>
                     <p className="font-sans text-[10.5px] text-[#94a3b8]">{b.origin} → {b.destination} · {b.owner_name} · {b.seats} {t('mv.seatsSuffix')} · <span className="ltr-num">{b.travel_date}</span></p>
-                    <p className="font-sans text-[10.5px] text-[#94a3b8] ltr-num">
-                      {b.ticket_no ? `#${b.ticket_no}` : ''}{b.boarded_at ? ` · ${t('mv.boardedLabel')}` : ''}
+                    <p className="font-sans text-[10.5px] text-[#94a3b8] ltr-num flex items-center gap-1.5 flex-wrap">
+                      {b.ticket_no ? `#${b.ticket_no}` : ''}
+                      {b.boarded_at && <FleetStatusPill tone="green">{t('mv.boardedLabel')}</FleetStatusPill>}
                     </p>
                     {b.luggage_note && <p className="font-sans text-[10.5px] text-[#94a3b8]">🧳 {b.luggage_note}</p>}
                   </div>
@@ -463,8 +471,9 @@ export default function FleetBookingsPage() {
               </div>
             ))}
           </div>
+          </>
         )}
-      </div>
+      </FleetPanel>
 
       {showStopPicker && selectedRoute && (
         <StopMapPicker stops={routeStops} value={boardStopId} onChange={setBoardStopId} originLabel={selectedRoute.origin} onClose={() => setShowStopPicker(false)} />

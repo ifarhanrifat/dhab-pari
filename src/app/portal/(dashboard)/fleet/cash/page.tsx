@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from 'react'
 import { Wallet, Bus, Building2 } from 'lucide-react'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -95,29 +96,38 @@ export default function FleetCashPage() {
     <div className="flex flex-col gap-3">
       <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Wallet size={19} /> {t('mv.fleetCashHeading')}</h1>
 
-      <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] flex items-center gap-1.5"><Building2 size={13} /> {t('mv.counterCashHeading')}</p>
-      {counterCash.length === 0 ? (
-        <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noCountersYetHint')}</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {counterCash.map((c) => (
-            <div key={c.counter_id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
-              <div className="flex items-center justify-between">
-                <span className="font-sans text-[13.5px] font-bold text-[#1e293b]">{c.city}{c.name ? ` · ${c.name}` : ''}</span>
-                <span className="font-sans text-[16px] font-extrabold ltr-num" style={{ color: c.cash_in_hand_pkr < 0 ? '#b91c1c' : '#166534' }}>₨{fmt(c.cash_in_hand_pkr)}</span>
-              </div>
-              <div className="flex items-center justify-between mt-1.5">
-                <span className="font-sans text-[11px] text-[#94a3b8] ltr-num">{t('mv.collectedLabel')} ₨{fmt(c.total_collected_pkr)} · {t('mv.remittedLabel')} ₨{fmt(c.total_remitted_pkr)}</span>
-                <button onClick={() => { setRemitCounterId(c.counter_id); setRemitAmount('') }} className="font-sans text-[11.5px] font-bold text-[#166534] cursor-pointer">{t('mv.recordRemittanceBtn')}</button>
-              </div>
+      <p className="font-sans text-[11px] text-[#64748b] -mt-1">{t('mv.panelDesc.cash')}</p>
+
+      <FleetPanel>
+        <FleetPanelHead icon={<Building2 size={14} />} title={t('mv.counterCashHeading')}
+          action={counterCash.length > 0 ? <span className="font-sans text-[12px] font-extrabold text-[#166534] ltr-num">₨{fmt(counterCash.reduce((s, c) => s + Number(c.cash_in_hand_pkr), 0))}</span> : undefined} />
+        {counterCash.length === 0 ? (
+          <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noCountersYetHint')}</p>
+        ) : (
+          <>
+            <FleetColumnLabels labels={[t('mv.counterColumnLabel'), t('mv.cashLabel')]} />
+            <div className="flex flex-col divide-y divide-[#f1f5f9]">
+              {counterCash.map((c) => (
+                <div key={c.counter_id} className="px-3.5 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-sans text-[13.5px] font-bold text-[#1e293b] truncate min-w-0">{c.city}{c.name ? ` · ${c.name}` : ''}</span>
+                    <span className="shrink-0 font-sans text-[16px] font-extrabold ltr-num" style={{ color: c.cash_in_hand_pkr < 0 ? '#b91c1c' : '#166534' }}>₨{fmt(c.cash_in_hand_pkr)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-1.5 pt-1.5 border-t border-dashed border-[#f1f5f9]">
+                    <span className="font-sans text-[11px] text-[#94a3b8] ltr-num">{t('mv.collectedLabel')} ₨{fmt(c.total_collected_pkr)} · {t('mv.remittedLabel')} ₨{fmt(c.total_remitted_pkr)}</span>
+                    <button onClick={() => { setRemitCounterId(c.counter_id); setRemitAmount('') }} className="shrink-0 px-2.5 py-1 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-bold text-[#166534] cursor-pointer">{t('mv.recordRemittanceBtn')}</button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          </>
+        )}
+      </FleetPanel>
 
       {remitCounterId && (
-        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-2">{t('mv.recordRemittanceBtn')}</p>
+        <FleetPanel>
+          <FleetPanelHead icon={<Wallet size={14} />} title={t('mv.recordRemittanceBtn')} description={counterCash.find((c) => c.counter_id === remitCounterId)?.city} />
+          <FleetPanelBody>
           <div className="flex gap-2">
             <input type="number" value={remitAmount} onChange={(e) => setRemitAmount(e.target.value)} placeholder={t('mv.expenseAmountPlaceholder')}
               className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
@@ -126,33 +136,43 @@ export default function FleetCashPage() {
             </button>
             <button onClick={() => setRemitCounterId(null)} className="shrink-0 px-3 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12.5px] font-semibold cursor-pointer">{t('action.cancel')}</button>
           </div>
-        </div>
+          </FleetPanelBody>
+        </FleetPanel>
       )}
 
-      <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mt-1 flex items-center gap-1.5"><Bus size={13} /> {t('mv.driverCashHeading')}</p>
-      {vehicleCash.length === 0 ? (
-        <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noVehiclesYetHint')}</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {vehicleCash.map((v) => (
-            <div key={v.vehicle_id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
-              <div className="flex items-center justify-between">
-                <span className="font-sans text-[13.5px] font-bold text-[#1e293b] ltr-num">{v.vehicle_number || v.vehicle_type || v.owner_name}</span>
-                <span className="font-sans text-[16px] font-extrabold ltr-num" style={{ color: v.cash_in_hand_pkr < 0 ? '#b91c1c' : '#166534' }}>₨{fmt(v.cash_in_hand_pkr)}</span>
-              </div>
-              <p className="font-sans text-[10.5px] text-[#94a3b8] -mt-0.5">{v.vehicle_type} · {v.owner_name}</p>
-              <div className="flex items-center justify-between mt-1.5">
-                <span className="font-sans text-[11px] text-[#94a3b8] ltr-num">{t('mv.collectedLabel')} ₨{fmt(v.total_collected_pkr)} · {t('mv.remittedLabel')} ₨{fmt(v.total_remitted_pkr)}</span>
-                <button onClick={() => { setRemitVehicleId(v.vehicle_id); setRemitVehicleAmount('') }} className="font-sans text-[11.5px] font-bold text-[#166534] cursor-pointer">{t('mv.recordRemittanceBtn')}</button>
-              </div>
+      <FleetPanel>
+        <FleetPanelHead icon={<Bus size={14} />} title={t('mv.driverCashHeading')}
+          action={vehicleCash.length > 0 ? <span className="font-sans text-[12px] font-extrabold text-[#166534] ltr-num">₨{fmt(vehicleCash.reduce((s, v) => s + Number(v.cash_in_hand_pkr), 0))}</span> : undefined} />
+        {vehicleCash.length === 0 ? (
+          <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noVehiclesYetHint')}</p>
+        ) : (
+          <>
+            <FleetColumnLabels labels={[t('mv.vehicleColumnLabel'), t('mv.cashLabel')]} />
+            <div className="flex flex-col divide-y divide-[#f1f5f9]">
+              {vehicleCash.map((v) => (
+                <div key={v.vehicle_id} className="px-3.5 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-sans text-[13.5px] font-bold text-[#1e293b] ltr-num truncate">{v.vehicle_number || v.vehicle_type || v.owner_name}</p>
+                      <p className="font-sans text-[10.5px] text-[#94a3b8]">{v.vehicle_type} · {v.owner_name}</p>
+                    </div>
+                    <span className="shrink-0 font-sans text-[16px] font-extrabold ltr-num" style={{ color: v.cash_in_hand_pkr < 0 ? '#b91c1c' : '#166534' }}>₨{fmt(v.cash_in_hand_pkr)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-1.5 pt-1.5 border-t border-dashed border-[#f1f5f9]">
+                    <span className="font-sans text-[11px] text-[#94a3b8] ltr-num">{t('mv.collectedLabel')} ₨{fmt(v.total_collected_pkr)} · {t('mv.remittedLabel')} ₨{fmt(v.total_remitted_pkr)}</span>
+                    <button onClick={() => { setRemitVehicleId(v.vehicle_id); setRemitVehicleAmount('') }} className="shrink-0 px-2.5 py-1 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-bold text-[#166534] cursor-pointer">{t('mv.recordRemittanceBtn')}</button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          </>
+        )}
+      </FleetPanel>
 
       {remitVehicleId && (
-        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-2">{t('mv.recordRemittanceBtn')}</p>
+        <FleetPanel>
+          <FleetPanelHead icon={<Wallet size={14} />} title={t('mv.recordRemittanceBtn')} description={vehicleCash.find((v) => v.vehicle_id === remitVehicleId)?.vehicle_number ?? undefined} />
+          <FleetPanelBody>
           <div className="flex gap-2">
             <input type="number" value={remitVehicleAmount} onChange={(e) => setRemitVehicleAmount(e.target.value)} placeholder={t('mv.expenseAmountPlaceholder')}
               className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
@@ -161,7 +181,8 @@ export default function FleetCashPage() {
             </button>
             <button onClick={() => setRemitVehicleId(null)} className="shrink-0 px-3 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12.5px] font-semibold cursor-pointer">{t('action.cancel')}</button>
           </div>
-        </div>
+          </FleetPanelBody>
+        </FleetPanel>
       )}
     </div>
   )

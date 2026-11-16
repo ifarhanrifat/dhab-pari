@@ -13,7 +13,8 @@
 // the same printNodeInPopup + overflow-unclip print pattern.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Printer } from 'lucide-react'
+import { Printer, BarChart3, SlidersHorizontal, Ticket } from 'lucide-react'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { printNodeInPopup } from '@/lib/receiptExport'
@@ -141,15 +142,18 @@ export default function FleetReportsPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary">{t('mv.fleetReportsHeading')}</h1>
+        <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><BarChart3 size={19} /> {t('mv.fleetReportsHeading')}</h1>
         <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[12px] font-semibold text-[#166534] cursor-pointer">
           <Printer size={14} /> {t('mv.printReportBtn')}
         </button>
       </div>
+      <p className="font-sans text-[11px] text-[#64748b] -mt-1">{t('mv.panelDesc.reports')}</p>
 
       {/* Report selector + date range — same shape as the admin Reports
           hub and the donor statement: pick a report, it appears below. */}
-      <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4 flex flex-wrap items-end gap-3">
+      <FleetPanel>
+        <FleetPanelHead icon={<SlidersHorizontal size={14} />} title={t('mv.reportTypeLabel')} description={t('mv.panelDesc.reportPicker')} />
+        <FleetPanelBody className="p-3.5 flex flex-wrap items-end gap-3">
         <div className="flex-1 min-w-[180px]">
           <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.reportTypeLabel')}</label>
           <select value={reportType} onChange={(e) => setReportType(e.target.value as ReportType)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
@@ -173,47 +177,43 @@ export default function FleetReportsPage() {
             </div>
           </>
         )}
-      </div>
+        </FleetPanelBody>
+      </FleetPanel>
 
       <div ref={printRef} dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
         <DocumentHeader title={reportTitles[reportType]} subtitle={fleetName} className="hidden print:block" lang={lang} />
 
         {reportType === 'pl' && (
-          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-            <div className="flex gap-2 mb-3">
-              <div className="flex-1 bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg p-2.5">
-                <p className="font-sans text-[10.5px] text-[#166534]">{t('mv.todayProfitLabel')}</p>
-                <p className="font-sans text-[17px] font-extrabold text-[#166534] ltr-num">₨{fmt(pl?.fleet_today_profit_pkr ?? 0)}</p>
-              </div>
-              <div className="flex-1 bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg p-2.5">
-                <p className="font-sans text-[10.5px] text-[#166534]">{t('mv.monthProfitLabel')}</p>
-                <p className="font-sans text-[17px] font-extrabold text-[#166534] ltr-num">₨{fmt(pl?.fleet_month_profit_pkr ?? 0)}</p>
-              </div>
+          <FleetPanel>
+            <FleetPanelHead icon={<BarChart3 size={14} />} title={t('mv.fleetPLHeading')} description={fleetName} />
+            <div className="grid grid-cols-2 gap-2 p-2.5 border-b border-[#f1f5f9] bg-[#F9F9F6]">
+              <FleetStat label={t('mv.todayProfitLabel')} icon="₨" value={`₨${fmt(pl?.fleet_today_profit_pkr ?? 0)}`} />
+              <FleetStat label={t('mv.monthProfitLabel')} icon="₨" value={`₨${fmt(pl?.fleet_month_profit_pkr ?? 0)}`} />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-start border-collapse">
                 <thead>
-                  <tr className="text-[#94a3b8] text-[10.5px] font-sans font-bold uppercase tracking-[0.04em] border-b border-[#e5e2d0]">
-                    <th className="p-2">{t('mv.vehicleColumnLabel')}</th>
-                    <th className="p-2 text-end">{t('mv.todayLabel')}</th>
-                    <th className="p-2 text-end">{t('mv.monthLabel')}</th>
-                    <th className="p-2 text-end">{t('mv.walletLabel')}</th>
+                  <tr className="text-[#94a3b8] text-[9.5px] font-sans font-bold uppercase tracking-[0.05em] border-b border-[#f1f5f9] bg-[#F9F9F6]">
+                    <th className="px-3.5 py-2 text-start">{t('mv.vehicleColumnLabel')}</th>
+                    <th className="px-3.5 py-2 text-end">{t('mv.todayLabel')}</th>
+                    <th className="px-3.5 py-2 text-end">{t('mv.monthLabel')}</th>
+                    <th className="px-3.5 py-2 text-end">{t('mv.walletLabel')}</th>
                   </tr>
                 </thead>
                 <tbody className="font-sans text-[12.5px]">
                   {(pl?.vehicles ?? []).length === 0 && <tr><td colSpan={4} className="p-6 text-center text-[#94a3b8]">{t('mv.noFleetYetHint')}</td></tr>}
                   {(pl?.vehicles ?? []).map((v) => (
                     <tr key={v.vehicle_id} className="border-t border-[#f1f5f9]">
-                      <td className="p-2"><span className="ltr-num font-semibold">{v.vehicle_number || v.vehicle_type}</span><span className="text-[#94a3b8]"> · {v.owner_name}</span></td>
-                      <td className="p-2 text-end ltr-num">₨{fmt(v.today_profit_pkr)}</td>
-                      <td className="p-2 text-end font-bold ltr-num">₨{fmt(v.month_profit_pkr)}</td>
-                      <td className="p-2 text-end text-[#94a3b8] ltr-num">₨{fmt(v.wallet_balance_pkr)}</td>
+                      <td className="px-3.5 py-2.5"><span className="ltr-num font-semibold text-[#1e293b]">{v.vehicle_number || v.vehicle_type}</span><span className="text-[#94a3b8]"> · {v.owner_name}</span></td>
+                      <td className="px-3.5 py-2.5 text-end ltr-num">₨{fmt(v.today_profit_pkr)}</td>
+                      <td className="px-3.5 py-2.5 text-end font-bold ltr-num text-[#166534]">₨{fmt(v.month_profit_pkr)}</td>
+                      <td className="px-3.5 py-2.5 text-end text-[#94a3b8] ltr-num">₨{fmt(v.wallet_balance_pkr)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
+          </FleetPanel>
         )}
 
         {reportType === 'bookings' && (() => {
@@ -223,23 +223,12 @@ export default function FleetReportsPage() {
             onlineUnconfirmed: s.onlineUnconfirmed + r.online_unconfirmed_count, onlineUnconfirmedAmt: s.onlineUnconfirmedAmt + Number(r.online_unconfirmed_amount_pkr),
           }), { manual: 0, manualAmt: 0, onlineConfirmed: 0, onlineConfirmedAmt: 0, onlineUnconfirmed: 0, onlineUnconfirmedAmt: 0 })
           return (
-            <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-              <div className="flex gap-2 mb-3 flex-wrap">
-                <div className="flex-1 min-w-[90px] bg-[#F9F9F6] border border-[#e5e2d0] rounded-lg p-2.5">
-                  <p className="font-sans text-[10px] text-[#64748b]">{t('mv.sourceManualLabel')}</p>
-                  <p className="font-sans text-[16px] font-extrabold text-[#1e293b] ltr-num">{totals.manual}</p>
-                  <p className="font-sans text-[10px] text-[#64748b] ltr-num">₨{fmt(totals.manualAmt)}</p>
-                </div>
-                <div className="flex-1 min-w-[90px] bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg p-2.5">
-                  <p className="font-sans text-[10px] text-[#166534]">{t('mv.confirmedLabel')}</p>
-                  <p className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num">{totals.onlineConfirmed}</p>
-                  <p className="font-sans text-[10px] text-[#166534] ltr-num">₨{fmt(totals.onlineConfirmedAmt)}</p>
-                </div>
-                <div className="flex-1 min-w-[90px] bg-[#FFFBEB] border border-[#fde68a] rounded-lg p-2.5">
-                  <p className="font-sans text-[10px] text-[#92400e]">{t('mv.unconfirmedLabel')}</p>
-                  <p className="font-sans text-[16px] font-extrabold text-[#92400e] ltr-num">{totals.onlineUnconfirmed}</p>
-                  <p className="font-sans text-[10px] text-[#92400e] ltr-num">₨{fmt(totals.onlineUnconfirmedAmt)}</p>
-                </div>
+            <FleetPanel>
+              <FleetPanelHead icon={<Ticket size={14} />} title={t('mv.bookingSummaryHeading')} description={<span className="ltr-num">{fmtDate(from)} – {fmtDate(to)}</span>} />
+              <div className="grid grid-cols-3 gap-2 p-2.5 border-b border-[#f1f5f9] bg-[#F9F9F6]">
+                <FleetStat label={t('mv.sourceManualLabel')} value={totals.manual} valueClassName="text-[#1e293b]" foot={`₨${fmt(totals.manualAmt)}`} />
+                <FleetStat label={t('mv.confirmedLabel')} value={totals.onlineConfirmed} foot={`₨${fmt(totals.onlineConfirmedAmt)}`} />
+                <FleetStat label={t('mv.unconfirmedLabel')} value={totals.onlineUnconfirmed} valueClassName="text-[#92400e]" foot={`₨${fmt(totals.onlineUnconfirmedAmt)}`} />
               </div>
               {bookingSummary.length === 0 ? (
                 <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noBookingsFoundHint')}</p>
@@ -247,27 +236,27 @@ export default function FleetReportsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-start border-collapse">
                     <thead>
-                      <tr className="text-[#94a3b8] text-[10.5px] font-sans font-bold uppercase tracking-[0.04em] border-b border-[#e5e2d0]">
-                        <th className="p-2">{t('w.date')}</th>
-                        <th className="p-2 text-end">{t('mv.sourceManualLabel')}</th>
-                        <th className="p-2 text-end">{t('mv.confirmedLabel')}</th>
-                        <th className="p-2 text-end">{t('mv.unconfirmedLabel')}</th>
+                      <tr className="text-[#94a3b8] text-[9.5px] font-sans font-bold uppercase tracking-[0.05em] border-b border-[#f1f5f9] bg-[#F9F9F6]">
+                        <th className="px-3.5 py-2 text-start">{t('w.date')}</th>
+                        <th className="px-3.5 py-2 text-end">{t('mv.sourceManualLabel')}</th>
+                        <th className="px-3.5 py-2 text-end">{t('mv.confirmedLabel')}</th>
+                        <th className="px-3.5 py-2 text-end">{t('mv.unconfirmedLabel')}</th>
                       </tr>
                     </thead>
                     <tbody className="font-sans text-[12.5px]">
                       {bookingSummary.map((r) => (
                         <tr key={r.travel_date} className="border-t border-[#f1f5f9]">
-                          <td className="p-2 ltr-num text-[#94a3b8]">{fmtDate(r.travel_date)}</td>
-                          <td className="p-2 text-end ltr-num">{r.manual_count}</td>
-                          <td className="p-2 text-end ltr-num text-[#166534] font-bold">{r.online_confirmed_count}</td>
-                          <td className="p-2 text-end ltr-num text-[#92400e]">{r.online_unconfirmed_count}</td>
+                          <td className="px-3.5 py-2.5 ltr-num text-[#94a3b8]">{fmtDate(r.travel_date)}</td>
+                          <td className="px-3.5 py-2.5 text-end ltr-num">{r.manual_count}</td>
+                          <td className="px-3.5 py-2.5 text-end ltr-num text-[#166534] font-bold">{r.online_confirmed_count}</td>
+                          <td className="px-3.5 py-2.5 text-end ltr-num text-[#92400e]">{r.online_unconfirmed_count}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               )}
-            </div>
+            </FleetPanel>
           )
         })()}
 
@@ -312,8 +301,8 @@ function ReportTable({ emptyHint, columns, rows, totalLabel, total }: {
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead>
-              <tr className="text-[#94a3b8] text-[10.5px] font-sans font-bold uppercase tracking-[0.04em] bg-[#F9F9F6]">
-                {columns.map((c, i) => <th key={i} className={`p-3 ${i === columns.length - 1 ? 'text-end' : ''}`}>{c}</th>)}
+              <tr className="text-[#94a3b8] text-[9.5px] font-sans font-bold uppercase tracking-[0.05em] bg-[#F9F9F6] border-b border-[#f1f5f9]">
+                {columns.map((c, i) => <th key={i} className={`p-3 ${i === columns.length - 1 ? 'text-end' : 'text-start'}`}>{c}</th>)}
               </tr>
             </thead>
             <tbody className="font-sans text-[12.5px]">

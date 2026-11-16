@@ -28,6 +28,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat } from '@/components/portal/FleetPanel'
 import type { MapPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -249,36 +250,13 @@ export default function FleetDashboardPage() {
           pass: still fleet_departure_stats/fleet P&L, no new RPCs. */}
       {stats && (
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-white border border-[#e5e2d0] rounded-xl p-3">
-            <div className="flex items-center justify-between">
-              <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('mv.statBookingsTodayLabel')}</span>
-              <span className="w-6 h-6 rounded-lg bg-[#F0FDF4] flex items-center justify-center text-[#166534]"><Ticket size={12} /></span>
-            </div>
-            <p className="font-sans text-[20px] font-extrabold text-[#166534] mt-1.5 ltr-num">{stats.bookings_today_count}</p>
-          </div>
-          <div className="bg-white border border-[#e5e2d0] rounded-xl p-3">
-            <div className="flex items-center justify-between">
-              <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('mv.statDeparturesLabel')}</span>
-              <span className="w-6 h-6 rounded-lg bg-[#F0FDF4] flex items-center justify-center text-[#166534]"><CheckCircle2 size={12} /></span>
-            </div>
-            <p className="font-sans text-[20px] font-extrabold text-[#166534] mt-1.5 ltr-num">{stats.runs_departed}<span className="text-[13px] font-semibold text-[#94a3b8]">/{stats.runs_scheduled}</span></p>
-          </div>
+          <FleetStat label={t('mv.statBookingsTodayLabel')} icon={<Ticket size={12} />} value={stats.bookings_today_count} />
+          <FleetStat label={t('mv.statDeparturesLabel')} icon={<CheckCircle2 size={12} />}
+            value={<>{stats.runs_departed}<span className="text-[13px] font-semibold text-[#94a3b8]">/{stats.runs_scheduled}</span></>} />
           {pl && pl.vehicles.length > 0 && (
             <>
-              <div className="bg-white border border-[#e5e2d0] rounded-xl p-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('mv.todayProfitLabel')}</span>
-                  <span className="w-6 h-6 rounded-lg bg-[#F0FDF4] flex items-center justify-center text-[#166534] font-bold text-[11px]">₨</span>
-                </div>
-                <p className="font-sans text-[20px] font-extrabold text-[#166534] mt-1.5 ltr-num">₨{fmt(pl.fleet_today_profit_pkr)}</p>
-              </div>
-              <div className="bg-white border border-[#e5e2d0] rounded-xl p-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.04em] text-[#64748b]">{t('mv.monthProfitLabel')}</span>
-                  <span className="w-6 h-6 rounded-lg bg-[#F0FDF4] flex items-center justify-center text-[#166534] font-bold text-[11px]">₨</span>
-                </div>
-                <p className="font-sans text-[20px] font-extrabold text-[#166534] mt-1.5 ltr-num">₨{fmt(pl.fleet_month_profit_pkr)}</p>
-              </div>
+              <FleetStat label={t('mv.todayProfitLabel')} icon="₨" value={`₨${fmt(pl.fleet_today_profit_pkr)}`} />
+              <FleetStat label={t('mv.monthProfitLabel')} icon="₨" value={`₨${fmt(pl.fleet_month_profit_pkr)}`} />
             </>
           )}
         </div>
@@ -288,19 +266,20 @@ export default function FleetDashboardPage() {
           so a lapsed route permit/fitness certificate/insurance went
           completely unnoticed. Alerting only, ranked soonest-first. */}
       {docAlerts.length > 0 && (
-        <div className="bg-white border border-[#fecaca] rounded-2xl p-3.5 mb-3">
-          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.05em] text-[#b91c1c] mb-2 flex items-center gap-1.5"><ShieldAlert size={13} /> {t('mv.documentAlertsHeading')}</p>
-          <div className="flex flex-col gap-1.5">
+        <FleetPanel tone="danger">
+          <FleetPanelHead tone="danger" icon={<ShieldAlert size={14} />} title={t('mv.documentAlertsHeading')} description={t('mv.panelDesc.docAlerts')}
+            action={<span className="px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#b91c1c] font-sans text-[10px] font-bold ltr-num">{docAlerts.length}</span>} />
+          <div className="divide-y divide-[#f1f5f9]">
             {docAlerts.map((a, i) => (
-              <div key={i} className="flex items-center justify-between gap-2 text-[12px] font-sans">
-                <span className="text-[#1e293b] font-semibold truncate">{a.owner_name}{a.vehicle_number ? ` · ${a.vehicle_number}` : ''} · {t(`mv.docType.${a.document_type}`)}</span>
-                <span className={`shrink-0 font-bold ltr-num ${a.status === 'expired' ? 'text-[#b91c1c]' : 'text-[#b45309]'}`}>
+              <div key={i} className="flex items-center justify-between gap-2 px-3.5 py-2 text-[12px] font-sans">
+                <span className="text-[#1e293b] font-semibold truncate min-w-0">{a.owner_name}{a.vehicle_number ? ` · ${a.vehicle_number}` : ''} · {t(`mv.docType.${a.document_type}`)}</span>
+                <span className={`shrink-0 px-2 py-0.5 rounded-full font-bold text-[10px] ltr-num ${a.status === 'expired' ? 'bg-[#FEF2F2] text-[#b91c1c]' : 'bg-[#FFFBEB] text-[#b45309]'}`}>
                   {a.status === 'expired' ? t('mv.expiredDaysAgoLabel').replace('{n}', String(Math.abs(a.days_remaining))) : t('mv.expiresInDaysLabel').replace('{n}', String(a.days_remaining))}
                 </span>
               </div>
             ))}
           </div>
-        </div>
+        </FleetPanel>
       )}
 
 
@@ -308,23 +287,21 @@ export default function FleetDashboardPage() {
           chips, and List/Map toggle — real reference shared live
           (EasyBus "Schedule" page), adapted to our own real states
           rather than inventing On Time/Delayed data we don't track. */}
-      <div>
-        <div className="flex items-center justify-between gap-2 mb-1.5">
-          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] flex items-center gap-1.5 shrink-0"><Bus size={13} /> {t('mv.scheduleHeading')}</p>
-          <div className="flex items-center gap-1.5">
+      <FleetPanel>
+        <FleetPanelHead icon={<Bus size={14} />} title={t('mv.scheduleHeading')} description={t('mv.panelDesc.schedule')}
+          action={<>
             <input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)}
               className="px-2 py-1 border border-[#e5e2d0] rounded-lg font-sans text-[11px] ltr-num" />
             <Link href="/portal/fleet/vehicles" className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#166534] text-white font-sans text-[11px] font-bold">
               <Plus size={12} /> {t('mv.addNewBtn')}
             </Link>
-          </div>
-        </div>
+          </>} />
 
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex items-center justify-between gap-2 px-3.5 py-2 border-b border-[#f1f5f9] bg-[#F9F9F6]">
+          <div className="flex items-center gap-1 overflow-x-auto bg-[#F1F5F9] rounded-lg p-0.5" style={{ scrollbarWidth: 'none' }}>
             {FILTER_CHIPS.map((f) => (
-              <button key={f.key} onClick={() => setFilter(f.key)} className="shrink-0 px-2.5 py-1 rounded-lg font-sans text-[11px] font-bold cursor-pointer border"
-                style={{ background: filter === f.key ? '#166534' : '#fff', color: filter === f.key ? '#fff' : '#334155', borderColor: filter === f.key ? '#166534' : '#e5e2d0' }}>
+              <button key={f.key} onClick={() => setFilter(f.key)} className="shrink-0 px-2.5 py-1 rounded-md font-sans text-[11px] font-bold cursor-pointer"
+                style={{ background: filter === f.key ? '#fff' : 'transparent', color: filter === f.key ? '#166534' : '#64748b', boxShadow: filter === f.key ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
                 {t(f.label)}
               </button>
             ))}
@@ -340,7 +317,7 @@ export default function FleetDashboardPage() {
         </div>
 
         {view === 'map' ? (
-          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-2">
+          <FleetPanelBody className="p-2">
             {/* Real bug reported live: "why is there no map visible on
                 the dashboard" — the map component itself used to never
                 mount at all whenever no vehicle was currently mid-run and
@@ -356,18 +333,18 @@ export default function FleetDashboardPage() {
               pins={livePins.map((p): MapPin => ({ lat: p.lat, lng: p.lng, label: `${p.owner_name} · ${p.context}`, color: '#166534', emoji: '🚐', isVehicle: true }))}
               height={220} className="rounded-xl"
             />
-          </div>
+          </FleetPanelBody>
         ) : filtered.length === 0 ? (
-          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-            <p className="font-sans text-[12px] text-[#94a3b8] text-center">{t('mv.noScheduleYetHint')}</p>
-          </div>
+          <FleetPanelBody>
+            <p className="font-sans text-[12px] text-[#94a3b8] text-center py-2">{t('mv.noScheduleYetHint')}</p>
+          </FleetPanelBody>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col divide-y divide-[#f1f5f9]">
             {filtered.map((s) => {
               const style = STATE_STYLE[s.state] ?? STATE_STYLE.not_started
               const editing = editingRouteId === s.route_id
               return (
-                <div key={`${s.vehicle_id}-${s.route_id}`} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
+                <div key={`${s.vehicle_id}-${s.route_id}`} className="p-3.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2 min-w-0">
                       {photoByVehicle[s.vehicle_id] ? (
@@ -505,9 +482,10 @@ export default function FleetDashboardPage() {
             })}
           </div>
         )}
-      </div>
+      </FleetPanel>
 
       {/* Quick links to the occasional-use owner tools. */}
+      <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1">{t('mv.panelDesc.quickLinks')}</p>
       <div className="grid grid-cols-2 gap-2">
         <Link href="/portal/fleet/staff" className="bg-white border border-[#e5e2d0] rounded-xl p-3 flex items-center gap-2">
           <UserCog size={16} className="text-[#166534] shrink-0" />

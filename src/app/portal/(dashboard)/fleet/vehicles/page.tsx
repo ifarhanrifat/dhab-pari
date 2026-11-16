@@ -9,6 +9,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Bus, Plus, Milestone, Settings2 } from 'lucide-react'
+import { FleetPanel, FleetPanelHead } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -95,19 +96,27 @@ export default function FleetVehiclesPage() {
       <p className="font-sans text-[11px] text-[#64748b] -mt-2">{t('mv.addBusHint')}</p>
       <Link href="/portal/fleet/invite" className="font-sans text-[11.5px] font-semibold text-[#166534] -mt-1.5">{t('mv.inviteDriverHeading')} →</Link>
 
+      <FleetPanel>
+        <FleetPanelHead icon={<Bus size={14} />} title={t('mv.busManagementHeading')} description={t('mv.panelDesc.vehicles')}
+          action={<span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{vehicles.length}</span>} />
       {vehicles.length === 0 ? (
         <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noVehiclesYetHint')}</p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col divide-y divide-[#f1f5f9]">
           {vehicles.map((v) => (
-            <div key={v.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
+            <div key={v.id} className="px-3.5 py-3">
               {/* 2026-11-16: real complaint — "Bus Management" showed the
                   driver's personal name as the bus's primary identifier.
                   A bus is identified by its registration first, same
                   rule fleet/drivers (875) already follows; the driver's
                   name moves to the secondary line. */}
-              <p className="font-sans text-[13.5px] font-bold text-[#1e293b] truncate ltr-num">{v.vehicle_number || v.vehicle_type}</p>
-              <p className="font-sans text-[11.5px] text-[#64748b] mt-0.5">{v.vehicle_type} · {v.owner_name}</p>
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-lg bg-[#F0FDF4] text-[#166534] flex items-center justify-center shrink-0"><Bus size={15} /></span>
+                <div className="min-w-0">
+                  <p className="font-sans text-[13.5px] font-bold text-[#1e293b] truncate ltr-num">{v.vehicle_number || v.vehicle_type}</p>
+                  <p className="font-sans text-[11.5px] text-[#64748b]">{v.vehicle_type} · {v.owner_name}</p>
+                </div>
+              </div>
               <div className="flex gap-2 mt-2.5">
                 {/* Real bug reported live: this used to navigate clean out
                     of the Fleet shell into my-vehicle's own layout — a
@@ -128,6 +137,7 @@ export default function FleetVehiclesPage() {
           ))}
         </div>
       )}
+      </FleetPanel>
 
       {settingsVehicle && (
         <MobilityBottomSheet title={`${t('mv.vehicleSettingsBtn')} · ${settingsVehicle.owner_name}`} onClose={() => setSettingsVehicle(null)}>

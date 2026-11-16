@@ -33,6 +33,7 @@ import { RouteMonthlySubscribersPanel } from '@/components/mobility/RouteMonthly
 import { CityReturnDemandCard } from '@/components/mobility/CityReturnDemandCard'
 import { SeatPickerField } from '@/components/mobility/SeatPickerField'
 import { TicketBoardSheet } from '@/components/mobility/TicketBoardSheet'
+import { FleetPanel, FleetPanelHead } from '@/components/portal/FleetPanel'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -737,7 +738,7 @@ export default function MyVehicleRoutesPage() {
         <div className="flex flex-col gap-2.5">
           <CityReturnDemandCard limit={6} />
 
-          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1">{t('mv.routeBasicsSectionLabel')}</p>
+          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-[#e5e2d0]">{t('mv.routeBasicsSectionLabel')}</p>
           {/* Labelled, not placeholder-only: a placeholder vanishes the moment
               a driver starts typing, leaving two identical unnamed boxes.
               dir="auto" so a name typed in English isn't forced right-aligned. */}
@@ -778,7 +779,7 @@ export default function MyVehicleRoutesPage() {
             </div>
           )}
 
-          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1">{t('mv.routePricingSectionLabel')}</p>
+          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-[#e5e2d0]">{t('mv.routePricingSectionLabel')}</p>
           {/* Real ask, 2026-11-11: fare mode driver-chosen again, same
               choice for every vehicle kind ("keep them all same" rather
               than locking cars to flat) — applies whether or not this is
@@ -845,7 +846,7 @@ export default function MyVehicleRoutesPage() {
             />
           ) : (
             <>
-              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1">{t('mv.routePathSectionLabel')}</p>
+              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-[#e5e2d0]">{t('mv.routePathSectionLabel')}</p>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setShowOriginPicker(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12px] font-semibold text-start cursor-pointer">
                   <MapPin size={13} className="shrink-0 text-[#166534]" />
@@ -939,7 +940,7 @@ export default function MyVehicleRoutesPage() {
               {t('mv.routeFairPriceHint').replace('{perSeat}', fmt(Math.round(routeFairPerSeat))).replace('{total}', fmt(Math.round(routeFairPerSeat * (totalSeats ?? 1)))).replace('{n}', String(totalSeats ?? 1))}
             </p>
           )}
-          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1">{t('mv.routeScheduleSectionLabel')}</p>
+          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-[#e5e2d0]">{t('mv.routeScheduleSectionLabel')}</p>
           <div>
             <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.departureTimeLabel')}</label>
             <input type="time" value={form.departure_time} onChange={(e) => setForm((f) => ({ ...f, departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
@@ -1044,10 +1045,13 @@ export default function MyVehicleRoutesPage() {
         </MobilityBottomSheet>
       )}
 
+      <FleetPanel>
+      <FleetPanelHead icon={<RouteIcon size={14} />} title={t('mp.myRoutesHeading')} description={t('mv.panelDesc.routes')}
+        action={<span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{routes.length}</span>} />
       {routes.length === 0 && !showForm && <p className="font-sans text-[13px] text-[#94a3b8] text-center py-6">{t('mv.noRoutesYet')}</p>}
 
       {routes.length > 0 && (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col divide-y divide-[#f1f5f9]">
           {routes.map((r) => {
             const ilan = ilansByRoute[r.id]
             const ilanLive = ilan && ilan.status === 'approved' && !ilan.is_paused && new Date(ilan.ends_at).getTime() > Date.now()
@@ -1055,7 +1059,7 @@ export default function MyVehicleRoutesPage() {
             const ilanPaused = ilan && ilan.status === 'approved' && ilan.is_paused && new Date(ilan.ends_at).getTime() > Date.now()
             const ilanHref = `/portal/my-vehicle/ilan?route=${r.id}&origin=${encodeURIComponent(isUrdu && r.origin_ur ? r.origin_ur : r.origin)}&destination=${encodeURIComponent(isUrdu && r.destination_ur ? r.destination_ur : r.destination)}`
             return (
-              <div key={r.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3">
+              <div key={r.id} className="p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-sans text-[13.5px] font-semibold text-[#1e293b] truncate flex items-center gap-1">
@@ -1175,20 +1179,19 @@ export default function MyVehicleRoutesPage() {
           })}
         </div>
       )}
+      </FleetPanel>
 
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <p className="font-sans text-[11px] font-bold text-[#64748b] uppercase tracking-[0.05em]">{t('mp.bookingsHeading')}</p>
-          <div className="grid grid-cols-2 gap-1 p-0.5 rounded-lg bg-[#f2f1e8]">
+      <FleetPanel>
+        <FleetPanelHead icon={<TicketIcon size={14} />} title={t('mp.bookingsHeading')}
+          action={<div className="grid grid-cols-2 gap-1 p-0.5 rounded-lg bg-[#F1F5F9]">
             {(['active', 'past'] as const).map((k) => (
               <button key={k} onClick={() => setBookingsSeg(k)}
                 className="rounded-[7px] px-2.5 py-1 text-[10.5px] font-bold cursor-pointer"
-                style={{ background: bookingsSeg === k ? '#166534' : 'transparent', color: bookingsSeg === k ? '#fff' : '#64748b' }}>
+                style={{ background: bookingsSeg === k ? '#fff' : 'transparent', color: bookingsSeg === k ? '#166534' : '#64748b', boxShadow: bookingsSeg === k ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
                 {k === 'active' ? t('mb.bookingsActiveTab') : t('mb.bookingsPastTab')}
               </button>
             ))}
-          </div>
-        </div>
+          </div>} />
         {(() => {
           const todayStr = new Date().toISOString().slice(0, 10)
           const isActive = (b: Booking) => ['announced', 'confirmed'].includes(b.status) && b.travel_date >= todayStr
@@ -1196,9 +1199,9 @@ export default function MyVehicleRoutesPage() {
           return shown.length === 0 ? (
             <p className="font-sans text-[13px] text-[#94a3b8] text-center py-6">{t('cm.noBookingsYet')}</p>
           ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col divide-y divide-[#f1f5f9]">
           {shown.map((b) => (
-            <div key={b.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
+            <div key={b.id} className="p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-sans text-[13px] font-semibold text-[#1e293b] truncate flex items-center gap-1">
@@ -1237,7 +1240,7 @@ export default function MyVehicleRoutesPage() {
         </div>
           )
         })()}
-      </div>
+      </FleetPanel>
 
       {stopsRouteId && (() => {
         const r = routes.find((rt) => rt.id === stopsRouteId)

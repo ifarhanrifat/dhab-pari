@@ -9,7 +9,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, UserPlus } from 'lucide-react'
+import { ChevronLeft, UserPlus, Users2, ShieldCheck, History } from 'lucide-react'
+import { FleetPanel, FleetPanelHead, FleetPanelBody } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -193,26 +194,36 @@ export default function FleetStaffPage() {
         <p className="font-sans text-[13px] text-[#64748b] text-center py-12">{t('mv.ownerOnlySectionHint')}</p>
       ) : (
         <>
-          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-            <p className="font-sans text-[11.5px] text-[#64748b] mb-2.5">{t('mv.fleetStaffHint')}</p>
-            <div className="flex gap-2">
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t('mv.driverPhonePlaceholder')}
-                className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-              <button onClick={addStaff} disabled={adding} className="shrink-0 px-4 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">
-                {adding ? t('action.loading') : t('mv.addStaffBtn')}
-              </button>
-            </div>
-          </div>
+          <FleetPanel>
+            <FleetPanelHead icon={<UserPlus size={14} />} title={t('mv.addStaffBtn')} description={t('mv.panelDesc.addStaff')} />
+            <FleetPanelBody>
+              <p className="font-sans text-[11.5px] text-[#64748b] mb-2.5">{t('mv.fleetStaffHint')}</p>
+              <div className="flex gap-2">
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t('mv.driverPhonePlaceholder')}
+                  className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                <button onClick={addStaff} disabled={adding} className="shrink-0 px-4 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">
+                  {adding ? t('action.loading') : t('mv.addStaffBtn')}
+                </button>
+              </div>
+            </FleetPanelBody>
+          </FleetPanel>
 
+          <FleetPanel>
+            <FleetPanelHead icon={<Users2 size={14} />} title={t('mv.fleetStaffHeading')} description={t('mv.panelDesc.staff')}
+              action={<span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{staff.length}</span>} />
           {staff.length === 0 ? (
             <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noStaffYetHint')}</p>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col divide-y divide-[#f1f5f9]">
               {staff.map((s) => (
-                <div key={s.id} className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
+                <div key={s.id} className="px-3.5 py-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-sans text-[13px] font-bold text-[#1e293b]">{s.full_name}</span>
-                    <button onClick={() => removeStaff(s.portal_user_id)} className="font-sans text-[11px] font-bold text-[#b91c1c] cursor-pointer">{t('action.remove')}</button>
+                    <span className="font-sans text-[13px] font-bold text-[#1e293b] flex items-center gap-2 min-w-0">
+                      <span className="w-7 h-7 rounded-full bg-[#F0FDF4] text-[#166534] flex items-center justify-center shrink-0 font-sans text-[11px] font-extrabold uppercase">{s.full_name.trim().charAt(0) || '?'}</span>
+                      <span className="truncate">{s.full_name}</span>
+                      <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-[#F1F5F9] text-[#64748b] font-sans text-[9.5px] font-bold">{t(`mv.role.${s.role}`)}</span>
+                    </span>
+                    <button onClick={() => removeStaff(s.portal_user_id)} className="shrink-0 font-sans text-[11px] font-bold text-[#b91c1c] cursor-pointer">{t('action.remove')}</button>
                   </div>
                   <select value={s.role} onChange={(e) => setRole(s.id, e.target.value)} className="mt-1.5 w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px]">
                     <option value="staff">{t('mv.role.staff')}</option>
@@ -284,32 +295,32 @@ export default function FleetStaffPage() {
               ))}
             </div>
           )}
+          </FleetPanel>
 
           {/* 885: delegate a specific capability to a trusted role —
               no row at all means today's exact owner-only behavior, so
               checking a box here can only widen access, never narrow it. */}
-          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-            <p className="font-sans text-[13px] font-bold text-[#1e293b] mb-1">{t('mv.permissionsHeading')}</p>
-            <p className="font-sans text-[11px] text-[#64748b] mb-3">{t('mv.permissionsHint')}</p>
+          <FleetPanel>
+            <FleetPanelHead icon={<ShieldCheck size={14} />} title={t('mv.permissionsHeading')} description={t('mv.permissionsHint')} />
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-start border-collapse">
                 <thead>
-                  <tr>
-                    <th className="font-sans text-[10.5px] font-bold text-[#64748b] pb-1.5"></th>
+                  <tr className="bg-[#F9F9F6] border-b border-[#f1f5f9]">
+                    <th className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#94a3b8] px-3.5 py-2 text-start">{t('mv.staffColumnLabel')}</th>
                     {PERMISSION_MODULES.map((m) => (
-                      <th key={m} className="font-sans text-[10.5px] font-bold text-[#64748b] pb-1.5 text-center px-2">{t(`mv.permModule.${m}`)}</th>
+                      <th key={m} className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#94a3b8] py-2 text-center px-2">{t(`mv.permModule.${m}`)}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {PERMISSION_ROLES.map((role) => (
                     <tr key={role} className="border-t border-[#f1f5f9]">
-                      <td className="font-sans text-[11.5px] text-[#1e293b] py-1.5 pe-2">{t(`mv.role.${role}`)}</td>
+                      <td className="font-sans text-[11.5px] font-semibold text-[#1e293b] px-3.5 py-2">{t(`mv.role.${role}`)}</td>
                       {PERMISSION_MODULES.map((module) => {
                         const perm = permissions.find((p) => p.role === role && p.module === module)
                         return (
-                          <td key={module} className="text-center">
-                            <input type="checkbox" checked={perm?.can_edit ?? false} onChange={(e) => togglePermission(role, module, e.target.checked)} className="cursor-pointer" />
+                          <td key={module} className="text-center py-2">
+                            <input type="checkbox" checked={perm?.can_edit ?? false} onChange={(e) => togglePermission(role, module, e.target.checked)} className="cursor-pointer accent-[#166534]" />
                           </td>
                         )
                       })}
@@ -318,24 +329,22 @@ export default function FleetStaffPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </FleetPanel>
 
           {/* 885: a real audit trail for sensitive fleet actions —
               staff/payroll/cash changes, bookings cancelled. */}
-          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
-            <button onClick={() => setShowAudit((v) => !v)} className="w-full flex items-center justify-between cursor-pointer">
-              <span className="font-sans text-[13px] font-bold text-[#1e293b]">{t('mv.auditLogHeading')}</span>
-              <span className="font-sans text-[11px] text-[#166534] font-semibold">{showAudit ? t('action.showLess') : t('action.showMore')}</span>
-            </button>
+          <FleetPanel>
+            <FleetPanelHead icon={<History size={14} />} title={t('mv.auditLogHeading')} description={t('mv.panelDesc.auditLog')}
+              action={<button onClick={() => setShowAudit((v) => !v)} className="px-2.5 py-1 rounded-lg border border-[#e5e2d0] font-sans text-[11px] text-[#166534] font-semibold cursor-pointer">{showAudit ? t('action.showLess') : t('action.showMore')}</button>} />
             {showAudit && (
               auditLog.length === 0 ? (
                 <p className="font-sans text-[11.5px] text-[#94a3b8] text-center py-4">{t('mv.noAuditEntriesHint')}</p>
               ) : (
-                <div className="flex flex-col gap-1.5 mt-2.5">
+                <div className="flex flex-col divide-y divide-[#f1f5f9]">
                   {auditLog.map((e) => (
-                    <div key={e.id} className="flex items-start justify-between gap-2 py-1.5 border-t border-[#f1f5f9]">
-                      <div>
-                        <p className="font-sans text-[11.5px] text-[#1e293b]">{t(`mv.auditAction.${e.action}`)}</p>
+                    <div key={e.id} className="flex items-start justify-between gap-2 px-3.5 py-2">
+                      <div className="min-w-0">
+                        <p className="font-sans text-[11.5px] font-semibold text-[#1e293b]">{t(`mv.auditAction.${e.action}`)}</p>
                         <p className="font-sans text-[10.5px] text-[#94a3b8]">{e.actor_name ?? '—'}</p>
                       </div>
                       <span className="font-sans text-[10px] text-[#94a3b8] shrink-0 ltr-num">{new Date(e.created_at).toLocaleString(isUrdu ? 'ur-PK' : 'en-PK', { dateStyle: 'short', timeStyle: 'short' })}</span>
@@ -344,7 +353,7 @@ export default function FleetStaffPage() {
                 </div>
               )
             )}
-          </div>
+          </FleetPanel>
         </>
       )}
     </div>

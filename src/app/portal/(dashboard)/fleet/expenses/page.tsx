@@ -6,7 +6,8 @@
 // wasn't shown anywhere before).
 
 import { useEffect, useState } from 'react'
-import { Fuel, FileImage } from 'lucide-react'
+import { Fuel, FileImage, Plus, History } from 'lucide-react'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -108,7 +109,9 @@ export default function FleetExpensesPage() {
       <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Fuel size={19} /> {t('mv.fleetExpensesHeading')}</h1>
 
       {vehicles.length > 0 && (
-        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
+        <FleetPanel>
+          <FleetPanelHead icon={<Plus size={14} />} title={t('mv.logExpenseBtn')} description={t('mv.panelDesc.logExpense')} />
+          <FleetPanelBody>
           <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2">
             {vehicles.map((v) => <option key={v.id} value={v.id}>{v.vehicle_number || v.vehicle_type || v.owner_name}{v.vehicle_type && v.vehicle_number ? ` · ${v.vehicle_type}` : ''}</option>)}
           </select>
@@ -143,35 +146,40 @@ export default function FleetExpensesPage() {
           <button onClick={logExpense} disabled={logging} className="w-full px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
             {logging ? t('action.loading') : t('mv.logExpenseBtn')}
           </button>
-        </div>
+          </FleetPanelBody>
+        </FleetPanel>
       )}
 
-      <div>
-        <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-1.5">{t('mv.expenseHistoryHeading')}</p>
+      <FleetPanel>
+        <FleetPanelHead icon={<History size={14} />} title={t('mv.expenseHistoryHeading')} description={t('mv.panelDesc.expenses')}
+          action={expenses.length > 0 ? <span className="font-sans text-[11.5px] font-bold text-[#b91c1c] ltr-num">₨{fmt(expenses.reduce((s, e) => s + Number(e.amount_pkr), 0))}</span> : undefined} />
         {expenses.length === 0 ? (
           <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noExpensesYetHint')}</p>
         ) : (
-          <div className="flex flex-col gap-1.5">
-            {expenses.map((e) => {
-              const v = vehicles.find((x) => x.id === e.vehicle_id)
-              return (
-                <div key={e.id} className="bg-white border border-[#e5e2d0] rounded-lg px-3 py-2 flex items-center justify-between">
-                  <div>
-                    <p className="font-sans text-[12.5px] font-semibold text-[#1e293b]"><span className="ltr-num">{v?.vehicle_number || v?.vehicle_type || v?.owner_name || ''}</span> · {t(`mv.expenseCategory${e.category.charAt(0).toUpperCase()}${e.category.slice(1)}`)}</p>
-                    <p className="font-sans text-[10.5px] text-[#94a3b8]">{fmtDate(e.expense_date)}{e.note ? ` · ${e.note}` : ''}</p>
-                    {receiptUrls[e.id] && (
-                      <a href={receiptUrls[e.id]} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#166534]">
-                        <FileImage size={11} /> {t('mv.viewReceiptBtn')}
-                      </a>
-                    )}
+          <>
+            <FleetColumnLabels labels={[t('w.particular'), t('w.amount')]} />
+            <div className="flex flex-col divide-y divide-[#f1f5f9]">
+              {expenses.map((e) => {
+                const v = vehicles.find((x) => x.id === e.vehicle_id)
+                return (
+                  <div key={e.id} className="px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate"><span className="ltr-num">{v?.vehicle_number || v?.vehicle_type || v?.owner_name || ''}</span> · {t(`mv.expenseCategory${e.category.charAt(0).toUpperCase()}${e.category.slice(1)}`)}</p>
+                      <p className="font-sans text-[10.5px] text-[#94a3b8]"><span className="ltr-num">{fmtDate(e.expense_date)}</span>{e.note ? ` · ${e.note}` : ''}</p>
+                      {receiptUrls[e.id] && (
+                        <a href={receiptUrls[e.id]} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#166534]">
+                          <FileImage size={11} /> {t('mv.viewReceiptBtn')}
+                        </a>
+                      )}
+                    </div>
+                    <span className="shrink-0 font-sans text-[13px] font-bold text-[#b91c1c] ltr-num">₨{fmt(e.amount_pkr)}</span>
                   </div>
-                  <span className="font-sans text-[13px] font-bold text-[#b91c1c] ltr-num">₨{fmt(e.amount_pkr)}</span>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          </>
         )}
-      </div>
+      </FleetPanel>
     </div>
   )
 }

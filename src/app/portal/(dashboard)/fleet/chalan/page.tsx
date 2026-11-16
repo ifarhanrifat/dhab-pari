@@ -17,7 +17,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Receipt, Users2, Wallet, ChevronRight, X, RotateCcw, Phone, MessageCircle, Send } from 'lucide-react'
+import { Receipt, Users2, Wallet, ChevronRight, X, RotateCcw, Phone, MessageCircle, Send, Bus, MapPin } from 'lucide-react'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat, FleetStatusPill } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -49,7 +50,7 @@ function nextScheduledDate(daysOfWeek: number[], afterDate: string): string {
 }
 
 export default function FleetChalanPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
 
@@ -174,7 +175,7 @@ export default function FleetChalanPage() {
   }
 
   const renderRow = (p: Passenger) => (
-    <div key={`${p.source}-${p.id}`} className="border border-[#e5e2d0] rounded-lg px-3 py-2.5">
+    <div key={`${p.source}-${p.id}`} className="px-3.5 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{p.passenger_name}{p.passenger_mobile ? ` · ${p.passenger_mobile}` : ''}</p>
@@ -183,11 +184,11 @@ export default function FleetChalanPage() {
             {p.seat_numbers && p.seat_numbers.length > 0 ? ` · #${p.seat_numbers.join(', #')}` : ''}
           </p>
         </div>
-        <div className="shrink-0 text-end">
+        <div className="shrink-0 flex flex-col items-end gap-0.5">
           <p className="font-sans text-[13px] font-bold text-[#166534] ltr-num">₨{fmt(p.amount)}</p>
-          <span className="font-sans text-[9.5px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: p.is_confirmed ? '#F0FDF4' : '#FFFBEB', color: p.is_confirmed ? '#166534' : '#92400e' }}>
+          <FleetStatusPill tone={p.is_confirmed ? 'green' : 'amber'}>
             {p.is_confirmed ? t('mv.confirmedLabel') : t('mv.unconfirmedLabel')}
-          </span>
+          </FleetStatusPill>
         </div>
       </div>
       {p.passenger_mobile && (
@@ -228,6 +229,7 @@ export default function FleetChalanPage() {
   return (
     <div className="flex flex-col gap-3">
       <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Receipt size={19} /> {t('mv.chalanHeading')}</h1>
+      <p className="font-sans text-[11px] text-[#64748b] -mt-1">{t('mv.panelDesc.chalan')}</p>
 
       {/* Real bug reported live: the date input had no minimum width, so
           a long route name in the select (flex-1) squeezed it down to a
@@ -246,29 +248,16 @@ export default function FleetChalanPage() {
         <p className="font-sans text-[12px] text-[#94a3b8] text-center py-8">{t('mv.noScheduleYetHint')}</p>
       ) : (
         <>
-          <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5">
-            <p className="font-sans text-[13.5px] font-bold text-[#1e293b] ltr-num">{chalan.vehicle_number || chalan.vehicle_type}</p>
-            <p className="font-sans text-[11px] text-[#94a3b8]">{chalan.vehicle_type} · {chalan.owner_name}</p>
-            <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{chalan.origin} → {chalan.destination}</p>
-            <p className="font-sans text-[11px] mt-1" style={{ color: chalan.run_started_at ? '#166534' : '#94a3b8' }}>
-              {chalan.run_started_at ? t('mv.chalanDepartedLabel') : t('mv.chalanNotDepartedLabel')}
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <div className="flex-1 bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl p-3">
-              <div className="flex items-center gap-1.5 text-[#166534]"><Users2 size={12} /><span className="font-sans text-[9.5px] font-bold uppercase">{t('mv.confirmedLabel')}</span></div>
-              <p className="font-sans text-[16px] font-extrabold text-[#166534] ltr-num mt-0.5">{chalan.total_confirmed_count}</p>
-            </div>
-            <div className="flex-1 bg-[#FFFBEB] border border-[#fde68a] rounded-xl p-3">
-              <div className="flex items-center gap-1.5 text-[#92400e]"><Users2 size={12} /><span className="font-sans text-[9.5px] font-bold uppercase">{t('mv.unconfirmedLabel')}</span></div>
-              <p className="font-sans text-[16px] font-extrabold text-[#92400e] ltr-num mt-0.5">{chalan.total_unconfirmed_count}</p>
-            </div>
-            <div className="flex-1 bg-white border border-[#e5e2d0] rounded-xl p-3">
-              <div className="flex items-center gap-1.5 text-[#166534]"><Wallet size={12} /><span className="font-sans text-[9.5px] font-bold uppercase">{t('mv.cashLabel')}</span></div>
-              <p className="font-sans text-[16px] font-extrabold text-[#1e293b] ltr-num mt-0.5">₨{fmt(chalan.cash_collected_pkr)}</p>
-            </div>
-          </div>
+          <FleetPanel>
+            <FleetPanelHead icon={<Bus size={14} />} title={<span className="ltr-num">{chalan.vehicle_number || chalan.vehicle_type}</span>}
+              description={`${chalan.vehicle_type} · ${chalan.owner_name} · ${chalan.origin} → ${chalan.destination}`}
+              action={<FleetStatusPill tone={chalan.run_started_at ? 'green' : 'gray'}>{chalan.run_started_at ? t('mv.chalanDepartedLabel') : t('mv.chalanNotDepartedLabel')}</FleetStatusPill>} />
+            <FleetPanelBody className="p-2.5 grid grid-cols-3 gap-2">
+              <FleetStat label={t('mv.confirmedLabel')} icon={<Users2 size={12} />} value={chalan.total_confirmed_count} />
+              <FleetStat label={t('mv.unconfirmedLabel')} icon={<Users2 size={12} />} value={chalan.total_unconfirmed_count} valueClassName="text-[#92400e]" />
+              <FleetStat label={t('mv.cashLabel')} icon={<Wallet size={12} />} value={`₨${fmt(chalan.cash_collected_pkr)}`} valueClassName="text-[#1e293b]" />
+            </FleetPanelBody>
+          </FleetPanel>
 
           {showMessageForm ? (
             <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5 flex flex-col gap-2">
@@ -286,20 +275,22 @@ export default function FleetChalanPage() {
             </button>
           )}
 
-          <div>
-            <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-1.5">{t('mv.onboardNowHeading')}</p>
+          <FleetPanel>
+            <FleetPanelHead icon={<Users2 size={14} />} title={t('mv.onboardNowHeading')}
+              action={<span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{chalan.onboard_now.length}</span>} />
             {chalan.onboard_now.length === 0 ? (
-              <p className="font-sans text-[12px] text-[#94a3b8] text-center py-4 bg-white border border-[#e5e2d0] rounded-xl">{t('mv.noBookingsFoundHint')}</p>
+              <p className="font-sans text-[12px] text-[#94a3b8] text-center py-5">{t('mv.noBookingsFoundHint')}</p>
             ) : (
-              <div className="flex flex-col gap-1.5">{chalan.onboard_now.map(renderRow)}</div>
+              <div className="flex flex-col divide-y divide-[#f1f5f9]">{chalan.onboard_now.map(renderRow)}</div>
             )}
-          </div>
+          </FleetPanel>
 
           {chalan.next_stops.map((grp) => (
-            <div key={grp.label}>
-              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-1.5 flex items-center gap-1"><ChevronRight size={12} /> {t('mv.nextStopLabel')}: {grp.label}</p>
-              <div className="flex flex-col gap-1.5">{grp.passengers.map(renderRow)}</div>
-            </div>
+            <FleetPanel key={grp.label}>
+              <FleetPanelHead icon={<MapPin size={14} />} title={<span className="flex items-center gap-1"><ChevronRight size={12} className={isUrdu ? 'rotate-180' : ''} /> {t('mv.nextStopLabel')}: {grp.label}</span>}
+                action={<span className="px-2 py-0.5 rounded-full bg-[#F1F5F9] text-[#64748b] font-sans text-[10px] font-bold ltr-num">{grp.passengers.length}</span>} />
+              <div className="flex flex-col divide-y divide-[#f1f5f9]">{grp.passengers.map(renderRow)}</div>
+            </FleetPanel>
           ))}
         </>
       )}
