@@ -129,7 +129,7 @@ export default function FleetExpensesPage() {
               className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5" />
           )}
           <div className="mb-2.5">
-            <DonationReceiptUpload bucket="vehicle_expense_receipts" label={t('mv.uploadReceiptLabel')} onUpload={setReceiptPath} />
+            <DonationReceiptUpload bucket="vehicle_expense_receipts" label={t('mv.uploadReceiptLabel')} onUpload={setReceiptPath} required={false} />
           </div>
           {recentRuns.length > 0 && (
             <>

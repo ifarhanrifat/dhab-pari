@@ -19,12 +19,18 @@ interface Props {
   onUpload: (path: string) => void
   label?: string
   bucket?: 'donation_receipts' | 'bill_payment_proofs' | 'wazifa_agreement_documents' | 'vehicle_registration_documents' | 'city_purchase_attachments' | 'vehicle_expense_receipts'
+  // Real bug reported live: the trailing " *" rendered unconditionally,
+  // so an explicitly "(optional)" label like the vehicle-expense
+  // receipt upload read as "Receipt photo (optional) *" — contradicting
+  // itself. Defaults to true so every existing required-upload caller
+  // (donation/bill/wazifa/registration proofs) is unaffected.
+  required?: boolean
 }
 
 const MAX_SIZE = 5 * 1024 * 1024
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
-export function DonationReceiptUpload({ onUpload, label, bucket = 'donation_receipts' }: Props) {
+export function DonationReceiptUpload({ onUpload, label, bucket = 'donation_receipts', required = true }: Props) {
   const { t, isUrdu } = useLocale()
   const resolvedLabel = label ?? t('g.uploadPaymentScreenshot')
   const [uploading, setUploading] = useState(false)
@@ -83,7 +89,7 @@ export function DonationReceiptUpload({ onUpload, label, bucket = 'donation_rece
   return (
     <div>
       <label dir={isUrdu ? 'rtl' : 'ltr'} className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
-        {resolvedLabel} *
+        {resolvedLabel}{required ? ' *' : ''}
       </label>
 
       {preview ? (

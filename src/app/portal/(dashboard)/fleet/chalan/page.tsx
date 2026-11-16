@@ -229,11 +229,15 @@ export default function FleetChalanPage() {
     <div className="flex flex-col gap-3">
       <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Receipt size={19} /> {t('mv.chalanHeading')}</h1>
 
-      <div className="flex gap-2">
-        <select value={routeId} onChange={(e) => setRouteId(e.target.value)} className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+      {/* Real bug reported live: the date input had no minimum width, so
+          a long route name in the select (flex-1) squeezed it down to a
+          sliver that clipped the shown date to "26" instead of the real
+          value. shrink-0 + an explicit width keep it fully readable. */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <select value={routeId} onChange={(e) => setRouteId(e.target.value)} className="flex-1 min-w-0 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] truncate">
           {routes.map((r) => <option key={r.route_id} value={r.route_id}>{r.owner_name} · {r.origin} → {r.destination}</option>)}
         </select>
-        <input type="date" value={travelDate} onChange={(e) => setTravelDate(e.target.value)} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+        <input type="date" value={travelDate} onChange={(e) => setTravelDate(e.target.value)} className="shrink-0 w-full sm:w-[150px] px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
       </div>
 
       {loadingChalan ? (

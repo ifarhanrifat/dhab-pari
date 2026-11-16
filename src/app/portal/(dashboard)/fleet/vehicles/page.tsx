@@ -13,6 +13,8 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
+import { VehicleCatalogForm } from '@/components/mobility/VehicleCatalogForm'
 
 interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }
 
@@ -24,6 +26,7 @@ export default function FleetVehiclesPage() {
   const [loading, setLoading] = useState(true)
   const [fleetId, setFleetId] = useState<string | null>(null)
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([])
+  const [settingsVehicle, setSettingsVehicle] = useState<FleetVehicle | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -62,9 +65,17 @@ export default function FleetVehiclesPage() {
               <p className="font-sans text-[13.5px] font-bold text-[#1e293b] truncate">{v.owner_name}</p>
               <p className="font-sans text-[11.5px] text-[#64748b] mt-0.5">{v.vehicle_type}{v.vehicle_number ? ` · ${v.vehicle_number}` : ''}</p>
               <div className="flex gap-2 mt-2.5">
-                <Link href={`/portal/my-vehicle/catalog?vehicle=${v.id}`} className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534]">
+                {/* Real bug reported live: this used to navigate clean out
+                    of the Fleet shell into my-vehicle's own layout — a
+                    different bottom nav entirely — for what's really just
+                    a settings form. Opens in place now. "Routes" stays a
+                    real page link: that destination is a 1300+ line
+                    multi-section screen (stops, schedule, bookings,
+                    luggage, ride-group) too large to fold into a popup
+                    responsibly in this pass. */}
+                <button onClick={() => setSettingsVehicle(v)} className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer">
                   <Settings2 size={13} /> {t('mv.vehicleSettingsBtn')}
-                </Link>
+                </button>
                 <Link href={`/portal/my-vehicle/routes?vehicle=${v.id}`} className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534]">
                   <Milestone size={13} /> {t('mv.manageRoutesBtn')}
                 </Link>
@@ -72,6 +83,12 @@ export default function FleetVehiclesPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {settingsVehicle && (
+        <MobilityBottomSheet title={`${t('mv.vehicleSettingsBtn')} · ${settingsVehicle.owner_name}`} onClose={() => setSettingsVehicle(null)}>
+          <VehicleCatalogForm vehicleId={settingsVehicle.id} showHeading={false} />
+        </MobilityBottomSheet>
       )}
     </div>
   )
