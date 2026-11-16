@@ -294,7 +294,7 @@ export default function FleetBookingsPage() {
         <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-2.5">{t('mv.recordBookingBtn')}</p>
         <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.selectVehicleLabel')}</label>
         <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5">
-          {vehicles.map((v) => <option key={v.id} value={v.id}>{v.owner_name}{v.vehicle_type ? ` · ${v.vehicle_type}` : ''}</option>)}
+          {vehicles.map((v) => <option key={v.id} value={v.id}>{v.vehicle_number || v.vehicle_type || v.owner_name}{v.vehicle_type && v.vehicle_number ? ` · ${v.vehicle_type}` : ''}</option>)}
         </select>
 
         <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.selectRouteLabel')}</label>

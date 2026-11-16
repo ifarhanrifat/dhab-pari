@@ -15,7 +15,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 
-interface FleetVehicle { id: string; owner_name: string; vehicle_type: string }
+interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }
 interface Expense { id: string; vehicle_id: string; category: string; amount_pkr: number; note: string | null; expense_date: string; receipt_url: string | null }
 interface RecentRun { id: string; started_at: string; vehicle_routes: { origin: string; destination: string } | null }
 
@@ -110,7 +110,7 @@ export default function FleetExpensesPage() {
       {vehicles.length > 0 && (
         <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
           <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2">
-            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.owner_name}{v.vehicle_type ? ` · ${v.vehicle_type}` : ''}</option>)}
+            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.vehicle_number || v.vehicle_type || v.owner_name}{v.vehicle_type && v.vehicle_number ? ` · ${v.vehicle_type}` : ''}</option>)}
           </select>
           <div className="flex gap-2 mb-2">
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
@@ -157,7 +157,7 @@ export default function FleetExpensesPage() {
               return (
                 <div key={e.id} className="bg-white border border-[#e5e2d0] rounded-lg px-3 py-2 flex items-center justify-between">
                   <div>
-                    <p className="font-sans text-[12.5px] font-semibold text-[#1e293b]">{v?.owner_name ?? ''} · {t(`mv.expenseCategory${e.category.charAt(0).toUpperCase()}${e.category.slice(1)}`)}</p>
+                    <p className="font-sans text-[12.5px] font-semibold text-[#1e293b]"><span className="ltr-num">{v?.vehicle_number || v?.vehicle_type || v?.owner_name || ''}</span> · {t(`mv.expenseCategory${e.category.charAt(0).toUpperCase()}${e.category.slice(1)}`)}</p>
                     <p className="font-sans text-[10.5px] text-[#94a3b8]">{fmtDate(e.expense_date)}{e.note ? ` · ${e.note}` : ''}</p>
                     {receiptUrls[e.id] && (
                       <a href={receiptUrls[e.id]} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#166534]">
