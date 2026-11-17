@@ -336,8 +336,9 @@ export default function FleetBookingsPage() {
     // second, independent record_manual_booking call linked back via
     // p_return_leg_of, not a combined-transaction RPC. Same passenger/
     // amount/method as the outbound leg, its own seats.
+    let returnTicketNo: string | undefined
     if (isReturn && returnRouteId && outboundId) {
-      const { error: returnError } = await supabase.rpc('record_manual_booking', {
+      const { data: returnData, error: returnError } = await supabase.rpc('record_manual_booking', {
         p_route_id: returnRouteId, p_travel_date: returnDate, p_seats: seats,
         p_passenger_name: passengerName, p_total_amount_pkr: Number(amount),
         p_counter_id: counterId || null, p_passenger_mobile: passengerMobile || null, p_payment_method: method,
@@ -346,6 +347,7 @@ export default function FleetBookingsPage() {
         p_return_leg_of: outboundId,
       })
       if (returnError) { setRecording(false); toast.error(friendlyError(returnError)); return }
+      returnTicketNo = (returnData as { ticket_no?: string } | null)?.ticket_no
     }
     setRecording(false)
     toast.success(pendingApproval ? t('mv.manualBookingPendingApprovalToast') : t('mv.manualBookingRecordedToast'))
@@ -359,6 +361,13 @@ export default function FleetBookingsPage() {
         departureTime: selectedRoute.departure_time, seats, seatNumbers: seating?.isVanKind ? selectedSeats : null,
         amountPkr: Number(amount), ownerName: vehicle.owner_name, vehicleNumber: vehicle.vehicle_number, serviceCode: null,
         boardStopLabel: pickupMode === 'map' ? (pickupPoint || t('mv.pickupPinLabel')) : (boardStop?.label ?? null), paymentMethod: method,
+        bookedAtTerminal: myCounter ? `${myCounter.city}${myCounter.name ? ` · ${myCounter.name}` : ''}` : (counterId ? counters.find((c) => c.id === counterId)?.city ?? null : null),
+        pickupApprovalPending: pendingApproval,
+        pickupLat: pickupMode === 'map' ? pickupLat : null, pickupLng: pickupMode === 'map' ? pickupLng : null,
+        returnLeg: returnTicketNo && returnRoute ? {
+          ticketNo: returnTicketNo, origin: returnRoute.origin, destination: returnRoute.destination, travelDate: returnDate,
+          departureTime: returnRoute.departure_time, seats, seatNumbers: returnRoute.is_van_kind ? returnSelectedSeats : null,
+        } : null,
       })
     }
     setPassengerName(''); setPassengerMobile(''); setSeats(1); setAmount(''); setSelectedSeats([])
@@ -389,17 +398,39 @@ export default function FleetBookingsPage() {
   // Print + Email + WhatsApp as three real actions; Print and
   // WhatsApp already existed here, Email was the one genuinely
   // missing. Shared text builder so all three stay in sync.
-  const ticketText = (data: ManualTicketData) => [
-    `Ticket #${data.ticketNo}`,
-    `${data.passengerName}`,
-    `${data.origin} → ${data.destination}`,
-    `${data.travelDate}${data.departureTime ? ` · ${data.departureTime}` : ''}`,
-    `${data.seats} seat(s)${data.seatNumbers?.length ? ` (#${data.seatNumbers.join(', ')})` : ''}`,
-    `${data.ownerName}${data.vehicleNumber ? ` · ${data.vehicleNumber}` : ''}`,
-    `Payment: ${data.paymentMethod}`,
-    `Fare: ₨${fmt(data.amountPkr)}`,
-    `Present this ticket number at boarding.`,
-  ].join('\n')
+  // 2026-11-17: booking wizard Phase B — wired the pickup GPS/map
+  // link, pending-approval note, and Return leg into the shared
+  // ticket text too, matching the SAFAR reference's ticketText(): a
+  // map-pickup or Return booking should carry that onto the Email/
+  // WhatsApp message, not just the on-screen/printed ticket.
+  const ticketText = (data: ManualTicketData) => {
+    const lines = [
+      `Ticket #${data.ticketNo}${data.pickupApprovalPending ? ' (PENDING APPROVAL)' : ''}`,
+      `${data.passengerName}`,
+      `${data.origin} → ${data.destination}`,
+      `${data.travelDate}${data.departureTime ? ` · ${data.departureTime}` : ''}`,
+      `${data.seats} seat(s)${data.seatNumbers?.length ? ` (#${data.seatNumbers.join(', ')})` : ''}`,
+      `${data.ownerName}${data.vehicleNumber ? ` · ${data.vehicleNumber}` : ''}`,
+      ...(data.bookedAtTerminal ? [`Booked at: ${data.bookedAtTerminal}`] : []),
+      ...(data.pickupLat != null && data.pickupLng != null
+        ? [`Pickup GPS: ${data.pickupLat.toFixed(5)}, ${data.pickupLng.toFixed(5)}`, `Pickup map: https://www.google.com/maps?q=${data.pickupLat},${data.pickupLng}`]
+        : []),
+      ...(data.pickupApprovalPending ? [`This pickup pin is awaiting route / dispatcher approval.`] : []),
+      `Payment: ${data.paymentMethod}`,
+      `Fare: ₨${fmt(data.amountPkr)}`,
+    ]
+    if (data.returnLeg) {
+      lines.push(
+        '',
+        `Return journey · Ticket #${data.returnLeg.ticketNo}`,
+        `${data.returnLeg.origin} → ${data.returnLeg.destination}`,
+        `${data.returnLeg.travelDate}${data.returnLeg.departureTime ? ` · ${data.returnLeg.departureTime}` : ''}`,
+        `${data.returnLeg.seats} seat(s)${data.returnLeg.seatNumbers?.length ? ` (#${data.returnLeg.seatNumbers.join(', ')})` : ''}`,
+      )
+    }
+    lines.push('', `Present this ticket number at boarding.`)
+    return lines.join('\n')
+  }
 
   const sendTicketWhatsapp = (data: ManualTicketData) => {
     if (!data.passengerMobile) return
