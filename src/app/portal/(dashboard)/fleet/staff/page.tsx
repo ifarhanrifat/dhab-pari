@@ -10,7 +10,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, UserPlus, Users2, ShieldCheck, History } from 'lucide-react'
-import { FleetPanel, FleetPanelHead, FleetPanelBody } from '@/components/portal/FleetPanel'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -21,9 +21,12 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 
 interface StaffMember {
   id: string; portal_user_id: string; full_name: string; counter_id: string | null; counter_city: string | null; counter_name: string | null
-  role: string; commission_amount_pkr: number | null; commission_this_month_pkr: number
+  role: string; commission_amount_pkr: number | null; commission_this_month_pkr: number; current_monthly_salary_pkr: number | null
   license_number: string | null; license_expiry: string | null; cnic_number: string | null
   date_of_birth: string | null; blood_group: string | null; medical_report_url: string | null; photo_url: string | null
+}
+function fmt(n: number) {
+  return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const
 interface Counter { id: string; city: string; name: string | null }
@@ -194,6 +197,13 @@ export default function FleetStaffPage() {
         <p className="font-sans text-[13px] text-[#64748b] text-center py-12">{t('mv.ownerOnlySectionHint')}</p>
       ) : (
         <>
+          <div className="grid grid-cols-2 gap-2.5">
+            <FleetStat label={t('mv.statActiveEmployeesLabel')} value={staff.length} icon={<Users2 size={12} />} />
+            <FleetStat label={t('mv.statDriversLabel')} value={staff.filter((s) => s.role === 'driver').length} />
+            <FleetStat label={t('mv.statMonthlyPayrollLabel')} value={`₨${fmt(staff.reduce((sum, s) => sum + (s.current_monthly_salary_pkr ?? 0), 0))}`} />
+            <FleetStat label={t('mv.statCommissionPayableLabel')} value={`₨${fmt(staff.reduce((sum, s) => sum + s.commission_this_month_pkr, 0))}`} valueClassName="text-[#b45309]" />
+          </div>
+
           <FleetPanel>
             <FleetPanelHead icon={<UserPlus size={14} />} title={t('mv.addStaffBtn')} description={t('mv.panelDesc.addStaff')} />
             <FleetPanelBody>
@@ -239,7 +249,14 @@ export default function FleetStaffPage() {
                       {counters.map((c) => <option key={c.id} value={c.id}>{c.city}{c.name ? ` · ${c.name}` : ''}</option>)}
                     </select>
                   )}
-                  <div className="flex gap-2 mt-2 pt-2 border-t border-[#f1f5f9]">
+                  {/* 2026-11-17: Staff screen rebuild — real gap found
+                      reading the code: set_fleet_staff_salary (860)
+                      could be called, but nothing ever showed what
+                      salary was currently on file for anyone. */}
+                  <p className="font-sans text-[11px] text-[#64748b] mt-2 pt-2 border-t border-[#f1f5f9]">
+                    {t('mv.payPlanLabel')}: <span className="font-semibold text-[#1e293b] ltr-num">{s.current_monthly_salary_pkr != null ? `₨${fmt(s.current_monthly_salary_pkr)} ${t('mv.perMonthSuffixLabel')}` : t('mv.noSalarySetHint')}</span>
+                  </p>
+                  <div className="flex gap-2 mt-1.5">
                     <input type="number" value={salaryDraft[s.id] ?? ''} onChange={(e) => setSalaryDraft((d) => ({ ...d, [s.id]: e.target.value }))}
                       placeholder={t('mv.monthlySalaryPlaceholder')} className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
                     <button onClick={() => saveSalary(s.id)} className="shrink-0 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('mv.setSalaryBtn')}</button>
