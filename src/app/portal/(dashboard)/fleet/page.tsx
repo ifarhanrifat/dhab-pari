@@ -59,6 +59,11 @@ function fmtTime(t: string | null) {
   return `${h12}:${m} ${ampm}`
 }
 function today() { return new Date().toISOString().slice(0, 10) }
+function greetingKey(): string {
+  const h = new Date().getHours()
+  return h < 12 ? 'mv.goodMorningGreeting' : h < 17 ? 'mv.goodAfternoonGreeting' : 'mv.goodEveningGreeting'
+}
+function firstName(fullName: string): string { return fullName.split(' ')[0] }
 // 2026-11-17: real complaint confirmed live — there was no way to tell
 // from the schedule list whether a route returns on a different day
 // without opening its edit form. days_of_week/return_days_of_week
@@ -104,6 +109,7 @@ export default function FleetDashboardPage() {
   const [view, setView] = useState<'list' | 'map'>('list')
   const [stats, setStats] = useState<DepartureStats | null>(null)
   const [docAlerts, setDocAlerts] = useState<DocAlert[]>([])
+  const [channels, setChannels] = useState<{ online_pkr: number; terminal_pkr: number; driver_pkr: number; total_pkr: number } | null>(null)
   const [photoByVehicle, setPhotoByVehicle] = useState<Record<string, string | null>>({})
   const [scheduleDate, setScheduleDate] = useState(today())
   const [filter, setFilter] = useState('all')
@@ -138,15 +144,19 @@ export default function FleetDashboardPage() {
     setFleetName(f?.name ?? '')
     setIsOwner(f?.is_owner ?? false)
     if (f) {
-      const [{ data: plData }, { data: statsData }, { data: docData }] = await Promise.all([
+      const [{ data: plData }, { data: statsData }, { data: docData }, { data: channelData }, { data: pinsData }] = await Promise.all([
         supabase.rpc('fleet_dashboard_summary'),
         supabase.rpc('fleet_departure_stats', { p_fleet_id: f.fleet_id }),
         supabase.rpc('fleet_document_alerts', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('fleet_collection_channels', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('fleet_vehicle_locations', { p_fleet_id: f.fleet_id }),
         loadSchedule(f.fleet_id, scheduleDate),
       ])
       setPl(plData as typeof pl)
       setStats(statsData as DepartureStats)
       setDocAlerts((docData ?? []) as DocAlert[])
+      setChannels(channelData as typeof channels)
+      setLivePins((pinsData ?? []) as LivePin[])
     }
     setLoading(false)
   }
@@ -284,9 +294,34 @@ export default function FleetDashboardPage() {
     : schedule.filter((s) => s.is_active && filterDef?.states?.includes(s.state))
   const delayedCount = schedule.filter((s) => s.is_active && s.delay_minutes != null).length
 
+  const todayFormatted = new Date().toLocaleDateString(isUrdu ? 'ur-PK' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const waitingVehicles = schedule.filter((s) => s.is_active && s.state === 'waiting_at_destination')
+  const attentionVehicles = [
+    ...schedule.filter((s) => s.is_active && s.delay_minutes != null),
+    ...waitingVehicles.filter((s) => s.delay_minutes == null),
+  ]
+
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Users2 size={19} /> {fleetName}</h1>
+      {/* 2026-11-17: design-first pass, matching the mockup's welcome
+          header exactly (greeting + today's date + Reports/Create-
+          schedule actions) instead of a bare "{fleetName}" title. */}
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div>
+          <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2">
+            {t(greetingKey())}{user?.full_name ? `, ${firstName(user.full_name)}` : ''} 👋
+          </h1>
+          <p className="font-sans text-[11px] text-[#64748b] mt-0.5">{t('mv.operationalPositionForLabel')} {todayFormatted}.</p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Link href="/portal/fleet/reports" className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] bg-white font-sans text-[11px] font-bold text-[#334155]">
+            <Bus size={12} /> {t('mv.fleetPLHeading')}
+          </Link>
+          <Link href="/portal/my-vehicle/routes" className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11px] font-bold">
+            <Plus size={12} /> {t('mv.postRouteBtn')}
+          </Link>
+        </div>
+      </div>
 
       {/* 2026-11-16: unified into one SAFAR-style stat grid (icon chip,
           uppercase label, big bold value, muted footnote, same shell
@@ -316,31 +351,90 @@ export default function FleetDashboardPage() {
         </div>
       )}
 
-      {/* 2026-11-17: design-first pass — the mockup groups every open
-          item (expiring documents, delayed routes, pending cash, due
-          maintenance) into one "Action centre" list rather than a
-          single-purpose panel per alert type. dhab-pari only has real
-          data for two of those right now (document expiry, 881; route
-          delay, 900) — only those two are combined here, nothing
-          invented for the others. 881's original ranking (soonest-
-          expiring first) is preserved within the doc-alert rows;
-          delayed routes are surfaced first since they're happening
-          right now, not a future deadline. */}
-      {(docAlerts.length > 0 || delayedCount > 0) && (
+      {/* 2026-11-17: design-first pass, full set of mockup panels this
+          time, in the mockup's own order — Live fleet overview,
+          Vehicles requiring attention, Collection channels, Schedule
+          board, Action centre. Every number here is real (livePins,
+          900's delay_minutes, 902's new fleet-wide channel split,
+          schedule/docAlerts already fetched) — nothing invented. */}
+      <FleetPanel>
+        <FleetPanelHead icon={<MapIcon size={14} />} title={t('mv.liveFleetOverviewHeading')} description={t('mv.panelDesc.liveOverview')}
+          action={<Link href="/portal/fleet/live-map" className="shrink-0 px-2.5 py-1 rounded-lg bg-[#F0FDF4] text-[#166534] font-sans text-[10.5px] font-bold">{t('mv.openLiveMapBtn')} ↗</Link>} />
+        <FleetPanelBody className="p-2">
+          {livePins.length === 0 && <p className="font-sans text-[11.5px] text-[#94a3b8] text-center pb-1.5">{t('mv.noLiveVehiclesHint')}</p>}
+          <LeafletMap pins={livePins.map((p): MapPin => ({ lat: p.lat, lng: p.lng, label: `${p.owner_name} · ${p.context}`, color: '#166534', emoji: '🚐', isVehicle: true }))} height={200} className="rounded-xl" />
+        </FleetPanelBody>
+      </FleetPanel>
+
+      {attentionVehicles.length > 0 && (
         <FleetPanel tone="danger">
-          <FleetPanelHead tone="danger" icon={<ShieldAlert size={14} />} title={t('mv.actionCentreHeading')} description={t('mv.panelDesc.docAlerts')}
-            action={<span className="px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#b91c1c] font-sans text-[10px] font-bold ltr-num">{docAlerts.length + delayedCount}</span>} />
+          <FleetPanelHead tone="danger" icon={<ShieldAlert size={14} />} title={t('mv.vehiclesRequiringAttentionHeading')} description={t('mv.panelDesc.attentionWatchlist')}
+            action={<span className="px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#b91c1c] font-sans text-[10px] font-bold ltr-num">{attentionVehicles.length}</span>} />
           <div className="divide-y divide-[#f1f5f9]">
-            {schedule.filter((s) => s.is_active && s.delay_minutes != null).map((s) => (
+            {attentionVehicles.map((s) => (
               <div key={s.route_id} className="flex items-center justify-between gap-2 px-3.5 py-2 text-[12px] font-sans">
                 <span className="text-[#1e293b] font-semibold truncate min-w-0 flex items-center gap-1.5">
-                  <Clock size={12} className="shrink-0 text-[#b91c1c]" /> {s.vehicle_number || s.vehicle_type} · {s.origin} → {s.destination}
+                  <Bus size={12} className="shrink-0 text-[#b91c1c]" /> {s.vehicle_number || s.vehicle_type} · {s.origin} → {s.destination}
                 </span>
                 <span className="shrink-0 px-2 py-0.5 rounded-full font-bold text-[10px] ltr-num bg-[#FEF2F2] text-[#b91c1c]">
-                  {t('mv.delayedRouteAlertLabel').replace('{n}', String(s.delay_minutes))}
+                  {s.delay_minutes != null ? t('mv.delayedRouteAlertLabel').replace('{n}', String(s.delay_minutes)) : t(STATE_STYLE.waiting_at_destination.label)}
                 </span>
               </div>
             ))}
+          </div>
+        </FleetPanel>
+      )}
+
+      {channels && channels.total_pkr > 0 && (
+        <FleetPanel>
+          <FleetPanelHead icon={<Receipt size={14} />} title={t('mv.collectionChannelsHeading')} description={t('mv.panelDesc.collectionChannels')}
+            action={<Link href="/portal/fleet/cash" className="shrink-0 px-2.5 py-1 rounded-lg border border-[#e5e2d0] font-sans text-[10.5px] font-bold text-[#334155]">{t('mv.detailsLink')}</Link>} />
+          <FleetPanelBody className="flex flex-col gap-2.5">
+            <p className="font-sans text-[20px] font-extrabold text-dp-primary ltr-num">₨{fmt(channels.total_pkr)}</p>
+            {[
+              { label: t('mv.channelOnlineLabel'), val: channels.online_pkr, color: '#166534' },
+              { label: t('mv.channelTerminalLabel'), val: channels.terminal_pkr, color: '#d97706' },
+              { label: t('mv.channelDriverLabel'), val: channels.driver_pkr, color: '#2563eb' },
+            ].map((c) => {
+              const pct = channels.total_pkr > 0 ? Math.round((c.val / channels.total_pkr) * 100) : 0
+              return (
+                <div key={c.label}>
+                  <div className="flex items-center justify-between font-sans text-[11px] text-[#64748b] mb-1">
+                    <span>{c.label}</span><span className="font-bold text-[#1e293b] ltr-num">{pct}% · ₨{fmt(c.val)}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-[#F1F5F9] overflow-hidden"><span className="block h-full rounded-full" style={{ width: `${pct}%`, background: c.color }} /></div>
+                </div>
+              )
+            })}
+          </FleetPanelBody>
+        </FleetPanel>
+      )}
+
+      {schedule.filter((s) => s.is_active && s.departure_time).length > 0 && (
+        <FleetPanel>
+          <FleetPanelHead icon={<Clock size={14} />} title={t('mv.scheduleBoardHeading')} description={t('mv.panelDesc.scheduleBoard')} />
+          <div className="divide-y divide-dashed divide-[#f1f5f9]">
+            {schedule.filter((s) => s.is_active && s.departure_time).sort((a, b) => (a.departure_time ?? '').localeCompare(b.departure_time ?? '')).slice(0, 5).map((s) => (
+              <div key={s.route_id} className="flex items-center justify-between gap-2 px-3.5 py-2 font-sans text-[11.5px] text-[#64748b]">
+                <span className="ltr-num">{fmtTime(s.departure_time)} · {s.origin} → {s.destination}</span>
+                <span className="shrink-0 font-bold text-[#1e293b] ltr-num">{s.vehicle_number || s.vehicle_type}</span>
+              </div>
+            ))}
+          </div>
+        </FleetPanel>
+      )}
+
+      {/* 881: real gap — no document expiry was ever tracked anywhere,
+          so a lapsed route permit/fitness certificate/insurance went
+          completely unnoticed. Alerting only, ranked soonest-first.
+          Delayed routes moved out to Vehicles Requiring Attention
+          above (2026-11-17) — this stays scoped to administrative
+          follow-ups, matching the mockup's own split. */}
+      {docAlerts.length > 0 && (
+        <FleetPanel tone="danger">
+          <FleetPanelHead tone="danger" icon={<ShieldAlert size={14} />} title={t('mv.actionCentreHeading')} description={t('mv.panelDesc.docAlerts')}
+            action={<span className="px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#b91c1c] font-sans text-[10px] font-bold ltr-num">{docAlerts.length}</span>} />
+          <div className="divide-y divide-[#f1f5f9]">
             {docAlerts.map((a, i) => (
               <div key={i} className="flex items-center justify-between gap-2 px-3.5 py-2 text-[12px] font-sans">
                 <span className="text-[#1e293b] font-semibold truncate min-w-0">{a.owner_name}{a.vehicle_number ? ` · ${a.vehicle_number}` : ''} · {t(`mv.docType.${a.document_type}`)}</span>
