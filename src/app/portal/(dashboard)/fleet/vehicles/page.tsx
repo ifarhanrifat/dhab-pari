@@ -8,8 +8,8 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Bus, Plus, Milestone, Settings2 } from 'lucide-react'
-import { FleetPanel, FleetPanelHead, FleetFormGrid, FleetFormField } from '@/components/portal/FleetPanel'
+import { Bus, Plus, Milestone, Settings2, Snowflake } from 'lucide-react'
+import { FleetPanel, FleetPanelHead, FleetFormGrid, FleetFormField, FleetStat, FleetStatusPill } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -19,9 +19,52 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { VehicleCatalogForm } from '@/components/mobility/VehicleCatalogForm'
 
-interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null; portal_user_id: string }
+interface FleetVehicle {
+  id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null; portal_user_id: string
+  category_name: string | null; vehicle_kind: string | null; total_seats: number | null; is_sleeper: boolean
+  model: string | null; model_year: number | null; has_ac: boolean
+}
 interface VehicleCategory { id: string; name: string }
 interface FleetDriver { id: string; portal_user_id: string; full_name: string; routes_assigned_count: number; primary_vehicle_number: string | null; primary_route_label: string | null }
+interface ScheduleRow { vehicle_id: string; state: string }
+interface MaintenanceOrder { vehicle_id: string; status: string }
+interface VehicleDocRow { vehicle_id: string; status: 'valid' | 'expiring_soon' | 'expired' }
+
+// 2026-11-17: Vehicles screen rebuild (design-first plan, screen 3) —
+// the mockup's fleet-register table shows a real Availability pill per
+// bus. fleet_vehicle_schedule (903) and fleet_maintenance_orders (892)
+// already carry this fleet-wide; no new backend concept, just real
+// derived state, never fabricated.
+type Availability = 'on_trip' | 'at_terminal' | 'maintenance' | 'available' | 'no_route'
+function availabilityFor(vehicleId: string, schedule: ScheduleRow[], openMaintenance: Set<string>): Availability {
+  if (openMaintenance.has(vehicleId)) return 'maintenance'
+  const row = schedule.find((s) => s.vehicle_id === vehicleId)
+  if (!row) return 'no_route'
+  if (row.state === 'outbound_in_progress' || row.state === 'return_in_progress') return 'on_trip'
+  if (row.state === 'waiting_at_destination') return 'at_terminal'
+  return 'available'
+}
+const AVAIL_TONE: Record<Availability, 'blue' | 'red' | 'green' | 'gray'> = {
+  on_trip: 'blue', at_terminal: 'blue', maintenance: 'red', available: 'green', no_route: 'gray',
+}
+const AVAIL_LABEL_KEY: Record<Availability, string> = {
+  on_trip: 'mv.availOnTripLabel', at_terminal: 'mv.availAtTerminalLabel', maintenance: 'mv.availMaintenanceLabel',
+  available: 'mv.availAvailableLabel', no_route: 'mv.availNoRouteLabel',
+}
+
+// Worst status wins: expired > expiring_soon > valid > not set.
+type DocState = 'expired' | 'expiring_soon' | 'valid' | 'not_set'
+function docStateFor(vehicleId: string, docs: VehicleDocRow[]): DocState {
+  const rows = docs.filter((d) => d.vehicle_id === vehicleId)
+  if (rows.some((r) => r.status === 'expired')) return 'expired'
+  if (rows.some((r) => r.status === 'expiring_soon')) return 'expiring_soon'
+  if (rows.length > 0) return 'valid'
+  return 'not_set'
+}
+const DOC_TONE: Record<DocState, 'red' | 'amber' | 'green' | 'gray'> = { expired: 'red', expiring_soon: 'amber', valid: 'green', not_set: 'gray' }
+const DOC_LABEL_KEY: Record<DocState, string> = {
+  expired: 'mv.docStatusExpired', expiring_soon: 'mv.docStatusExpiringSoon', valid: 'mv.docStatusValid', not_set: 'mv.docStatusNotSet',
+}
 
 const emptyBusForm = { category_id: '', model: '', color: '', vehicle_number: '', total_seats: '', has_ac: false, model_year: '', primary_driver_fleet_staff_id: '' }
 
@@ -48,20 +91,29 @@ export default function FleetVehiclesPage() {
   const [showAddBus, setShowAddBus] = useState(false)
   const [busForm, setBusForm] = useState(emptyBusForm)
   const [savingBus, setSavingBus] = useState(false)
+  const [schedule, setSchedule] = useState<ScheduleRow[]>([])
+  const [openMaintenance, setOpenMaintenance] = useState<Set<string>>(new Set())
+  const [docs, setDocs] = useState<VehicleDocRow[]>([])
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
     const f = mine as { fleet_id: string } | null
     setFleetId(f?.fleet_id ?? null)
     if (f) {
-      const [{ data: v }, { data: cats }, { data: drv }] = await Promise.all([
+      const [{ data: v }, { data: cats }, { data: drv }, { data: sched }, { data: maint }, { data: docRows }] = await Promise.all([
         supabase.rpc('my_fleet_vehicles'),
         supabase.from('vehicle_categories').select('id, name').eq('is_active', true).in('name', ['Bus', 'Coaster']),
         supabase.rpc('my_fleet_drivers', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('fleet_vehicle_schedule', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('fleet_maintenance_orders', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('fleet_vehicle_documents', { p_fleet_id: f.fleet_id }),
       ])
       setVehicles((v ?? []) as FleetVehicle[])
       setCategories((cats ?? []) as VehicleCategory[])
       setDrivers((drv ?? []) as FleetDriver[])
+      setSchedule((sched ?? []) as ScheduleRow[])
+      setOpenMaintenance(new Set(((maint ?? []) as MaintenanceOrder[]).filter((m) => m.status !== 'completed').map((m) => m.vehicle_id)))
+      setDocs((docRows ?? []) as VehicleDocRow[])
     }
     setLoading(false)
   }
@@ -117,6 +169,13 @@ export default function FleetVehiclesPage() {
       <p className="font-sans text-[11px] text-[#64748b] -mt-2">{t('mv.addBusHint')}</p>
       <Link href="/portal/fleet/invite" className="font-sans text-[11.5px] font-semibold text-[#166534] -mt-1.5">{t('mv.inviteDriverHeading')} →</Link>
 
+      <div className="grid grid-cols-2 gap-2.5">
+        <FleetStat label={t('mv.statTotalVehiclesLabel')} value={vehicles.length} icon={<Bus size={12} />} />
+        <FleetStat label={t('mv.statAvailableForScheduleLabel')} value={vehicles.filter((v) => availabilityFor(v.id, schedule, openMaintenance) === 'available').length} />
+        <FleetStat label={t('mv.statInMaintenanceLabel')} value={vehicles.filter((v) => openMaintenance.has(v.id)).length} valueClassName="text-[#b45309]" />
+        <FleetStat label={t('mv.statDocsExpiringLabel')} value={vehicles.filter((v) => ['expiring_soon', 'expired'].includes(docStateFor(v.id, docs))).length} valueClassName="text-[#b91c1c]" />
+      </div>
+
       <FleetPanel>
         <FleetPanelHead icon={<Bus size={14} />} title={t('mv.busManagementHeading')} description={t('mv.panelDesc.vehicles')}
           action={<span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{vehicles.length}</span>} />
@@ -133,10 +192,18 @@ export default function FleetVehiclesPage() {
                   name moves to the secondary line. */}
               <div className="flex items-center gap-2.5">
                 <span className="w-8 h-8 rounded-lg bg-[#F0FDF4] text-[#166534] flex items-center justify-center shrink-0"><Bus size={15} /></span>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="font-sans text-[13.5px] font-bold text-[#1e293b] truncate ltr-num">{v.vehicle_number || v.vehicle_type}</p>
-                  <p className="font-sans text-[11.5px] text-[#64748b]">{v.vehicle_type} · {v.owner_name}</p>
+                  <p className="font-sans text-[11.5px] text-[#64748b]">
+                    {v.category_name || v.vehicle_type} · {v.owner_name}
+                    {v.total_seats != null && ` · ${t(v.is_sleeper ? 'mv.berthsSleeperSuffixLabel' : 'mv.seatsSuffixLabel').replace('{n}', String(v.total_seats))}`}
+                    {v.has_ac && <span className="inline-flex items-center gap-0.5 ms-1 text-[#1d4ed8]"><Snowflake size={10} className="inline" /> {t('mv.acBadgeLabel')}</span>}
+                  </p>
                 </div>
+              </div>
+              <div className="flex items-center gap-1.5 mt-2">
+                <FleetStatusPill tone={DOC_TONE[docStateFor(v.id, docs)]}>{t(DOC_LABEL_KEY[docStateFor(v.id, docs)])}</FleetStatusPill>
+                <FleetStatusPill tone={AVAIL_TONE[availabilityFor(v.id, schedule, openMaintenance)]}>{t(AVAIL_LABEL_KEY[availabilityFor(v.id, schedule, openMaintenance)])}</FleetStatusPill>
               </div>
               {drivers.length > 0 && (
                 <select value={drivers.find((d) => d.portal_user_id === v.portal_user_id)?.id ?? ''} onChange={(e) => reassignDriver(v.id, e.target.value)}
