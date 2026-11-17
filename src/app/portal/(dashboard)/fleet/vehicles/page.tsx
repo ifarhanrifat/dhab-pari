@@ -21,9 +21,18 @@ import { VehicleCatalogForm } from '@/components/mobility/VehicleCatalogForm'
 
 interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null; portal_user_id: string }
 interface VehicleCategory { id: string; name: string }
-interface FleetDriver { id: string; portal_user_id: string; full_name: string; routes_assigned_count: number }
+interface FleetDriver { id: string; portal_user_id: string; full_name: string; routes_assigned_count: number; primary_vehicle_number: string | null; primary_route_label: string | null }
 
 const emptyBusForm = { category_id: '', model: '', color: '', vehicle_number: '', total_seats: '', has_ac: false, model_year: '', primary_driver_fleet_staff_id: '' }
+
+// 2026-11-17: real complaint — "how to know which driver is where
+// from this window during selecting driver?" A bare name + a route
+// count gave no indication of which vehicle a driver actually drives
+// or what route it's currently running.
+function driverWhereLabel(d: FleetDriver, t: (k: string) => string): string {
+  if (!d.primary_vehicle_number) return t('mv.noVehicleAssignedHint')
+  return d.primary_route_label ? `${d.primary_vehicle_number} · ${d.primary_route_label}` : `${d.primary_vehicle_number} · ${t('mv.noActiveRouteHint')}`
+}
 
 export default function FleetVehiclesPage() {
   const { t } = useLocale()
@@ -133,7 +142,7 @@ export default function FleetVehiclesPage() {
                 <select value={drivers.find((d) => d.portal_user_id === v.portal_user_id)?.id ?? ''} onChange={(e) => reassignDriver(v.id, e.target.value)}
                   className="mt-2 w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px]">
                   <option value="">{t('mv.noDriverYetOption')}</option>
-                  {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                  {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name} · {driverWhereLabel(d, t)}</option>)}
                 </select>
               )}
               <div className="flex gap-2 mt-2.5">
@@ -196,7 +205,7 @@ export default function FleetVehiclesPage() {
             <FleetFormField label={t('mv.primaryDriverLabel')} full>
               <select value={busForm.primary_driver_fleet_staff_id} onChange={(e) => setBusForm({ ...busForm, primary_driver_fleet_staff_id: e.target.value })} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
                 <option value="">{t('mv.noDriverYetOption')}</option>
-                {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name} · {d.routes_assigned_count} {t('mv.routesAssignedSuffix')}</option>)}
+                {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name} · {driverWhereLabel(d, t)}</option>)}
               </select>
               <p className="font-sans text-[10px] text-[#94a3b8] mt-1">{t('mv.addDriverFirstHint')}</p>
             </FleetFormField>

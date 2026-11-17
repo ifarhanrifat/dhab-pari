@@ -141,7 +141,7 @@ export default function MyVehicleRoutesPage() {
   // own app booking would — no separate inventory to keep in sync.
   const [fleetId, setFleetId] = useState<string | null>(null)
   const [fleetCounters, setFleetCounters] = useState<{ id: string; city: string; name: string | null }[]>([])
-  const [fleetDrivers, setFleetDrivers] = useState<{ id: string; portal_user_id: string; full_name: string; mobile: string; routes_assigned_count: number }[]>([])
+  const [fleetDrivers, setFleetDrivers] = useState<{ id: string; portal_user_id: string; full_name: string; mobile: string; routes_assigned_count: number; primary_vehicle_number: string | null; primary_route_label: string | null }[]>([])
   const [manualBookingRouteId, setManualBookingRouteId] = useState<string | null>(null)
   const [manualCounterId, setManualCounterId] = useState('')
   const [manualPassengerName, setManualPassengerName] = useState('')
@@ -1141,10 +1141,28 @@ export default function MyVehicleRoutesPage() {
                   <div className="mt-2 pt-2 border-t border-[#f1f5f9] flex flex-col gap-1.5">
                     <div className="flex items-center flex-wrap gap-1.5">
                       {!r.is_monthly_fixed && (
-                        <button onClick={() => openManualBooking(r.id)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-bold cursor-pointer bg-[#166534] text-white">
-                          <Plus size={11} /> {t('mv.recordWalkUpBtn')}
-                        </button>
+                        // 2026-11-17: real complaint — this sheet only
+                        // ever had name/mobile/seats/fare/payment, no
+                        // pickup/dropoff stop, no CNIC, no printed
+                        // ticket. fleet/bookings already has all of
+                        // that (stop picker, printed ticket, emergency
+                        // contact, paid-passenger list) — a fleet
+                        // vehicle now goes straight there instead of a
+                        // second, thinner copy of the same action. A
+                        // solo owner-operator (no fleet) has no access
+                        // to that fleet-scoped page, so keeps this
+                        // sheet as their only option.
+                        fleetId ? (
+                          <Link href={`/portal/fleet/bookings?vehicle=${vehicleId}&route=${r.id}`}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-bold cursor-pointer bg-[#166534] text-white">
+                            <Plus size={11} /> {t('mv.recordWalkUpBtn')}
+                          </Link>
+                        ) : (
+                          <button onClick={() => openManualBooking(r.id)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-bold cursor-pointer bg-[#166534] text-white">
+                            <Plus size={11} /> {t('mv.recordWalkUpBtn')}
+                          </button>
+                        )
                       )}
                       <button onClick={() => openLuggageBooking(r.id)}
                         className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-bold cursor-pointer bg-amber-600 text-white">
@@ -1419,18 +1437,17 @@ export default function MyVehicleRoutesPage() {
             </div>
             {editSchedule.is_two_way && (
               <>
-                <FleetFormField label={t('mv.returnWaitMinutesLabel')} full>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {[300, 360, 480].map((mins) => (
-                      <button key={mins} type="button" onClick={() => setEditSchedule({ ...editSchedule, return_wait_minutes: mins })}
-                        className={`px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer ${editSchedule.return_wait_minutes === mins ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
-                        {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
-                      </button>
-                    ))}
-                    <input type="number" min={30} step={30} value={editSchedule.return_wait_minutes} onChange={(e) => setEditSchedule({ ...editSchedule, return_wait_minutes: Number(e.target.value) })}
-                      className="w-24 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" placeholder={t('mv.customMinutesPlaceholder')} />
-                  </div>
-                </FleetFormField>
+                {/* 2026-11-17: real complaint, raised twice now — this
+                    EDIT form already has the actual return-time field
+                    right below, so asking the owner to also maintain a
+                    wait DURATION here is redundant. Removed; editSchedule.
+                    return_wait_minutes itself stays in state (loaded from
+                    the route's current value in openEditSchedule, sent
+                    back unchanged on save) since it still drives the
+                    ride-group layover countdown elsewhere. The create-
+                    route form below (no existing return time to fall
+                    back on yet) keeps its own picker — that's the one
+                    place this control still earns its keep. */}
                 <FleetFormField label={t('cm.returnDepartureTimeLabel')}>
                   <input type="time" value={editSchedule.return_departure_time} onChange={(e) => setEditSchedule({ ...editSchedule, return_departure_time: e.target.value })} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
                 </FleetFormField>
@@ -1507,7 +1524,13 @@ export default function MyVehicleRoutesPage() {
                     <select value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}
                       className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full">
                       <option value="">{t('mv.noCoDriverOption')}</option>
-                      {fleetDrivers.map((d) => <option key={d.id} value={d.mobile}>{d.full_name} · {d.routes_assigned_count} {t('mv.routesAssignedSuffix')}</option>)}
+                      {fleetDrivers.map((d) => (
+                        <option key={d.id} value={d.mobile}>
+                          {d.full_name}
+                          {d.primary_vehicle_number ? ` · ${d.primary_vehicle_number}` : ''}
+                          {d.primary_route_label ? ` · ${d.primary_route_label}` : d.primary_vehicle_number ? ` · ${t('mv.noActiveRouteHint')}` : ` · ${t('mv.noVehicleAssignedHint')}`}
+                        </option>
+                      ))}
                     </select>
                   ) : (
                     <input value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}

@@ -9,6 +9,7 @@
 // no search/reschedule at all, across either booking source.
 
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Ticket, Search, X, Phone, MessageCircle, Printer, UserCheck, Baby, Plus } from 'lucide-react'
 import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels, FleetStatusPill } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
@@ -46,6 +47,12 @@ export default function FleetBookingsPage() {
   const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
+  // 2026-11-17: deep-linked from the Routes page's "Record walk-up" —
+  // a fleet vehicle now lands here with its vehicle/route already
+  // picked, instead of a thinner duplicate booking sheet.
+  const searchParams = useSearchParams()
+  const presetVehicleId = searchParams.get('vehicle')
+  const presetRouteId = searchParams.get('route')
 
   const [loading, setLoading] = useState(true)
   const [fleetId, setFleetId] = useState<string | null>(null)
@@ -102,9 +109,12 @@ export default function FleetBookingsPage() {
           supabase.rpc('my_fleet_vehicles'),
           supabase.rpc('my_fleet_counters', { p_fleet_id: f.fleet_id }),
         ])
-        setVehicles((v ?? []) as FleetVehicle[])
+        const loadedVehicles = (v ?? []) as FleetVehicle[]
+        setVehicles(loadedVehicles)
         setCounters((c ?? []) as Counter[])
-        if ((v ?? []).length > 0) setVehicleId((v as FleetVehicle[])[0].id)
+        const presetOk = presetVehicleId && loadedVehicles.some((lv) => lv.id === presetVehicleId)
+        if (presetOk) setVehicleId(presetVehicleId)
+        else if (loadedVehicles.length > 0) setVehicleId(loadedVehicles[0].id)
       }
       setLoading(false)
     })()
@@ -112,13 +122,15 @@ export default function FleetBookingsPage() {
   }, [user])
 
   const loadRoutesFor = async (vid: string) => {
-    setRouteId(''); setSeating(null)
-    if (!vid) return
+    setSeating(null)
+    if (!vid) { setRoutes([]); setRouteId(''); return }
     const [{ data: r }, { data: v }] = await Promise.all([
       supabase.from('vehicle_routes').select('id, origin, destination, departure_time, fare_per_seat_pkr').eq('vehicle_id', vid).eq('is_active', true),
       supabase.from('vehicles').select('total_seats, is_sleeper, category_id, vehicle_categories(vehicle_kind)').eq('id', vid).single(),
     ])
-    setRoutes((r ?? []) as Route[])
+    const loadedRoutes = (r ?? []) as Route[]
+    setRoutes(loadedRoutes)
+    setRouteId(presetRouteId && loadedRoutes.some((lr) => lr.id === presetRouteId) ? presetRouteId : '')
     const vv = v as { total_seats: number; is_sleeper: boolean; vehicle_categories: { vehicle_kind: string } | null } | null
     setSeating(vv ? { totalSeats: vv.total_seats, isVanKind: vv.vehicle_categories?.vehicle_kind === 'van', isSleeper: vv.is_sleeper } : null)
   }

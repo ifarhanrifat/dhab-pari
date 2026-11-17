@@ -1,9 +1,10 @@
 'use client'
 
 // 860: the fleet owner/staff shell, a direct sibling of my-vehicle's own
-// layout.tsx — same Chrome structure (MobilityHeader + a bottom nav +
-// padded phone-width body), but with FleetBottomNav instead of
-// DriverMobilityNav, and no vehicle-registration/online-toggle concerns
+// layout.tsx — same MobilityHeader + padded phone-width body, but (as of
+// 2026-11-17) navigated only through the header's hamburger drawer
+// (PortalSidebar's fleetChildren), not a second bottom tab bar — see the
+// comment on Chrome below. No vehicle-registration/online-toggle concerns
 // at all (those are driver concepts, not fleet-owner ones). This is the
 // actual fix for "admin is mentioned as a driver" — an owner/staff member
 // lands here, never inside my-vehicle's single-vehicle driver shell,
@@ -18,7 +19,6 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityHeader } from '@/components/mobility/MobilityHeader'
-import { FleetBottomNav } from '@/components/mobility/FleetBottomNav'
 
 function Chrome({ children }: { children: React.ReactNode }) {
   const { isUrdu } = useLocale()
@@ -26,14 +26,19 @@ function Chrome({ children }: { children: React.ReactNode }) {
     <div className="min-h-[calc(100vh-1px)] bg-[#e5e2d0] sm:py-5 -m-4 sm:-m-6 md:-m-10">
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="sm:max-w-[460px] md:max-w-none bg-[#F9F9F6] min-h-[calc(100vh-1px)] sm:min-h-[calc(100vh-40px)] sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,.35)]">
         <MobilityHeader />
-        {/* Real bug reported live: the floating WhatsApp button (fixed,
-            bottom-20 + 56px tall, right-aligned) sits ABOVE the bottom
-            nav, not flush with it — pb-24 only cleared the nav bar, so
-            the last card in a 2-col grid's right column was genuinely
-            hidden behind the WhatsApp bubble. pb-36 clears both. */}
-        <div className="p-3.5 pb-36">{children}</div>
+        {/* 2026-11-17: real complaint, confirmed against the SAFAR
+            mockup directly — it has no bottom tab bar at all, just the
+            one sidebar nav. FleetBottomNav's 5 tabs (Dashboard/
+            Bookings/Expenses/Cash/Reports) were already fully
+            duplicated inside PortalSidebar's fleetChildren list (which
+            also has the other 10 fleet destinations the tab bar never
+            had room for) — reachable from this same header's hamburger
+            button (MobilityHeader's openMobileNav). Removing the
+            second, narrower nav instead of maintaining two competing
+            ones; pb reduced since content no longer needs to clear a
+            bottom nav bar. */}
+        <div className="p-3.5 pb-8">{children}</div>
       </div>
-      <FleetBottomNav />
     </div>
   )
 }

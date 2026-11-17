@@ -162,6 +162,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   const [hasOwnVehicle, setHasOwnVehicle] = useState(false)
   const [hasFleet, setHasFleet] = useState(false)
   const [fleetName, setFleetName] = useState('')
+  const [fleetRoleLabel, setFleetRoleLabel] = useState('')
   const [hasManagedFunds, setHasManagedFunds] = useState(false)
 
   // A shop/vehicle only exists for a portal user once staff links one to
@@ -197,7 +198,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
     Promise.all([
       supabase.from('vehicles').select('id').eq('portal_user_id', user.id).limit(1),
       supabase.from('fleets').select('id').eq('owning_portal_user_id', user.id).limit(1),
-      supabase.from('fleet_staff').select('id').eq('portal_user_id', user.id).limit(1),
+      supabase.from('fleet_staff').select('id, role').eq('portal_user_id', user.id).limit(1),
       // Real gap reported live: a fleet owner/staff who ALSO drives their
       // own vehicle had no direct sidebar link to their fleet at all —
       // only to "My Vehicle" — with the fleet dashboard one extra tap
@@ -211,6 +212,12 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
       setHasFleet(inFleet)
       setHasVehicle(ownsVehicle || inFleet)
       setFleetName((managed.data as { name?: string } | null)?.name ?? '')
+      // 2026-11-17: real complaint — "how to know if i am online by
+      // staff, admin or officer after login?" There was no role
+      // indicator anywhere in the app's own chrome.
+      const isOwner = !!(managed.data as { is_owner?: boolean } | null)?.is_owner
+      const staffRole = (fleetStaff.data?.[0] as { role?: string } | undefined)?.role
+      setFleetRoleLabel(isOwner && (fleetOwner.data?.length ?? 0) > 0 ? 'mv.fleetOwnerRoleLabel' : staffRole ? `mv.role.${staffRole}` : '')
     })
     Promise.all([
       supabase.from('event_salami_accounts').select('id').eq('manager_portal_user_id', user.id).limit(1),
@@ -339,6 +346,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
         <div className="min-w-0">
           <p className="text-white text-[14px] font-sans font-semibold truncate">{user?.full_name ?? t('action.loading')}</p>
           <p className="text-white/60 text-[12px] font-sans">{user?.mobile ?? ''}</p>
+          {fleetRoleLabel && <p className="text-dp2-gold text-[10.5px] font-sans font-bold mt-0.5">{t(fleetRoleLabel)}</p>}
         </div>
       </Link>
       <div className="pt-3">
