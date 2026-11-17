@@ -42,6 +42,7 @@ import {
   BarChart3,
   UserPlus,
   Radio,
+  Wrench,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -137,6 +138,7 @@ const fleetChildren = (fleetName?: string | null): LeafItem[] => [
   { href: '/portal/fleet/bookings', label: 'Bookings', tKey: 'mv.fleetBookingsHeading', icon: Ticket },
   { href: '/portal/fleet/offers', label: 'Offers & Amenities', tKey: 'mv.offersHeading', icon: Sparkles },
   { href: '/portal/fleet/chalan', label: 'Chalan', tKey: 'mv.chalanHeading', icon: ClipboardList },
+  { href: '/portal/fleet/maintenance', label: 'Maintenance & Fuel', tKey: 'mv.maintenanceHeading', icon: Wrench },
   { href: '/portal/fleet/expenses', label: 'Expenses', tKey: 'mv.fleetExpensesHeading', icon: Fuel },
   { href: '/portal/fleet/cash', label: 'Cash & Accounts', tKey: 'mv.fleetCashHeading', icon: Wallet },
   { href: '/portal/fleet/reports', label: 'Reports', tKey: 'mv.fleetPLHeading', icon: BarChart3 },
