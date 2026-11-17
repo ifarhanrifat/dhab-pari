@@ -39,7 +39,7 @@ interface ScheduleCard {
   is_active: boolean; departure_time: string | null; return_departure_time: string | null; return_wait_minutes: number | null
   is_two_way: boolean; days_of_week: number[]; return_days_of_week: number[] | null; runs_today: boolean; state: string
   current_driver_name: string; covered_by_substitute: boolean
-  delay_minutes: number | null; delay_note: string | null
+  delay_minutes: number | null; delay_note: string | null; total_seats: number | null
 }
 interface DepartureStats { bookings_today_count: number; runs_scheduled: number; runs_departed: number }
 interface FleetVehicleSummary {
@@ -110,6 +110,7 @@ export default function FleetDashboardPage() {
   const [stats, setStats] = useState<DepartureStats | null>(null)
   const [docAlerts, setDocAlerts] = useState<DocAlert[]>([])
   const [channels, setChannels] = useState<{ online_pkr: number; terminal_pkr: number; driver_pkr: number; total_pkr: number } | null>(null)
+  const [seatsBookedByRoute, setSeatsBookedByRoute] = useState<Record<string, number>>({})
   const [photoByVehicle, setPhotoByVehicle] = useState<Record<string, string | null>>({})
   const [scheduleDate, setScheduleDate] = useState(today())
   const [filter, setFilter] = useState('all')
@@ -172,6 +173,21 @@ export default function FleetDashboardPage() {
     loadSchedule(fleetId, scheduleDate)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleDate])
+
+  // 2026-11-17: real complaint — "% full" was left off Vehicles
+  // Requiring Attention with no real reason; route_departure_chalan
+  // (891/899) already computes exactly this (total_confirmed_count),
+  // just never called from here. Only ever called for the handful of
+  // routes actually in trouble, not the whole fleet, so it's cheap.
+  useEffect(() => {
+    const troubled = schedule.filter((s) => s.is_active && (s.delay_minutes != null || s.state === 'waiting_at_destination'))
+    if (troubled.length === 0) return
+    Promise.all(troubled.map((s) =>
+      supabase.rpc('route_departure_chalan', { p_route_id: s.route_id, p_travel_date: scheduleDate })
+        .then(({ data }) => [s.route_id, (data as { total_confirmed_count?: number } | null)?.total_confirmed_count ?? 0] as const)
+    )).then((pairs) => setSeatsBookedByRoute(Object.fromEntries(pairs)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schedule, scheduleDate])
 
   const createFleet = async () => {
     if (!newFleetName.trim()) { toast.error(t('mv.fleetNameRequiredError')); return }
@@ -381,25 +397,31 @@ export default function FleetDashboardPage() {
         <FleetPanel tone="danger">
           <FleetPanelHead tone="danger" icon={<ShieldAlert size={14} />} title={t('mv.vehiclesRequiringAttentionHeading')} description={t('mv.panelDesc.attentionWatchlist')}
             action={<span className="px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#b91c1c] font-sans text-[10px] font-bold ltr-num">{attentionVehicles.length}</span>} />
-          {/* 2026-11-17: exact-match pass — was a flat single-line row;
-              the mockup's bus-row is icon box + two-line info column +
-              status-badge meta column. "% full" seat occupancy isn't
-              matched since there's no cheap real source for it fleet-
-              wide without an expensive per-route chalan call per
-              vehicle — left out rather than invented. */}
+          {/* 2026-11-17: was a flat single-line row; the mockup's
+              bus-row is icon box + two-line info column + a meta
+              column with a status badge AND "% full" underneath it.
+              Seat occupancy now real too (route_departure_chalan,
+              fetched just for this handful of routes above). */}
           <div className="divide-y divide-[#f1f5f9]">
-            {attentionVehicles.map((s) => (
-              <div key={s.route_id} className="flex items-center gap-2.5 px-3.5 py-2.5">
-                <span className="w-9 h-9 rounded-xl bg-[#FEF2F2] text-[#b91c1c] flex items-center justify-center shrink-0"><Bus size={16} /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-sans text-[12.5px] font-bold text-[#1e293b] truncate ltr-num">{s.vehicle_number || s.vehicle_type}{s.service_code ? ` · ${s.service_code}` : ''}</p>
-                  <p className="font-sans text-[10.5px] text-[#64748b] truncate">{s.origin} → {s.destination}</p>
+            {attentionVehicles.map((s) => {
+              const booked = seatsBookedByRoute[s.route_id]
+              const pctFull = booked != null && s.total_seats ? Math.round((booked / s.total_seats) * 100) : null
+              return (
+                <div key={s.route_id} className="flex items-center gap-2.5 px-3.5 py-2.5">
+                  <span className="w-9 h-9 rounded-xl bg-[#FEF2F2] text-[#b91c1c] flex items-center justify-center shrink-0"><Bus size={16} /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-sans text-[12.5px] font-bold text-[#1e293b] truncate ltr-num">{s.vehicle_number || s.vehicle_type}{s.service_code ? ` · ${s.service_code}` : ''}</p>
+                    <p className="font-sans text-[10.5px] text-[#64748b] truncate">{s.origin} → {s.destination}</p>
+                  </div>
+                  <div className="shrink-0 flex flex-col items-end gap-0.5">
+                    <span className="px-2 py-0.5 rounded-full font-bold text-[10px] ltr-num bg-[#FEF2F2] text-[#b91c1c]">
+                      {s.delay_minutes != null ? t('mv.delayedRouteAlertLabel').replace('{n}', String(s.delay_minutes)) : t(STATE_STYLE.waiting_at_destination.label)}
+                    </span>
+                    {pctFull != null && <span className="font-sans text-[9.5px] text-[#94a3b8] ltr-num">{t('mv.pctFullLabel').replace('{n}', String(pctFull))}</span>}
+                  </div>
                 </div>
-                <span className="shrink-0 px-2 py-0.5 rounded-full font-bold text-[10px] ltr-num bg-[#FEF2F2] text-[#b91c1c]">
-                  {s.delay_minutes != null ? t('mv.delayedRouteAlertLabel').replace('{n}', String(s.delay_minutes)) : t(STATE_STYLE.waiting_at_destination.label)}
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </FleetPanel>
       )}
