@@ -149,6 +149,38 @@ export default function FleetReportsPage() {
       </div>
       <p className="font-sans text-[11px] text-[#64748b] -mt-1">{t('mv.panelDesc.reports')}</p>
 
+      {/* 2026-11-17: SAFAR's reference shows a "report catalogue" —
+          a grid of named cards you pick from, not just a dropdown.
+          Additive: the select below still works exactly as before,
+          this is just a second, more visual way to set the same
+          `reportType` state. Deliberately only the 6 reports this app
+          can actually back with real data (Trip P&L ≈ pl, Booking
+          channel ≈ bookings, Vehicle expenses, Driver settlement ≈
+          commission+salaries, Terminal cash ≈ remittances) — "Bus
+          utilisation" and "Rental profitability" aren't included since
+          neither distance/occupancy nor rental-revenue breakdown exists
+          anywhere in this app yet; faking those cards would show a
+          report with nothing real behind it. */}
+      <FleetPanel>
+        <FleetPanelHead icon={<BarChart3 size={14} />} title={t('mv.reportCatalogueHeading')} description={t('mv.reportCatalogueDesc')} />
+        <FleetPanelBody className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {([
+            ['pl', t('mv.fleetPLHeading'), t('mv.reportDesc.pl')],
+            ['bookings', t('mv.bookingSummaryHeading'), t('mv.reportDesc.bookings')],
+            ['expenses', t('mv.vehicleExpensesHeading'), t('mv.reportDesc.expenses')],
+            ['commission', t('mv.commissionSettlementsHeading'), t('mv.reportDesc.commission')],
+            ...(isOwner ? [['remittances', t('mv.remittanceHistoryHeading'), t('mv.reportDesc.remittances')] as [ReportType, string, string]] : []),
+            ...(isOwner ? [['salaries', t('mv.staffSalariesHeading'), t('mv.reportDesc.salaries')] as [ReportType, string, string]] : []),
+          ] as [ReportType, string, string][]).map(([key, title, desc]) => (
+            <button key={key} type="button" onClick={() => setReportType(key)}
+              className={`text-start p-2.5 rounded-xl border cursor-pointer transition-colors ${reportType === key ? 'bg-[#F0FDF4] border-[#166534]' : 'bg-white border-[#e5e2d0] hover:bg-[#F9F9F6]'}`}>
+              <p className={`font-sans text-[11.5px] font-bold ${reportType === key ? 'text-[#166534]' : 'text-[#1e293b]'}`}>{title}</p>
+              <p className="font-sans text-[9.5px] text-[#94a3b8] mt-0.5 leading-snug">{desc}</p>
+            </button>
+          ))}
+        </FleetPanelBody>
+      </FleetPanel>
+
       {/* Report selector + date range — same shape as the admin Reports
           hub and the donor statement: pick a report, it appears below. */}
       <FleetPanel>
