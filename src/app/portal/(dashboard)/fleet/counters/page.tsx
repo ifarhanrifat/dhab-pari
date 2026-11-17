@@ -111,48 +111,38 @@ export default function FleetCountersPage() {
         {counters.length === 0 ? (
           <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noCountersYetHint')}</p>
         ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-start border-collapse">
-                <thead>
-                  <tr className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#94a3b8] bg-[#F9F9F6] border-b border-[#f1f5f9]">
-                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.bookingCountersHeading')}</th>
-                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.managedByLabel')}</th>
-                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.cashOfficeCodeLabel')}</th>
-                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.cashInHandLabel')}</th>
-                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap"></th>
-                    <th className="px-3.5 py-1.5 text-end whitespace-nowrap">{t('mv.todayLabel')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {counters.map((c) => (
-                    <tr key={c.id} className="border-t border-[#f1f5f9] align-middle">
-                      <td className="px-3.5 py-2.5 font-sans text-[13px] font-semibold text-[#1e293b] whitespace-nowrap">
-                        {c.city}{c.name ? ` · ${c.name}` : ''}
-                        {c.lat != null && c.lng != null && (
-                          <a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1 font-sans text-[10px] font-semibold text-[#166534] mt-0.5">
-                            <MapPin size={10} /> {t('mv.viewOnMapLink')}
-                          </a>
-                        )}
-                      </td>
-                      <td className="px-3.5 py-2.5 font-sans text-[11px] text-[#64748b] whitespace-nowrap">{c.manager_name || '—'}</td>
-                      <td className="px-3.5 py-2.5 font-sans text-[11px] text-[#64748b] ltr-num whitespace-nowrap">{c.cash_office_code || '—'}</td>
-                      <td className="px-3.5 py-2.5 font-sans text-[11px] text-[#1e293b] ltr-num whitespace-nowrap font-semibold">₨{fmt(c.cash_in_hand_pkr)}</td>
-                      <td className="px-3.5 py-2.5 whitespace-nowrap">
-                        <FleetStatusPill tone={c.cash_in_hand_pkr > 0 ? 'amber' : 'green'}>
-                          {t(c.cash_in_hand_pkr > 0 ? 'mv.counterStatusCashPendingLabel' : 'mv.counterStatusActiveLabel')}
-                        </FleetStatusPill>
-                      </td>
-                      <td className="px-3.5 py-2.5 text-end">
-                        <span className="inline-block px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10.5px] font-bold ltr-num whitespace-nowrap">{c.today_bookings_count} {t('mv.todayLabel')}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+          <div className="flex flex-col divide-y divide-[#f1f5f9]">
+            {/* 2026-11-17: Terminals screen rebuild — this used to be a
+                4-column <table>; adding the real cash-status pill and
+                cash-in-hand amount pushed it to 6 columns, which just
+                squeezed illegibly on a phone width (confirmed live).
+                Switched to the same card-list pattern as Vehicles/
+                Dashboard instead of cramming more into the table. */}
+            {counters.map((c) => (
+              <div key={c.id} className="px-3.5 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-sans text-[13.5px] font-bold text-[#1e293b] truncate">{c.city}{c.name ? ` · ${c.name}` : ''}</p>
+                    <p className="font-sans text-[11px] text-[#64748b] mt-0.5">{t('mv.managedByLabel')}: {c.manager_name || '—'}</p>
+                  </div>
+                  <span className="shrink-0 inline-block px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10.5px] font-bold ltr-num whitespace-nowrap">{c.today_bookings_count} {t('mv.todayLabel')}</span>
+                </div>
+                <div className="flex items-center flex-wrap gap-1.5 mt-2">
+                  <FleetStatusPill tone={c.cash_in_hand_pkr > 0 ? 'amber' : 'green'}>
+                    {t(c.cash_in_hand_pkr > 0 ? 'mv.counterStatusCashPendingLabel' : 'mv.counterStatusActiveLabel')}
+                  </FleetStatusPill>
+                  <span className="font-sans text-[11px] text-[#1e293b] font-semibold ltr-num">{t('mv.cashInHandLabel')}: ₨{fmt(c.cash_in_hand_pkr)}</span>
+                  {c.cash_office_code && <span className="font-sans text-[11px] text-[#64748b] ltr-num">· {t('mv.cashOfficeCodeLabel')}: {c.cash_office_code}</span>}
+                </div>
+                {c.lat != null && c.lng != null && (
+                  <a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 font-sans text-[11px] font-semibold text-[#166534] mt-2">
+                    <MapPin size={11} /> {t('mv.viewOnMapLink')}
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </FleetPanel>
     </div>
