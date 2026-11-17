@@ -141,7 +141,7 @@ export default function MyEquipmentBookingsPage() {
               <button key={v.id} type="button" onClick={() => selectVehicle(v.id)}
                 className="px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer border"
                 style={{ background: selectedVehicleId === v.id ? '#166534' : '#F9F9F6', color: selectedVehicleId === v.id ? '#fff' : '#334155', borderColor: selectedVehicleId === v.id ? '#166534' : '#e5e2d0' }}>
-                {v.owner_name}{v.vehicle_type ? ` · ${v.vehicle_type}` : ''}
+                <span className="ltr-num">{v.vehicle_number || v.vehicle_type || v.owner_name}</span>{v.vehicle_number && v.vehicle_type ? ` · ${v.vehicle_type}` : ''}
               </button>
             ))}
           </div>
