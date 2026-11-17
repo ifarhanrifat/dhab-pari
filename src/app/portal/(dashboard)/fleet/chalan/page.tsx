@@ -35,6 +35,8 @@ interface Chalan {
   run_started_at: string | null; run_ended_at: string | null
   onboard_now: Passenger[]; next_stops: { label: string; passengers: Passenger[] }[]
   total_confirmed_count: number; total_unconfirmed_count: number; cash_collected_pkr: number
+  by_source: { source: 'manual' | 'app'; seats: number }[]
+  by_counter: { counter_id: string | null; counter_name: string | null; city: string | null; seats: number }[]
 }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
@@ -258,6 +260,39 @@ export default function FleetChalanPage() {
               <FleetStat label={t('mv.cashLabel')} icon={<Wallet size={12} />} value={`₨${fmt(chalan.cash_collected_pkr)}`} valueClassName="text-[#1e293b]" />
             </FleetPanelBody>
           </FleetPanel>
+
+          {/* 2026-11-17: real gap confirmed by deep audit — no way to
+              see how many seats came from online bookings vs. a
+              counter vs. the driver's own walk-up sales, or which
+              terminal sold them. Both already computed server-side
+              (899), just never surfaced before. */}
+          {(chalan.by_source.length > 0 || chalan.by_counter.length > 0) && (
+            <FleetPanel>
+              <FleetPanelHead icon={<Users2 size={14} />} title={t('mv.bookingChannelsHeading')} />
+              <FleetPanelBody className="flex flex-col gap-2 p-2.5">
+                {chalan.by_source.length > 0 && (
+                  <div className="flex gap-1.5 flex-wrap">
+                    {chalan.by_source.map((s) => (
+                      <span key={s.source} className="px-2.5 py-1 rounded-lg bg-[#F9F9F6] border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#334155]">
+                        {s.source === 'manual' ? t('mv.sourceManualLabel') : t('mv.sourceOnlineLabel')}: <span className="ltr-num font-bold text-[#166534]">{s.seats}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {chalan.by_counter.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <p className="font-sans text-[9.5px] font-bold text-[#94a3b8] uppercase tracking-[0.06em]">{t('mv.byTerminalLabel')}</p>
+                    {chalan.by_counter.map((c, i) => (
+                      <div key={c.counter_id ?? `walkup-${i}`} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#F9F9F6]">
+                        <span className="font-sans text-[12px] text-[#1e293b]">{c.counter_name ? `${c.counter_name} · ${c.city}` : t('mv.driverWalkUpLabel')}</span>
+                        <span className="font-sans text-[12px] font-bold text-[#166534] ltr-num">{c.seats}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </FleetPanelBody>
+            </FleetPanel>
+          )}
 
           {showMessageForm ? (
             <div className="bg-white border border-[#e5e2d0] rounded-2xl p-3.5 flex flex-col gap-2">
