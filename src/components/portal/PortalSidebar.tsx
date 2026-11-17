@@ -135,6 +135,7 @@ const fleetChildren = (fleetName?: string | null): LeafItem[] => [
   { href: '/portal/fleet/drivers', label: 'Drivers', tKey: 'mv.driverRosterHeading', icon: IdCard },
   { href: '/portal/fleet/staff', label: 'Staff', tKey: 'mv.fleetStaffHeading', icon: Users2 },
   { href: '/portal/fleet/bookings', label: 'Bookings', tKey: 'mv.fleetBookingsHeading', icon: Ticket },
+  { href: '/portal/fleet/offers', label: 'Offers & Amenities', tKey: 'mv.offersHeading', icon: Sparkles },
   { href: '/portal/fleet/chalan', label: 'Chalan', tKey: 'mv.chalanHeading', icon: ClipboardList },
   { href: '/portal/fleet/expenses', label: 'Expenses', tKey: 'mv.fleetExpensesHeading', icon: Fuel },
   { href: '/portal/fleet/cash', label: 'Cash & Accounts', tKey: 'mv.fleetCashHeading', icon: Wallet },
