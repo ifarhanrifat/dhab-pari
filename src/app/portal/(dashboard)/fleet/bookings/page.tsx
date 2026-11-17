@@ -25,6 +25,17 @@ import { StopMapPicker, type PickableStop } from '@/components/mobility/StopMapP
 
 interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }
 interface Route { id: string; origin: string; destination: string; departure_time: string | null; fare_per_seat_pkr: number }
+// 2026-11-17: real gap confirmed by deep audit and the user directly —
+// "what if there will be 100+ buses and hundreds of routes, how would
+// we book the manual ride as per the demand and search of the rider?"
+// A flat two-step vehicle→route dropdown genuinely doesn't scale past
+// a handful of buses. SearchableRoute merges what the old cascading
+// dropdowns needed separately (vehicle_routes + vehicles + seat kind)
+// into one row a destination search can filter directly.
+interface SearchableRoute extends Route {
+  vehicle_id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null; service_code: string | null
+  total_seats: number; is_van_kind: boolean; is_sleeper: boolean
+}
 interface VehicleSeating { totalSeats: number; isVanKind: boolean; isSleeper: boolean }
 interface Counter { id: string; city: string; name: string | null }
 interface FoundBooking {
@@ -60,6 +71,10 @@ export default function FleetBookingsPage() {
   const [vehicleId, setVehicleId] = useState('')
   const [routes, setRoutes] = useState<Route[]>([])
   const [routeId, setRouteId] = useState('')
+  const [pendingRouteId, setPendingRouteId] = useState<string | null>(null)
+  const [allRoutes, setAllRoutes] = useState<SearchableRoute[]>([])
+  const [routeSearchQuery, setRouteSearchQuery] = useState('')
+  const [seatsAvailByRoute, setSeatsAvailByRoute] = useState<Record<string, number>>({})
   const [counters, setCounters] = useState<Counter[]>([])
   const [counterId, setCounterId] = useState('')
   const [passengerName, setPassengerName] = useState('')
@@ -112,9 +127,35 @@ export default function FleetBookingsPage() {
         const loadedVehicles = (v ?? []) as FleetVehicle[]
         setVehicles(loadedVehicles)
         setCounters((c ?? []) as Counter[])
+        // 2026-11-17: no more auto-selecting the first vehicle by
+        // default — a search box doesn't need a starting value the
+        // way the old cascading dropdowns did. Only a real deep-link
+        // (from the Routes page's "Record walk-up") pre-selects.
         const presetOk = presetVehicleId && loadedVehicles.some((lv) => lv.id === presetVehicleId)
-        if (presetOk) setVehicleId(presetVehicleId)
-        else if (loadedVehicles.length > 0) setVehicleId(loadedVehicles[0].id)
+        if (presetOk) { setPendingRouteId(presetRouteId); setVehicleId(presetVehicleId) }
+        // fetch every active route across the whole fleet
+        // once, up front — this is what the search box filters client-
+        // side, instead of only ever knowing one vehicle's routes at a
+        // time. Same two queries loadRoutesFor already used per
+        // vehicle, just across all of them in one shot.
+        const vehicleIds = loadedVehicles.map((lv) => lv.id)
+        if (vehicleIds.length > 0) {
+          const [{ data: r }, { data: vDetails }] = await Promise.all([
+            supabase.from('vehicle_routes').select('id, vehicle_id, origin, destination, departure_time, fare_per_seat_pkr, service_code').in('vehicle_id', vehicleIds).eq('is_active', true),
+            supabase.from('vehicles').select('id, total_seats, is_sleeper, vehicle_categories(vehicle_kind)').in('id', vehicleIds),
+          ])
+          const seatingById = new Map((vDetails ?? []).map((d: unknown) => {
+            const row = d as { id: string; total_seats: number; is_sleeper: boolean; vehicle_categories: { vehicle_kind: string } | null }
+            return [row.id, { total_seats: row.total_seats, is_sleeper: row.is_sleeper, is_van_kind: row.vehicle_categories?.vehicle_kind === 'van' }]
+          }))
+          const vehicleById = new Map(loadedVehicles.map((lv) => [lv.id, lv]))
+          const merged = ((r ?? []) as (Route & { vehicle_id: string; service_code: string | null })[]).map((route): SearchableRoute | null => {
+            const vh = vehicleById.get(route.vehicle_id); const seating2 = seatingById.get(route.vehicle_id)
+            if (!vh || !seating2) return null
+            return { ...route, owner_name: vh.owner_name, vehicle_type: vh.vehicle_type, vehicle_number: vh.vehicle_number, ...seating2 }
+          }).filter((x): x is SearchableRoute => x !== null)
+          setAllRoutes(merged)
+        }
       }
       setLoading(false)
     })()
@@ -130,12 +171,35 @@ export default function FleetBookingsPage() {
     ])
     const loadedRoutes = (r ?? []) as Route[]
     setRoutes(loadedRoutes)
-    setRouteId(presetRouteId && loadedRoutes.some((lr) => lr.id === presetRouteId) ? presetRouteId : '')
+    const wanted = pendingRouteId || presetRouteId
+    setRouteId(wanted && loadedRoutes.some((lr) => lr.id === wanted) ? wanted : '')
+    setPendingRouteId(null)
     const vv = v as { total_seats: number; is_sleeper: boolean; vehicle_categories: { vehicle_kind: string } | null } | null
     setSeating(vv ? { totalSeats: vv.total_seats, isVanKind: vv.vehicle_categories?.vehicle_kind === 'van', isSleeper: vv.is_sleeper } : null)
   }
 
   useEffect(() => { if (vehicleId) loadRoutesFor(vehicleId) }, [vehicleId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectSearchResult = (r: SearchableRoute) => { setPendingRouteId(r.id); setVehicleId(r.vehicle_id) }
+  const changeRoute = () => { setVehicleId(''); setRouteId(''); setRoutes([]) }
+
+  const filteredRoutes = routeSearchQuery.trim()
+    ? allRoutes.filter((r) => `${r.origin} ${r.destination}`.toLowerCase().includes(routeSearchQuery.trim().toLowerCase()))
+    : allRoutes
+
+  // 2026-11-17: only ever computed for whatever's currently filtered
+  // (typically a handful of matches, never the whole fleet) — reuses
+  // route_departure_chalan exactly like the dashboard's Vehicles
+  // Requiring Attention panel does for the same reason.
+  useEffect(() => {
+    if (!routeId && filteredRoutes.length > 0) {
+      Promise.all(filteredRoutes.map((r) =>
+        supabase.rpc('route_departure_chalan', { p_route_id: r.id, p_travel_date: bookTravelDate })
+          .then(({ data }) => [r.id, r.total_seats - ((data as { total_confirmed_count?: number } | null)?.total_confirmed_count ?? 0)] as const)
+      )).then((pairs) => setSeatsAvailByRoute(Object.fromEntries(pairs)))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeSearchQuery, bookTravelDate, allRoutes, routeId])
 
   const loadTakenSeats = async () => {
     if (!routeId || !seating?.isVanKind) { setTakenSeats([]); return }
@@ -307,16 +371,59 @@ export default function FleetBookingsPage() {
       <FleetPanel>
         <FleetPanelHead icon={<Plus size={14} />} title={t('mv.recordBookingBtn')} description={selectedRoute ? `${selectedRoute.origin} → ${selectedRoute.destination}` : undefined} />
         <FleetPanelBody>
-        <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.selectVehicleLabel')}</label>
-        <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5">
-          {vehicles.map((v) => <option key={v.id} value={v.id}>{v.vehicle_number || v.vehicle_type || v.owner_name}{v.vehicle_type && v.vehicle_number ? ` · ${v.vehicle_type}` : ''}</option>)}
-        </select>
-
-        <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.selectRouteLabel')}</label>
-        <select value={routeId} onChange={(e) => setRouteId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5">
-          <option value="">{t('mv.selectRoutePlaceholder')}</option>
-          {routes.map((r) => <option key={r.id} value={r.id}>{r.origin} → {r.destination}{r.departure_time ? ` · ${r.departure_time}` : ''}</option>)}
-        </select>
+        {/* 2026-11-17: real complaint — "what if there's 100+ buses and
+            hundreds of routes, how would we book a manual ride as per
+            the demand and search of the rider?" A flat vehicle→route
+            dropdown pair doesn't scale. Destination search instead,
+            against every active route across the whole fleet
+            (allRoutes, fetched once), with real seat availability per
+            matching result — not a fabricated number. */}
+        {routeId ? (
+          <div className="flex items-center justify-between gap-2 px-3 py-2.5 border border-[#166534] bg-[#F0FDF4] rounded-lg mb-2.5">
+            <div className="min-w-0">
+              <p className="font-sans text-[13px] font-bold text-[#1e293b] truncate">{selectedRoute?.origin} → {selectedRoute?.destination}</p>
+              <p className="font-sans text-[11px] text-[#64748b] truncate ltr-num">
+                {vehicles.find((v) => v.id === vehicleId)?.vehicle_number || vehicles.find((v) => v.id === vehicleId)?.vehicle_type}
+                {selectedRoute?.departure_time ? ` · ${selectedRoute.departure_time}` : ''}
+              </p>
+            </div>
+            <button type="button" onClick={changeRoute} className="shrink-0 font-sans text-[11.5px] font-bold text-[#166534] cursor-pointer">{t('mv.changeRouteLink')}</button>
+          </div>
+        ) : (
+          <>
+            <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.travelDateLabel')}</label>
+            <input type="date" value={bookTravelDate} min={today()} onChange={(e) => setBookTravelDate(e.target.value)}
+              className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2 ltr-num" />
+            <div className="relative mb-2">
+              <Search size={14} className="absolute top-1/2 -translate-y-1/2 start-3 text-[#94a3b8]" />
+              <input value={routeSearchQuery} onChange={(e) => setRouteSearchQuery(e.target.value)} placeholder={t('mv.searchDestinationPlaceholder')}
+                className="w-full ps-9 pe-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+            </div>
+            {filteredRoutes.length === 0 ? (
+              <p className="font-sans text-[12px] text-[#94a3b8] text-center py-4">{t('mv.noMatchingRoutesHint')}</p>
+            ) : (
+              <div className="flex flex-col gap-1.5 mb-2.5 max-h-80 overflow-y-auto">
+                {filteredRoutes.map((r) => {
+                  const avail = seatsAvailByRoute[r.id]
+                  return (
+                    <button key={r.id} type="button" onClick={() => selectSearchResult(r)}
+                      className="flex items-center justify-between gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg cursor-pointer text-start">
+                      <div className="min-w-0">
+                        <p className="font-sans text-[12.5px] font-bold text-[#1e293b] truncate">{r.origin} → {r.destination}</p>
+                        <p className="font-sans text-[10.5px] text-[#64748b] truncate ltr-num">
+                          {r.vehicle_number || r.vehicle_type}{r.departure_time ? ` · ${r.departure_time}` : ''} · ₨{fmt(r.fare_per_seat_pkr)}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 font-sans text-[10.5px] font-bold ltr-num ${avail != null && avail <= 0 ? 'text-[#b91c1c]' : 'text-[#166534]'}`}>
+                        {avail != null ? (avail > 0 ? t('mv.seatsAvailLabel').replace('{n}', String(avail)) : t('mp.fullyBookedError')) : ''}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
 
         {routeId && (
           <>
