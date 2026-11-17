@@ -33,7 +33,7 @@ import { DriverShuffleFloatingButton } from '@/components/mobility/DriverShuffle
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; commission_mode: string
   delivers: boolean; offers_hourly: boolean; offers_shadi: boolean; is_online: boolean
-  offers_equipment: boolean; offers_rental: boolean
+  offers_equipment: boolean; offers_rental: boolean; fleet_id: string | null
 }
 
 function Chrome({ children }: { children: React.ReactNode }) {
@@ -90,7 +90,7 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
   const [loading, setLoading] = useState(true)
   const [regStatus, setRegStatus] = useState<{ status: string; rejection_reason: string | null } | null>(null)
 
-  const VEHICLE_FIELDS = 'id, owner_name, vehicle_type, commission_mode, delivers, offers_hourly, offers_shadi, offers_rental, is_online, offers_machinery, offers_tractor, offers_loader'
+  const VEHICLE_FIELDS = 'id, owner_name, vehicle_type, commission_mode, delivers, offers_hourly, offers_shadi, offers_rental, is_online, offers_machinery, offers_tractor, offers_loader, fleet_id'
   useEffect(() => {
     if (!user) return
     if (catalogByIdVehicleId) { setLoading(false); return }
@@ -115,6 +115,20 @@ export default function MyVehicleLayout({ children }: { children: React.ReactNod
           return
         }
         supabase.rpc('my_vehicle_registration_status').then(({ data: rs }) => setRegStatus(rs ?? null))
+      } else if (own.fleet_id) {
+        // 893: a fleet's employee-driver no longer has any admin rights
+        // on these owner-oriented pages (route create/edit/close,
+        // catalog, documents all now correctly reject them server-
+        // side) — so they don't belong on this chrome at all, only the
+        // fleet owner who happens to also personally drive their own
+        // fleet vehicle does. my_managed_fleet's is_owner distinguishes
+        // the two exactly.
+        const { data: managed } = await supabase.rpc('my_managed_fleet')
+        const isOwner = !!(managed as { is_owner: boolean } | null)?.is_owner
+        if (!isOwner) {
+          router.replace('/portal/drive')
+          return
+        }
       }
       // Shown behind one combined flag — the 3 equipment verticals share
       // a single driver-side screen (my-vehicle/equipment), not a tab

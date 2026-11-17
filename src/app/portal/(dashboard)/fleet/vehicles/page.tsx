@@ -19,9 +19,9 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { VehicleCatalogForm } from '@/components/mobility/VehicleCatalogForm'
 
-interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }
+interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null; portal_user_id: string }
 interface VehicleCategory { id: string; name: string }
-interface FleetDriver { id: string; full_name: string; routes_assigned_count: number }
+interface FleetDriver { id: string; portal_user_id: string; full_name: string; routes_assigned_count: number }
 
 const emptyBusForm = { category_id: '', model: '', color: '', vehicle_number: '', total_seats: '', has_ac: false, model_year: '', primary_driver_fleet_staff_id: '' }
 
@@ -82,6 +82,18 @@ export default function FleetVehiclesPage() {
     load()
   }
 
+  // 893: the actual fix for "there is no way staff can add the driver
+  // for a route" — a vehicle's driver was previously fixed forever to
+  // whoever happened to self-register it. Now a real, repeatable
+  // reassignment, owner/non-driver-staff only (can_administer_vehicle).
+  const reassignDriver = async (vehicleId: string, fleetStaffId: string) => {
+    if (!fleetStaffId) return
+    const { error } = await supabase.rpc('set_vehicle_primary_driver', { p_vehicle_id: vehicleId, p_fleet_staff_id: fleetStaffId })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.driverReassignedToast'))
+    load()
+  }
+
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!fleetId) return <p className="font-sans text-[13px] text-[#64748b] text-center py-12">{t('mv.noFleetYetHint')}</p>
 
@@ -117,6 +129,13 @@ export default function FleetVehiclesPage() {
                   <p className="font-sans text-[11.5px] text-[#64748b]">{v.vehicle_type} · {v.owner_name}</p>
                 </div>
               </div>
+              {drivers.length > 0 && (
+                <select value={drivers.find((d) => d.portal_user_id === v.portal_user_id)?.id ?? ''} onChange={(e) => reassignDriver(v.id, e.target.value)}
+                  className="mt-2 w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px]">
+                  <option value="">{t('mv.noDriverYetOption')}</option>
+                  {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                </select>
+              )}
               <div className="flex gap-2 mt-2.5">
                 {/* Real bug reported live: this used to navigate clean out
                     of the Fleet shell into my-vehicle's own layout — a
