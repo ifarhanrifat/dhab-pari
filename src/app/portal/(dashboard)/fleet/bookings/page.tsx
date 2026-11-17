@@ -22,6 +22,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { SeatPickerField } from '@/components/mobility/SeatPickerField'
 import { ManualTicketDocument, type ManualTicketData } from '@/components/mobility/ManualTicketDocument'
 import { StopMapPicker, type PickableStop } from '@/components/mobility/StopMapPicker'
+import { PickupPinMapPicker } from '@/components/mobility/PickupPinMapPicker'
 
 interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }
 interface Route { id: string; origin: string; destination: string; departure_time: string | null; fare_per_seat_pkr: number }
@@ -107,6 +108,20 @@ export default function FleetBookingsPage() {
   const [seating, setSeating] = useState<VehicleSeating | null>(null)
   const [takenSeats, setTakenSeats] = useState<number[]>([])
   const [selectedSeats, setSelectedSeats] = useState<number[]>([])
+  // 2026-11-17: booking wizard rebuild Phase B — map-pickup pin (free
+  // GPS point, not just a listed stop) and a Return leg booked in the
+  // same flow, linked back to the outbound booking as two real rows.
+  const [pickupMode, setPickupMode] = useState<'stop' | 'map'>('stop')
+  const [pickupLat, setPickupLat] = useState<number | null>(null)
+  const [pickupLng, setPickupLng] = useState<number | null>(null)
+  const [pickupPoint, setPickupPoint] = useState('')
+  const [showPickupPicker, setShowPickupPicker] = useState(false)
+  const [isReturn, setIsReturn] = useState(false)
+  const [returnRouteId, setReturnRouteId] = useState('')
+  const [returnDate, setReturnDate] = useState('')
+  const [returnTakenSeats, setReturnTakenSeats] = useState<number[]>([])
+  const [returnSelectedSeats, setReturnSelectedSeats] = useState<number[]>([])
+  const returnRoute = allRoutes.find((r) => r.id === returnRouteId)
 
   // "Find a booking" — unified across both sources (855's counter sales
   // + rider self-bookings), defaults to today so it doubles as "all of
@@ -228,6 +243,17 @@ export default function FleetBookingsPage() {
     if (routeId) loadTakenSeats()
   }, [routeId, bookTravelDate, seating?.isVanKind]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const loadReturnTakenSeats = async () => {
+    if (!returnRouteId || !returnDate || !returnRoute?.is_van_kind) { setReturnTakenSeats([]); return }
+    const { data } = await supabase.rpc('route_seat_status', { p_route_id: returnRouteId, p_travel_date: returnDate, p_direction: 'outbound' })
+    setReturnTakenSeats((data as number[]) ?? [])
+  }
+  useEffect(() => {
+    setReturnSelectedSeats([])
+    if (returnRouteId && returnDate) loadReturnTakenSeats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnRouteId, returnDate, returnRoute?.is_van_kind])
+
   useEffect(() => {
     setBoardStopId(null)
     if (!routeId) { setRouteStops([]); return }
@@ -280,6 +306,11 @@ export default function FleetBookingsPage() {
   const recordBooking = async () => {
     if (!routeId || !passengerName.trim() || !amount) { toast.error(t('mv.fillManualBookingError')); return }
     if (seating?.isVanKind && selectedSeats.length !== seats) { toast.error(t('mv.pickASeatError')); return }
+    if (pickupMode === 'map' && (pickupLat == null || pickupLng == null)) { toast.error(t('mv.pickPickupPinError')); return }
+    if (isReturn) {
+      if (!returnRouteId || !returnDate) { toast.error(t('mv.fillReturnJourneyError')); return }
+      if (returnRoute?.is_van_kind && returnSelectedSeats.length !== seats) { toast.error(t('mv.pickReturnSeatError')); return }
+    }
     setRecording(true)
     const passengers = showPassengers
       ? [
@@ -293,11 +324,31 @@ export default function FleetBookingsPage() {
       p_counter_id: counterId || null, p_passenger_mobile: passengerMobile || null, p_payment_method: method,
       p_seat_numbers: seating?.isVanKind ? selectedSeats : null,
       p_emergency_contact_phone: emergencyPhone || null, p_passengers: passengers,
-      p_board_stop_id: boardStopId,
+      p_board_stop_id: pickupMode === 'stop' ? boardStopId : null,
+      p_pickup_lat: pickupMode === 'map' ? pickupLat : null, p_pickup_lng: pickupMode === 'map' ? pickupLng : null,
+      p_pickup_point: pickupMode === 'map' ? (pickupPoint || null) : null,
     })
+    if (error) { setRecording(false); toast.error(friendlyError(error)); return }
+    const outboundId = (data as { id?: string } | null)?.id
+    const pendingApproval = (data as { pickup_approval_status?: string } | null)?.pickup_approval_status === 'pending'
+
+    // 2026-11-17: booking wizard rebuild Phase B — a Return leg is a
+    // second, independent record_manual_booking call linked back via
+    // p_return_leg_of, not a combined-transaction RPC. Same passenger/
+    // amount/method as the outbound leg, its own seats.
+    if (isReturn && returnRouteId && outboundId) {
+      const { error: returnError } = await supabase.rpc('record_manual_booking', {
+        p_route_id: returnRouteId, p_travel_date: returnDate, p_seats: seats,
+        p_passenger_name: passengerName, p_total_amount_pkr: Number(amount),
+        p_counter_id: counterId || null, p_passenger_mobile: passengerMobile || null, p_payment_method: method,
+        p_seat_numbers: returnRoute?.is_van_kind ? returnSelectedSeats : null,
+        p_emergency_contact_phone: emergencyPhone || null, p_passengers: passengers,
+        p_return_leg_of: outboundId,
+      })
+      if (returnError) { setRecording(false); toast.error(friendlyError(returnError)); return }
+    }
     setRecording(false)
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('mv.manualBookingRecordedToast'))
+    toast.success(pendingApproval ? t('mv.manualBookingPendingApprovalToast') : t('mv.manualBookingRecordedToast'))
     const ticketNo = (data as { ticket_no?: string } | null)?.ticket_no
     const vehicle = vehicles.find((v) => v.id === vehicleId)
     const boardStop = boardStopId ? routeStops.find((s) => s.id === boardStopId) : null
@@ -307,12 +358,13 @@ export default function FleetBookingsPage() {
         origin: selectedRoute.origin, destination: selectedRoute.destination, travelDate: bookTravelDate,
         departureTime: selectedRoute.departure_time, seats, seatNumbers: seating?.isVanKind ? selectedSeats : null,
         amountPkr: Number(amount), ownerName: vehicle.owner_name, vehicleNumber: vehicle.vehicle_number, serviceCode: null,
-        boardStopLabel: boardStop?.label ?? null, paymentMethod: method,
+        boardStopLabel: pickupMode === 'map' ? (pickupPoint || t('mv.pickupPinLabel')) : (boardStop?.label ?? null), paymentMethod: method,
       })
     }
     setPassengerName(''); setPassengerMobile(''); setSeats(1); setAmount(''); setSelectedSeats([])
     setEmergencyPhone(''); setPaidPassengers([{ full_name: '', gender: '', type: 'adult' }]); setFreeChildren([]); setShowPassengers(false)
-    setBoardStopId(null)
+    setBoardStopId(null); setPickupMode('stop'); setPickupLat(null); setPickupLng(null); setPickupPoint('')
+    setIsReturn(false); setReturnRouteId(''); setReturnDate(''); setReturnSelectedSeats([])
     loadTakenSeats()
     if (bookTravelDate === searchDate) runSearch()
   }
@@ -477,11 +529,72 @@ export default function FleetBookingsPage() {
               </select>
             )}
             {routeStops.length > 0 && selectedRoute && (
-              <button type="button" onClick={() => setShowStopPicker(true)}
-                className="w-full flex items-center justify-between px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2 cursor-pointer">
-                <span className="text-[#64748b]">{t('mv.boardingStopLabel')}</span>
-                <span className="font-semibold text-[#166534]">{boardStopId ? routeStops.find((s) => s.id === boardStopId)?.label : selectedRoute.origin}</span>
+              <>
+                <div className="flex gap-1.5 mb-2">
+                  <button type="button" onClick={() => setPickupMode('stop')}
+                    className={`flex-1 px-2.5 py-1.5 rounded-lg font-sans text-[11.5px] font-semibold cursor-pointer ${pickupMode === 'stop' ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>
+                    {t('mv.pickupModeStopOption')}
+                  </button>
+                  <button type="button" onClick={() => setPickupMode('map')}
+                    className={`flex-1 px-2.5 py-1.5 rounded-lg font-sans text-[11.5px] font-semibold cursor-pointer ${pickupMode === 'map' ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>
+                    {t('mv.pickupModeMapOption')}
+                  </button>
+                </div>
+                {pickupMode === 'stop' ? (
+                  <button type="button" onClick={() => setShowStopPicker(true)}
+                    className="w-full flex items-center justify-between px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2 cursor-pointer">
+                    <span className="text-[#64748b]">{t('mv.boardingStopLabel')}</span>
+                    <span className="font-semibold text-[#166534]">{boardStopId ? routeStops.find((s) => s.id === boardStopId)?.label : selectedRoute.origin}</span>
+                  </button>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => setShowPickupPicker(true)}
+                      className="w-full flex items-center justify-between px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2 cursor-pointer">
+                      <span className="text-[#64748b]">{t('mv.choosePickupPinLabel')}</span>
+                      <span className="font-semibold text-[#166534] ltr-num">{pickupLat != null ? `${pickupLat.toFixed(4)}, ${pickupLng!.toFixed(4)}` : '—'}</span>
+                    </button>
+                    {pickupLat != null && (
+                      <>
+                        <input value={pickupPoint} onChange={(e) => setPickupPoint(e.target.value)} placeholder={t('mv.pickupPointNotePlaceholder')}
+                          className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2" />
+                        <p className="font-sans text-[10.5px] text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5 mb-2">{t('mv.pickupApprovalNeededHint')}</p>
+                      </>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+            <div className="flex gap-1.5 mb-2">
+              <button type="button" onClick={() => setIsReturn(false)}
+                className={`flex-1 px-2.5 py-1.5 rounded-lg font-sans text-[11.5px] font-semibold cursor-pointer ${!isReturn ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>
+                {t('mv.oneWayOption')}
               </button>
+              <button type="button" onClick={() => { setIsReturn(true); if (!returnDate) setReturnDate(bookTravelDate) }}
+                className={`flex-1 px-2.5 py-1.5 rounded-lg font-sans text-[11.5px] font-semibold cursor-pointer ${isReturn ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>
+                {t('mv.returnOption')}
+              </button>
+            </div>
+            {isReturn && (
+              <div className="bg-[#f8f6ee] rounded-lg p-2.5 mb-2.5 flex flex-col gap-2">
+                <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b]">{t('mv.returnJourneyHeading')}</p>
+                <label className="block font-sans text-[11px] font-bold text-[#64748b] -mb-1">{t('mv.returnDateLabel')}</label>
+                <input type="date" value={returnDate} min={bookTravelDate} onChange={(e) => setReturnDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                <label className="block font-sans text-[11px] font-bold text-[#64748b] -mb-1">{t('mv.returnRouteLabel')}</label>
+                <select value={returnRouteId} onChange={(e) => setReturnRouteId(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                  <option value="">—</option>
+                  {allRoutes.map((r) => (
+                    <option key={r.id} value={r.id}>{r.origin} → {r.destination} · {r.vehicle_number || r.vehicle_type}{r.departure_time ? ` · ${r.departure_time}` : ''}</option>
+                  ))}
+                </select>
+                {returnRoute?.is_van_kind && (
+                  <>
+                    <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b]">{t('mv.returnSeatsHeading')}</p>
+                    <SeatPickerField totalSeats={returnRoute.total_seats} takenSeatNumbers={returnTakenSeats} seatsNeeded={seats} selected={returnSelectedSeats} onChange={setReturnSelectedSeats} isSleeper={returnRoute.is_sleeper} />
+                  </>
+                )}
+              </div>
             )}
             <div className="flex gap-2 mb-2">
               <input value={passengerName} onChange={(e) => setPassengerName(e.target.value)} placeholder={t('mv.passengerNamePlaceholder')}
@@ -558,6 +671,7 @@ export default function FleetBookingsPage() {
             </div>
             {seating?.isVanKind && (
               <div className="mb-2.5">
+                {isReturn && <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-1">{t('mv.outboundSeatsHeading')}</p>}
                 <SeatPickerField totalSeats={seating.totalSeats} takenSeatNumbers={takenSeats} seatsNeeded={seats} selected={selectedSeats} onChange={setSelectedSeats} isSleeper={seating.isSleeper} />
               </div>
             )}
@@ -654,6 +768,10 @@ export default function FleetBookingsPage() {
 
       {showStopPicker && selectedRoute && (
         <StopMapPicker stops={routeStops} value={boardStopId} onChange={setBoardStopId} originLabel={selectedRoute.origin} onClose={() => setShowStopPicker(false)} />
+      )}
+
+      {showPickupPicker && (
+        <PickupPinMapPicker stops={routeStops} lat={pickupLat} lng={pickupLng} onChange={(la, ln) => { setPickupLat(la); setPickupLng(ln) }} onClose={() => setShowPickupPicker(false)} />
       )}
 
       {printedTicket && (
