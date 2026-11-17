@@ -21,7 +21,7 @@
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, CheckCircle2, Plus, Pencil, Trash2, RotateCcw, IdCard, ShieldAlert, Clock } from 'lucide-react'
+import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, Plus, Pencil, Trash2, RotateCcw, IdCard, ShieldAlert, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -300,6 +300,15 @@ export default function FleetDashboardPage() {
     ...schedule.filter((s) => s.is_active && s.delay_minutes != null),
     ...waitingVehicles.filter((s) => s.delay_minutes == null),
   ]
+  // 2026-11-17: exact-match pass — the stat row was showing profit
+  // tiles the mockup's dashboard never has in this row at all (that's
+  // Reports' job there); its real 4 are active-buses-on-road,
+  // bookings, gross collections, open issues. Every value here is
+  // something already fetched, just recombined correctly.
+  const onRoadCount = schedule.filter((s) => s.state === 'outbound_in_progress' || s.state === 'return_in_progress').length
+  const totalFleetCount = schedule.length
+  const openIssuesCount = docAlerts.length + attentionVehicles.length
+  const fmtShort = (n: number) => n >= 1000000 ? `₨${(n / 1000000).toFixed(2)}M` : `₨${fmt(n)}`
 
   return (
     <div className="flex flex-col gap-3">
@@ -323,31 +332,33 @@ export default function FleetDashboardPage() {
         </div>
       </div>
 
-      {/* 2026-11-16: unified into one SAFAR-style stat grid (icon chip,
-          uppercase label, big bold value, muted footnote, same shell
-          for every tile) — previously two visually different rows
-          (plain white cards here, green cards for P&L below) for data
-          that's conceptually the same "today's operational position"
-          SAFAR's own dashboard groups into one 4-card row. Pure visual
-          pass: still fleet_departure_stats/fleet P&L, no new RPCs. */}
+      {/* 2026-11-17: exact-match pass — the mockup's real 4 dashboard
+          stats are active-buses-on-road, today's bookings, today's
+          gross collections, open operational issues; profit never
+          appears in this row at all (that's Reports' job). Kept the
+          already-built FleetStat shell (icon chip, uppercase label,
+          big value, muted footnote), just the right 4 metrics now. */}
       {stats && (
         <div className="grid grid-cols-2 gap-2">
-          <FleetStat label={t('mv.statBookingsTodayLabel')} icon={<Ticket size={12} />} value={stats.bookings_today_count} />
-          {/* 2026-11-17: design-first pass from the SAFAR mockup's "Active
-              buses on road" stat — its on-time/delayed/stopped footnote
-              is real, useful context a bare X/Y count didn't have.
-              dhab-pari has no "stopped/broken down" concept, so that
-              part is left out rather than invented; delayed count is
-              real (900's delay_minutes, already in `schedule`). */}
-          <FleetStat label={t('mv.statDeparturesLabel')} icon={<CheckCircle2 size={12} />}
-            value={<>{stats.runs_departed}<span className="text-[13px] font-semibold text-[#94a3b8]">/{stats.runs_scheduled}</span></>}
+          <FleetStat label={t('mv.statActiveBusesLabel')} icon={<Bus size={12} />}
+            value={<>{onRoadCount}<span className="text-[13px] font-semibold text-[#94a3b8]">/{totalFleetCount} {t('mv.fleetSuffix')}</span></>}
             foot={delayedCount > 0 ? t('mv.delayedCountFoot').replace('{n}', String(delayedCount)) : t('mv.allOnTimeFoot')} />
-          {pl && pl.vehicles.length > 0 && (
-            <>
-              <FleetStat label={t('mv.todayProfitLabel')} icon="₨" value={`₨${fmt(pl.fleet_today_profit_pkr)}`} />
-              <FleetStat label={t('mv.monthProfitLabel')} icon="₨" value={`₨${fmt(pl.fleet_month_profit_pkr)}`} />
-            </>
-          )}
+          <FleetStat label={t('mv.statBookingsTodayLabel')} icon={<Ticket size={12} />} value={stats.bookings_today_count} />
+          <FleetStat label={t('mv.statGrossCollectionsLabel')} icon="₨" value={channels ? fmtShort(channels.total_pkr) : '₨0'}
+            foot={channels && channels.total_pkr > 0 ? `${t('mv.channelOnlineLabel')} ${fmtShort(channels.online_pkr)} · ${t('mv.channelTerminalLabel')} ${fmtShort(channels.terminal_pkr)} · ${t('mv.channelDriverLabel')} ${fmtShort(channels.driver_pkr)}` : undefined} />
+          <FleetStat label={t('mv.statOpenIssuesLabel')} icon={<ShieldAlert size={12} />} value={String(openIssuesCount).padStart(2, '0')}
+            valueClassName={openIssuesCount > 0 ? 'text-[#b91c1c]' : 'text-[#166534]'}
+            foot={openIssuesCount > 0 ? t('mv.needAttentionFoot').replace('{n}', String(attentionVehicles.length)) : undefined} />
+        </div>
+      )}
+
+      {/* Profit kept, just demoted from the primary 4-stat row to its
+          own secondary line — still real data (fleet_dashboard_
+          summary, unchanged), just not where the mockup puts it. */}
+      {pl && pl.vehicles.length > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          <FleetStat label={t('mv.todayProfitLabel')} icon="₨" value={`₨${fmt(pl.fleet_today_profit_pkr)}`} />
+          <FleetStat label={t('mv.monthProfitLabel')} icon="₨" value={`₨${fmt(pl.fleet_month_profit_pkr)}`} />
         </div>
       )}
 
@@ -370,12 +381,20 @@ export default function FleetDashboardPage() {
         <FleetPanel tone="danger">
           <FleetPanelHead tone="danger" icon={<ShieldAlert size={14} />} title={t('mv.vehiclesRequiringAttentionHeading')} description={t('mv.panelDesc.attentionWatchlist')}
             action={<span className="px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#b91c1c] font-sans text-[10px] font-bold ltr-num">{attentionVehicles.length}</span>} />
+          {/* 2026-11-17: exact-match pass — was a flat single-line row;
+              the mockup's bus-row is icon box + two-line info column +
+              status-badge meta column. "% full" seat occupancy isn't
+              matched since there's no cheap real source for it fleet-
+              wide without an expensive per-route chalan call per
+              vehicle — left out rather than invented. */}
           <div className="divide-y divide-[#f1f5f9]">
             {attentionVehicles.map((s) => (
-              <div key={s.route_id} className="flex items-center justify-between gap-2 px-3.5 py-2 text-[12px] font-sans">
-                <span className="text-[#1e293b] font-semibold truncate min-w-0 flex items-center gap-1.5">
-                  <Bus size={12} className="shrink-0 text-[#b91c1c]" /> {s.vehicle_number || s.vehicle_type} · {s.origin} → {s.destination}
-                </span>
+              <div key={s.route_id} className="flex items-center gap-2.5 px-3.5 py-2.5">
+                <span className="w-9 h-9 rounded-xl bg-[#FEF2F2] text-[#b91c1c] flex items-center justify-center shrink-0"><Bus size={16} /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-sans text-[12.5px] font-bold text-[#1e293b] truncate ltr-num">{s.vehicle_number || s.vehicle_type}{s.service_code ? ` · ${s.service_code}` : ''}</p>
+                  <p className="font-sans text-[10.5px] text-[#64748b] truncate">{s.origin} → {s.destination}</p>
+                </div>
                 <span className="shrink-0 px-2 py-0.5 rounded-full font-bold text-[10px] ltr-num bg-[#FEF2F2] text-[#b91c1c]">
                   {s.delay_minutes != null ? t('mv.delayedRouteAlertLabel').replace('{n}', String(s.delay_minutes)) : t(STATE_STYLE.waiting_at_destination.label)}
                 </span>
@@ -412,7 +431,8 @@ export default function FleetDashboardPage() {
 
       {schedule.filter((s) => s.is_active && s.departure_time).length > 0 && (
         <FleetPanel>
-          <FleetPanelHead icon={<Clock size={14} />} title={t('mv.scheduleBoardHeading')} description={t('mv.panelDesc.scheduleBoard')} />
+          <FleetPanelHead icon={<Clock size={14} />} title={t('mv.scheduleBoardHeading')} description={t('mv.panelDesc.scheduleBoard')}
+            action={<Link href="/portal/my-vehicle/routes" className="shrink-0 px-2.5 py-1 rounded-lg border border-[#e5e2d0] font-sans text-[10.5px] font-bold text-[#334155]">{t('mv.openLink')}</Link>} />
           <div className="divide-y divide-dashed divide-[#f1f5f9]">
             {schedule.filter((s) => s.is_active && s.departure_time).sort((a, b) => (a.departure_time ?? '').localeCompare(b.departure_time ?? '')).slice(0, 5).map((s) => (
               <div key={s.route_id} className="flex items-center justify-between gap-2 px-3.5 py-2 font-sans text-[11.5px] text-[#64748b]">
@@ -434,10 +454,17 @@ export default function FleetDashboardPage() {
         <FleetPanel tone="danger">
           <FleetPanelHead tone="danger" icon={<ShieldAlert size={14} />} title={t('mv.actionCentreHeading')} description={t('mv.panelDesc.docAlerts')}
             action={<span className="px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#b91c1c] font-sans text-[10px] font-bold ltr-num">{docAlerts.length}</span>} />
+          {/* 2026-11-17: exact-match pass — mockup's alert-item is an
+              icon box + bold title + muted description underneath, not
+              a flat label:badge row. */}
           <div className="divide-y divide-[#f1f5f9]">
             {docAlerts.map((a, i) => (
-              <div key={i} className="flex items-center justify-between gap-2 px-3.5 py-2 text-[12px] font-sans">
-                <span className="text-[#1e293b] font-semibold truncate min-w-0">{a.owner_name}{a.vehicle_number ? ` · ${a.vehicle_number}` : ''} · {t(`mv.docType.${a.document_type}`)}</span>
+              <div key={i} className="flex items-center gap-2.5 px-3.5 py-2.5">
+                <span className="w-7 h-7 rounded-lg bg-[#FFFBEB] text-[#b45309] flex items-center justify-center shrink-0 font-bold text-[13px]">!</span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-sans text-[12px] font-bold text-[#1e293b] truncate">{t(`mv.docType.${a.document_type}`)}</p>
+                  <p className="font-sans text-[10.5px] text-[#64748b] truncate">{a.owner_name}{a.vehicle_number ? ` · ${a.vehicle_number}` : ''}</p>
+                </div>
                 <span className={`shrink-0 px-2 py-0.5 rounded-full font-bold text-[10px] ltr-num ${a.status === 'expired' ? 'bg-[#FEF2F2] text-[#b91c1c]' : 'bg-[#FFFBEB] text-[#b45309]'}`}>
                   {a.status === 'expired' ? t('mv.expiredDaysAgoLabel').replace('{n}', String(Math.abs(a.days_remaining))) : t('mv.expiresInDaysLabel').replace('{n}', String(a.days_remaining))}
                 </span>
@@ -446,7 +473,6 @@ export default function FleetDashboardPage() {
           </div>
         </FleetPanel>
       )}
-
 
       {/* 867: date picker (view any day, not just today), status filter
           chips, and List/Map toggle — real reference shared live
