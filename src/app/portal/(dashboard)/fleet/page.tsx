@@ -21,7 +21,7 @@
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, CheckCircle2, Plus, Pencil, Trash2, RotateCcw, IdCard, ShieldAlert } from 'lucide-react'
+import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, CheckCircle2, Plus, Pencil, Trash2, RotateCcw, IdCard, ShieldAlert, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -282,6 +282,7 @@ export default function FleetDashboardPage() {
   const filtered = filter === 'all' ? schedule
     : filter === 'closed' ? schedule.filter((s) => !s.is_active)
     : schedule.filter((s) => s.is_active && filterDef?.states?.includes(s.state))
+  const delayedCount = schedule.filter((s) => s.is_active && s.delay_minutes != null).length
 
   return (
     <div className="flex flex-col gap-3">
@@ -297,8 +298,15 @@ export default function FleetDashboardPage() {
       {stats && (
         <div className="grid grid-cols-2 gap-2">
           <FleetStat label={t('mv.statBookingsTodayLabel')} icon={<Ticket size={12} />} value={stats.bookings_today_count} />
+          {/* 2026-11-17: design-first pass from the SAFAR mockup's "Active
+              buses on road" stat — its on-time/delayed/stopped footnote
+              is real, useful context a bare X/Y count didn't have.
+              dhab-pari has no "stopped/broken down" concept, so that
+              part is left out rather than invented; delayed count is
+              real (900's delay_minutes, already in `schedule`). */}
           <FleetStat label={t('mv.statDeparturesLabel')} icon={<CheckCircle2 size={12} />}
-            value={<>{stats.runs_departed}<span className="text-[13px] font-semibold text-[#94a3b8]">/{stats.runs_scheduled}</span></>} />
+            value={<>{stats.runs_departed}<span className="text-[13px] font-semibold text-[#94a3b8]">/{stats.runs_scheduled}</span></>}
+            foot={delayedCount > 0 ? t('mv.delayedCountFoot').replace('{n}', String(delayedCount)) : t('mv.allOnTimeFoot')} />
           {pl && pl.vehicles.length > 0 && (
             <>
               <FleetStat label={t('mv.todayProfitLabel')} icon="₨" value={`₨${fmt(pl.fleet_today_profit_pkr)}`} />
@@ -308,14 +316,31 @@ export default function FleetDashboardPage() {
         </div>
       )}
 
-      {/* 881: real gap — no document expiry was ever tracked anywhere,
-          so a lapsed route permit/fitness certificate/insurance went
-          completely unnoticed. Alerting only, ranked soonest-first. */}
-      {docAlerts.length > 0 && (
+      {/* 2026-11-17: design-first pass — the mockup groups every open
+          item (expiring documents, delayed routes, pending cash, due
+          maintenance) into one "Action centre" list rather than a
+          single-purpose panel per alert type. dhab-pari only has real
+          data for two of those right now (document expiry, 881; route
+          delay, 900) — only those two are combined here, nothing
+          invented for the others. 881's original ranking (soonest-
+          expiring first) is preserved within the doc-alert rows;
+          delayed routes are surfaced first since they're happening
+          right now, not a future deadline. */}
+      {(docAlerts.length > 0 || delayedCount > 0) && (
         <FleetPanel tone="danger">
-          <FleetPanelHead tone="danger" icon={<ShieldAlert size={14} />} title={t('mv.documentAlertsHeading')} description={t('mv.panelDesc.docAlerts')}
-            action={<span className="px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#b91c1c] font-sans text-[10px] font-bold ltr-num">{docAlerts.length}</span>} />
+          <FleetPanelHead tone="danger" icon={<ShieldAlert size={14} />} title={t('mv.actionCentreHeading')} description={t('mv.panelDesc.docAlerts')}
+            action={<span className="px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#b91c1c] font-sans text-[10px] font-bold ltr-num">{docAlerts.length + delayedCount}</span>} />
           <div className="divide-y divide-[#f1f5f9]">
+            {schedule.filter((s) => s.is_active && s.delay_minutes != null).map((s) => (
+              <div key={s.route_id} className="flex items-center justify-between gap-2 px-3.5 py-2 text-[12px] font-sans">
+                <span className="text-[#1e293b] font-semibold truncate min-w-0 flex items-center gap-1.5">
+                  <Clock size={12} className="shrink-0 text-[#b91c1c]" /> {s.vehicle_number || s.vehicle_type} · {s.origin} → {s.destination}
+                </span>
+                <span className="shrink-0 px-2 py-0.5 rounded-full font-bold text-[10px] ltr-num bg-[#FEF2F2] text-[#b91c1c]">
+                  {t('mv.delayedRouteAlertLabel').replace('{n}', String(s.delay_minutes))}
+                </span>
+              </div>
+            ))}
             {docAlerts.map((a, i) => (
               <div key={i} className="flex items-center justify-between gap-2 px-3.5 py-2 text-[12px] font-sans">
                 <span className="text-[#1e293b] font-semibold truncate min-w-0">{a.owner_name}{a.vehicle_number ? ` · ${a.vehicle_number}` : ''} · {t(`mv.docType.${a.document_type}`)}</span>
