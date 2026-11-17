@@ -58,6 +58,15 @@ function fmtTime(t: string | null) {
   return `${h12}:${m} ${ampm}`
 }
 function today() { return new Date().toISOString().slice(0, 10) }
+// 2026-11-17: real complaint confirmed live — there was no way to tell
+// from the schedule list whether a route returns on a different day
+// without opening its edit form. days_of_week/return_days_of_week
+// already existed on every ScheduleCard; this just surfaces them.
+function formatDays(days: number[] | null | undefined, t: (k: string) => string): string {
+  if (!days || days.length === 0) return ''
+  if (days.length === 7) return t('mv.dailyLabel')
+  return [...days].sort().map((d) => t(`mv.dayShort.${d}`)).join(' · ')
+}
 
 const STATE_STYLE: Record<string, { label: string; bg: string; fg: string }> = {
   not_scheduled_today: { label: 'mv.scheduleNotScheduledToday', bg: '#F1F5F9', fg: '#94a3b8' },
@@ -379,20 +388,52 @@ export default function FleetDashboardPage() {
                       {s.current_driver_name}{s.covered_by_substitute ? ` (${t('mv.scheduleSubstituteLabel')})` : ''}
                     </span>
                   </div>
+                  {!editing && (formatDays(s.days_of_week, t) || (s.is_two_way && s.return_days_of_week?.length)) && (
+                    <div className="font-sans text-[10.5px] text-[#94a3b8] mt-1">
+                      {formatDays(s.days_of_week, t) && <>{t('mv.operatingDaysLabel')}: {formatDays(s.days_of_week, t)}</>}
+                      {s.is_two_way && s.return_days_of_week && s.return_days_of_week.length > 0 && (
+                        <>{formatDays(s.days_of_week, t) ? ' · ' : ''}{t('mv.returnOnDifferentDaysLabel')}: {formatDays(s.return_days_of_week, t)}</>
+                      )}
+                    </div>
+                  )}
 
                   {editing ? (
-                    <div className="mt-2 pt-2 border-t border-[#f1f5f9] flex flex-col gap-2">
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <label className="block font-sans text-[10.5px] font-bold text-[#64748b] mb-0.5">{t('mv.departureTimeLabel')}</label>
-                          <input type="time" value={editDepartureTime} onChange={(e) => setEditDepartureTime(e.target.value)} className="w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
-                        </div>
-                        {editIsTwoWay && (
+                    <div className="mt-2 pt-2 border-t border-[#f1f5f9] flex flex-col gap-2.5">
+                      {/* 2026-11-17: real complaint confirmed live — this
+                          whole form used to be one flat stack with zero
+                          grouping (and the operating-days pills had no
+                          label at all), which is why it read as "garbage,
+                          no design" next to the SAFAR reference. Split
+                          into 3 clearly labeled, backgrounded sections so
+                          timing/operating-days/return-schedule each read
+                          as their own thing, matching the reference's own
+                          discipline of a labeled field within a grouped
+                          panel rather than a bare row of controls. */}
+                      <div className="bg-[#F9F9F6] rounded-lg p-2.5 flex flex-col gap-2">
+                        <p className="font-sans text-[9.5px] font-bold text-[#94a3b8] uppercase tracking-[0.06em]">{t('mv.timingSectionLabel')}</p>
+                        <div className="flex gap-2">
                           <div className="flex-1">
-                            <label className="block font-sans text-[10.5px] font-bold text-[#64748b] mb-0.5">{t('cm.returnDepartureTimeLabel')}</label>
-                            <input type="time" value={editReturnTime} onChange={(e) => setEditReturnTime(e.target.value)} className="w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
+                            <label className="block font-sans text-[10.5px] font-bold text-[#64748b] mb-0.5">{t('mv.departureTimeLabel')}</label>
+                            <input type="time" value={editDepartureTime} onChange={(e) => setEditDepartureTime(e.target.value)} className="w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num bg-white" />
                           </div>
-                        )}
+                          {editIsTwoWay && (
+                            <div className="flex-1">
+                              <label className="block font-sans text-[10.5px] font-bold text-[#64748b] mb-0.5">{t('cm.returnDepartureTimeLabel')}</label>
+                              <input type="time" value={editReturnTime} onChange={(e) => setEditReturnTime(e.target.value)} className="w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num bg-white" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-[#F9F9F6] rounded-lg p-2.5 flex flex-col gap-1.5">
+                        <p className="font-sans text-[9.5px] font-bold text-[#94a3b8] uppercase tracking-[0.06em]">{t('mv.operatingDaysLabel')}</p>
+                        <div className="flex gap-1 flex-wrap">
+                          {[0, 1, 2, 3, 4, 5, 6].map((d) => (
+                            <button key={d} type="button" onClick={() => toggleEditDay(d)} className={`px-2 py-1 rounded-lg font-sans text-[11px] font-semibold cursor-pointer ${editDays.includes(d) ? 'bg-[#166534] text-white' : 'bg-white text-[#64748b] border border-[#e5e2d0]'}`}>
+                              {t(`mv.dayShort.${d}`)}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
                       {/* Real ask, 2026-11-12: "does these vehicles will
@@ -401,52 +442,45 @@ export default function FleetDashboardPage() {
                           already existed backend-side but this quick
                           editor only ever showed the return field when
                           already on, with no way to turn it on. */}
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={editIsTwoWay} onChange={(e) => setEditIsTwoWay(e.target.checked)} className="accent-[#166534]" />
-                        <span className="font-sans text-[12px] font-semibold text-[#1e293b]">{t('mv.isTwoWayToggleLabel')}</span>
-                      </label>
-                      {editIsTwoWay && (
-                        <div className="flex gap-1.5 flex-wrap items-center">
-                          <span className="font-sans text-[10.5px] text-[#64748b]">{t('mv.returnWaitMinutesLabel')}</span>
-                          {[300, 360, 480].map((mins) => (
-                            <button key={mins} type="button" onClick={() => setEditReturnWaitMinutes(mins)}
-                              className={`px-2 py-1 rounded-lg font-sans text-[11px] font-semibold cursor-pointer ${editReturnWaitMinutes === mins ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
-                              {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="flex gap-1 flex-wrap">
-                        {[0, 1, 2, 3, 4, 5, 6].map((d) => (
-                          <button key={d} type="button" onClick={() => toggleEditDay(d)} className={`px-2 py-1 rounded-lg font-sans text-[11px] font-semibold cursor-pointer ${editDays.includes(d) ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
-                            {t(`mv.dayShort.${d}`)}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Real bug reported live: a long route's return
-                          leg (e.g. 24h Peshawar→Karachi) departs the NEXT
-                          day, not the same day the outbound left — reusing
-                          the same days-of-week list for both legs was a
-                          real scheduling conflict. */}
-                      {editIsTwoWay && (
-                        <>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" checked={editReturnOnDifferentDays} onChange={(e) => { setEditReturnOnDifferentDays(e.target.checked); if (e.target.checked && editReturnDays.length === 0) setEditReturnDays(editDays) }} className="accent-[#166534]" />
-                            <span className="font-sans text-[12px] font-semibold text-[#1e293b]">{t('mv.returnOnDifferentDaysLabel')}</span>
-                          </label>
-                          {editReturnOnDifferentDays && (
-                            <div className="flex gap-1 flex-wrap">
-                              {[0, 1, 2, 3, 4, 5, 6].map((d) => (
-                                <button key={d} type="button" onClick={() => toggleEditReturnDay(d)} className={`px-2 py-1 rounded-lg font-sans text-[11px] font-semibold cursor-pointer ${editReturnDays.includes(d) ? 'bg-[#166534] text-white' : 'bg-[#F9F9F6] text-[#64748b] border border-[#e5e2d0]'}`}>
-                                  {t(`mv.dayShort.${d}`)}
+                      <div className="bg-[#F9F9F6] rounded-lg p-2.5 flex flex-col gap-2">
+                        <p className="font-sans text-[9.5px] font-bold text-[#94a3b8] uppercase tracking-[0.06em]">{t('mv.returnScheduleSectionLabel')}</p>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={editIsTwoWay} onChange={(e) => setEditIsTwoWay(e.target.checked)} className="accent-[#166534]" />
+                          <span className="font-sans text-[12px] font-semibold text-[#1e293b]">{t('mv.isTwoWayToggleLabel')}</span>
+                        </label>
+                        {editIsTwoWay && (
+                          <>
+                            <div className="flex gap-1.5 flex-wrap items-center">
+                              <span className="font-sans text-[10.5px] text-[#64748b]">{t('mv.returnWaitMinutesLabel')}</span>
+                              {[300, 360, 480].map((mins) => (
+                                <button key={mins} type="button" onClick={() => setEditReturnWaitMinutes(mins)}
+                                  className={`px-2 py-1 rounded-lg font-sans text-[11px] font-semibold cursor-pointer ${editReturnWaitMinutes === mins ? 'bg-[#166534] text-white' : 'bg-white text-[#64748b] border border-[#e5e2d0]'}`}>
+                                  {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
                                 </button>
                               ))}
                             </div>
-                          )}
-                        </>
-                      )}
+                            {/* Real bug reported live: a long route's
+                                return leg (e.g. 24h Peshawar→Karachi)
+                                departs the NEXT day, not the same day the
+                                outbound left — reusing the same days-of-
+                                week list for both legs was a real
+                                scheduling conflict. */}
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input type="checkbox" checked={editReturnOnDifferentDays} onChange={(e) => { setEditReturnOnDifferentDays(e.target.checked); if (e.target.checked && editReturnDays.length === 0) setEditReturnDays(editDays) }} className="accent-[#166534]" />
+                              <span className="font-sans text-[12px] font-semibold text-[#1e293b]">{t('mv.returnOnDifferentDaysLabel')}</span>
+                            </label>
+                            {editReturnOnDifferentDays && (
+                              <div className="flex gap-1 flex-wrap">
+                                {[0, 1, 2, 3, 4, 5, 6].map((d) => (
+                                  <button key={d} type="button" onClick={() => toggleEditReturnDay(d)} className={`px-2 py-1 rounded-lg font-sans text-[11px] font-semibold cursor-pointer ${editReturnDays.includes(d) ? 'bg-[#166534] text-white' : 'bg-white text-[#64748b] border border-[#e5e2d0]'}`}>
+                                    {t(`mv.dayShort.${d}`)}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
 
                       <Link href={`/portal/my-vehicle/routes?vehicle=${s.vehicle_id}`} className="font-sans text-[11px] font-semibold text-[#166534] underline underline-offset-2">
                         {t('mv.manageStopsBtn')}
