@@ -6,16 +6,22 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, Building2, Plus } from 'lucide-react'
+import { ChevronLeft, Building2, Plus, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetFormGrid, FleetFormField } from '@/components/portal/FleetPanel'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetFormGrid, FleetFormField, FleetStatusPill } from '@/components/portal/FleetPanel'
 
-interface Counter { id: string; city: string; name: string | null; cash_office_code: string | null; manager_name: string | null; today_bookings_count: number }
+interface Counter {
+  id: string; city: string; name: string | null; cash_office_code: string | null; manager_name: string | null
+  today_bookings_count: number; lat: number | null; lng: number | null; cash_in_hand_pkr: number
+}
+function fmt(n: number) {
+  return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
+}
 
 export default function FleetCountersPage() {
   const { t, isUrdu } = useLocale()
@@ -113,15 +119,31 @@ export default function FleetCountersPage() {
                     <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.bookingCountersHeading')}</th>
                     <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.managedByLabel')}</th>
                     <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.cashOfficeCodeLabel')}</th>
+                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap">{t('mv.cashInHandLabel')}</th>
+                    <th className="px-3.5 py-1.5 text-start whitespace-nowrap"></th>
                     <th className="px-3.5 py-1.5 text-end whitespace-nowrap">{t('mv.todayLabel')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {counters.map((c) => (
                     <tr key={c.id} className="border-t border-[#f1f5f9] align-middle">
-                      <td className="px-3.5 py-2.5 font-sans text-[13px] font-semibold text-[#1e293b] whitespace-nowrap">{c.city}{c.name ? ` · ${c.name}` : ''}</td>
+                      <td className="px-3.5 py-2.5 font-sans text-[13px] font-semibold text-[#1e293b] whitespace-nowrap">
+                        {c.city}{c.name ? ` · ${c.name}` : ''}
+                        {c.lat != null && c.lng != null && (
+                          <a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 font-sans text-[10px] font-semibold text-[#166534] mt-0.5">
+                            <MapPin size={10} /> {t('mv.viewOnMapLink')}
+                          </a>
+                        )}
+                      </td>
                       <td className="px-3.5 py-2.5 font-sans text-[11px] text-[#64748b] whitespace-nowrap">{c.manager_name || '—'}</td>
                       <td className="px-3.5 py-2.5 font-sans text-[11px] text-[#64748b] ltr-num whitespace-nowrap">{c.cash_office_code || '—'}</td>
+                      <td className="px-3.5 py-2.5 font-sans text-[11px] text-[#1e293b] ltr-num whitespace-nowrap font-semibold">₨{fmt(c.cash_in_hand_pkr)}</td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap">
+                        <FleetStatusPill tone={c.cash_in_hand_pkr > 0 ? 'amber' : 'green'}>
+                          {t(c.cash_in_hand_pkr > 0 ? 'mv.counterStatusCashPendingLabel' : 'mv.counterStatusActiveLabel')}
+                        </FleetStatusPill>
+                      </td>
                       <td className="px-3.5 py-2.5 text-end">
                         <span className="inline-block px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10.5px] font-bold ltr-num whitespace-nowrap">{c.today_bookings_count} {t('mv.todayLabel')}</span>
                       </td>
