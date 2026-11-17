@@ -450,15 +450,17 @@ export default function FleetDashboardPage() {
                         </label>
                         {editIsTwoWay && (
                           <>
-                            <div className="flex gap-1.5 flex-wrap items-center">
-                              <span className="font-sans text-[10.5px] text-[#64748b]">{t('mv.returnWaitMinutesLabel')}</span>
-                              {[300, 360, 480].map((mins) => (
-                                <button key={mins} type="button" onClick={() => setEditReturnWaitMinutes(mins)}
-                                  className={`px-2 py-1 rounded-lg font-sans text-[11px] font-semibold cursor-pointer ${editReturnWaitMinutes === mins ? 'bg-[#166534] text-white' : 'bg-white text-[#64748b] border border-[#e5e2d0]'}`}>
-                                  {Math.round(mins / 60)}{t('mv.hoursShortSuffix')}
-                                </button>
-                              ))}
-                            </div>
+                            {/* 2026-11-17: real complaint — "why do I pick
+                                a wait DURATION when I already type the
+                                actual return TIME right above?" Removed
+                                the redundant picker entirely.
+                                editReturnWaitMinutes itself still exists in
+                                state (loaded from the route's current
+                                value in openEdit, sent back unchanged on
+                                save) since it's the real source for the
+                                ride-group layover countdown elsewhere
+                                (RouteGroupPanel) — this is a UI-only fix,
+                                not a data change. */}
                             {/* Real bug reported live: a long route's
                                 return leg (e.g. 24h Peshawar→Karachi)
                                 departs the NEXT day, not the same day the

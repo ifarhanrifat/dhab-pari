@@ -54,7 +54,7 @@ interface AdHocBookingRow {
 interface PendingSeatRequest { id: string; name: string; seats: number; travel_date: string; direction: 'outbound' | 'return'; total_amount_pkr: number; announced_method: string | null; announced_proof_url: string | null }
 interface PendingMonthlyApplication { id: string; name: string; monthly_fee_pkr: number; stop_label: string | null; applied_at: string; deposit_pkr: number | null; proof_url: string | null; payment_method: string | null }
 interface Detail {
-  is_owner: boolean; is_member: boolean; sharing_location: boolean
+  is_owner: boolean; can_run_ride: boolean; is_member: boolean; sharing_location: boolean
   owner_portal_user_id: string; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
   is_two_way: boolean; return_wait_minutes: number | null; return_seats_available_today: number | null
   active_run: ActiveRun | null; todays_runs: TodaysRun[]; stops: StopRow[]; roster_today: RosterRow[]
@@ -476,7 +476,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
             ))}
           </div>
 
-          {detail.is_owner && showRoster && (
+          {detail.can_run_ride && showRoster && (
             <div className="flex flex-col gap-1.5 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
               <p className="font-sans text-[11.5px] font-bold text-amber-900">{t('mv.takeAttendanceLabel')}</p>
               {(detail.roster_today ?? []).map((r) => (
@@ -516,7 +516,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               </div>
             </div>
           )}
-          {detail.is_owner && !showRoster && !detail.active_run && stakeInfo?.applies && (
+          {detail.can_run_ride && !showRoster && !detail.active_run && stakeInfo?.applies && (
             <p className={`font-sans text-[10.5px] rounded-lg px-2.5 py-1.5 ${stakeInfo.can_afford ? 'bg-[#F9F9F6] text-[#64748b]' : 'bg-rose-50 text-rose-700 font-semibold'}`}>
               {t('mv.startingStakeNote').replace('{stake}', String(stakeInfo.stake_pkr)).replace('{balance}', String(Math.round(stakeInfo.balance_pkr)))}
             </p>
@@ -610,7 +610,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               the wait-window/offboard/standalone-return-seat machinery
               below is unchanged — only the button that triggers the
               arrival step moved into this same slot. */}
-          {detail.is_owner && !showRoster && (() => {
+          {detail.can_run_ride && !showRoster && (() => {
             const needsArrival = !!detail.active_run && detail.is_two_way && detail.active_run.direction === 'outbound' && !detail.active_run.outbound_arrived_at
             const onClick = !detail.active_run ? openStartFlow : needsArrival ? markArrived : endRun
             const label = !detail.active_run
@@ -642,7 +642,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               no longer auto-boarded at the origin (see openStartFlow);
               this is where the driver actually boards them, with the
               stop name and a live ETA right there, while the run is on. */}
-          {detail.is_owner && detail.active_run?.direction === 'outbound' && unboardedAdHoc.length > 0 && (
+          {detail.can_run_ride && detail.active_run?.direction === 'outbound' && unboardedAdHoc.length > 0 && (
             <div className="flex flex-col gap-1 bg-sky-50 border border-sky-200 rounded-xl p-2.5">
               <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-sky-900">{t('mv.stillBoardingHeading')}</p>
               {unboardedAdHoc.map((b) => {
@@ -688,7 +688,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               opens a wait window (the route's own return_wait_minutes),
               and can release a specific outbound rider's seat for the
               return leg during that window. */}
-          {detail.is_owner && detail.active_run?.direction === 'outbound' && detail.active_run.outbound_arrived_at && (() => {
+          {detail.can_run_ride && detail.active_run?.direction === 'outbound' && detail.active_run.outbound_arrived_at && (() => {
             const elapsedMin = (Date.now() - new Date(detail.active_run.outbound_arrived_at).getTime()) / 60000
             const remainingMin = detail.return_wait_minutes != null ? Math.max(0, Math.round(detail.return_wait_minutes - elapsedMin)) : null
             return (
