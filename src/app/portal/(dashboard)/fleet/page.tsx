@@ -39,6 +39,7 @@ interface ScheduleCard {
   is_active: boolean; departure_time: string | null; return_departure_time: string | null; return_wait_minutes: number | null
   is_two_way: boolean; days_of_week: number[]; return_days_of_week: number[] | null; runs_today: boolean; state: string
   current_driver_name: string; covered_by_substitute: boolean
+  delay_minutes: number | null; delay_note: string | null
 }
 interface DepartureStats { bookings_today_count: number; runs_scheduled: number; runs_departed: number }
 interface FleetVehicleSummary {
@@ -116,6 +117,10 @@ export default function FleetDashboardPage() {
   const [editReturnDays, setEditReturnDays] = useState<number[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
   const [busyRouteId, setBusyRouteId] = useState<string | null>(null)
+  const [delayRouteId, setDelayRouteId] = useState<string | null>(null)
+  const [delayMinutesInput, setDelayMinutesInput] = useState('')
+  const [delayNoteInput, setDelayNoteInput] = useState('')
+  const [savingDelay, setSavingDelay] = useState(false)
 
   const loadSchedule = async (fid: string, date: string) => {
     const { data: sched } = await supabase.rpc('fleet_vehicle_schedule', { p_fleet_id: fid, p_date: date })
@@ -222,6 +227,38 @@ export default function FleetDashboardPage() {
     setBusyRouteId(null)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('mv.routeRelaunchedToast'))
+    if (fleetId) loadSchedule(fleetId, scheduleDate)
+  }
+
+  // 2026-11-17: real gap confirmed by deep audit — no "delayed"
+  // concept existed at all, and no way for a booking officer (not
+  // just the driver) to set it. This is the officer-facing surface
+  // that answers "where does the booking officer change this."
+  const openDelay = (s: ScheduleCard) => {
+    setDelayRouteId(s.route_id)
+    setDelayMinutesInput(s.delay_minutes != null ? String(s.delay_minutes) : '')
+    setDelayNoteInput(s.delay_note ?? '')
+  }
+  const saveDelay = async (s: ScheduleCard) => {
+    setSavingDelay(true)
+    const direction = s.state === 'return_in_progress' ? 'return' : 'outbound'
+    const { error } = await supabase.rpc('set_route_day_delay', {
+      p_route_id: s.route_id, p_travel_date: scheduleDate, p_direction: direction,
+      p_delay_minutes: delayMinutesInput ? Number(delayMinutesInput) : null, p_note: delayNoteInput || null,
+    })
+    setSavingDelay(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.delayUpdatedToast'))
+    setDelayRouteId(null)
+    if (fleetId) loadSchedule(fleetId, scheduleDate)
+  }
+  const clearDelay = async (s: ScheduleCard) => {
+    setSavingDelay(true)
+    const direction = s.state === 'return_in_progress' ? 'return' : 'outbound'
+    const { error } = await supabase.rpc('set_route_day_delay', { p_route_id: s.route_id, p_travel_date: scheduleDate, p_direction: direction, p_delay_minutes: null })
+    setSavingDelay(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.delayClearedToast'))
     if (fleetId) loadSchedule(fleetId, scheduleDate)
   }
 
@@ -377,7 +414,14 @@ export default function FleetDashboardPage() {
                         <p className="font-sans text-[12.5px] text-[#64748b] mt-0.5">{s.origin} → {s.destination}</p>
                       </div>
                     </div>
-                    <span className="shrink-0 px-2 py-1 rounded-full font-sans text-[10px] font-bold" style={{ background: style.bg, color: style.fg }}>{t(style.label)}</span>
+                    <div className="shrink-0 flex flex-col items-end gap-1">
+                      <span className="px-2 py-1 rounded-full font-sans text-[10px] font-bold" style={{ background: style.bg, color: style.fg }}>{t(style.label)}</span>
+                      {s.delay_minutes != null && (
+                        <span className="px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#b91c1c] font-sans text-[9.5px] font-bold ltr-num">
+                          {t('mv.delayedBadge').replace('{n}', String(s.delay_minutes))}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#f1f5f9]">
                     <span className="font-sans text-[11px] text-[#64748b] ltr-num">
@@ -395,6 +439,36 @@ export default function FleetDashboardPage() {
                         <>{formatDays(s.days_of_week, t) ? ' · ' : ''}{t('mv.returnOnDifferentDaysLabel')}: {formatDays(s.return_days_of_week, t)}</>
                       )}
                     </div>
+                  )}
+                  {!editing && s.is_active && (
+                    delayRouteId === s.route_id ? (
+                      <div className="mt-2 pt-2 border-t border-[#f1f5f9] flex flex-col gap-1.5">
+                        <div className="flex gap-2">
+                          <input type="number" min={1} value={delayMinutesInput} onChange={(e) => setDelayMinutesInput(e.target.value)}
+                            placeholder={t('mv.delayMinutesPlaceholder')} className="w-24 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
+                          <input value={delayNoteInput} onChange={(e) => setDelayNoteInput(e.target.value)} placeholder={t('mv.delayNotePlaceholder')}
+                            className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => saveDelay(s)} disabled={savingDelay || !delayMinutesInput} className="flex-1 py-1.5 rounded-lg bg-[#b91c1c] text-white font-sans text-[11.5px] font-bold cursor-pointer disabled:opacity-50">
+                            {savingDelay ? t('action.saving') : t('mv.markDelayedBtn')}
+                          </button>
+                          <button onClick={() => setDelayRouteId(null)} className="flex-1 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#64748b] cursor-pointer">{t('action.cancel')}</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-2 pt-2 border-t border-[#f1f5f9]">
+                        {s.delay_minutes != null ? (
+                          <button onClick={() => clearDelay(s)} disabled={savingDelay} className="text-[11px] font-sans font-semibold text-[#166534] cursor-pointer disabled:opacity-50">
+                            {t('mv.clearDelayBtn')}
+                          </button>
+                        ) : (
+                          <button onClick={() => openDelay(s)} className="text-[11px] font-sans font-semibold text-[#b91c1c] cursor-pointer">
+                            {t('mv.markDelayedBtn')}
+                          </button>
+                        )}
+                      </div>
+                    )
                   )}
 
                   {editing ? (
