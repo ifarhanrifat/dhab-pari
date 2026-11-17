@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Ticket, Search, X, Phone, MessageCircle, Printer, UserCheck, Baby, Plus } from 'lucide-react'
+import { Ticket, Search, X, Phone, MessageCircle, Printer, UserCheck, Baby, Plus, Mail } from 'lucide-react'
 import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels, FleetStatusPill } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -46,7 +46,15 @@ interface FoundBooking {
   ticket_no: string | null; boarded_at: string | null; vehicle_number: string | null; service_code: string | null
   emergency_contact_phone: string | null; luggage_note: string | null
 }
-interface PaidPassenger { full_name: string; gender: string }
+// 2026-11-17: booking wizard Phase A — the reference computes a real
+// suggested fare per passenger type (Adult/Child/Infant-own-seat all
+// seated and priced differently; a lap infant is the existing
+// FreeChild, already unseated and free). No per-stop stage-fare table
+// exists in dhab-pari to prorate by boarding segment the way the
+// reference does, so this is base fare_per_seat_pkr × type multiplier
+// only — a real, honest suggestion, not a fabricated segment price.
+const PASSENGER_TYPE_MULTIPLIER: Record<string, number> = { adult: 1, child: 0.75, infant_seat: 0.5 }
+interface PaidPassenger { full_name: string; gender: string; type: string }
 interface FreeChild { full_name: string; age: string }
 
 function fmt(n: number) {
@@ -77,6 +85,7 @@ export default function FleetBookingsPage() {
   const [seatsAvailByRoute, setSeatsAvailByRoute] = useState<Record<string, number>>({})
   const [counters, setCounters] = useState<Counter[]>([])
   const [counterId, setCounterId] = useState('')
+  const [myCounter, setMyCounter] = useState<Counter | null>(null)
   const [passengerName, setPassengerName] = useState('')
   const [passengerMobile, setPassengerMobile] = useState('')
   const [seats, setSeats] = useState(1)
@@ -85,7 +94,7 @@ export default function FleetBookingsPage() {
   const [recording, setRecording] = useState(false)
   const [emergencyPhone, setEmergencyPhone] = useState('')
   const [showPassengers, setShowPassengers] = useState(false)
-  const [paidPassengers, setPaidPassengers] = useState<PaidPassenger[]>([{ full_name: '', gender: '' }])
+  const [paidPassengers, setPaidPassengers] = useState<PaidPassenger[]>([{ full_name: '', gender: '', type: 'adult' }])
   const [freeChildren, setFreeChildren] = useState<FreeChild[]>([])
   const [printedTicket, setPrintedTicket] = useState<ManualTicketData | null>(null)
   const ticketRef = useRef<HTMLDivElement>(null)
@@ -120,13 +129,20 @@ export default function FleetBookingsPage() {
       const f = mine as { fleet_id: string } | null
       setFleetId(f?.fleet_id ?? null)
       if (f) {
-        const [{ data: v }, { data: c }] = await Promise.all([
+        const [{ data: v }, { data: c }, { data: mc }] = await Promise.all([
           supabase.rpc('my_fleet_vehicles'),
           supabase.rpc('my_fleet_counters', { p_fleet_id: f.fleet_id }),
+          supabase.rpc('my_counter'),
         ])
         const loadedVehicles = (v ?? []) as FleetVehicle[]
         setVehicles(loadedVehicles)
         setCounters((c ?? []) as Counter[])
+        // 2026-11-17: booking wizard Phase A — "booked at: {my own
+        // terminal}" shown automatically, matching the reference's
+        // session strip, instead of a counter dropdown defaulting
+        // blank. Still overridable via the dropdown below.
+        const own = mc as Counter | null
+        if (own?.id) { setMyCounter(own); setCounterId(own.id) }
         // 2026-11-17: no more auto-selecting the first vehicle by
         // default — a search box doesn't need a starting value the
         // way the old cascading dropdowns did. Only a real deep-link
@@ -225,7 +241,7 @@ export default function FleetBookingsPage() {
   useEffect(() => {
     setPaidPassengers((prev) => {
       const next = [...prev]
-      while (next.length < seats) next.push({ full_name: '', gender: '' })
+      while (next.length < seats) next.push({ full_name: '', gender: '', type: 'adult' })
       return next.slice(0, seats)
     })
     if (seats === 1) setFreeChildren((prev) => prev.slice(0, 1))
@@ -257,6 +273,9 @@ export default function FleetBookingsPage() {
   }, [rescheduling, rescheduleDate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedRoute = routes.find((r) => r.id === routeId)
+  const suggestedFare = selectedRoute
+    ? Math.round(paidPassengers.reduce((sum, p) => sum + selectedRoute.fare_per_seat_pkr * (PASSENGER_TYPE_MULTIPLIER[p.type] ?? 1), 0))
+    : 0
 
   const recordBooking = async () => {
     if (!routeId || !passengerName.trim() || !amount) { toast.error(t('mv.fillManualBookingError')); return }
@@ -288,11 +307,11 @@ export default function FleetBookingsPage() {
         origin: selectedRoute.origin, destination: selectedRoute.destination, travelDate: bookTravelDate,
         departureTime: selectedRoute.departure_time, seats, seatNumbers: seating?.isVanKind ? selectedSeats : null,
         amountPkr: Number(amount), ownerName: vehicle.owner_name, vehicleNumber: vehicle.vehicle_number, serviceCode: null,
-        boardStopLabel: boardStop?.label ?? null,
+        boardStopLabel: boardStop?.label ?? null, paymentMethod: method,
       })
     }
     setPassengerName(''); setPassengerMobile(''); setSeats(1); setAmount(''); setSelectedSeats([])
-    setEmergencyPhone(''); setPaidPassengers([{ full_name: '', gender: '' }]); setFreeChildren([]); setShowPassengers(false)
+    setEmergencyPhone(''); setPaidPassengers([{ full_name: '', gender: '', type: 'adult' }]); setFreeChildren([]); setShowPassengers(false)
     setBoardStopId(null)
     loadTakenSeats()
     if (bookTravelDate === searchDate) runSearch()
@@ -314,20 +333,35 @@ export default function FleetBookingsPage() {
     runSearch()
   }
 
+  // 2026-11-17: booking wizard Phase A — the reference's ticket has
+  // Print + Email + WhatsApp as three real actions; Print and
+  // WhatsApp already existed here, Email was the one genuinely
+  // missing. Shared text builder so all three stay in sync.
+  const ticketText = (data: ManualTicketData) => [
+    `Ticket #${data.ticketNo}`,
+    `${data.passengerName}`,
+    `${data.origin} → ${data.destination}`,
+    `${data.travelDate}${data.departureTime ? ` · ${data.departureTime}` : ''}`,
+    `${data.seats} seat(s)${data.seatNumbers?.length ? ` (#${data.seatNumbers.join(', ')})` : ''}`,
+    `${data.ownerName}${data.vehicleNumber ? ` · ${data.vehicleNumber}` : ''}`,
+    `Payment: ${data.paymentMethod}`,
+    `Fare: ₨${fmt(data.amountPkr)}`,
+    `Present this ticket number at boarding.`,
+  ].join('\n')
+
   const sendTicketWhatsapp = (data: ManualTicketData) => {
     if (!data.passengerMobile) return
-    const lines = [
-      `Ticket #${data.ticketNo}`,
-      `${data.passengerName}`,
-      `${data.origin} → ${data.destination}`,
-      `${data.travelDate}${data.departureTime ? ` · ${data.departureTime}` : ''}`,
-      `${data.seats} seat(s)${data.seatNumbers?.length ? ` (#${data.seatNumbers.join(', ')})` : ''}`,
-      `${data.ownerName}${data.vehicleNumber ? ` · ${data.vehicleNumber}` : ''}`,
-      `Fare: ₨${fmt(data.amountPkr)}`,
-      `Present this ticket number at boarding.`,
-    ]
-    const url = `https://wa.me/${normalizePakPhone(data.passengerMobile)}?text=${encodeURIComponent(lines.join('\n'))}`
+    const url = `https://wa.me/${normalizePakPhone(data.passengerMobile)}?text=${encodeURIComponent(ticketText(data))}`
     window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  const emailTicket = (data: ManualTicketData) => {
+    const to = window.prompt(t('mv.enterEmailPrompt'), '')
+    if (!to) return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { toast.error(t('mv.invalidEmailError')); return }
+    const subject = encodeURIComponent(`Ticket ${data.ticketNo}`)
+    const body = encodeURIComponent(ticketText(data))
+    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`
   }
 
   const cancelFound = async (b: FoundBooking) => {
@@ -430,6 +464,12 @@ export default function FleetBookingsPage() {
             <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.travelDateLabel')}</label>
             <input type="date" value={bookTravelDate} min={today()} onChange={(e) => setBookTravelDate(e.target.value)}
               className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5 ltr-num" />
+            {myCounter && (
+              <p className="flex items-center gap-1.5 font-sans text-[11px] text-[#64748b] mb-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#166534] shrink-0" />
+                {t('mv.bookedAtLabel')}: <span className="font-bold text-[#1e293b]">{myCounter.city}{myCounter.name ? ` · ${myCounter.name}` : ''}</span>
+              </p>
+            )}
             {counters.length > 0 && (
               <select value={counterId} onChange={(e) => setCounterId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2">
                 <option value="">{t('mv.noCounterOption')}</option>
@@ -468,8 +508,26 @@ export default function FleetBookingsPage() {
                       <option value="male">{t('mv.genderMale')}</option>
                       <option value="female">{t('mv.genderFemale')}</option>
                     </select>
+                    {/* 2026-11-17: booking wizard Phase A — passenger
+                        type drives the fare suggestion below; never
+                        sent to record_manual_booking (no column for
+                        it), purely a client-side pricing aid. */}
+                    <select value={p.type} onChange={(e) => setPaidPassengers((arr) => arr.map((x, j) => j === i ? { ...x, type: e.target.value } : x))}
+                      className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]">
+                      <option value="adult">{t('mv.passengerTypeAdult')}</option>
+                      <option value="child">{t('mv.passengerTypeChild')}</option>
+                      <option value="infant_seat">{t('mv.passengerTypeInfantSeat')}</option>
+                    </select>
                   </div>
                 ))}
+                {selectedRoute && (
+                  <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-white rounded-lg">
+                    <span className="font-sans text-[11px] text-[#64748b]">
+                      {t('mv.suggestedFareLabel')}: <span className="font-bold text-[#166534] ltr-num">₨{fmt(suggestedFare)}</span>
+                    </span>
+                    <button type="button" onClick={() => setAmount(String(suggestedFare))} className="font-sans text-[11px] font-bold text-[#166534] cursor-pointer">{t('mv.useThisFareBtn')}</button>
+                  </div>
+                )}
                 <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mt-1">{t('mv.freeChildrenLabel')}</p>
                 <p className="font-sans text-[10.5px] text-[#94a3b8]">{seats >= 2 ? t('mv.freeChildPolicyMulti') : t('mv.freeChildPolicySingle')}</p>
                 {freeChildren.map((c, i) => (
@@ -602,16 +660,21 @@ export default function FleetBookingsPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPrintedTicket(null)}>
           <div className="bg-white rounded-2xl max-w-[460px] w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div ref={ticketRef}><ManualTicketDocument data={printedTicket} /></div>
-            <div className="flex gap-2 p-4 pt-0">
-              <button onClick={printTicket} className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13px] font-bold cursor-pointer">
-                <Printer size={15} /> {t('mv.printTicketBtn')}
-              </button>
-              {printedTicket.passengerMobile && (
-                <button onClick={() => sendTicketWhatsapp(printedTicket)} className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#166534] text-[#166534] font-sans text-[13px] font-bold cursor-pointer">
-                  <MessageCircle size={15} /> {t('mv.sendWhatsappBtn')}
+            <div className="flex flex-col gap-2 p-4 pt-0">
+              <div className="flex gap-2">
+                <button onClick={printTicket} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer">
+                  <Printer size={14} /> {t('mv.printTicketBtn')}
                 </button>
-              )}
-              <button onClick={() => setPrintedTicket(null)} className="px-4 py-2.5 rounded-xl border border-[#e5e2d0] font-sans text-[13px] font-semibold text-[#64748b] cursor-pointer">{t('action.close')}</button>
+                {printedTicket.passengerMobile && (
+                  <button onClick={() => sendTicketWhatsapp(printedTicket)} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#166534] text-[#166534] font-sans text-[12.5px] font-bold cursor-pointer">
+                    <MessageCircle size={14} /> {t('mv.sendWhatsappBtn')}
+                  </button>
+                )}
+                <button onClick={() => emailTicket(printedTicket)} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#e5e2d0] text-[#334155] font-sans text-[12.5px] font-bold cursor-pointer">
+                  <Mail size={14} /> {t('mv.emailTicketBtn')}
+                </button>
+              </div>
+              <button onClick={() => setPrintedTicket(null)} className="w-full px-4 py-2.5 rounded-xl border border-[#e5e2d0] font-sans text-[13px] font-semibold text-[#64748b] cursor-pointer">{t('action.close')}</button>
             </div>
           </div>
         </div>

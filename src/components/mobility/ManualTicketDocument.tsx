@@ -27,6 +27,7 @@ export interface ManualTicketData {
   vehicleNumber: string | null
   serviceCode: string | null
   boardStopLabel: string | null
+  paymentMethod: string
 }
 
 function fmt(n: number) {
@@ -63,6 +64,7 @@ export function ManualTicketDocument({ data }: { data: ManualTicketData }) {
         <div><p className="text-[#64748b] text-[10.5px]">Seats</p><p className="font-semibold ltr-num">{data.seats}{data.seatNumbers?.length ? ` (#${data.seatNumbers.join(', ')})` : ''}</p></div>
         <div><p className="text-[#64748b] text-[10.5px]">Bus</p><p className="font-semibold">{data.ownerName}{data.vehicleNumber ? ` · ${data.vehicleNumber}` : ''}</p></div>
         <div><p className="text-[#64748b] text-[10.5px]">Fare Paid</p><p className="font-semibold ltr-num">₨{fmt(data.amountPkr)}</p></div>
+        <div><p className="text-[#64748b] text-[10.5px]">Payment</p><p className="font-semibold">{data.paymentMethod}</p></div>
         {data.emergencyContactPhone && (
           <div className="col-span-2"><p className="text-[#64748b] text-[10.5px]">Emergency Contact</p><p className="font-semibold ltr-num">{data.emergencyContactPhone}</p></div>
         )}
