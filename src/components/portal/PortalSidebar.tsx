@@ -46,6 +46,7 @@ import {
   Send,
   Milestone,
   Receipt,
+  Clock,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -149,6 +150,7 @@ const fleetChildren = (fleetName?: string | null): LeafItem[] => [
   { href: '/portal/my-vehicle/routes', label: 'Routes', tKey: 'mv.manageRoutesBtn', icon: Route, sectionTKey: 'mv.navSectionNetworkFleet' },
   { href: '/portal/fleet/routes', label: 'Route Library', tKey: 'mv.routeLibraryHeading', icon: Milestone },
   { href: '/portal/fleet/counters', label: 'Terminals', tKey: 'mv.bookingCountersHeading', icon: Building2 },
+  { href: '/portal/fleet/terminal-schedule', label: 'Terminal Schedule', tKey: 'mv.terminalScheduleHeading', icon: Clock },
   { href: '/portal/fleet/vehicles', label: 'Vehicles', tKey: 'mv.busManagementHeading', icon: Car },
   { href: '/portal/fleet/drivers', label: 'Drivers', tKey: 'mv.driverRosterHeading', icon: IdCard },
   { href: '/portal/fleet/maintenance', label: 'Maintenance & Fuel', tKey: 'mv.maintenanceHeading', icon: Wrench },
