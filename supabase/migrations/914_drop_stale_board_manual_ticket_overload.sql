@@ -1,0 +1,13 @@
+-- Migration 914: same bug class as 913, found immediately after
+-- fixing it — 875 widened board_manual_ticket from board_manual_
+-- ticket(p_id) to board_manual_ticket(p_id, p_luggage_note DEFAULT
+-- NULL), which is a different signature, not a replacement. The
+-- single-param version from 874 was silently still live (confirmed:
+-- PGRST203 "Could not choose the best candidate function" calling
+-- with just p_id). Audited every other true-replace this session for
+-- the same pattern (is_fleet_employee_driver, is_route_operator,
+-- my_fleet_drivers, route_departure_chalan, fleet_vehicle_schedule,
+-- my_fleet_counters, my_fleet_staff) — all either kept an identical
+-- input signature or already used an explicit DROP FUNCTION first;
+-- these two (913, this one) were the only real cases.
+DROP FUNCTION IF EXISTS board_manual_ticket(uuid);
