@@ -121,6 +121,17 @@ export function ManualTicketDocument({ data }: { data: ManualTicketData }) {
               <div><p className="text-[#64748b] text-[10px]">Fare</p><p className="font-semibold ltr-num">₨{fmt(data.returnLeg.amountPkr)}</p></div>
             )}
           </div>
+          {/* 2026-11-19: real gap — "Fare Paid" above only ever showed
+              the outbound leg's amount; the return leg's own fare sat
+              right below it with no combined total anywhere on the
+              ticket, so the passenger/officer had to add the two
+              numbers themselves. */}
+          {data.returnLeg.amountPkr != null && (
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#e5e2d0]">
+              <p className="font-sans text-[11.5px] font-bold text-[#1e293b]">Total Paid</p>
+              <p className="font-sans text-[14px] font-bold ltr-num text-[#166534]">₨{fmt(data.amountPkr + data.returnLeg.amountPkr)}</p>
+            </div>
+          )}
         </div>
       )}
 

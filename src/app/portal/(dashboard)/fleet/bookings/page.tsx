@@ -461,6 +461,12 @@ export default function FleetBookingsPage() {
         `${data.returnLeg.seats} seat(s)${data.returnLeg.seatNumbers?.length ? ` (#${data.returnLeg.seatNumbers.join(', ')})` : ''}`,
         ...(data.returnLeg.amountPkr != null ? [`Fare: ₨${fmt(data.returnLeg.amountPkr)}`] : []),
       )
+      // 2026-11-19: real gap — the outbound "Fare" line above and the
+      // return leg's own "Fare" line never added up to a combined
+      // total anywhere in the message, same bug as the printed ticket.
+      if (data.returnLeg.amountPkr != null) {
+        lines.push('', `Total Paid: ₨${fmt(data.amountPkr + data.returnLeg.amountPkr)}`)
+      }
     }
     lines.push('', `Present this ticket number at boarding.`)
     return lines.join('\n')
