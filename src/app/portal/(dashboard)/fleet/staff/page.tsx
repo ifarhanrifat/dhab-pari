@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, UserPlus, Users2, ShieldCheck, History } from 'lucide-react'
+import { ChevronLeft, UserPlus, Users2, ShieldCheck, History, Search } from 'lucide-react'
 import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -55,6 +55,10 @@ export default function FleetStaffPage() {
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
   const [showAudit, setShowAudit] = useState(false)
   const [driverDraft, setDriverDraft] = useState<Record<string, { license_number: string; license_expiry: string; cnic_number: string; date_of_birth: string; blood_group: string }>>({})
+  // 2026-11-18: real gap caught on review — the mockup's Employee
+  // register panel has a search box + role filter; this page had neither.
+  const [searchQuery, setSearchQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
@@ -186,6 +190,9 @@ export default function FleetStaffPage() {
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
 
+  const q = searchQuery.trim().toLowerCase()
+  const filteredStaff = staff.filter((s) => (!roleFilter || s.role === roleFilter) && (!q || s.full_name.toLowerCase().includes(q)))
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
@@ -221,11 +228,31 @@ export default function FleetStaffPage() {
           <FleetPanel>
             <FleetPanelHead icon={<Users2 size={14} />} title={t('mv.fleetStaffHeading')} description={t('mv.panelDesc.staff')}
               action={<span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{staff.length}</span>} />
+          {staff.length > 0 && (
+            <div className="flex gap-1.5 p-3 pb-0">
+              <div className="relative flex-1">
+                <Search size={13} className="absolute top-1/2 -translate-y-1/2 start-2.5 text-[#94a3b8]" />
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('mv.searchStaffPlaceholder')}
+                  className="w-full ps-8 pe-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" />
+              </div>
+              <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] shrink-0">
+                <option value="">{t('mv.allRolesOption')}</option>
+                <option value="staff">{t('mv.role.staff')}</option>
+                <option value="booking_officer">{t('mv.role.booking_officer')}</option>
+                <option value="terminal_manager">{t('mv.role.terminal_manager')}</option>
+                <option value="accountant">{t('mv.role.accountant')}</option>
+                <option value="other">{t('mv.role.other')}</option>
+                <option value="driver">{t('mv.role.driver')}</option>
+              </select>
+            </div>
+          )}
           {staff.length === 0 ? (
             <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noStaffYetHint')}</p>
+          ) : filteredStaff.length === 0 ? (
+            <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noMatchingStaffHint')}</p>
           ) : (
             <div className="flex flex-col divide-y divide-[#f1f5f9]">
-              {staff.map((s) => (
+              {filteredStaff.map((s) => (
                 <div key={s.id} className="px-3.5 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-sans text-[13px] font-bold text-[#1e293b] flex items-center gap-2 min-w-0">

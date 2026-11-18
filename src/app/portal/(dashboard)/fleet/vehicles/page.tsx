@@ -8,7 +8,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Bus, Plus, Milestone, Settings2, Snowflake } from 'lucide-react'
+import { Bus, Plus, Milestone, Settings2, Snowflake, Search, Layers } from 'lucide-react'
 import { FleetPanel, FleetPanelHead, FleetFormGrid, FleetFormField, FleetStat, FleetStatusPill } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -94,6 +94,10 @@ export default function FleetVehiclesPage() {
   const [schedule, setSchedule] = useState<ScheduleRow[]>([])
   const [openMaintenance, setOpenMaintenance] = useState<Set<string>>(new Set())
   const [docs, setDocs] = useState<VehicleDocRow[]>([])
+  // 2026-11-18: real gap caught on review — the mockup's Fleet register
+  // panel has a search box + vehicle-type filter; this page had neither.
+  const [searchQuery, setSearchQuery] = useState('')
+  const [kindFilter, setKindFilter] = useState('')
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
@@ -158,13 +162,25 @@ export default function FleetVehiclesPage() {
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!fleetId) return <p className="font-sans text-[13px] text-[#64748b] text-center py-12">{t('mv.noFleetYetHint')}</p>
 
+  const q = searchQuery.trim().toLowerCase()
+  const filteredVehicles = vehicles.filter((v) =>
+    (!kindFilter || v.vehicle_kind === kindFilter) &&
+    (!q || (v.vehicle_number ?? '').toLowerCase().includes(q) || v.owner_name.toLowerCase().includes(q) || (v.category_name ?? v.vehicle_type).toLowerCase().includes(q))
+  )
+  const vehicleKinds = Array.from(new Set(vehicles.map((v) => v.vehicle_kind).filter((k): k is string => !!k)))
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Bus size={19} /> {t('mv.busManagementHeading')}</h1>
-        <button onClick={() => setShowAddBus(true)} className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11.5px] font-bold cursor-pointer">
-          <Plus size={13} /> {t('mv.addBusBtn')}
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Link href="/portal/fleet/offers" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534]">
+            <Layers size={13} /> {t('mv.serviceCatalogueLink')}
+          </Link>
+          <button onClick={() => setShowAddBus(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11.5px] font-bold cursor-pointer">
+            <Plus size={13} /> {t('mv.addBusBtn')}
+          </button>
+        </div>
       </div>
       <p className="font-sans text-[11px] text-[#64748b] -mt-2">{t('mv.addBusHint')}</p>
       <Link href="/portal/fleet/invite" className="font-sans text-[11.5px] font-semibold text-[#166534] -mt-1.5">{t('mv.inviteDriverHeading')} →</Link>
@@ -179,11 +195,28 @@ export default function FleetVehiclesPage() {
       <FleetPanel>
         <FleetPanelHead icon={<Bus size={14} />} title={t('mv.busManagementHeading')} description={t('mv.panelDesc.vehicles')}
           action={<span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{vehicles.length}</span>} />
+      {vehicles.length > 0 && (
+        <div className="flex gap-1.5 p-3 pb-0">
+          <div className="relative flex-1">
+            <Search size={13} className="absolute top-1/2 -translate-y-1/2 start-2.5 text-[#94a3b8]" />
+            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('mv.searchVehiclesPlaceholder')}
+              className="w-full ps-8 pe-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" />
+          </div>
+          {vehicleKinds.length > 1 && (
+            <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] shrink-0">
+              <option value="">{t('mv.allVehicleKindsOption')}</option>
+              {vehicleKinds.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          )}
+        </div>
+      )}
       {vehicles.length === 0 ? (
         <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noVehiclesYetHint')}</p>
+      ) : filteredVehicles.length === 0 ? (
+        <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noMatchingVehiclesHint')}</p>
       ) : (
         <div className="flex flex-col divide-y divide-[#f1f5f9]">
-          {vehicles.map((v) => (
+          {filteredVehicles.map((v) => (
             <div key={v.id} className="px-3.5 py-3">
               {/* 2026-11-16: real complaint — "Bus Management" showed the
                   driver's personal name as the bus's primary identifier.
