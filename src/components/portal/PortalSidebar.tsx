@@ -43,6 +43,7 @@ import {
   UserPlus,
   Radio,
   Wrench,
+  Send,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -131,6 +132,7 @@ const fleetChildren = (fleetName?: string | null): LeafItem[] => [
   { href: '/portal/fleet', label: fleetName || 'Overview', tKey: 'portal.myFleetNamed', icon: LayoutDashboard },
   { href: '/portal/fleet/live-map', label: 'Live Map', tKey: 'mv.liveMapHeading', icon: Radio },
   { href: '/portal/my-vehicle/routes', label: 'Routes', tKey: 'mv.manageRoutesBtn', icon: Route },
+  { href: '/portal/fleet/dispatch', label: 'Dispatch', tKey: 'mv.dispatchBoardHeading', icon: Send },
   { href: '/portal/fleet/counters', label: 'Terminals', tKey: 'mv.bookingCountersHeading', icon: Building2 },
   { href: '/portal/fleet/vehicles', label: 'Vehicles', tKey: 'mv.busManagementHeading', icon: Car },
   { href: '/portal/fleet/drivers', label: 'Drivers', tKey: 'mv.driverRosterHeading', icon: IdCard },
