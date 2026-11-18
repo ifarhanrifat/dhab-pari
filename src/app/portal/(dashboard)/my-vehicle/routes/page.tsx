@@ -1278,6 +1278,7 @@ export default function MyVehicleRoutesPage() {
         return (
           <RouteStopsEditor
             routeId={stopsRouteId}
+            vehicleId={vehicleId}
             routePath={r?.route_path ?? null}
             departureTime={r?.departure_time ?? null}
             durationMin={r?.route_duration_min ?? null}

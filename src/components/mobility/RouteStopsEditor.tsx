@@ -20,10 +20,18 @@
 // arrival time, same calculation the rider's own stop board uses
 // (estimateArrivalTime, src/lib/roadRoute.ts), so a driver can see
 // before confirming a stop whether its timing actually makes sense.
+//
+// 2026-11-19: real terminal model (918) — a long-distance route's real
+// stops are terminals (fleet_counters: city + optional name, already
+// built "for when a city has more than one counter"), with a real
+// scheduled arrival/departure, not just a free-text label + pin. A
+// vehicle inside a fleet can now link a stop to one of that fleet's
+// own terminals and set its schedule; a solo vehicle with no fleet
+// keeps exactly the village/Photon flow above, unchanged.
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { MapPin, Plus } from 'lucide-react'
+import { MapPin, Plus, Building2, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -35,14 +43,18 @@ import { haversineKm, estimateArrivalTime, estimateReturnArrivalTime } from '@/l
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
-interface Stop { id: string; label: string; label_ur: string | null; lat: number; lng: number; stop_order: number }
+interface Stop {
+  id: string; label: string; label_ur: string | null; lat: number; lng: number; stop_order: number
+  counter_id: string | null; arrival_time: string | null; departure_time: string | null
+}
 interface NearbyVillage { village_id: string; name: string; name_ur: string | null; lat: number; lng: number; distance_km: number }
 interface Suggestion { key: string; label: string; lat: number; lng: number; villageId: string | null; nameUr: string | null }
+interface Terminal { id: string; city: string; name: string | null; lat: number | null; lng: number | null }
 
 const DEDUPE_KM = 0.6
 
-export function RouteStopsEditor({ routeId, routePath, departureTime, durationMin, returnDepartureTime, onClose }: {
-  routeId: string; routePath: { lat: number; lng: number }[] | null; departureTime?: string | null; durationMin?: number | null; returnDepartureTime?: string | null; onClose: () => void
+export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime, durationMin, returnDepartureTime, onClose }: {
+  routeId: string; vehicleId?: string | null; routePath: { lat: number; lng: number }[] | null; departureTime?: string | null; durationMin?: number | null; returnDepartureTime?: string | null; onClose: () => void
 }) {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
@@ -52,6 +64,12 @@ export function RouteStopsEditor({ routeId, routePath, departureTime, durationMi
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
   const [showPicker, setShowPicker] = useState(false)
+  const [terminals, setTerminals] = useState<Terminal[]>([])
+  const [schedulingStop, setSchedulingStop] = useState<Stop | 'new' | null>(null)
+  const [scheduleTerminalId, setScheduleTerminalId] = useState('')
+  const [scheduleArrival, setScheduleArrival] = useState('')
+  const [scheduleDeparture, setScheduleDeparture] = useState('')
+  const [savingSchedule, setSavingSchedule] = useState(false)
 
   const buildSuggestions = async (currentStops: Stop[]) => {
     if (!routePath || routePath.length < 2) { setSuggestions([]); return }
@@ -103,14 +121,28 @@ export function RouteStopsEditor({ routeId, routePath, departureTime, durationMi
   }
 
   const load = async () => {
-    const { data } = await supabase.from('route_stops').select('id, label, label_ur, lat, lng, stop_order').eq('route_id', routeId).order('stop_order')
-    const rows = data ?? []
+    const { data } = await supabase.from('route_stops').select('id, label, label_ur, lat, lng, stop_order, counter_id, arrival_time, departure_time').eq('route_id', routeId).order('stop_order')
+    const rows = (data ?? []) as Stop[]
     setStops(rows)
     setLoading(false)
     buildSuggestions(rows)
   }
 
   useEffect(() => { load() }, [routeId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Terminal picking only applies when this vehicle actually belongs
+  // to a fleet (fleet_counters.fleet_id) — a solo vehicle has no
+  // terminal network to pick from, and keeps the village/Photon flow
+  // above exactly as it already works.
+  useEffect(() => {
+    if (!vehicleId) return
+    supabase.from('vehicles').select('fleet_id').eq('id', vehicleId).single().then(({ data }) => {
+      const fleetId = (data as { fleet_id: string | null } | null)?.fleet_id
+      if (!fleetId) return
+      supabase.rpc('my_fleet_counters', { p_fleet_id: fleetId }).then(({ data: c }) =>
+        setTerminals(((c ?? []) as Terminal[])))
+    })
+  }, [vehicleId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addSuggestion = async (s: Suggestion) => {
     setAdding(true)
@@ -135,8 +167,64 @@ export function RouteStopsEditor({ routeId, routePath, departureTime, durationMi
     load()
   }
 
+  const openNewTerminalStop = () => { setSchedulingStop('new'); setScheduleTerminalId(''); setScheduleArrival(''); setScheduleDeparture('') }
+  const openEditStopSchedule = (s: Stop) => { setSchedulingStop(s); setScheduleTerminalId(s.counter_id ?? ''); setScheduleArrival(s.arrival_time?.slice(0, 5) ?? ''); setScheduleDeparture(s.departure_time?.slice(0, 5) ?? '') }
+
+  const saveSchedule = async () => {
+    if (schedulingStop === 'new') {
+      const terminal = terminals.find((x) => x.id === scheduleTerminalId)
+      if (!terminal) { toast.error(t('mv.pickTerminalError')); return }
+      setSavingSchedule(true)
+      const { error } = await supabase.rpc('create_route_stop', {
+        p_route_id: routeId, p_label: terminal.name ? `${terminal.city} · ${terminal.name}` : terminal.city, p_label_ur: null,
+        p_lat: terminal.lat, p_lng: terminal.lng, p_village_id: null, p_stop_order: stops.length + 1,
+        p_counter_id: terminal.id, p_arrival_time: scheduleArrival || null, p_departure_time: scheduleDeparture || null,
+      })
+      setSavingSchedule(false)
+      if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+      toast.success(t('mv.stopAddedToast'))
+      setSchedulingStop(null); load()
+    } else if (schedulingStop) {
+      setSavingSchedule(true)
+      const { error } = await supabase.rpc('update_route_stop_schedule', {
+        p_stop_id: schedulingStop.id, p_counter_id: scheduleTerminalId || null, p_arrival_time: scheduleArrival || null, p_departure_time: scheduleDeparture || null,
+      })
+      setSavingSchedule(false)
+      if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+      toast.success(t('action.saved', 'Saved'))
+      setSchedulingStop(null); load()
+    }
+  }
+
   const etaFor = (p: { lat: number; lng: number }) => routePath ? estimateArrivalTime(routePath, durationMin ?? null, departureTime ?? null, p) : null
   const returnEtaFor = (p: { lat: number; lng: number }) => routePath ? estimateReturnArrivalTime(routePath, durationMin ?? null, returnDepartureTime ?? null, p) : null
+
+  if (schedulingStop) {
+    return (
+      <MobilityBottomSheet title={schedulingStop === 'new' ? t('mv.addTerminalStopBtn') : t('mv.editStopScheduleHeading')} onClose={() => setSchedulingStop(null)}>
+        <div className="flex flex-col gap-2.5">
+          <label className="block font-sans text-[11.5px] font-bold text-[#64748b]">{t('mv.terminalLabel')}</label>
+          <select value={scheduleTerminalId} onChange={(e) => setScheduleTerminalId(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+            <option value="">{schedulingStop === 'new' ? t('mv.selectTerminalPlaceholder') : t('mv.noTerminalLinkOption')}</option>
+            {terminals.map((term) => <option key={term.id} value={term.id}>{term.city}{term.name ? ` · ${term.name}` : ''}</option>)}
+          </select>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="block font-sans text-[11px] font-bold text-[#64748b] mb-1">{t('mv.stopArrivesLabel')}</label>
+              <input type="time" value={scheduleArrival} onChange={(e) => setScheduleArrival(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </div>
+            <div className="flex-1">
+              <label className="block font-sans text-[11px] font-bold text-[#64748b] mb-1">{t('mv.stopDepartsLabel')}</label>
+              <input type="time" value={scheduleDeparture} onChange={(e) => setScheduleDeparture(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </div>
+          </div>
+          <button onClick={saveSchedule} disabled={savingSchedule} className="w-full px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
+            {savingSchedule ? t('action.loading') : t('action.save')}
+          </button>
+        </div>
+      </MobilityBottomSheet>
+    )
+  }
 
   return (
     <MobilityBottomSheet title={t('mv.manageStopsHeading')} onClose={onClose}>
@@ -161,10 +249,22 @@ export function RouteStopsEditor({ routeId, routePath, departureTime, durationMi
               {stops.map((s, i) => {
                 const eta = etaFor(s)
                 const returnEta = returnEtaFor(s)
+                const terminal = terminals.find((x) => x.id === s.counter_id)
                 return (
                   <div key={s.id} className="flex items-center gap-2 rounded-lg bg-[#f0fdf4] px-2.5 py-1.5">
                     <span className="shrink-0 w-5 h-5 rounded-full bg-[#166534] text-white text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
-                    <span className="flex-1 min-w-0 font-sans text-[12px] font-semibold text-[#166534] truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="block font-sans text-[12px] font-semibold text-[#166534] truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</span>
+                      {(terminal || s.arrival_time || s.departure_time) && (
+                        <span className="block font-sans text-[9.5px] text-[#64748b] truncate ltr-num">
+                          {terminal ? `${terminal.city}${terminal.name ? ` · ${terminal.name}` : ''} · ` : ''}
+                          {s.arrival_time ? `${t('mv.stopArrivesLabel')} ${s.arrival_time.slice(0, 5)}` : ''}
+                          {s.arrival_time && s.departure_time ? ' · ' : ''}
+                          {s.departure_time ? `${t('mv.stopDepartsLabel')} ${s.departure_time.slice(0, 5)}` : ''}
+                        </span>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => openEditStopSchedule(s)} className="shrink-0 p-1 text-[#64748b] cursor-pointer"><Clock size={13} /></button>
                     <span className="shrink-0 flex flex-col items-end font-sans text-[10px] font-bold text-[#64748b] ltr-num">
                       {eta && <span>🕒 {eta}</span>}
                       {returnEta && <span>↩️ {returnEta}</span>}
@@ -198,6 +298,11 @@ export function RouteStopsEditor({ routeId, routePath, departureTime, durationMi
             )}
           </div>
 
+          {terminals.length > 0 && (
+            <button onClick={openNewTerminalStop} className="flex items-center justify-center gap-1.5 w-full border border-[#166534] rounded-xl py-2.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer">
+              <Building2 size={14} /> {t('mv.addTerminalStopBtn')}
+            </button>
+          )}
           <button onClick={() => setShowPicker(true)} className="flex items-center justify-center gap-1.5 w-full border border-[#e5e2d0] rounded-xl py-2.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer">
             <MapPin size={14} /> {t('mv.addStopManuallyBtn')}
           </button>

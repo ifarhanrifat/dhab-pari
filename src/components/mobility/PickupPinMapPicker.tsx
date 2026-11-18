@@ -3,10 +3,10 @@
 // 2026-11-17: booking wizard rebuild Phase B — the map-pin pickup
 // feature from SAFAR_Admin_Dashboard_Professional_Booking-4.html's
 // real wizard JS (initBookingPickupMaps/setPickupPin). Deliberately a
-// separate component from StopMapPicker, not a variant of it:
-// StopMapPicker snaps a tap to the NEAREST LISTED STOP (300m
-// tolerance) — the whole point here is a free GPS pin anywhere along
-// the route, which is what a passenger boarding off the official stop
+// separate component from TerminalStopPicker, not a variant of it:
+// that one offers a plain list of this route's real named/terminal
+// stops — the whole point here is a free GPS pin anywhere along the
+// route, which is what a passenger boarding off the official stop
 // list actually needs. Reuses LeafletMap's existing onMapClick/route
 // props as-is; no changes to LeafletMap itself.
 
@@ -15,7 +15,7 @@ import dynamic from 'next/dynamic'
 import { X } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import type { MapPin } from '@/components/shared/LeafletMap'
-import type { PickableStop } from '@/components/mobility/StopMapPicker'
+import type { PickableStop } from '@/components/mobility/TerminalStopPicker'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 

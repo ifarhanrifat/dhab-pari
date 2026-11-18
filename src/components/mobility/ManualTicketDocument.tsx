@@ -19,6 +19,7 @@ export interface ManualTicketLeg {
   departureTime: string | null
   seats: number
   seatNumbers: number[] | null
+  amountPkr?: number
 }
 
 export interface ManualTicketData {
@@ -116,6 +117,9 @@ export function ManualTicketDocument({ data }: { data: ManualTicketData }) {
             <div><p className="text-[#64748b] text-[10px]">To</p><p className="font-semibold">{data.returnLeg.destination}</p></div>
             <div><p className="text-[#64748b] text-[10px]">Travel Date</p><p className="font-semibold ltr-num">{data.returnLeg.travelDate}{data.returnLeg.departureTime ? ` · ${data.returnLeg.departureTime}` : ''}</p></div>
             <div><p className="text-[#64748b] text-[10px]">Seats</p><p className="font-semibold ltr-num">{data.returnLeg.seats}{data.returnLeg.seatNumbers?.length ? ` (#${data.returnLeg.seatNumbers.join(', ')})` : ''}</p></div>
+            {data.returnLeg.amountPkr != null && (
+              <div><p className="text-[#64748b] text-[10px]">Fare</p><p className="font-semibold ltr-num">₨{fmt(data.returnLeg.amountPkr)}</p></div>
+            )}
           </div>
         </div>
       )}
