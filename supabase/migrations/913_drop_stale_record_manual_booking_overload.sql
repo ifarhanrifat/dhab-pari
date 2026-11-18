@@ -1,0 +1,13 @@
+-- Migration 913: real pre-existing bug found while curl-verifying
+-- migration 911 — 905 widened record_manual_booking from 13 to 17
+-- parameters (4 new trailing DEFAULT NULL params), which Postgres
+-- treats as a different signature, not a replacement: CREATE OR
+-- REPLACE only replaces a function of the SAME argument types. The
+-- original 13-param version from 883 was silently still live
+-- alongside the 17-param one ever since 905, invisible until a caller
+-- passed only the original 13 named params with none of the newer
+-- ones — at that point PostgREST can't disambiguate which overload
+-- is meant (confirmed live via curl: PGRST203 "Could not choose the
+-- best candidate function"). Drop the stale 13-param overload; the
+-- 17-param version from 911 is the only one that should exist.
+DROP FUNCTION IF EXISTS record_manual_booking(uuid, date, int, varchar, decimal, uuid, varchar, varchar, uuid, uuid, int[], varchar, jsonb);
