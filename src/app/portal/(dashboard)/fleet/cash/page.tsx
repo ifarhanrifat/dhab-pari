@@ -11,8 +11,8 @@
 // Mirrors the counter section's own cards/remit-form shape exactly.
 
 import { useEffect, useState } from 'react'
-import { Wallet, Bus, Building2 } from 'lucide-react'
-import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels } from '@/components/portal/FleetPanel'
+import { Wallet, Bus, Building2, Receipt } from 'lucide-react'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels, FleetStat } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -22,6 +22,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface CounterCash { counter_id: string; city: string; name: string | null; total_collected_pkr: number; total_remitted_pkr: number; cash_in_hand_pkr: number }
 interface VehicleCash { vehicle_id: string; owner_name: string; vehicle_type: string | null; vehicle_number: string | null; total_collected_pkr: number; total_remitted_pkr: number; cash_in_hand_pkr: number }
+interface Channels { online_pkr: number; terminal_pkr: number; driver_pkr: number; total_pkr: number }
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -43,6 +44,7 @@ export default function FleetCashPage() {
   const [remitVehicleId, setRemitVehicleId] = useState<string | null>(null)
   const [remitVehicleAmount, setRemitVehicleAmount] = useState('')
   const [remittingVehicle, setRemittingVehicle] = useState(false)
+  const [channels, setChannels] = useState<Channels | null>(null)
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
@@ -50,12 +52,14 @@ export default function FleetCashPage() {
     setFleetId(f?.fleet_id ?? null)
     setIsOwner(f?.is_owner ?? false)
     if (f?.is_owner) {
-      const [{ data: cashData }, { data: vehData }] = await Promise.all([
+      const [{ data: cashData }, { data: vehData }, { data: chData }] = await Promise.all([
         supabase.rpc('fleet_counter_cash_positions', { p_fleet_id: f.fleet_id }),
         supabase.rpc('fleet_vehicle_cash_positions', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('fleet_collection_channels', { p_fleet_id: f.fleet_id }),
       ])
       setCounterCash((cashData ?? []) as CounterCash[])
       setVehicleCash((vehData ?? []) as VehicleCash[])
+      setChannels((chData ?? null) as Channels | null)
     }
     setLoading(false)
   }
@@ -97,6 +101,47 @@ export default function FleetCashPage() {
       <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Wallet size={19} /> {t('mv.fleetCashHeading')}</h1>
 
       <p className="font-sans text-[11px] text-[#64748b] -mt-1">{t('mv.panelDesc.cash')}</p>
+
+      {/* 2026-11-18: Cash & accounts unification — this page already had
+          real counter/vehicle cash positions + remittance actions
+          (functionally the mockup's own "cash reconciliation queue",
+          just framed per-entity instead of per-handover-row), but was
+          missing the top-level kpi-row and the Collection Channels
+          panel the Dashboard's own "Details" link already promised
+          landing here — a real dead-end link until now. Both reuse
+          fleet_collection_channels (902), already fetched elsewhere. */}
+      {channels && channels.total_pkr > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          <FleetStat label={t('mv.grossTodayLabel')} value={`₨${fmt(channels.total_pkr)}`} />
+          <FleetStat label={t('mv.channelOnlineLabel')} value={`₨${fmt(channels.online_pkr)}`} />
+          <FleetStat label={t('mv.cashWithTerminalsLabel')} value={`₨${fmt(counterCash.reduce((s, c) => s + Number(c.cash_in_hand_pkr), 0))}`} />
+          <FleetStat label={t('mv.cashWithDriversLabel')} value={`₨${fmt(vehicleCash.reduce((s, v) => s + Number(v.cash_in_hand_pkr), 0))}`} valueClassName="text-[#b45309]" />
+        </div>
+      )}
+
+      {channels && channels.total_pkr > 0 && (
+        <FleetPanel>
+          <FleetPanelHead icon={<Receipt size={14} />} title={t('mv.collectionChannelsHeading')} description={t('mv.panelDesc.collectionChannels')} />
+          <FleetPanelBody className="flex flex-col gap-2.5">
+            <p className="font-sans text-[20px] font-extrabold text-dp-primary ltr-num">₨{fmt(channels.total_pkr)}</p>
+            {[
+              { label: t('mv.channelOnlineLabel'), val: channels.online_pkr, color: '#166534' },
+              { label: t('mv.channelTerminalLabel'), val: channels.terminal_pkr, color: '#d97706' },
+              { label: t('mv.channelDriverLabel'), val: channels.driver_pkr, color: '#2563eb' },
+            ].map((c) => {
+              const pct = channels.total_pkr > 0 ? Math.round((c.val / channels.total_pkr) * 100) : 0
+              return (
+                <div key={c.label}>
+                  <div className="flex items-center justify-between font-sans text-[11px] text-[#64748b] mb-1">
+                    <span>{c.label}</span><span className="font-bold text-[#1e293b] ltr-num">{pct}% · ₨{fmt(c.val)}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-[#F1F5F9] overflow-hidden"><span className="block h-full rounded-full" style={{ width: `${pct}%`, background: c.color }} /></div>
+                </div>
+              )
+            })}
+          </FleetPanelBody>
+        </FleetPanel>
+      )}
 
       <FleetPanel>
         <FleetPanelHead icon={<Building2 size={14} />} title={t('mv.counterCashHeading')}
