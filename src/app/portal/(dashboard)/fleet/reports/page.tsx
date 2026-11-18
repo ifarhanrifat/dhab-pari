@@ -149,6 +149,22 @@ export default function FleetReportsPage() {
       </div>
       <p className="font-sans text-[11px] text-[#64748b] -mt-1">{t('mv.panelDesc.reports')}</p>
 
+      {/* 2026-11-18: real gap found re-reading the mockup's "Reports &
+          profitability" view in full — a persistent kpi-row above the
+          report picker (Gross revenue/Operating costs/Trip
+          contribution). All three are real month-to-date totals
+          already in `pl`, just never surfaced at this level before.
+          The mockup's 4th tile ("Seat occupancy") and its revenue-
+          trend chart + profitability watchlist are deliberately
+          skipped — no real fleet-wide occupancy aggregate exists, and
+          the mockup's own chart/watchlist numbers are sample/
+          placeholder figures with nothing to honestly reproduce. */}
+      <div className="grid grid-cols-3 gap-2">
+        <FleetStat label={t('mv.grossRevenueLabel')} value={`₨${fmt((pl?.vehicles ?? []).reduce((s, v) => s + Number(v.month_earnings_pkr), 0))}`} />
+        <FleetStat label={t('mv.operatingCostsLabel')} value={`₨${fmt((pl?.vehicles ?? []).reduce((s, v) => s + Number(v.month_expenses_pkr), 0))}`} />
+        <FleetStat label={t('mv.tripContributionLabel')} value={`₨${fmt(pl?.fleet_month_profit_pkr ?? 0)}`} valueClassName="text-[#166534]" />
+      </div>
+
       {/* 2026-11-17: SAFAR's reference shows a "report catalogue" —
           a grid of named cards you pick from, not just a dropdown.
           Additive: the select below still works exactly as before,
