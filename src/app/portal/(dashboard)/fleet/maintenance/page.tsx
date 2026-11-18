@@ -12,6 +12,7 @@
 // already written and applied in an earlier round of this session —
 // this is that backend's first and only frontend.
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Wrench, Fuel, Plus, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
@@ -138,7 +139,16 @@ export default function FleetMaintenancePage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Wrench size={19} /> {t('mv.maintenanceHeading')}</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2 truncate"><Wrench size={19} /> {t('mv.maintenanceHeading')}</h1>
+        {/* 2026-11-18: real gap from the button-by-button audit — the
+            mockup puts "+Record cost" right on this screen's header;
+            the real feature already exists (fleet/expenses), just one
+            sidebar nav-hop away until now. */}
+        <Link href="/portal/fleet/expenses" className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11px] font-bold">
+          <Plus size={12} /> {t('mv.logExpenseBtn')}
+        </Link>
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <FleetStat label={t('mv.openWorkOrdersLabel')} icon={<Wrench size={12} />} value={openOrders.length} />

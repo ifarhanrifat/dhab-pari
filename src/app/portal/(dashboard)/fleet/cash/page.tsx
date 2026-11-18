@@ -10,8 +10,9 @@
 // zero connection to any remittance system, a real unprotected gap.
 // Mirrors the counter section's own cards/remit-form shape exactly.
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Wallet, Bus, Building2, Receipt } from 'lucide-react'
+import { Wallet, Bus, Building2, Receipt, Plus } from 'lucide-react'
 import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels, FleetStat } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -98,7 +99,16 @@ export default function FleetCashPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Wallet size={19} /> {t('mv.fleetCashHeading')}</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2 truncate"><Wallet size={19} /> {t('mv.fleetCashHeading')}</h1>
+        {/* 2026-11-18: real gap from the button-by-button audit — the
+            mockup puts "+Record expense" right on this screen's header;
+            the real feature already exists (fleet/expenses), just one
+            sidebar nav-hop away until now. */}
+        <Link href="/portal/fleet/expenses" className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11px] font-bold">
+          <Plus size={12} /> {t('mv.logExpenseBtn')}
+        </Link>
+      </div>
 
       <p className="font-sans text-[11px] text-[#64748b] -mt-1">{t('mv.panelDesc.cash')}</p>
 

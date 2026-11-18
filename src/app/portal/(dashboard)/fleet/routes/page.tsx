@@ -16,7 +16,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { ChevronLeft, Milestone, Search, Receipt } from 'lucide-react'
+import { ChevronLeft, Milestone, Search, Receipt, Plus } from 'lucide-react'
 import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetStatusPill } from '@/components/portal/FleetPanel'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -80,9 +80,20 @@ export default function FleetRoutesPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <Link href="/portal/fleet" className="p-1 -ms-1 text-[#64748b]"><ChevronLeft size={18} className={isUrdu ? 'rotate-180' : ''} /></Link>
-        <h1 className="font-bold text-[18px] text-dp-primary flex items-center gap-2"><Milestone size={17} /> {t('mv.routeLibraryHeading')}</h1>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Link href="/portal/fleet" className="p-1 -ms-1 text-[#64748b] shrink-0"><ChevronLeft size={18} className={isUrdu ? 'rotate-180' : ''} /></Link>
+          <h1 className="font-bold text-[18px] text-dp-primary flex items-center gap-2 truncate"><Milestone size={17} /> {t('mv.routeLibraryHeading')}</h1>
+        </div>
+        {/* 2026-11-18: real gap from the button-by-button audit — the
+            mockup's "+Create route" header button had no equivalent
+            here. Route creation already happens for real on the
+            per-vehicle editor (same destination the Dashboard's own
+            "+Post Route" button already uses), just wasn't reachable
+            from this screen. */}
+        <Link href="/portal/my-vehicle/routes" className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11px] font-bold">
+          <Plus size={12} /> {t('mv.createRouteBtn')}
+        </Link>
       </div>
 
       <FleetPanel>

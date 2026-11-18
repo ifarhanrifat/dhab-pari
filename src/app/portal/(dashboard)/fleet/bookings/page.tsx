@@ -45,7 +45,7 @@ interface FoundBooking {
   travel_date: string; seats: number; amount_pkr: number; status: string; payment_method: string | null
   vehicle_id: string; is_van_kind: boolean; total_seats: number; is_sleeper: boolean; seat_numbers: number[] | null
   ticket_no: string | null; boarded_at: string | null; vehicle_number: string | null; service_code: string | null
-  emergency_contact_phone: string | null; luggage_note: string | null
+  emergency_contact_phone: string | null; luggage_note: string | null; counter_id: string | null
 }
 // 2026-11-17: booking wizard Phase A — the reference computes a real
 // suggested fare per passenger type (Adult/Child/Infant-own-seat all
@@ -128,6 +128,13 @@ export default function FleetBookingsPage() {
   // today's bookings" with zero query typed.
   const [searchDate, setSearchDate] = useState(today())
   const [searchQuery, setSearchQuery] = useState('')
+  // 2026-11-18: real gap from the button-by-button audit — the RPC
+  // used to hard-filter to confirmed(+announced) bookings only, so a
+  // cancelled or pending one could never be found or reviewed here at
+  // all. Defaulting the filter to 'all' (917) is the fix; the mockup's
+  // own filter options (All/Confirmed/Unconfirmed/Cancelled) map to
+  // dhab-pari's real statuses as all/confirmed/pending/cancelled.
+  const [statusFilter, setStatusFilter] = useState('all')
   const [found, setFound] = useState<FoundBooking[]>([])
   const [searching, setSearching] = useState(false)
   const [rescheduling, setRescheduling] = useState<FoundBooking | null>(null)
@@ -276,13 +283,13 @@ export default function FleetBookingsPage() {
   const runSearch = async () => {
     if (!fleetId) return
     setSearching(true)
-    const { data, error } = await supabase.rpc('fleet_search_bookings', { p_fleet_id: fleetId, p_query: searchQuery || null, p_travel_date: searchDate || null })
+    const { data, error } = await supabase.rpc('fleet_search_bookings', { p_fleet_id: fleetId, p_query: searchQuery || null, p_travel_date: searchDate || null, p_status: statusFilter })
     setSearching(false)
     if (error) { toast.error(friendlyError(error)); return }
     setFound((data ?? []) as FoundBooking[])
   }
 
-  useEffect(() => { if (fleetId) runSearch() }, [fleetId, searchDate]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (fleetId) runSearch() }, [fleetId, searchDate, statusFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Real bug fixed, 2026-11-12: rescheduling used to carry the booking's
   // old seat numbers straight onto the new date with no visibility into
@@ -483,6 +490,33 @@ export default function FleetBookingsPage() {
     <div className="flex flex-col gap-3">
       <h1 className="font-bold text-[20px] sm:text-[22px] text-dp-primary flex items-center gap-2"><Ticket size={19} /> {t('mv.fleetBookingsHeading')}</h1>
       <p className="font-sans text-[11px] text-[#64748b] -mt-1">{t('mv.panelDesc.bookings')}</p>
+
+      {/* 2026-11-18: kpi-row from the button-by-button audit — the
+          mockup's "All/Online/Terminal/Driver on-road" split, computed
+          from whatever's currently loaded below (today + current
+          filters by default), not a separate fabricated query. Channel
+          split uses real data: source='app' is a rider's own booking,
+          source='manual' with a counter_id is a real terminal sale,
+          source='manual' with none is a counter-less (driver/roadside)
+          sale — the only two real channels manual bookings can be. */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-white border border-[#e5e2d0] rounded-xl p-2.5">
+          <p className="font-sans text-[10px] font-bold text-[#94a3b8] uppercase tracking-[0.04em]">{t('mv.allBookingsTodayLabel')}</p>
+          <p className="font-sans text-[17px] font-extrabold text-[#1e293b] ltr-num mt-0.5">{found.length}</p>
+        </div>
+        <div className="bg-white border border-[#e5e2d0] rounded-xl p-2.5">
+          <p className="font-sans text-[10px] font-bold text-[#94a3b8] uppercase tracking-[0.04em]">{t('mv.onlineBookingsLabel')}</p>
+          <p className="font-sans text-[17px] font-extrabold text-[#1e293b] ltr-num mt-0.5">{found.filter((b) => b.source === 'app').length}</p>
+        </div>
+        <div className="bg-white border border-[#e5e2d0] rounded-xl p-2.5">
+          <p className="font-sans text-[10px] font-bold text-[#94a3b8] uppercase tracking-[0.04em]">{t('mv.terminalBookingsLabel')}</p>
+          <p className="font-sans text-[17px] font-extrabold text-[#1e293b] ltr-num mt-0.5">{found.filter((b) => b.source === 'manual' && b.counter_id).length}</p>
+        </div>
+        <div className="bg-white border border-[#e5e2d0] rounded-xl p-2.5">
+          <p className="font-sans text-[10px] font-bold text-[#94a3b8] uppercase tracking-[0.04em]">{t('mv.driverOnRoadBookingsLabel')}</p>
+          <p className="font-sans text-[17px] font-extrabold text-[#1e293b] ltr-num mt-0.5">{found.filter((b) => b.source === 'manual' && !b.counter_id).length}</p>
+        </div>
+      </div>
 
       {/* Record a new booking */}
       <FleetPanel>
@@ -720,10 +754,17 @@ export default function FleetBookingsPage() {
       <FleetPanel>
         <FleetPanelHead icon={<Search size={14} />} title={t('mv.findBookingHeading')} description={t('mv.panelDesc.findBooking')}
           action={found.length > 0 ? <span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{found.length}</span> : undefined} />
-        <div className="flex gap-2 px-3.5 py-2.5 border-b border-[#f1f5f9] bg-[#F9F9F6]">
+        <div className="flex flex-wrap gap-2 px-3.5 py-2.5 border-b border-[#f1f5f9] bg-[#F9F9F6]">
           <input type="date" value={searchDate} onChange={(e) => setSearchDate(e.target.value)}
             className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-          <div className="relative flex-1">
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-2 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px]">
+            <option value="all">{t('mv.statusFilterAllOption')}</option>
+            <option value="confirmed">{t('mv.statusFilterConfirmedOption')}</option>
+            <option value="pending">{t('mv.statusFilterPendingOption')}</option>
+            <option value="cancelled">{t('mv.statusFilterCancelledOption')}</option>
+          </select>
+          <div className="relative flex-1 min-w-[140px]">
             <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-[#94a3b8]" />
             <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && runSearch()}
               placeholder={t('mv.searchByNameMobilePlaceholder')} className="w-full ps-9 pe-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
@@ -739,7 +780,16 @@ export default function FleetBookingsPage() {
           <>
           <FleetColumnLabels labels={[t('mv.passengerNamePlaceholder'), t('w.amount')]} />
           <div className="flex flex-col divide-y divide-[#f1f5f9]">
-            {found.map((b) => (
+            {found.map((b) => {
+              // 2026-11-18: real bug the audit's status-filter fix would
+              // otherwise have exposed — cancelled/rejected bookings
+              // were never visible here before, so nothing gated the
+              // Board/Reschedule/Cancel actions against them; both
+              // checked only boarded_at. Now that status.filter='all'
+              // can surface a cancelled row, it must render as inert.
+              const isCancelled = b.status === 'cancelled' || b.status === 'rejected'
+              const isPending = b.status === 'announced'
+              return (
               <div key={`${b.source}-${b.id}`} className="px-3.5 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
@@ -748,6 +798,8 @@ export default function FleetBookingsPage() {
                     <p className="font-sans text-[10.5px] text-[#94a3b8] ltr-num flex items-center gap-1.5 flex-wrap">
                       {b.ticket_no ? `#${b.ticket_no}` : ''}
                       {b.boarded_at && <FleetStatusPill tone="green">{t('mv.boardedLabel')}</FleetStatusPill>}
+                      {isCancelled && <FleetStatusPill tone="red">{t('mv.statusFilterCancelledOption')}</FleetStatusPill>}
+                      {isPending && <FleetStatusPill tone="amber">{t('mv.statusFilterPendingOption')}</FleetStatusPill>}
                     </p>
                     {b.luggage_note && <p className="font-sans text-[10.5px] text-[#94a3b8]">🧳 {b.luggage_note}</p>}
                   </div>
@@ -761,7 +813,7 @@ export default function FleetBookingsPage() {
                     <span className="font-sans text-[13px] font-bold text-[#166534] ltr-num">₨{fmt(b.amount_pkr)}</span>
                   </div>
                 </div>
-                {rescheduling?.id === b.id ? (
+                {isCancelled ? null : rescheduling?.id === b.id ? (
                   <div className="flex flex-col gap-2 mt-2">
                     <div className="flex gap-2">
                       <input type="date" value={rescheduleDate} min={today()} onChange={(e) => { setRescheduleDate(e.target.value); setRescheduleSeats([]) }}
@@ -791,7 +843,8 @@ export default function FleetBookingsPage() {
                   </div>
                 )}
               </div>
-            ))}
+              )
+            })}
           </div>
           </>
         )}
