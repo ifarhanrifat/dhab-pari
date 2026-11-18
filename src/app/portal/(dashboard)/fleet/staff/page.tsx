@@ -9,8 +9,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, UserPlus, Users2, ShieldCheck, History, Search } from 'lucide-react'
-import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat } from '@/components/portal/FleetPanel'
+import { ChevronLeft, UserPlus, Users2, ShieldCheck, History, Search, Wallet, Clock, Repeat2 } from 'lucide-react'
+import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat, FleetFormGrid, FleetFormField } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -22,6 +22,7 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 interface StaffMember {
   id: string; portal_user_id: string; full_name: string; counter_id: string | null; counter_city: string | null; counter_name: string | null
   role: string; commission_amount_pkr: number | null; commission_this_month_pkr: number; current_monthly_salary_pkr: number | null
+  overtime_this_month_pkr: number; on_duty_since: string | null; on_duty_shift_id: string | null
   license_number: string | null; license_expiry: string | null; cnic_number: string | null
   date_of_birth: string | null; blood_group: string | null; medical_report_url: string | null; photo_url: string | null
 }
@@ -32,6 +33,17 @@ const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const
 interface Counter { id: string; city: string; name: string | null }
 interface RolePermission { role: string; module: string; can_edit: boolean }
 interface AuditEntry { id: string; actor_name: string | null; action: string; details: Record<string, unknown> | null; created_at: string }
+interface FleetVehicle { id: string; vehicle_number: string | null; vehicle_type: string }
+interface PayrollSettings {
+  pay_frequency: 'monthly' | 'weekly' | 'per_trip'; overtime_calculation: 'hourly_rate' | 'fixed_shift' | 'manual'
+  overtime_hourly_rate_pkr: number | null; overtime_fixed_shift_pkr: number | null
+  commission_eligibility: 'confirmed_paid' | 'completed_journey'; default_commission_per_seat_pkr: number | null
+}
+interface RosterShift {
+  id: string; driver_name: string; vehicle_number: string | null; vehicle_type: string; route_label: string | null
+  shift_start: string; shift_end: string | null; incident_note: string | null; handover_from_shift_id: string | null; rest_break_count: number
+}
+const PAY_FREQUENCY_SUFFIX_KEY: Record<string, string> = { monthly: 'mv.perMonthSuffixLabel', weekly: 'mv.perWeekSuffixLabel', per_trip: 'mv.perTripSuffixLabel' }
 
 const PERMISSION_ROLES = ['booking_officer', 'terminal_manager', 'accountant', 'other'] as const
 const PERMISSION_MODULES = ['staff_payroll', 'cash'] as const
@@ -59,6 +71,15 @@ export default function FleetStaffPage() {
   // register panel has a search box + role filter; this page had neither.
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
+  const [vehicles, setVehicles] = useState<FleetVehicle[]>([])
+  const [payrollSettings, setPayrollSettings] = useState<PayrollSettings | null>(null)
+  const [payrollDraft, setPayrollDraft] = useState<PayrollSettings | null>(null)
+  const [savingPayroll, setSavingPayroll] = useState(false)
+  const [overtimeDraft, setOvertimeDraft] = useState<Record<string, { date: string; hours: string; amount: string }>>({})
+  const [shiftDraft, setShiftDraft] = useState<Record<string, { vehicle_id: string; start: string }>>({})
+  const [handoverDraft, setHandoverDraft] = useState<Record<string, string>>({})
+  const [showRoster, setShowRoster] = useState(false)
+  const [roster, setRoster] = useState<RosterShift[]>([])
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
@@ -66,18 +87,29 @@ export default function FleetStaffPage() {
     setFleetId(f?.fleet_id ?? null)
     setIsOwner(f?.is_owner ?? false)
     if (f?.is_owner) {
-      const [{ data: s }, { data: c }, { data: p }, { data: a }] = await Promise.all([
+      const [{ data: s }, { data: c }, { data: p }, { data: a }, { data: v }, { data: ps }] = await Promise.all([
         supabase.rpc('my_fleet_staff', { p_fleet_id: f.fleet_id }),
         supabase.rpc('my_fleet_counters', { p_fleet_id: f.fleet_id }),
         supabase.rpc('fleet_role_permissions_matrix', { p_fleet_id: f.fleet_id }),
         supabase.rpc('fleet_audit_log_recent', { p_fleet_id: f.fleet_id, p_limit: 50 }),
+        supabase.rpc('my_fleet_vehicles'),
+        supabase.rpc('my_fleet_payroll_settings', { p_fleet_id: f.fleet_id }),
       ])
       setStaff((s ?? []) as StaffMember[])
       setCounters((c ?? []) as Counter[])
       setPermissions((p ?? []) as RolePermission[])
       setAuditLog((a ?? []) as AuditEntry[])
+      setVehicles((v ?? []) as FleetVehicle[])
+      setPayrollSettings((ps ?? null) as PayrollSettings | null)
+      setPayrollDraft((ps ?? null) as PayrollSettings | null)
     }
     setLoading(false)
+  }
+
+  const loadRoster = async () => {
+    if (!fleetId) return
+    const { data } = await supabase.rpc('fleet_driver_duty_roster', { p_fleet_id: fleetId })
+    setRoster((data ?? []) as RosterShift[])
   }
 
   useEffect(() => {
@@ -188,6 +220,73 @@ export default function FleetStaffPage() {
     setPermissions((perms) => perms.map((p) => (p.role === role && p.module === module ? { ...p, can_edit: canEdit } : p)))
   }
 
+  // 2026-11-18: Payroll configuration that actually changes computed
+  // behavior, not the mockup's own "Illustrative" placeholder.
+  const savePayrollSettings = async () => {
+    if (!fleetId || !payrollDraft) return
+    setSavingPayroll(true)
+    const { error } = await supabase.rpc('set_fleet_payroll_settings', {
+      p_fleet_id: fleetId, p_pay_frequency: payrollDraft.pay_frequency, p_overtime_calculation: payrollDraft.overtime_calculation,
+      p_overtime_hourly_rate_pkr: payrollDraft.overtime_hourly_rate_pkr, p_overtime_fixed_shift_pkr: payrollDraft.overtime_fixed_shift_pkr,
+      p_commission_eligibility: payrollDraft.commission_eligibility, p_default_commission_per_seat_pkr: payrollDraft.default_commission_per_seat_pkr,
+    })
+    setSavingPayroll(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.payrollSettingsSavedToast'))
+    setPayrollSettings(payrollDraft)
+  }
+
+  const recordOvertime = async (fleetStaffId: string) => {
+    const d = overtimeDraft[fleetStaffId]
+    if (!d?.date) { toast.error(t('mv.enterExpiryDateError')); return }
+    const { error } = await supabase.rpc('record_staff_overtime', {
+      p_fleet_staff_id: fleetStaffId, p_work_date: d.date,
+      p_hours: d.hours ? Number(d.hours) : null, p_manual_amount_pkr: d.amount ? Number(d.amount) : null,
+    })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.overtimeRecordedToast'))
+    setOvertimeDraft((m) => ({ ...m, [fleetStaffId]: { date: '', hours: '', amount: '' } }))
+    load()
+  }
+
+  // 2026-11-18: real duty-interval tracking — admin/dispatcher-
+  // recorded, not driver self-service (that stays with the parked
+  // driver-app rebuild).
+  const recordShift = async (fleetStaffId: string) => {
+    const d = shiftDraft[fleetStaffId]
+    if (!d?.vehicle_id || !d?.start) { toast.error(t('mv.fillManualBookingError')); return }
+    const { error } = await supabase.rpc('record_duty_shift', {
+      p_fleet_staff_id: fleetStaffId, p_vehicle_id: d.vehicle_id, p_route_id: null, p_shift_start: new Date(d.start).toISOString(),
+    })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.dutyShiftRecordedToast'))
+    setShiftDraft((m) => ({ ...m, [fleetStaffId]: { vehicle_id: '', start: '' } }))
+    load()
+  }
+
+  const endShift = async (shiftId: string) => {
+    const { error } = await supabase.rpc('end_duty_shift', { p_shift_id: shiftId })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.shiftEndedToast'))
+    load()
+    if (showRoster) loadRoster()
+  }
+
+  const handover = async (shiftId: string, toFleetStaffId: string) => {
+    if (!toFleetStaffId) return
+    const { error } = await supabase.rpc('record_duty_handover', { p_shift_id: shiftId, p_to_fleet_staff_id: toFleetStaffId })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.handoverCompleteToast'))
+    load()
+    if (showRoster) loadRoster()
+  }
+
+  const toggleRoster = () => {
+    const next = !showRoster
+    setShowRoster(next)
+    if (next) loadRoster()
+  }
+
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
 
   const q = searchQuery.trim().toLowerCase()
@@ -210,6 +309,62 @@ export default function FleetStaffPage() {
             <FleetStat label={t('mv.statMonthlyPayrollLabel')} value={`₨${fmt(staff.reduce((sum, s) => sum + (s.current_monthly_salary_pkr ?? 0), 0))}`} />
             <FleetStat label={t('mv.statCommissionPayableLabel')} value={`₨${fmt(staff.reduce((sum, s) => sum + s.commission_this_month_pkr, 0))}`} valueClassName="text-[#b45309]" />
           </div>
+
+          {/* 2026-11-18: Payroll configuration that actually changes
+              computed behavior — the mockup's own panel is tagged
+              "Illustrative"; this one isn't. */}
+          {payrollDraft && (
+            <FleetPanel>
+              <FleetPanelHead icon={<Wallet size={14} />} title={t('mv.payrollSettingsHeading')} description={t('mv.panelDesc.payrollSettings')} />
+              <FleetPanelBody>
+                <FleetFormGrid>
+                  <FleetFormField label={t('mv.payFrequencyLabel')}>
+                    <select value={payrollDraft.pay_frequency} onChange={(e) => setPayrollDraft((d) => d && { ...d, pay_frequency: e.target.value as PayrollSettings['pay_frequency'] })}
+                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                      <option value="monthly">{t('mv.payFrequencyMonthly')}</option>
+                      <option value="weekly">{t('mv.payFrequencyWeekly')}</option>
+                      <option value="per_trip">{t('mv.payFrequencyPerTrip')}</option>
+                    </select>
+                  </FleetFormField>
+                  <FleetFormField label={t('mv.commissionEligibilityLabel')}>
+                    <select value={payrollDraft.commission_eligibility} onChange={(e) => setPayrollDraft((d) => d && { ...d, commission_eligibility: e.target.value as PayrollSettings['commission_eligibility'] })}
+                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                      <option value="confirmed_paid">{t('mv.commissionEligibilityConfirmedPaid')}</option>
+                      <option value="completed_journey">{t('mv.commissionEligibilityCompletedJourney')}</option>
+                    </select>
+                  </FleetFormField>
+                  <FleetFormField label={t('mv.overtimeCalculationLabel')} full>
+                    <select value={payrollDraft.overtime_calculation} onChange={(e) => setPayrollDraft((d) => d && { ...d, overtime_calculation: e.target.value as PayrollSettings['overtime_calculation'] })}
+                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                      <option value="manual">{t('mv.overtimeManualOption')}</option>
+                      <option value="hourly_rate">{t('mv.overtimeHourlyRateOption')}</option>
+                      <option value="fixed_shift">{t('mv.overtimeFixedShiftOption')}</option>
+                    </select>
+                  </FleetFormField>
+                  {payrollDraft.overtime_calculation === 'hourly_rate' && (
+                    <FleetFormField label={t('mv.overtimeHourlyRateLabel')}>
+                      <input type="number" value={payrollDraft.overtime_hourly_rate_pkr ?? ''} onChange={(e) => setPayrollDraft((d) => d && { ...d, overtime_hourly_rate_pkr: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                    </FleetFormField>
+                  )}
+                  {payrollDraft.overtime_calculation === 'fixed_shift' && (
+                    <FleetFormField label={t('mv.overtimeFixedShiftLabel')}>
+                      <input type="number" value={payrollDraft.overtime_fixed_shift_pkr ?? ''} onChange={(e) => setPayrollDraft((d) => d && { ...d, overtime_fixed_shift_pkr: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                    </FleetFormField>
+                  )}
+                  <FleetFormField label={t('mv.defaultCommissionLabel')} full>
+                    <input type="number" value={payrollDraft.default_commission_per_seat_pkr ?? ''} onChange={(e) => setPayrollDraft((d) => d && { ...d, default_commission_per_seat_pkr: e.target.value ? Number(e.target.value) : null })}
+                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                  </FleetFormField>
+                  <button onClick={savePayrollSettings} disabled={savingPayroll || JSON.stringify(payrollDraft) === JSON.stringify(payrollSettings)}
+                    className="col-span-2 w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
+                    {savingPayroll ? t('action.saving') : t('action.save')}
+                  </button>
+                </FleetFormGrid>
+              </FleetPanelBody>
+            </FleetPanel>
+          )}
 
           <FleetPanel>
             <FleetPanelHead icon={<UserPlus size={14} />} title={t('mv.addStaffBtn')} description={t('mv.panelDesc.addStaff')} />
@@ -281,12 +436,27 @@ export default function FleetStaffPage() {
                       could be called, but nothing ever showed what
                       salary was currently on file for anyone. */}
                   <p className="font-sans text-[11px] text-[#64748b] mt-2 pt-2 border-t border-[#f1f5f9]">
-                    {t('mv.payPlanLabel')}: <span className="font-semibold text-[#1e293b] ltr-num">{s.current_monthly_salary_pkr != null ? `₨${fmt(s.current_monthly_salary_pkr)} ${t('mv.perMonthSuffixLabel')}` : t('mv.noSalarySetHint')}</span>
+                    {t('mv.payPlanLabel')}: <span className="font-semibold text-[#1e293b] ltr-num">{s.current_monthly_salary_pkr != null ? `₨${fmt(s.current_monthly_salary_pkr)} ${t(PAY_FREQUENCY_SUFFIX_KEY[payrollSettings?.pay_frequency ?? 'monthly'])}` : t('mv.noSalarySetHint')}</span>
                   </p>
                   <div className="flex gap-2 mt-1.5">
                     <input type="number" value={salaryDraft[s.id] ?? ''} onChange={(e) => setSalaryDraft((d) => ({ ...d, [s.id]: e.target.value }))}
                       placeholder={t('mv.monthlySalaryPlaceholder')} className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
                     <button onClick={() => saveSalary(s.id)} className="shrink-0 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('mv.setSalaryBtn')}</button>
+                  </div>
+                  {/* 2026-11-18: real overtime ledger, computed from the
+                      fleet's chosen payroll method. */}
+                  <p className="font-sans text-[10.5px] text-[#64748b] mt-1.5">{t('mv.overtimeThisMonthLabel')}: <span className="font-semibold text-[#1e293b] ltr-num">₨{fmt(s.overtime_this_month_pkr)}</span></p>
+                  <div className="flex gap-2 mt-1">
+                    <input type="date" value={overtimeDraft[s.id]?.date ?? ''} onChange={(e) => setOvertimeDraft((m) => ({ ...m, [s.id]: { date: e.target.value, hours: m[s.id]?.hours ?? '', amount: m[s.id]?.amount ?? '' } }))}
+                      className="w-28 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11px] ltr-num" />
+                    {payrollSettings?.overtime_calculation === 'manual' ? (
+                      <input type="number" value={overtimeDraft[s.id]?.amount ?? ''} onChange={(e) => setOvertimeDraft((m) => ({ ...m, [s.id]: { date: m[s.id]?.date ?? '', hours: '', amount: e.target.value } }))}
+                        placeholder={t('mv.overtimeAmountPlaceholder')} className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11px] ltr-num" />
+                    ) : payrollSettings?.overtime_calculation === 'hourly_rate' ? (
+                      <input type="number" value={overtimeDraft[s.id]?.hours ?? ''} onChange={(e) => setOvertimeDraft((m) => ({ ...m, [s.id]: { date: m[s.id]?.date ?? '', hours: e.target.value, amount: '' } }))}
+                        placeholder={t('mv.overtimeHoursPlaceholder')} className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11px] ltr-num" />
+                    ) : null}
+                    <button onClick={() => recordOvertime(s.id)} className="shrink-0 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('mv.recordOvertimeBtn')}</button>
                   </div>
                   <div className="flex gap-2 mt-1.5">
                     <input type="number" value={paymentDraft[s.id] ?? ''} onChange={(e) => setPaymentDraft((d) => ({ ...d, [s.id]: e.target.value }))}
@@ -313,6 +483,37 @@ export default function FleetStaffPage() {
                       here for a driver added as staff. */}
                   {s.role === 'driver' && (
                     <div className="mt-2 pt-2 border-t border-[#f1f5f9] flex flex-col gap-1.5">
+                      {/* 2026-11-18: real duty-interval tracking — the
+                          mockup's own "Open driver roster" button just
+                          toasts "Duty roster opened", no real roster
+                          exists even there. Admin-recorded here, not
+                          driver self-service. */}
+                      {s.on_duty_since ? (
+                        <div className="flex items-center justify-between gap-2 bg-[#F0FDF4] rounded-lg px-2.5 py-1.5">
+                          <span className="flex items-center gap-1 font-sans text-[11px] font-semibold text-[#166534]">
+                            <Clock size={11} /> {t('mv.onDutySinceLabel')}: {new Date(s.on_duty_since).toLocaleTimeString(isUrdu ? 'ur-PK' : 'en-PK', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <div className="flex gap-1.5 shrink-0">
+                            <button onClick={() => s.on_duty_shift_id && endShift(s.on_duty_shift_id)} className="px-2 py-1 rounded-lg border border-[#e5e2d0] font-sans text-[10.5px] font-semibold text-[#b91c1c] cursor-pointer">{t('mv.endShiftBtn')}</button>
+                            <select value={handoverDraft[s.id] ?? ''} onChange={(e) => { setHandoverDraft((m) => ({ ...m, [s.id]: e.target.value })); if (e.target.value && s.on_duty_shift_id) handover(s.on_duty_shift_id, e.target.value) }}
+                              className="px-1.5 py-1 border border-[#e5e2d0] rounded-lg font-sans text-[10.5px]">
+                              <option value="">{t('mv.handoverToLabel')}</option>
+                              {staff.filter((d) => d.role === 'driver' && d.id !== s.id && !d.on_duty_since).map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1.5">
+                          <select value={shiftDraft[s.id]?.vehicle_id ?? ''} onChange={(e) => setShiftDraft((m) => ({ ...m, [s.id]: { vehicle_id: e.target.value, start: m[s.id]?.start ?? '' } }))}
+                            className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11px]">
+                            <option value="">{t('mv.dutyShiftVehicleLabel')}</option>
+                            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.vehicle_number || v.vehicle_type}</option>)}
+                          </select>
+                          <input type="datetime-local" value={shiftDraft[s.id]?.start ?? ''} onChange={(e) => setShiftDraft((m) => ({ ...m, [s.id]: { vehicle_id: m[s.id]?.vehicle_id ?? '', start: e.target.value } }))}
+                            className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11px] ltr-num" />
+                          <button onClick={() => recordShift(s.id)} className="shrink-0 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('mv.recordDutyShiftBtn')}</button>
+                        </div>
+                      )}
                       <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-[#64748b]">{t('mv.driverDetailsHeading')}</p>
                       <div className="grid grid-cols-2 gap-1.5">
                         <input value={driverField(s, 'license_number')} onChange={(e) => setDriverField(s.id, 'license_number', e.target.value)}
@@ -373,6 +574,42 @@ export default function FleetStaffPage() {
                 </tbody>
               </table>
             </div>
+          </FleetPanel>
+
+          {/* 2026-11-18: the mockup's duty-rule callout is accurate
+              and kept as-is; "Open driver roster" now opens a real
+              roster instead of a toast. */}
+          <FleetPanel>
+            <FleetPanelHead icon={<Repeat2 size={14} />} title={t('mv.dutyComplianceHeading')}
+              action={<button onClick={toggleRoster} className="px-2.5 py-1 rounded-lg border border-[#e5e2d0] font-sans text-[11px] text-[#166534] font-semibold cursor-pointer">{showRoster ? t('action.showLess') : t('mv.openDriverRosterBtn')}</button>} />
+            <FleetPanelBody>
+              <p className="font-sans text-[11px] text-[#64748b] leading-relaxed bg-[#f8f6ee] rounded-lg p-2.5">{t('mv.dutyRuleExplainer')}</p>
+              {showRoster && (
+                roster.length === 0 ? (
+                  <p className="font-sans text-[12px] text-[#94a3b8] text-center py-4">{t('mv.rosterEmptyHint')}</p>
+                ) : (
+                  <div className="flex flex-col gap-2 mt-2.5">
+                    {roster.map((r) => (
+                      <div key={r.id} className="border border-[#e5e2d0] rounded-lg p-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-sans text-[12px] font-bold text-[#1e293b]">{r.driver_name}</p>
+                          <span className="font-sans text-[10.5px] text-[#64748b] ltr-num">
+                            {new Date(r.shift_start).toLocaleTimeString(isUrdu ? 'ur-PK' : 'en-PK', { hour: '2-digit', minute: '2-digit' })}
+                            {' – '}
+                            {r.shift_end ? new Date(r.shift_end).toLocaleTimeString(isUrdu ? 'ur-PK' : 'en-PK', { hour: '2-digit', minute: '2-digit' }) : t('mv.availOnTripLabel')}
+                          </span>
+                        </div>
+                        <p className="font-sans text-[10.5px] text-[#64748b] mt-0.5">{r.vehicle_number || r.vehicle_type}{r.route_label ? ` · ${r.route_label}` : ''}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {r.rest_break_count > 0 && <span className="font-sans text-[10px] text-[#166534] ltr-num">{t('mv.restBreaksCountLabel').replace('{n}', String(r.rest_break_count))}</span>}
+                          {r.handover_from_shift_id && <span className="font-sans text-[10px] text-[#b45309]">{t('mv.handedOverFromLabel')}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </FleetPanelBody>
           </FleetPanel>
 
           {/* 885: a real audit trail for sensitive fleet actions —
