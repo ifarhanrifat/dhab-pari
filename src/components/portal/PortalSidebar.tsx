@@ -45,12 +45,20 @@ import {
   Wrench,
   Send,
   Milestone,
+  Receipt,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 interface LeafItem {
   href: string; label: string; tKey: string; icon: LucideIcon
   requiresConsumer?: boolean; requiresShopKeeper?: boolean; requiresVehicleKeeper?: boolean; requiresManagedFunds?: boolean
+  // 2026-11-18: from the sidebar audit — the mockup groups its 14 fleet
+  // nav items into 4 labeled clusters (Workspace/Network & fleet/People
+  // & commerce/Finance & control); dhab-pari's fleet section was one
+  // flat undifferentiated list of 18. Set on the first item of a new
+  // cluster; the sidebar renders a divider label above it, same visual
+  // idea as the mockup's own .nav-label rows.
+  sectionTKey?: string
 }
 interface GroupItem { groupKey: string; label: string; tKey: string; icon: LucideIcon; children: LeafItem[] }
 type MenuEntry = LeafItem | GroupItem
@@ -130,24 +138,35 @@ const menuItems: MenuEntry[] = [
 // sidebar structure, but built as children of THIS drawer's existing
 // group mechanism rather than a second, separate sidebar component.
 const fleetChildren = (fleetName?: string | null): LeafItem[] => [
-  { href: '/portal/fleet', label: fleetName || 'Overview', tKey: 'portal.myFleetNamed', icon: LayoutDashboard },
+  // Workspace — matches the mockup's own first cluster exactly
+  // (Overview / Live fleet map / Schedules & dispatch).
+  { href: '/portal/fleet', label: fleetName || 'Overview', tKey: 'portal.myFleetNamed', icon: LayoutDashboard, sectionTKey: 'mv.navSectionWorkspace' },
   { href: '/portal/fleet/live-map', label: 'Live Map', tKey: 'mv.liveMapHeading', icon: Radio },
-  { href: '/portal/my-vehicle/routes', label: 'Routes', tKey: 'mv.manageRoutesBtn', icon: Route },
-  { href: '/portal/fleet/routes', label: 'Route Library', tKey: 'mv.routeLibraryHeading', icon: Milestone },
   { href: '/portal/fleet/dispatch', label: 'Dispatch', tKey: 'mv.dispatchBoardHeading', icon: Send },
+  // Network & fleet — the mockup's "Routes & stops" is really two real
+  // dhab-pari screens (the per-vehicle editor + the fleet-wide
+  // library), and "Drivers" is its own real roster here.
+  { href: '/portal/my-vehicle/routes', label: 'Routes', tKey: 'mv.manageRoutesBtn', icon: Route, sectionTKey: 'mv.navSectionNetworkFleet' },
+  { href: '/portal/fleet/routes', label: 'Route Library', tKey: 'mv.routeLibraryHeading', icon: Milestone },
   { href: '/portal/fleet/counters', label: 'Terminals', tKey: 'mv.bookingCountersHeading', icon: Building2 },
   { href: '/portal/fleet/vehicles', label: 'Vehicles', tKey: 'mv.busManagementHeading', icon: Car },
   { href: '/portal/fleet/drivers', label: 'Drivers', tKey: 'mv.driverRosterHeading', icon: IdCard },
-  { href: '/portal/fleet/staff', label: 'Staff', tKey: 'mv.fleetStaffHeading', icon: Users2 },
+  { href: '/portal/fleet/maintenance', label: 'Maintenance & Fuel', tKey: 'mv.maintenanceHeading', icon: Wrench },
+  // People & commerce.
+  { href: '/portal/fleet/staff', label: 'Staff', tKey: 'mv.fleetStaffHeading', icon: Users2, sectionTKey: 'mv.navSectionPeopleCommerce' },
   { href: '/portal/fleet/bookings', label: 'Bookings', tKey: 'mv.fleetBookingsHeading', icon: Ticket },
+  { href: '/portal/fleet/chalan', label: 'Chalan', tKey: 'mv.chalanHeading', icon: ClipboardList },
+  // 2026-11-18: real gap from the sidebar audit — fare-requests is a
+  // real, working page (860) that had no nav entry anywhere, only a
+  // quick-link card on the Dashboard.
+  { href: '/portal/fleet/fare-requests', label: 'Fare Requests', tKey: 'mv.fareRequestsHeading', icon: Receipt },
   { href: '/portal/fleet/offers', label: 'Offers & Amenities', tKey: 'mv.offersHeading', icon: Sparkles },
   { href: '/portal/fleet/rentals', label: 'Rentals & Charters', tKey: 'mv.rentalsHeading', icon: CalendarClock },
-  { href: '/portal/fleet/chalan', label: 'Chalan', tKey: 'mv.chalanHeading', icon: ClipboardList },
-  { href: '/portal/fleet/maintenance', label: 'Maintenance & Fuel', tKey: 'mv.maintenanceHeading', icon: Wrench },
-  { href: '/portal/fleet/expenses', label: 'Expenses', tKey: 'mv.fleetExpensesHeading', icon: Fuel },
+  { href: '/portal/fleet/invite', label: 'Invite a Driver', tKey: 'mv.inviteDriverHeading', icon: UserPlus },
+  // Finance & control.
+  { href: '/portal/fleet/expenses', label: 'Expenses', tKey: 'mv.fleetExpensesHeading', icon: Fuel, sectionTKey: 'mv.navSectionFinanceControl' },
   { href: '/portal/fleet/cash', label: 'Cash & Accounts', tKey: 'mv.fleetCashHeading', icon: Wallet },
   { href: '/portal/fleet/reports', label: 'Reports', tKey: 'mv.fleetPLHeading', icon: BarChart3 },
-  { href: '/portal/fleet/invite', label: 'Invite a Driver', tKey: 'mv.inviteDriverHeading', icon: UserPlus },
 ]
 
 interface PortalSidebarProps {
@@ -169,6 +188,16 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   const [fleetName, setFleetName] = useState('')
   const [fleetRoleLabel, setFleetRoleLabel] = useState('')
   const [hasManagedFunds, setHasManagedFunds] = useState(false)
+  // 2026-11-18: from the sidebar audit — the mockup's "Live fleet map
+  // (12)" / "Schedules & dispatch (4)" nav badges are live-looking
+  // operational counts, not unread-notification counts, so they don't
+  // belong in the existing `badges` state (that one really does mean
+  // "unread," fed by portal_sidebar_badges()). Real counts, reusing
+  // the exact RPCs those two pages already use for the same numbers
+  // (fleet_vehicle_locations for transmitting vehicles, the same
+  // is_active && runs_today filter the Dispatch board applies to
+  // fleet_vehicle_schedule for today's departures).
+  const [fleetLiveCounts, setFleetLiveCounts] = useState<{ transmitting: number; departuresToday: number } | null>(null)
 
   // A shop/vehicle only exists for a portal user once staff links one to
   // them (shops.portal_user_id / vehicles.portal_user_id) — public-read
@@ -223,6 +252,21 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
       const isOwner = !!(managed.data as { is_owner?: boolean } | null)?.is_owner
       const staffRole = (fleetStaff.data?.[0] as { role?: string } | undefined)?.role
       setFleetRoleLabel(isOwner && (fleetOwner.data?.length ?? 0) > 0 ? 'mv.fleetOwnerRoleLabel' : staffRole ? `mv.role.${staffRole}` : '')
+
+      const managedFleetId = (managed.data as { fleet_id?: string } | null)?.fleet_id
+      if (inFleet && managedFleetId) {
+        Promise.all([
+          supabase.rpc('fleet_vehicle_locations', { p_fleet_id: managedFleetId }),
+          supabase.rpc('fleet_vehicle_schedule', { p_fleet_id: managedFleetId }),
+        ]).then(([locs, sched]) => {
+          const transmitting = ((locs.data ?? []) as unknown[]).length
+          const departuresToday = ((sched.data ?? []) as { is_active: boolean; runs_today: boolean }[])
+            .filter((r) => r.is_active && r.runs_today).length
+          setFleetLiveCounts({ transmitting, departuresToday })
+        })
+      } else {
+        setFleetLiveCounts(null)
+      }
     })
     Promise.all([
       supabase.from('event_salami_accounts').select('id').eq('manager_portal_user_id', user.id).limit(1),
@@ -390,23 +434,43 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
                 </button>
                 {expanded && (
                   <div className="mt-1 space-y-1">
-                    {entry.children.map((item) => {
+                    {entry.children.map((item, idx) => {
                       const Icon = item.icon
                       const isActive = item.href === activeHref
                       const count = badges[item.href.split('/')[2] ?? ''] ?? 0
+                      // 2026-11-18: the mockup shows a live-looking count
+                      // next to "Live fleet map" and "Schedules &
+                      // dispatch" specifically — a real, non-alarm pill
+                      // (not the red "unread" badge above), since these
+                      // numbers mean "this many right now," not "this
+                      // many need your attention."
+                      const liveCount = item.href === '/portal/fleet/live-map' ? fleetLiveCounts?.transmitting
+                        : item.href === '/portal/fleet/dispatch' ? fleetLiveCounts?.departuresToday
+                        : undefined
                       return (
-                        <Link key={item.href} href={item.href} onClick={onMobileClose}
-                          className={`flex items-center ps-8 pe-4 py-2.5 mx-2 rounded-xl transition-all text-[14.5px] font-sans ${
-                            isActive ? 'bg-dp2-gold text-slate-900 font-bold' : 'text-white/70 hover:bg-dp2-primary-dark hover:text-white'
-                          }`}>
-                          <Icon size={16} className="me-3 shrink-0" />
-                          <span className="min-w-0 truncate">{item.tKey ? t(item.tKey, item.label) : item.label}</span>
-                          {count > 0 && (
-                            <span className="ms-auto shrink-0 bg-red-600 text-white text-[12px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center" aria-label={`${count} new`}>
-                              {count > 99 ? '99+' : count}
-                            </span>
+                        <div key={item.href}>
+                          {item.sectionTKey && (
+                            <p className={`font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-white/35 ps-8 pe-4 ${idx === 0 ? 'pt-0 pb-1.5' : 'pt-3 pb-1.5'}`}>
+                              {t(item.sectionTKey)}
+                            </p>
                           )}
-                        </Link>
+                          <Link href={item.href} onClick={onMobileClose}
+                            className={`flex items-center ps-8 pe-4 py-2.5 mx-2 rounded-xl transition-all text-[14.5px] font-sans ${
+                              isActive ? 'bg-dp2-gold text-slate-900 font-bold' : 'text-white/70 hover:bg-dp2-primary-dark hover:text-white'
+                            }`}>
+                            <Icon size={16} className="me-3 shrink-0" />
+                            <span className="min-w-0 truncate">{item.tKey ? t(item.tKey, item.label) : item.label}</span>
+                            {count > 0 ? (
+                              <span className="ms-auto shrink-0 bg-red-600 text-white text-[12px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center" aria-label={`${count} new`}>
+                                {count > 99 ? '99+' : count}
+                              </span>
+                            ) : liveCount != null && (
+                              <span className={`ms-auto shrink-0 text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center ltr-num ${isActive ? 'bg-slate-900/10 text-slate-900' : 'bg-white/15 text-white/80'}`}>
+                                {liveCount}
+                              </span>
+                            )}
+                          </Link>
+                        </div>
                       )
                     })}
                   </div>
