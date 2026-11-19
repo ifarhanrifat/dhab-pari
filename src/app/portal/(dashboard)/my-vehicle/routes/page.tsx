@@ -76,7 +76,8 @@ const emptyRouteForm = {
 
 interface Booking {
   id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null; seat_accepted_at: string | null
-  vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
+  passenger_name: string | null; passenger_mobile: string | null
+  origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
 }
 interface Route {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -229,8 +230,12 @@ export default function MyVehicleRoutesPage() {
     const [{ data: rts }, { data: b }] = await Promise.all([
       supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active, departure_time, return_departure_time, days_of_week, route_path, route_duration_min, is_monthly_fixed, monthly_reference_fee_pkr, is_two_way, return_wait_minutes, seat_override, service_code, return_days_of_week, co_driver_portal_user_id, min_shift_hours, service_class, amenities')
         .eq('vehicle_id', id).order('created_at', { ascending: false }),
-      supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, seat_accepted_at, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
-        .eq('vehicle_routes.vehicle_id', id).order('created_at', { ascending: false }).limit(20),
+      // 922: real display gap — this used to read ride_bookings directly
+      // with no portal_users join at all, so a genuine rider booking
+      // always showed with no passenger name. my_vehicle_route_bookings
+      // does that join server-side (SECURITY DEFINER, same ownership
+      // gate the old RLS read implicitly required).
+      supabase.rpc('my_vehicle_route_bookings', { p_vehicle_id: id }),
     ])
     setRoutes(rts ?? [])
     setBookings((b ?? []) as unknown as Booking[])
@@ -586,6 +591,53 @@ export default function MyVehicleRoutesPage() {
     }
   }
 
+  // Real ask, 2026-11-19: "your whole booking procedure is wrong... there
+  // is nothing like this [village stuff] in the html file" — a fleet-run
+  // bus route is a different real product from a solo driver's village
+  // carpool route, and sharing one creation form between them was what
+  // produced "garbage" (teacher-van toggle, ghar-wapsi card, map/via-stop
+  // village routing, a weekly/one-off recurrence toggle, a 5/6/8-hour
+  // wait-window picker, a "complete vehicle fare" field) on a screen a
+  // bus-fleet owner/staff member will only ever see as a fleet route.
+  // Gated on fleetId (this portal user operates within a registered
+  // fleet — owner, staff, or driver-as-staff, 854/893) — never shown to
+  // a genuine solo village driver, who keeps postRoute()/the form above
+  // completely untouched. Terminal stops (the real "stop" concept for a
+  // bus route, 918/920) are always added in the next step, same as
+  // today — this only creates the route shell: name, base fare, schedule.
+  const postBusRoute = async () => {
+    const postVehicleId = selectedVehicleId ?? vehicleId
+    if (!postVehicleId || !form.origin.trim() || !form.destination.trim()) { toast.error(t('mk.nameRequired')); return }
+    if (form.days_of_week.length === 0) { toast.error(t('mv.pickAtLeastOneDayError')); return }
+    if (form.is_two_way && form.returnOnDifferentDays && form.return_days_of_week.length === 0) {
+      toast.error(t('mv.pickAtLeastOneReturnDayError')); return
+    }
+    const baseFare = form.total_fare_pkr ? Number(form.total_fare_pkr) : null
+    if (!baseFare || baseFare <= 0) { toast.error(t('mv.enterTotalFareError')); return }
+
+    setPosting(true)
+    const { data, error } = await supabase.rpc('create_vehicle_route_self', {
+      p_vehicle_id: postVehicleId,
+      p_origin: form.origin, p_origin_ur: form.origin || null,
+      p_destination: form.destination, p_destination_ur: form.destination || null,
+      p_classification: form.classification, p_fare_mode: 'terminal_zone', p_fare_per_seat_pkr: baseFare,
+      p_departure_time: form.departure_time || null, p_return_departure_time: form.is_two_way ? (form.return_departure_time || null) : null,
+      p_days_of_week: form.days_of_week,
+      p_is_monthly_fixed: false, p_is_two_way: form.is_two_way,
+      p_service_code: form.service_code.trim() || null,
+      p_return_days_of_week: form.is_two_way && form.returnOnDifferentDays ? form.return_days_of_week : null,
+    })
+    setPosting(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+
+    const routeId = data as string
+    toast.success(t('mv.routePosted'))
+    setShowForm(false)
+    setForm(emptyRouteForm)
+    const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid)
+    setStopsRouteId(routeId)
+  }
+
   const editMonthlyFee = async (r: Route) => {
     const input = window.prompt(t('mv.editMonthlyFeePrompt'), String(r.monthly_reference_fee_pkr ?? ''))
     if (input == null) return
@@ -623,6 +675,11 @@ export default function MyVehicleRoutesPage() {
   // reuses the same vehicleKind already resolved for the fare-mode
   // default, no second lookup needed.
   const isVanKindRoute = vehicleKind === 'van'
+  // Real ask, 2026-11-19: this screen is shared by a solo village driver
+  // and a registered bus fleet — fleetId (set for an owner, staff, or
+  // driver-as-staff of a real fleet, 854/893) is what actually tells
+  // them apart, never vehicle kind or count.
+  const isFleetRouteForm = fleetId != null
   const openManualBooking = async (routeId: string) => {
     setManualBookingRouteId(routeId)
     setManualCounterId(''); setManualPassengerName(''); setManualPassengerMobile(''); setManualSeats(1); setManualAmount(''); setManualMethod('cash'); setManualSeatNumbers([])
@@ -736,7 +793,7 @@ export default function MyVehicleRoutesPage() {
       {showForm && (
         <MobilityBottomSheet title={t('mv.postRouteHeading')} onClose={() => { setShowForm(false); setModeLocked(null); setRecurrence('weekly'); setOneOffDate('') }}>
         <div className="flex flex-col gap-2.5">
-          <CityReturnDemandCard limit={6} />
+          {!isFleetRouteForm && <CityReturnDemandCard limit={6} />}
 
           <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-[#e5e2d0]">{t('mv.routeBasicsSectionLabel')}</p>
           {/* Labelled, not placeholder-only: a placeholder vanishes the moment
@@ -777,6 +834,8 @@ export default function MyVehicleRoutesPage() {
           )}
 
           <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] -mb-1 mt-1 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-[#e5e2d0]">{t('mv.routePricingSectionLabel')}</p>
+          {!isFleetRouteForm && (
+          <>
           {/* Real ask, 2026-11-11: fare mode driver-chosen again, same
               choice for every vehicle kind ("keep them all same" rather
               than locking cars to flat) — applies whether or not this is
@@ -816,7 +875,9 @@ export default function MyVehicleRoutesPage() {
               <p className="font-sans text-[10.5px] text-[#64748b] mt-1">{t('mv.monthlyReferenceFeeHint')}</p>
             </div>
           )}
-          {showOriginPicker ? (
+          </>
+          )}
+          {!isFleetRouteForm && (showOriginPicker ? (
             <LocationPickerSheet
               title={t('mv.pickOriginOnMapBtn')}
               initial={originPoint}
@@ -918,12 +979,17 @@ export default function MyVehicleRoutesPage() {
                 <input type="number" value={form.distance_km} onChange={(e) => setForm((f) => ({ ...f, distance_km: e.target.value }))} placeholder={t('cm.distanceKmPlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
               </div>
             </>
-          )}
+          ))}
           <FleetFormGrid>
-            <FleetFormField label={t('mv.serviceCodeOptionalLabel')} full={form.is_monthly_fixed}>
+            <FleetFormField label={t('mv.serviceCodeOptionalLabel')} full={form.is_monthly_fixed || isFleetRouteForm}>
               <input value={form.service_code} onChange={(e) => setForm((f) => ({ ...f, service_code: e.target.value }))} placeholder={t('mv.serviceCodePlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
             </FleetFormField>
-            {!form.is_monthly_fixed && (
+            {isFleetRouteForm ? (
+              <FleetFormField label={t('mv.baseFareLabel')} full>
+                <input type="number" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+                <p className="font-sans text-[10.5px] text-[#64748b] mt-1">{t('mv.baseFareHint')}</p>
+              </FleetFormField>
+            ) : !form.is_monthly_fixed && (
               <FleetFormField label={t('mk.totalFareLabel')}>
                 <input type="number" value={form.total_fare_pkr} onChange={(e) => setForm((f) => ({ ...f, total_fare_pkr: e.target.value }))} placeholder={t('mv.totalFarePlaceholder')} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
               </FleetFormField>
@@ -932,7 +998,7 @@ export default function MyVehicleRoutesPage() {
           {totalSeats != null && (
             <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('mv.yourVehicleSeatsNote').replace('{n}', String(totalSeats))}</p>
           )}
-          {!form.is_monthly_fixed && routeFairPerSeat != null && (
+          {!isFleetRouteForm && !form.is_monthly_fixed && routeFairPerSeat != null && (
             <p className="font-sans text-[11.5px] text-[#166534] bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg px-2.5 py-1.5">
               {t('mv.routeFairPriceHint').replace('{perSeat}', fmt(Math.round(routeFairPerSeat))).replace('{total}', fmt(Math.round(routeFairPerSeat * (totalSeats ?? 1)))).replace('{n}', String(totalSeats ?? 1))}
             </p>
@@ -966,6 +1032,7 @@ export default function MyVehicleRoutesPage() {
                   hint ("usually leaves around...") since drivers still
                   find a clock time easier to picture than a duration. */}
               <FleetFormGrid>
+                {!isFleetRouteForm && (
                 <FleetFormField label={t('mv.returnWaitMinutesLabel')} full>
                   <div className="flex gap-1.5 flex-wrap">
                     {[300, 360, 480].map((mins) => (
@@ -978,6 +1045,7 @@ export default function MyVehicleRoutesPage() {
                       className="w-24 px-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" placeholder={t('mv.customMinutesPlaceholder')} />
                   </div>
                 </FleetFormField>
+                )}
                 <FleetFormField label={t('cm.returnDepartureTimeLabel')}>
                   <input type="time" value={form.return_departure_time} onChange={(e) => setForm((f) => ({ ...f, return_departure_time: e.target.value }))} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full" />
                 </FleetFormField>
@@ -1011,7 +1079,7 @@ export default function MyVehicleRoutesPage() {
               retired home-page quick-poster's one real capability.
               Monthly-fixed routes are always weekly — a one-off
               monthly subscription makes no sense. */}
-          {!form.is_monthly_fixed && (
+          {!form.is_monthly_fixed && !isFleetRouteForm && (
             <div className="flex items-center gap-1.5">
               <button type="button" onClick={() => setRecurrence('weekly')} className="flex-1 py-1.5 rounded-lg text-[11.5px] font-sans font-bold cursor-pointer border"
                 style={{ background: recurrence === 'weekly' ? '#166534' : '#F9F9F6', color: recurrence === 'weekly' ? '#fff' : '#64748b', borderColor: recurrence === 'weekly' ? '#166534' : '#e5e2d0' }}>
@@ -1023,7 +1091,7 @@ export default function MyVehicleRoutesPage() {
               </button>
             </div>
           )}
-          {recurrence === 'once' && !form.is_monthly_fixed ? (
+          {recurrence === 'once' && !form.is_monthly_fixed && !isFleetRouteForm ? (
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.oneOffDateLabel')}</label>
               <input type="date" value={oneOffDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setOneOffDate(e.target.value)} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num" />
@@ -1040,7 +1108,7 @@ export default function MyVehicleRoutesPage() {
               </div>
             </div>
           )}
-          <button onClick={postRoute} disabled={posting} className="mt-1 px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
+          <button onClick={isFleetRouteForm ? postBusRoute : postRoute} disabled={posting} className="mt-1 px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
             {t('mv.postRouteSubmitBtn')}
           </button>
         </div>
@@ -1074,10 +1142,10 @@ export default function MyVehicleRoutesPage() {
                         : r.fare_mode === 'flex' ? `${t('mp.flexModeLabel')} · ${fmt(r.total_fare_pkr ?? 0)} ${t('mp.totalSuffix')}` : `${fmt(r.fare_per_seat_pkr)} ${t('mk.perSeat')}`}
                       {!r.is_active && ` · ${t('mp.routeClosedLabel')}`}
                     </p>
-                    {(r.departure_time || r.return_departure_time) && (
+                    {(r.departure_time || r.is_two_way) && (
                       <p className="font-sans text-[11px] text-[#64748b] mt-0.5 ltr-num">
                         {r.departure_time && `🕒 ${r.departure_time.slice(0, 5)}`}
-                        {r.return_departure_time && ` · ↩️ ${r.return_departure_time.slice(0, 5)}`}
+                        {r.is_two_way && ` · ↩️ ${r.return_departure_time ? r.return_departure_time.slice(0, 5) : t('mv.returnRunsBadge')}`}
                       </p>
                     )}
                     {r.is_active && (
@@ -1168,10 +1236,18 @@ export default function MyVehicleRoutesPage() {
                         className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-bold cursor-pointer bg-amber-600 text-white">
                         <Plus size={11} /> {t('mv.recordLuggageBtn')}
                       </button>
+                      {/* Real ask, 2026-11-19: "what is the purpose of
+                          group button here" — RouteGroupPanel is the
+                          village-carpool rider-grouping/wait-window flow;
+                          a terminal-zone bus route confirms/boards seats
+                          individually (confirm_ride_booking, board_manual_
+                          ticket) and has no real use for it. */}
+                      {r.fare_mode !== 'terminal_zone' && (
                       <button onClick={() => setGroupRouteId(r.id)}
                         className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-bold cursor-pointer border border-[#166534] text-[#166534]">
                         <Users size={11} /> {r.is_monthly_fixed ? t('mv.startManageRideBtn') : t('mv.routeGroupBtn')}
                       </button>
+                      )}
                     </div>
                     <div>
                       <p className="font-sans text-[9.5px] font-bold text-[#94a3b8] uppercase tracking-[0.06em] mb-1">{t('mv.manageRouteLabel')}</p>
@@ -1236,7 +1312,10 @@ export default function MyVehicleRoutesPage() {
                 <div className="min-w-0">
                   <p className="font-sans text-[13px] font-semibold text-[#1e293b] truncate flex items-center gap-1">
                     <MapPin size={12} className="shrink-0 text-[#166534]" />
-                    {b.vehicle_routes ? `${isUrdu && b.vehicle_routes.origin_ur ? b.vehicle_routes.origin_ur : b.vehicle_routes.origin} → ${isUrdu && b.vehicle_routes.destination_ur ? b.vehicle_routes.destination_ur : b.vehicle_routes.destination}` : '—'}
+                    {`${isUrdu && b.origin_ur ? b.origin_ur : b.origin} → ${isUrdu && b.destination_ur ? b.destination_ur : b.destination}`}
+                  </p>
+                  <p className="font-sans text-[12px] text-[#64748b] mt-0.5">
+                    {b.passenger_name ?? t('mp.unnamedRiderLabel')}{b.passenger_mobile ? ` · ${b.passenger_mobile}` : ''}
                   </p>
                   <p className="font-sans text-[12px] text-[#64748b] mt-0.5">{new Date(b.travel_date).toLocaleDateString('en-GB')} · {b.seats} {t('mk.seatsLabel')}</p>
                 </div>
@@ -1278,11 +1357,14 @@ export default function MyVehicleRoutesPage() {
         return (
           <RouteStopsEditor
             routeId={stopsRouteId}
-            vehicleId={vehicleId}
+            vehicleId={selectedVehicleId ?? vehicleId}
             routePath={r?.route_path ?? null}
             departureTime={r?.departure_time ?? null}
             durationMin={r?.route_duration_min ?? null}
             returnDepartureTime={r?.return_departure_time ?? null}
+            fareMode={r?.fare_mode ?? null}
+            farePerSeatPkr={r?.fare_per_seat_pkr ?? null}
+            onFareChanged={() => { const vid = selectedVehicleId ?? vehicleId; if (vid) reload(vid) }}
             onClose={() => {
               setStopsRouteId(null)
               if (pendingIlanRoute) {

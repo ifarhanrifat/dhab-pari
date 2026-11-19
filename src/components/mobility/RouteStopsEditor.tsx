@@ -31,7 +31,7 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { MapPin, Plus, Building2, Clock } from 'lucide-react'
+import { MapPin, Plus, Building2, Clock, X, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -50,11 +50,15 @@ interface Stop {
 interface NearbyVillage { village_id: string; name: string; name_ur: string | null; lat: number; lng: number; distance_km: number }
 interface Suggestion { key: string; label: string; lat: number; lng: number; villageId: string | null; nameUr: string | null }
 interface Terminal { id: string; city: string; name: string | null; lat: number | null; lng: number | null }
+interface FareZone { from_city: string; to_city: string; fare_pkr: number; is_auto_calculated: boolean }
+
+function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
 const DEDUPE_KM = 0.6
 
-export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime, durationMin, returnDepartureTime, onClose }: {
-  routeId: string; vehicleId?: string | null; routePath: { lat: number; lng: number }[] | null; departureTime?: string | null; durationMin?: number | null; returnDepartureTime?: string | null; onClose: () => void
+export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime, durationMin, returnDepartureTime, fareMode, farePerSeatPkr, onFareChanged, onClose }: {
+  routeId: string; vehicleId?: string | null; routePath: { lat: number; lng: number }[] | null; departureTime?: string | null; durationMin?: number | null; returnDepartureTime?: string | null
+  fareMode?: string | null; farePerSeatPkr?: number | null; onFareChanged?: () => void; onClose: () => void
 }) {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
@@ -63,6 +67,7 @@ export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime,
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
+  const [removingId, setRemovingId] = useState<string | null>(null)
   const [showPicker, setShowPicker] = useState(false)
   const [terminals, setTerminals] = useState<Terminal[]>([])
   const [schedulingStop, setSchedulingStop] = useState<Stop | 'new' | null>(null)
@@ -70,6 +75,31 @@ export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime,
   const [scheduleArrival, setScheduleArrival] = useState('')
   const [scheduleDeparture, setScheduleDeparture] = useState('')
   const [savingSchedule, setSavingSchedule] = useState(false)
+  // 922: the SAFAR mockup's "Route editor" treats a fleet route's stops
+  // as terminals-only, with distance and fare derived automatically —
+  // this is the bus-system path, gated on the route actually being in
+  // terminal_zone mode (never shown for a solo/village route, which
+  // keeps the village/Photon flow below completely unchanged).
+  const isTerminalZone = fareMode === 'terminal_zone'
+  const [fareZones, setFareZones] = useState<FareZone[]>([])
+  const [totalDistanceKm, setTotalDistanceKm] = useState<number | null>(null)
+  const [zonesLoading, setZonesLoading] = useState(false)
+  const [editingBaseFare, setEditingBaseFare] = useState(false)
+  const [baseFareInput, setBaseFareInput] = useState(String(farePerSeatPkr ?? ''))
+  const [savingBaseFare, setSavingBaseFare] = useState(false)
+  const [overridePair, setOverridePair] = useState<{ from: string; to: string } | null>(null)
+  const [overrideInput, setOverrideInput] = useState('')
+  const [savingOverride, setSavingOverride] = useState(false)
+
+  const loadZones = async () => {
+    if (!isTerminalZone) return
+    setZonesLoading(true)
+    const { data } = await supabase.rpc('fleet_route_fare_zones', { p_route_id: routeId })
+    const result = data as { zones: FareZone[]; total_distance_km: number | null } | null
+    setFareZones(result?.zones ?? [])
+    setTotalDistanceKm(result?.total_distance_km ?? null)
+    setZonesLoading(false)
+  }
 
   const buildSuggestions = async (currentStops: Stop[]) => {
     if (!routePath || routePath.length < 2) { setSuggestions([]); return }
@@ -125,10 +155,56 @@ export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime,
     const rows = (data ?? []) as Stop[]
     setStops(rows)
     setLoading(false)
-    buildSuggestions(rows)
+    if (isTerminalZone) loadZones()
+    else buildSuggestions(rows)
   }
 
   useEffect(() => { load() }, [routeId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const removeStop = async (stop: Stop) => {
+    if (!confirm(t('mv.removeStopConfirm'))) return
+    setRemovingId(stop.id)
+    const { error } = await supabase.rpc('delete_route_stop', { p_stop_id: stop.id })
+    setRemovingId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.stopRemovedToast'))
+    if (isTerminalZone) await supabase.rpc('recompute_route_fare_zones', { p_route_id: routeId })
+    load()
+    onFareChanged?.()
+  }
+
+  const saveBaseFare = async () => {
+    const val = Number(baseFareInput)
+    if (!val || val <= 0) { toast.error(t('mv.enterTotalFareError')); return }
+    setSavingBaseFare(true)
+    const { error } = await supabase.rpc('set_route_base_fare', { p_route_id: routeId, p_fare_per_seat_pkr: val })
+    setSavingBaseFare(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.baseFareUpdatedToast'))
+    setEditingBaseFare(false)
+    loadZones()
+    onFareChanged?.()
+  }
+
+  const openOverride = (z: FareZone) => { setOverridePair({ from: z.from_city, to: z.to_city }); setOverrideInput(String(z.fare_pkr)) }
+  const saveOverride = async () => {
+    if (!overridePair) return
+    const val = Number(overrideInput)
+    if (!val || val <= 0) { toast.error(t('mv.enterTotalFareError')); return }
+    setSavingOverride(true)
+    const { error } = await supabase.rpc('set_route_fare_zone_fare', { p_route_id: routeId, p_from_city: overridePair.from, p_to_city: overridePair.to, p_fare_pkr: val })
+    setSavingOverride(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.zoneOverrideSavedToast'))
+    setOverridePair(null)
+    loadZones()
+  }
+  const resetOverride = async (z: FareZone) => {
+    const { error } = await supabase.rpc('clear_route_fare_zone_override', { p_route_id: routeId, p_from_city: z.from_city, p_to_city: z.to_city })
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.zoneOverrideResetToast'))
+    loadZones()
+  }
 
   // Terminal picking only applies when this vehicle actually belongs
   // to a fleet (fleet_counters.fleet_id) — a solo vehicle has no
@@ -183,7 +259,9 @@ export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime,
       setSavingSchedule(false)
       if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
       toast.success(t('mv.stopAddedToast'))
-      setSchedulingStop(null); load()
+      setSchedulingStop(null)
+      if (isTerminalZone) await supabase.rpc('recompute_route_fare_zones', { p_route_id: routeId })
+      load(); onFareChanged?.()
     } else if (schedulingStop) {
       setSavingSchedule(true)
       const { error } = await supabase.rpc('update_route_stop_schedule', {
@@ -192,7 +270,9 @@ export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime,
       setSavingSchedule(false)
       if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
       toast.success(t('action.saved', 'Saved'))
-      setSchedulingStop(null); load()
+      setSchedulingStop(null)
+      if (isTerminalZone) await supabase.rpc('recompute_route_fare_zones', { p_route_id: routeId })
+      load(); onFareChanged?.()
     }
   }
 
@@ -222,6 +302,116 @@ export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime,
             {savingSchedule ? t('action.loading') : t('action.save')}
           </button>
         </div>
+      </MobilityBottomSheet>
+    )
+  }
+
+  if (isTerminalZone) {
+    return (
+      <MobilityBottomSheet title={t('mv.manageTerminalStopsHeading')} onClose={onClose}>
+        {loading ? (
+          <div className="text-center py-8"><LoadingDots /></div>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            <p className="font-sans text-[11.5px] text-[#64748b]">{t('mv.manageTerminalStopsHint')}</p>
+
+            {stops.length > 0 && (
+              <LeafletMap
+                pins={stops.map((s) => ({ lat: s.lat, lng: s.lng, label: isUrdu && s.label_ur ? s.label_ur : s.label, color: '#166534', emoji: '📍' }))}
+                height={150} className="rounded-xl"
+              />
+            )}
+
+            <div className="flex items-center justify-between rounded-lg bg-[#F9F9F6] border border-[#e5e2d0] px-2.5 py-2">
+              <span className="font-sans text-[11.5px] font-bold text-[#64748b]">{t('mv.autoDistanceLabel')}</span>
+              <span className="font-sans text-[13px] font-bold text-[#1e293b] ltr-num">
+                {totalDistanceKm != null ? `${fmt(totalDistanceKm)} km` : t('mv.autoDistanceUnknown')}
+              </span>
+            </div>
+
+            {stops.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                {stops.map((s, i) => {
+                  const terminal = terminals.find((x) => x.id === s.counter_id)
+                  return (
+                    <div key={s.id} className="flex items-center gap-2 rounded-lg bg-[#f0fdf4] px-2.5 py-1.5">
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-[#166534] text-white text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="block font-sans text-[12px] font-semibold text-[#166534] truncate">{isUrdu && s.label_ur ? s.label_ur : s.label}</span>
+                        {(terminal || s.arrival_time || s.departure_time) && (
+                          <span className="block font-sans text-[9.5px] text-[#64748b] truncate ltr-num">
+                            {terminal ? `${terminal.city}${terminal.name ? ` · ${terminal.name}` : ''} · ` : ''}
+                            {s.arrival_time ? `${t('mv.stopArrivesLabel')} ${s.arrival_time.slice(0, 5)}` : ''}
+                            {s.arrival_time && s.departure_time ? ' · ' : ''}
+                            {s.departure_time ? `${t('mv.stopDepartsLabel')} ${s.departure_time.slice(0, 5)}` : ''}
+                          </span>
+                        )}
+                      </div>
+                      <button type="button" onClick={() => openEditStopSchedule(s)} className="shrink-0 p-1 text-[#64748b] cursor-pointer"><Clock size={13} /></button>
+                      <button type="button" onClick={() => removeStop(s)} disabled={removingId === s.id} className="shrink-0 p-1 text-[#b91c1c] cursor-pointer disabled:opacity-50"><X size={14} /></button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <button onClick={openNewTerminalStop} className="flex items-center justify-center gap-1.5 w-full border border-[#166534] rounded-xl py-2.5 font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer">
+              <Building2 size={14} /> {t('mv.addTerminalStopBtn')}
+            </button>
+
+            <div className="mt-1 pt-2.5 border-t border-[#e5e2d0] flex flex-col gap-2">
+              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b]">{t('mv.zoneFareConfigHeading')}</p>
+              <p className="font-sans text-[10.5px] text-[#64748b] -mt-1">{t('mv.zoneFareConfigHint')}</p>
+
+              <div className="flex items-center justify-between rounded-lg border border-[#e5e2d0] px-2.5 py-2">
+                <div>
+                  <p className="font-sans text-[10.5px] text-[#64748b]">{t('mv.baseFareLabel')}</p>
+                  {editingBaseFare ? (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <input type="number" value={baseFareInput} onChange={(e) => setBaseFareInput(e.target.value)} className="w-24 px-2 py-1 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
+                      <button onClick={saveBaseFare} disabled={savingBaseFare} className="px-2.5 py-1 rounded-lg bg-[#166534] text-white font-sans text-[11px] font-bold cursor-pointer disabled:opacity-50">{t('action.save')}</button>
+                    </div>
+                  ) : (
+                    <p className="font-sans text-[14px] font-bold text-[#1e293b] ltr-num">₨{fmt(farePerSeatPkr ?? 0)}</p>
+                  )}
+                </div>
+                {!editingBaseFare && (
+                  <button onClick={() => { setBaseFareInput(String(farePerSeatPkr ?? '')); setEditingBaseFare(true) }} className="shrink-0 p-1.5 text-[#64748b] cursor-pointer"><Pencil size={14} /></button>
+                )}
+              </div>
+
+              {zonesLoading ? (
+                <p className="font-sans text-[11.5px] text-[#94a3b8]">{t('action.loading')}</p>
+              ) : fareZones.length === 0 ? (
+                <p className="font-sans text-[11.5px] text-[#94a3b8]">{t('mv.noFareZonesYet')}</p>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {fareZones.map((z) => (
+                    <div key={`${z.from_city}-${z.to_city}`} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#F9F9F6]">
+                      <span className="font-sans text-[11.5px] font-semibold text-[#1e293b] truncate">{z.from_city} → {z.to_city}</span>
+                      {overridePair?.from === z.from_city && overridePair?.to === z.to_city ? (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <input type="number" value={overrideInput} onChange={(e) => setOverrideInput(e.target.value)} className="w-20 px-1.5 py-0.5 border border-[#e5e2d0] rounded-lg font-sans text-[11px] ltr-num" />
+                          <button onClick={saveOverride} disabled={savingOverride} className="px-2 py-0.5 rounded-lg bg-[#166534] text-white font-sans text-[10.5px] font-bold cursor-pointer disabled:opacity-50">{t('action.save')}</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="font-sans text-[11.5px] font-bold text-[#1e293b] ltr-num">₨{fmt(z.fare_pkr)}</span>
+                          <span className={`font-sans text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${z.is_auto_calculated ? 'bg-[#F0FDF4] text-[#166534]' : 'bg-amber-50 text-amber-700'}`}>
+                            {z.is_auto_calculated ? t('mv.zoneAutoTag') : t('mv.zoneManualTag')}
+                          </span>
+                          <button onClick={() => (z.is_auto_calculated ? openOverride(z) : resetOverride(z))} className="font-sans text-[10px] font-bold text-[#166534] cursor-pointer underline">
+                            {z.is_auto_calculated ? t('mv.zoneOverrideBtn') : t('mv.zoneResetBtn')}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </MobilityBottomSheet>
     )
   }
