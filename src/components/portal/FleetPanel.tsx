@@ -8,6 +8,7 @@
 // Drivers, Vehicles, Bookings, Chalan, Expenses, Cash, Reports, Routes.
 
 import type { ReactNode } from 'react'
+import { Search } from 'lucide-react'
 
 type Tone = 'default' | 'danger' | 'warning'
 
@@ -94,6 +95,33 @@ export function FleetFormField({ label, full = false, children, className = '' }
     <div className={`min-w-0 ${full ? 'col-span-2' : ''} ${className}`}>
       <label className="block font-sans text-[11px] font-bold text-[#64748b] mb-1">{label}</label>
       {children}
+    </div>
+  )
+}
+
+/** 2026-11-19: KPI grid wrapper — extracted from the identical raw
+ * `grid grid-cols-2 gap-2.5` markup already copy-pasted on Vehicles/
+ * Counters, so a new screen doesn't re-invent it a third time. */
+export function FleetKpiRow({ children, cols = 2, className = '' }: { children: ReactNode; cols?: 2 | 3 | 4; className?: string }) {
+  const colsClass = cols === 4 ? 'grid-cols-4' : cols === 3 ? 'grid-cols-3' : 'grid-cols-2'
+  return <div className={`grid ${colsClass} gap-2.5 ${className}`}>{children}</div>
+}
+
+/** 2026-11-19: search(+filter) toolbar row — extracted from the
+ * identical raw markup already copy-pasted on Vehicles/Counters
+ * (absolutely-positioned search icon + input, optional trailing
+ * filter control such as a `<select>`). */
+export function FleetToolbar({ searchValue, onSearchChange, searchPlaceholder, filter, className = '' }: {
+  searchValue: string; onSearchChange: (value: string) => void; searchPlaceholder: string; filter?: ReactNode; className?: string
+}) {
+  return (
+    <div className={`flex gap-1.5 p-3 pb-0 ${className}`}>
+      <div className="relative flex-1">
+        <Search size={13} className="absolute top-1/2 -translate-y-1/2 start-2.5 text-[#94a3b8]" />
+        <input value={searchValue} onChange={(e) => onSearchChange(e.target.value)} placeholder={searchPlaceholder}
+          className="w-full ps-8 pe-2.5 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]" />
+      </div>
+      {filter}
     </div>
   )
 }
