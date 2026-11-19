@@ -142,7 +142,10 @@ export default function MyVehicleRoutesPage() {
   // own app booking would — no separate inventory to keep in sync.
   const [fleetId, setFleetId] = useState<string | null>(null)
   const [fleetCounters, setFleetCounters] = useState<{ id: string; city: string; name: string | null }[]>([])
-  const [fleetDrivers, setFleetDrivers] = useState<{ id: string; portal_user_id: string; full_name: string; mobile: string; routes_assigned_count: number; primary_vehicle_number: string | null; primary_route_label: string | null }[]>([])
+  const [fleetDrivers, setFleetDrivers] = useState<{
+    id: string; portal_user_id: string; full_name: string; mobile: string; routes_assigned_count: number; primary_vehicle_number: string | null; primary_route_label: string | null
+    is_on_duty: boolean; on_duty_vehicle_number: string | null; on_duty_route_label: string | null; license_expired: boolean; license_expires_soon: boolean
+  }[]>([])
   const [manualBookingRouteId, setManualBookingRouteId] = useState<string | null>(null)
   const [manualCounterId, setManualCounterId] = useState('')
   const [manualPassengerName, setManualPassengerName] = useState('')
@@ -1598,23 +1601,43 @@ export default function MyVehicleRoutesPage() {
                 <FleetFormField label={t('mv.coDriverMobileLabel')}>
                   {/* 888: was a free-text mobile number with no idea whether
                       it belonged to a real fleet driver — now a dropdown of
-                      the fleet's own registered drivers (plus each one's
-                      current route count as a lightweight availability
-                      signal) whenever any exist; falls back to free text for
-                      a solo driver with no fleet, or until any driver has
-                      been added as staff. */}
+                      the fleet's own registered drivers, falling back to
+                      free text for a solo driver with no fleet, or until
+                      any driver has been added as staff.
+                      923: real gap found live — "how will the admin know
+                      which driver is available" — the dropdown only ever
+                      showed a static assignment (which vehicle/route a
+                      driver is normally on), never whether they're free
+                      right now. Now shows the real open duty-shift (912)
+                      and license validity, both already tracked but never
+                      surfaced here before. */}
                   {fleetDrivers.length > 0 ? (
+                    <>
                     <select value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}
                       className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full">
                       <option value="">{t('mv.noCoDriverOption')}</option>
                       {fleetDrivers.map((d) => (
                         <option key={d.id} value={d.mobile}>
                           {d.full_name}
-                          {d.primary_vehicle_number ? ` · ${d.primary_vehicle_number}` : ''}
-                          {d.primary_route_label ? ` · ${d.primary_route_label}` : d.primary_vehicle_number ? ` · ${t('mv.noActiveRouteHint')}` : ` · ${t('mv.noVehicleAssignedHint')}`}
+                          {d.is_on_duty ? ` · ${t('mv.driverOnDutyHint')}${d.on_duty_vehicle_number ? ` (${d.on_duty_vehicle_number})` : ''}` : ` · ${t('mv.driverOffDutyHint')}`}
+                          {d.license_expired ? ` · ${t('mv.driverLicenseExpiredHint')}` : d.license_expires_soon ? ` · ${t('mv.driverLicenseExpiringHint')}` : ''}
                         </option>
                       ))}
                     </select>
+                    {(() => {
+                      const picked = fleetDrivers.find((d) => d.mobile === editSchedule.coDriverMobile)
+                      if (!picked) return null
+                      return (
+                        <p className={`font-sans text-[11px] font-bold mt-1 ${picked.is_on_duty || picked.license_expired ? 'text-amber-700' : 'text-[#166534]'}`}>
+                          {picked.is_on_duty
+                            ? `⚠️ ${t('mv.driverOnDutyWarning').replace('{vehicle}', picked.on_duty_vehicle_number ?? '—').replace('{route}', picked.on_duty_route_label ?? '—')}`
+                            : `✅ ${t('mv.driverOffDutyHint')}`}
+                          {picked.license_expired && ` · ⚠️ ${t('mv.driverLicenseExpiredHint')}`}
+                          {!picked.license_expired && picked.license_expires_soon && ` · ⚠️ ${t('mv.driverLicenseExpiringHint')}`}
+                        </p>
+                      )
+                    })()}
+                    </>
                   ) : (
                     <input value={editSchedule.coDriverMobile} onChange={(e) => setEditSchedule({ ...editSchedule, coDriverMobile: e.target.value })}
                       placeholder={t('mv.driverPhonePlaceholder')} className="px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] w-full ltr-num" />
