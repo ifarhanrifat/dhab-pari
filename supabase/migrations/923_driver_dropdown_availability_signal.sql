@@ -37,7 +37,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   -- their own primary vehicle — a driver covering a substitute run is
   -- just as unavailable as one on their usual route.
   LEFT JOIN LATERAL (
-    SELECT dds.vehicle_id, dds.route_id FROM driver_duty_shifts dds
+    SELECT dds.id, dds.vehicle_id, dds.route_id FROM driver_duty_shifts dds
     WHERE dds.fleet_staff_id = fs.id AND dds.shift_end IS NULL
     ORDER BY dds.shift_start DESC LIMIT 1
   ) ds ON true
