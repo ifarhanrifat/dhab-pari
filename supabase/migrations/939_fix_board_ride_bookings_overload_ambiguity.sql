@@ -1,0 +1,12 @@
+-- Migration 939: real bug caught live while testing 938's onboard
+-- roster — board_ride_bookings has been completely unusable (PGRST203,
+-- "Could not choose the best candidate function") since 875 shipped.
+-- 875 added a p_luggage_note param by writing CREATE OR REPLACE
+-- FUNCTION board_ride_bookings(p_booking_ids uuid[], p_luggage_note
+-- varchar DEFAULT NULL) — a DIFFERENT signature from the original 1-arg
+-- version (817), so Postgres created a second overload instead of
+-- replacing the first. The stale 1-arg version was never dropped, and
+-- any call to board_ride_bookings(p_booking_ids := ...) has been
+-- ambiguous between the two ever since — every driver's "board this
+-- rider" action has been silently broken this whole time.
+DROP FUNCTION IF EXISTS public.board_ride_bookings(uuid[]);

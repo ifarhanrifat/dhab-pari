@@ -56,7 +56,7 @@ interface MonthlySubscription { id: string; status: string; monthly_fee_pkr: num
 interface MonthlyDetail { is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null; seats_total: number; active_count: number; my_subscription: MonthlySubscription | null; my_leave_days: string[] }
 interface DepositPreview { monthly_fee_pkr: number; deposit_pkr: number; days_remaining: number; days_total: number }
 interface AttendanceRow { run_date: string; present: boolean; marked_at: string }
-interface MyBooking { id: string; travel_date: string; seats: number; total_amount_pkr: number; status: string; board_stop_id: string | null; alight_stop_id: string | null; seat_accepted_at: string | null }
+interface MyBooking { id: string; travel_date: string; seats: number; total_amount_pkr: number; status: string; board_stop_id: string | null; alight_stop_id: string | null; seat_accepted_at: string | null; boarded_at: string | null }
 
 // Approximate only — interpolated proportionally along the driver's
 // own chosen road path using its real OSRM duration, not a live ETA.
@@ -168,6 +168,16 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [catchSubmitting, setCatchSubmitting] = useState(false)
   const [catchBookingId, setCatchBookingId] = useState<string | null>(null)
 
+  // 938: the symmetric ask to "catch" — a rider already on board can
+  // request to get off at a free GPS point on the actual road ahead,
+  // not just their originally booked stop, instead of waiting until a
+  // formal stop. request_mid_route_alight re-validates feasibility
+  // server-side; this one-shot check just gives the rider feedback
+  // before they commit.
+  const [alightCheckingId, setAlightCheckingId] = useState<string | null>(null)
+  const [alightFeasibility, setAlightFeasibility] = useState<{ eligible: boolean; reason: string | null } | null>(null)
+  const [alightRequestedIds, setAlightRequestedIds] = useState<Set<string>>(new Set())
+
   const checkDistanceToStop = (bookingId: string, lat: number, lng: number) => {
     if (!navigator.geolocation) return
     setDistanceByBooking((d) => ({ ...d, [bookingId]: t('action.loading') }))
@@ -189,7 +199,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     // moves off 'announced'/'confirmed' for a route booking (that
     // dimension only tracks payment, not the physical trip), so
     // dropped_off_at is the real "this trip is over" signal.
-    const { data } = await supabase.from('ride_bookings').select('id, travel_date, seats, total_amount_pkr, status, board_stop_id, alight_stop_id, seat_accepted_at')
+    const { data } = await supabase.from('ride_bookings').select('id, travel_date, seats, total_amount_pkr, status, board_stop_id, alight_stop_id, seat_accepted_at, boarded_at')
       .eq('route_id', routeId).eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).is('dropped_off_at', null).gte('travel_date', todayStr()).order('travel_date')
     setMyBookings((data ?? []) as MyBooking[])
   }
@@ -483,6 +493,26 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     setCatchChecking(false)
   }
 
+  const requestMidRouteAlight = async (bookingId: string) => {
+    setAlightCheckingId(bookingId)
+    setAlightFeasibility(null)
+    try {
+      const pos = await getCurrentPositionOnce()
+      const { data, error: feasError } = await supabase.rpc('check_mid_route_alight_feasibility', { p_booking_id: bookingId, p_lat: pos.lat, p_lng: pos.lng })
+      if (feasError) { toast.error(friendlyError(feasError, undefined, isUrdu)); setAlightCheckingId(null); return }
+      const feas = data as { eligible: boolean; reason: string | null }
+      setAlightFeasibility(feas)
+      if (!feas.eligible) { setAlightCheckingId(null); return }
+      const { error } = await supabase.rpc('request_mid_route_alight', { p_booking_id: bookingId, p_lat: pos.lat, p_lng: pos.lng })
+      if (error) { toast.error(friendlyError(error, undefined, isUrdu)); setAlightCheckingId(null); return }
+      setAlightRequestedIds((prev) => new Set(prev).add(bookingId))
+      toast.success(t('mv.alightRequestSentToast'))
+    } catch {
+      toast.error(t('mv.locationUnavailableHint'))
+    }
+    setAlightCheckingId(null)
+  }
+
   const submitCatchBooking = async () => {
     if (!route || !catchPoint || !catchAlightStopId) { toast.error(t('mv.pickBoardStopLabel')); return }
     if (isSeatNumbered && catchSelectedSeats.length !== catchSeats) { toast.error(t('mv.pickASeatError')); return }
@@ -670,6 +700,23 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 <p className={`font-sans text-[11px] font-bold mt-1 ${b.seat_accepted_at ? 'text-emerald-700' : 'text-amber-700'}`}>
                   {b.seat_accepted_at ? t('mv.seatConfirmedInGroupNote') : t('mv.seatPendingDriverNote')}
                 </p>
+              )}
+              {b.boarded_at && b.travel_date === todayStr() && (
+                <div className="mt-1.5 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-2">
+                  <p className="font-sans text-[11.5px] font-bold text-emerald-800">✅ {t('mv.youAreOnboardNote')}</p>
+                  {alightRequestedIds.has(b.id) ? (
+                    <p className="font-sans text-[11px] text-emerald-700 mt-1">{t('mv.alightRequestPendingNote')}</p>
+                  ) : (
+                    <>
+                      <button onClick={() => requestMidRouteAlight(b.id)} disabled={alightCheckingId === b.id} className="mt-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 text-white font-sans text-[11.5px] font-semibold cursor-pointer disabled:opacity-50">
+                        {alightCheckingId === b.id ? t('action.loading') : t('mv.requestAlightHereBtn')}
+                      </button>
+                      {alightFeasibility && !alightFeasibility.eligible && (
+                        <p className="font-sans text-[11px] text-amber-800 mt-1">{alightFeasibility.reason}</p>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
               {(() => {
                 // Real ask, 2026-11-07: "distance of the stop... shown on

@@ -88,9 +88,44 @@ interface CatchRequestRow {
   alight_stop_id: string | null; total_amount_pkr: number | null; announced_method: string | null
   catch_request_expires_at: string | null
 }
+// route_onboard_roster (938) — every rider currently boarded and not yet
+// dropped off, across both booking tables, for the live-trip popup's
+// "who's on board, where are they getting off" cards.
+interface OnboardRow {
+  source: 'ride_booking' | 'manual'; id: string; name: string; mobile: string | null; seats: number
+  alight_stop_id: string | null; alight_label: string | null; alight_lat: number | null; alight_lng: number | null
+  alight_request_lat: number | null; alight_request_lng: number | null; alight_requested_at: string | null
+  is_mid_route_catch: boolean; boarded_at: string
+}
+interface ChatMessage {
+  id: string; sender_role: 'driver' | 'rider'; sender_name: string; is_me: boolean; body: string; created_at: string
+}
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 function today() { return new Date().toISOString().slice(0, 10) }
+
+// Nearest-vertex projection onto a stored route_path — the exact same
+// approach route_catch_feasibility (859) uses server-side for "how far
+// along this road is this point," just computed client-side so the
+// live-trip popup's speed HUD / KPI strip / per-stop distance+ETA can
+// update instantly from the driver's own GPS fixes without a round
+// trip. Deliberately the same nearest-vertex approximation as the
+// backend (not a finer per-segment projection) so the numbers shown
+// here always agree with what the backend's own eligibility checks see.
+function projectOntoRoute(path: { lat: number; lng: number }[], point: { lat: number; lng: number }) {
+  if (!path || path.length < 2) return { distanceAlongKm: 0, offRouteKm: 0, totalKm: 0 }
+  const cum: number[] = new Array(path.length).fill(0)
+  for (let i = 1; i < path.length; i++) cum[i] = cum[i - 1] + haversineKm(path[i - 1], path[i])
+  let bestIdx = 0, bestDist = Infinity
+  for (let i = 0; i < path.length; i++) {
+    const d = haversineKm(point, path[i])
+    if (d < bestDist) { bestDist = d; bestIdx = i }
+  }
+  return { distanceAlongKm: cum[bestIdx], offRouteKm: bestDist, totalKm: cum[path.length - 1] }
+}
+function etaMinutesFor(kmAhead: number, speedKph: number | null) {
+  return Math.max(0, Math.round(kmAhead / Math.max(12, speedKph ?? 0) * 60))
+}
 
 function Stepper({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -138,6 +173,22 @@ export default function DriveOperationsPage() {
   const [catchActionId, setCatchActionId] = useState<string | null>(null)
   const newCatchIdsRef = useRef<Set<string>>(new Set())
   const [nowTick, setNowTick] = useState(() => Date.now())
+
+  // Onboard roster — "who's on board right now, where are they getting
+  // off" (938), plus client-side speed/ETA/remaining-distance derived
+  // from the driver's own GPS fixes against routePath.
+  const [onboardRoster, setOnboardRoster] = useState<OnboardRow[]>([])
+  const [offloadActionId, setOffloadActionId] = useState<string | null>(null)
+  const [speedKph, setSpeedKph] = useState<number | null>(null)
+  const lastFixRef = useRef<{ lat: number; lng: number; t: number } | null>(null)
+  const [endingTrip, setEndingTrip] = useState(false)
+
+  // Trip-scoped chat (938) — a new, route+date-scoped chat, separate
+  // from the village-carpool system's route_chat_messages (deliberately
+  // never used for fleet routes, per this page's own earlier note).
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatSending, setChatSending] = useState(false)
 
   // Terminal stop desk
   const [selectedStopKey, setSelectedStopKey] = useState<string>('origin')
@@ -238,17 +289,22 @@ export default function DriveOperationsPage() {
     (async () => {
       const [{ data }, { data: vr }, { data: staffed }] = await Promise.all([
         supabase.from('route_stops')
-          .select('id, label, stop_order, counter_id, arrival_time, departure_time, fleet_counters(name, city, lat, lng)')
+          .select('id, label, stop_order, counter_id, lat, lng, arrival_time, departure_time, fleet_counters(name, city)')
           .eq('route_id', routeId).order('stop_order'),
         supabase.from('vehicle_routes').select('route_path').eq('id', routeId).single(),
         supabase.rpc('route_staffed_stop_ids', { p_route_id: routeId }),
       ])
       setStaffedStopIds(new Set((staffed as string[] | null) ?? []))
-      const rows = ((data ?? []) as unknown as { id: string; label: string; stop_order: number; counter_id: string | null; arrival_time: string | null; departure_time: string | null; fleet_counters: { name: string | null; city: string; lat: number | null; lng: number | null } | null }[])
+      // Real gap found while building the alight/KPI features: this used
+      // to only pull lat/lng through the stop's linked terminal, so any
+      // stop without a counter_id (most of them) had no coordinates at
+      // all here — route_stops.lat/lng (717) are real, NOT NULL columns
+      // on every stop regardless of a terminal link; use those directly.
+      const rows = ((data ?? []) as unknown as { id: string; label: string; stop_order: number; counter_id: string | null; lat: number; lng: number; arrival_time: string | null; departure_time: string | null; fleet_counters: { name: string | null; city: string } | null }[])
         .map((r) => ({
           id: r.id, label: r.label, stop_order: r.stop_order, counter_id: r.counter_id,
           counter_name: r.fleet_counters?.name ?? null, counter_city: r.fleet_counters?.city ?? null,
-          lat: r.fleet_counters?.lat ?? null, lng: r.fleet_counters?.lng ?? null,
+          lat: r.lat, lng: r.lng,
           arrival_time: r.arrival_time, departure_time: r.departure_time,
         }))
       setStops(rows)
@@ -281,10 +337,68 @@ export default function DriveOperationsPage() {
     backgroundMessage: t('cm.liveShareNotifBody'),
     onFix: async ({ lat, lng }) => {
       setMyLivePos({ lat, lng })
+      // Client-side speed from consecutive fixes — the browser's own
+      // GPS speed field is unreliable/often null on low-accuracy fixes,
+      // so this derives km/h the same way the design's speed HUD wants
+      // it, ignoring gaps too large (backgrounded tab) to mean anything.
+      const now = Date.now()
+      const last = lastFixRef.current
+      if (last) {
+        const dtSec = (now - last.t) / 1000
+        if (dtSec >= 3 && dtSec <= 60) {
+          const km = haversineKm(last, { lat, lng })
+          setSpeedKph(Math.min(140, Math.round((km / dtSec) * 3600)))
+        }
+      }
+      lastFixRef.current = { lat, lng, t: now }
       const { error } = await supabase.rpc('ping_route_location', { p_route_id: routeId, p_lat: lat, p_lng: lng })
       if (error) setSharing(false)
     },
   })
+
+  // Onboard roster (938) — "who's on board right now, where are they
+  // getting off." Same poll+realtime pattern as the catch-requests
+  // card above, triggered by boarded_at changes, free-GPS alight
+  // requests, and offloads (board_ride_bookings/mark_ride_booking_
+  // alighted/request_mid_route_alight all fire from elsewhere, so this
+  // can't rely on a local mutation alone).
+  const loadOnboardRoster = async (rid: string) => {
+    if (!rid) { setOnboardRoster([]); return }
+    const { data } = await supabase.rpc('route_onboard_roster', { p_route_id: rid })
+    setOnboardRoster((data ?? []) as OnboardRow[])
+  }
+  useEffect(() => {
+    if (!routeId) { setOnboardRoster([]); return }
+    loadOnboardRoster(routeId)
+    const interval = setInterval(() => loadOnboardRoster(routeId), 12000)
+    const channel = supabase
+      .channel(`pending_requests:${user!.id}:alight`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'portal_notifications', filter: `portal_user_id=eq.${user!.id}` },
+        (payload) => {
+          if ((payload.new as { event_type: string }).event_type === 'route_alight_request') loadOnboardRoster(routeId)
+        })
+      .subscribe()
+    return () => { clearInterval(interval); supabase.removeChannel(channel) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeId])
+
+  // Trip-scoped chat (938) — scoped to route_id + today's travel date.
+  const loadChat = async (rid: string) => {
+    if (!rid) { setChatMessages([]); return }
+    const { data } = await supabase.rpc('route_trip_chat_messages', { p_route_id: rid, p_travel_date: today() })
+    setChatMessages((data ?? []) as ChatMessage[])
+  }
+  useEffect(() => {
+    if (!routeId) { setChatMessages([]); return }
+    loadChat(routeId)
+    const channel = supabase
+      .channel(`route_trip_chat:${routeId}:${today()}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trip_group_messages', filter: `route_trip_route_id=eq.${routeId}` },
+        () => loadChat(routeId))
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeId])
 
   // Mid-route "catch" requests (check_catch_feasibility/place_ride_booking,
   // 850/859/920) already only let a rider request a pickup when they're
@@ -352,6 +466,50 @@ export default function DriveOperationsPage() {
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('mv.seatDeclinedToast'))
     loadCatchRequests(routeId)
+  }
+
+  // Offload a specific onboard rider — the real gap this whole card was
+  // built to close (938): works identically for a formal-stop proximity
+  // alert or a free-GPS alight request, since both just end with
+  // "they're off now."
+  const offloadRider = async (row: OnboardRow) => {
+    setOffloadActionId(row.id)
+    const { error } = await supabase.rpc('mark_ride_booking_alighted', { p_booking_id: row.id, p_source: row.source === 'manual' ? 'manual' : 'ride_booking' })
+    setOffloadActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('dr.riderOffloadedToast'))
+    loadOnboardRoster(routeId)
+  }
+  const declineAlightRequest = async (row: OnboardRow) => {
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setOffloadActionId(row.id)
+    const { error } = await supabase.rpc('decline_mid_route_alight_request', { p_booking_id: row.id, p_reason: reason || null })
+    setOffloadActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('dr.alightRequestDeclinedToast'))
+    loadOnboardRoster(routeId)
+  }
+
+  const sendChat = async () => {
+    const body = chatInput.trim()
+    if (!body || !routeId) return
+    setChatSending(true)
+    const { error } = await supabase.rpc('send_route_trip_message', { p_route_id: routeId, p_travel_date: today(), p_body: body })
+    setChatSending(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    setChatInput('')
+    loadChat(routeId)
+  }
+
+  const endTripNow = async () => {
+    if (!confirm(t('dr.confirmEndTripHint'))) return
+    setEndingTrip(true)
+    const { error } = await supabase.rpc('end_route_run', { p_route_id: routeId })
+    setEndingTrip(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('dr.tripEndedToast'))
+    setShowTripPopup(false)
+    reload(routeId, direction)
   }
 
   // Real ask: "driver will always get a job on floating button" — the
@@ -641,6 +799,88 @@ export default function DriveOperationsPage() {
             <FleetStatusPill tone={sharing ? 'green' : 'amber'} className="self-start"><Radio size={9} className={sharing ? 'animate-pulse' : ''} /> {sharing ? t('dr.liveSharingOnLabel') : t('dr.liveSharingOffLabel')}</FleetStatusPill>
             {sharing && geoError && <p className="font-sans text-[11px] text-amber-700">{geoError}</p>}
 
+            {/* Speed / ETA / remaining-distance strip — the design
+                reference's speed-HUD + KPI strip, condensed into one row
+                since this is a popup, not a full page. All three derive
+                client-side from the driver's own GPS fixes projected
+                onto routePath (projectOntoRoute), the same nearest-
+                vertex approach the backend's own catch-feasibility check
+                uses, so these numbers always agree with what the server
+                would compute for the same point. */}
+            {myLivePos && routePath && routePath.length >= 2 && (() => {
+              const { distanceAlongKm, totalKm } = projectOntoRoute(routePath, myLivePos)
+              const remainingKm = Math.max(0, totalKm - distanceAlongKm)
+              return (
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-white border border-[#e5e2d0] rounded-xl px-2.5 py-2 text-center">
+                    <p className="font-sans text-[9.5px] text-[#94a3b8]">{t('dr.currentSpeedLabel')}</p>
+                    <p className="font-sans text-[16px] font-bold text-[#102a36] ltr-num">{speedKph ?? '—'}<span className="text-[10px] font-semibold text-[#94a3b8]"> {t('dr.kphUnit')}</span></p>
+                  </div>
+                  <div className="bg-white border border-[#e5e2d0] rounded-xl px-2.5 py-2 text-center">
+                    <p className="font-sans text-[9.5px] text-[#94a3b8]">{t('dr.etaToDestLabel')}</p>
+                    <p className="font-sans text-[16px] font-bold text-[#102a36] ltr-num">{etaMinutesFor(remainingKm, speedKph)}<span className="text-[10px] font-semibold text-[#94a3b8]"> {t('dr.minUnit')}</span></p>
+                  </div>
+                  <div className="bg-white border border-[#e5e2d0] rounded-xl px-2.5 py-2 text-center">
+                    <p className="font-sans text-[9.5px] text-[#94a3b8]">{t('dr.remainingDistLabel')}</p>
+                    <p className="font-sans text-[16px] font-bold text-[#102a36] ltr-num">{remainingKm.toFixed(1)}<span className="text-[10px] font-semibold text-[#94a3b8]"> {t('dr.kmUnit')}</span></p>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Alight Alerts — the real gap the user raised: before 938
+                there was no per-rider mid-route drop-off action at all.
+                Shows an onboard rider once their alight point (a formal
+                stop OR a free-GPS request) is within alightThresholdKm
+                of the bus along the actual route, urgent styling inside
+                urgentKm — same two-tier model as the design reference. */}
+            {(() => {
+              if (!myLivePos || !routePath || routePath.length < 2 || onboardRoster.length === 0) return null
+              const driverKm = projectOntoRoute(routePath, myLivePos).distanceAlongKm
+              const withDistance = onboardRoster.map((r) => {
+                const isFreeRequest = r.alight_request_lat != null && r.alight_request_lng != null
+                const point = isFreeRequest ? { lat: r.alight_request_lat!, lng: r.alight_request_lng! } : (r.alight_lat != null && r.alight_lng != null ? { lat: r.alight_lat, lng: r.alight_lng } : null)
+                if (!point) return null
+                const pointKm = projectOntoRoute(routePath, point).distanceAlongKm
+                const kmAhead = Math.max(0, pointKm - driverKm)
+                return { r, isFreeRequest, kmAhead }
+              }).filter((x): x is { r: OnboardRow; isFreeRequest: boolean; kmAhead: number } => x != null)
+              const due = withDistance.filter((x) => x.isFreeRequest || x.kmAhead <= 5)
+              if (due.length === 0) return null
+              due.sort((a, b) => a.kmAhead - b.kmAhead)
+              return (
+                <FleetPanel tone="warning">
+                  <FleetPanelHead icon={<UserX size={14} />} title={t('dr.alightAlertsHeading')} tone="warning" />
+                  <FleetPanelBody className="flex flex-col divide-y divide-[#fde68a] p-0">
+                    {due.map(({ r, isFreeRequest, kmAhead }) => {
+                      const urgent = kmAhead <= 2
+                      return (
+                        <div key={r.id} className="px-3.5 py-2.5 flex flex-col gap-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-sans text-[12.5px] font-bold text-[#92400e]">{r.name}</span>
+                            {isFreeRequest && <FleetStatusPill tone="blue">{t('dr.freeGpsAlightBadge')}</FleetStatusPill>}
+                          </div>
+                          <p className="font-sans text-[11px] text-[#334155]">
+                            {t('dr.catchRequestSeatsLabel').replace('{n}', String(r.seats))}
+                            {!isFreeRequest && r.alight_label ? ` · ${t('dr.catchRequestAlightLabel').replace('{stop}', r.alight_label)}` : ''}
+                          </p>
+                          <p className={`font-sans text-[11px] font-semibold ${urgent ? 'text-[#b91c1c]' : 'text-[#92400e]'}`}>
+                            {urgent ? t('dr.alightNowHint') : t('dr.alightSoonHint')} · <span className="ltr-num">{kmAhead.toFixed(1)}</span> {t('dr.kmUnit')} · <span className="ltr-num">{etaMinutesFor(kmAhead, speedKph)}</span> {t('dr.minUnit')}
+                          </p>
+                          <div className="flex gap-2 mt-1">
+                            <button onClick={() => offloadRider(r)} disabled={offloadActionId === r.id} className={`flex-1 py-2 rounded-lg text-white font-sans text-[12px] font-bold cursor-pointer disabled:opacity-50 ${urgent ? 'bg-[#b91c1c]' : 'bg-[#b8862f]'}`}>{t('dr.offloadPassengerBtn')}</button>
+                            {isFreeRequest && (
+                              <button onClick={() => declineAlightRequest(r)} disabled={offloadActionId === r.id} className="flex-1 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12px] font-semibold text-[#b91c1c] cursor-pointer disabled:opacity-50">{t('dr.cantStopHereBtn')}</button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </FleetPanelBody>
+                </FleetPanel>
+              )
+            })()}
+
             {(() => {
               const pending = catchRequests.filter((r) => !r.seat_accepted_at)
               const accepted = catchRequests.filter((r) => r.seat_accepted_at && !r.boarded_at)
@@ -705,6 +945,10 @@ export default function DriveOperationsPage() {
                     lat: r.catch_lat!, lng: r.catch_lng!, emoji: '🙋', color: '#dc2626',
                     popupHtml: `<b>${r.name || t('dr.catchRequestRiderFallback')}</b>`,
                   })),
+                  ...onboardRoster.filter((r) => r.alight_request_lat != null && r.alight_request_lng != null).map((r): LeafletPin => ({
+                    lat: r.alight_request_lat!, lng: r.alight_request_lng!, emoji: '🛑', color: '#2563eb',
+                    popupHtml: `<b>${r.name}</b> · ${t('dr.freeGpsAlightBadge')}`,
+                  })),
                   ...(myLivePos ? [{ lat: myLivePos.lat, lng: myLivePos.lng, emoji: '🚐', color: '#166534', isVehicle: true, label: t('dr.myBusLabel') } as LeafletPin] : []),
                 ]}
                 route={routePath ?? undefined}
@@ -717,9 +961,27 @@ export default function DriveOperationsPage() {
               <p className="font-sans text-[12px] text-[#94a3b8] text-center py-2">{t('dr.noMoreStopsHint')}</p>
             ) : (
               <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl px-3 py-2">
-                <p className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#166534]">{t('dr.nextStopHeading')}</p>
-                <p className="font-sans text-[12.5px] font-bold text-[#166534] mt-0.5">{chalan.next_stops[0].label}</p>
-                <p className="font-sans text-[11px] text-[#166534]">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#166534]">{t('dr.nextStopHeading')}</p>
+                    <p className="font-sans text-[12.5px] font-bold text-[#166534] mt-0.5">{chalan.next_stops[0].label}</p>
+                  </div>
+                  {(() => {
+                    if (!myLivePos || !routePath || routePath.length < 2) return null
+                    const s = sequencedStops.find((x) => (x.counter_name ? `${x.counter_name} · ${x.counter_city}` : x.label) === chalan.next_stops[0].label)
+                    if (!s || s.lat == null || s.lng == null) return null
+                    const driverKm = projectOntoRoute(routePath, myLivePos).distanceAlongKm
+                    const stopKm = projectOntoRoute(routePath, { lat: s.lat, lng: s.lng }).distanceAlongKm
+                    const kmAhead = Math.max(0, stopKm - driverKm)
+                    return (
+                      <div className="text-end shrink-0">
+                        <p className="font-sans text-[14px] font-bold text-[#166534] ltr-num">{kmAhead.toFixed(1)} {t('dr.kmUnit')}</p>
+                        <p className="font-sans text-[9.5px] text-[#166534] ltr-num">{etaMinutesFor(kmAhead, speedKph)} {t('dr.minUnit')}</p>
+                      </div>
+                    )
+                  })()}
+                </div>
+                <p className="font-sans text-[11px] text-[#166534] mt-1">
                   {t('dr.passengersWaitingHint').replace('{n}', String(chalan.next_stops[0].passengers.length))}
                 </p>
                 {chalan.next_stops[0].passengers.slice(0, 4).map((p) => (
@@ -737,21 +999,91 @@ export default function DriveOperationsPage() {
               {sequencedStops.map((s) => {
                 const closed = !!masterChallan?.stop_challans.find((sc) => sc.stop_id === s.id)
                 const isNext = chalan.next_stops[0]?.label === (s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label)
+                const alightingHere = onboardRoster.filter((r) => r.alight_stop_id === s.id).length
+                const distEta = (!closed && myLivePos && routePath && routePath.length >= 2 && s.lat != null && s.lng != null)
+                  ? (() => {
+                      const driverKm = projectOntoRoute(routePath, myLivePos).distanceAlongKm
+                      const stopKm = projectOntoRoute(routePath, { lat: s.lat!, lng: s.lng! }).distanceAlongKm
+                      return Math.max(0, stopKm - driverKm)
+                    })()
+                  : null
                 return (
                   <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{ background: isNext ? '#F0FDF4' : '#F9F9F6', border: isNext ? '1px solid #166534' : '1px solid transparent' }}>
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: closed ? '#166534' : isNext ? '#fff' : '#cbd5e1', border: isNext ? '2px solid #166534' : 'none' }} />
                     <span className="min-w-0 flex-1">
                       <span className="font-sans text-[11.5px] text-[#1e293b] font-semibold block truncate">{s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label}</span>
-                      {(s.arrival_time || s.departure_time) && (
-                        <span className="font-sans text-[9.5px] text-[#94a3b8] ltr-num">{s.arrival_time ? s.arrival_time.slice(0, 5) : ''}{s.departure_time ? ` – ${s.departure_time.slice(0, 5)}` : ''}</span>
-                      )}
+                      <span className="flex items-center gap-1.5 flex-wrap">
+                        {(s.arrival_time || s.departure_time) && (
+                          <span className="font-sans text-[9.5px] text-[#94a3b8] ltr-num">{s.arrival_time ? s.arrival_time.slice(0, 5) : ''}{s.departure_time ? ` – ${s.departure_time.slice(0, 5)}` : ''}</span>
+                        )}
+                        {alightingHere > 0 && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[#dcfce7] text-[#166534] font-sans text-[9px] font-bold ltr-num">↓ {alightingHere}</span>
+                        )}
+                      </span>
                     </span>
+                    {closed ? (
+                      <CheckCircle2 size={13} className="text-[#166534] shrink-0" />
+                    ) : distEta != null ? (
+                      <span className="text-end shrink-0">
+                        <span className="font-sans text-[11px] font-bold text-[#1e293b] block ltr-num">{distEta.toFixed(1)} {t('dr.kmUnit')}</span>
+                        <span className="font-sans text-[8.5px] text-[#94a3b8] block ltr-num">{etaMinutesFor(distEta, speedKph)} {t('dr.minUnit')}</span>
+                      </span>
+                    ) : null}
                   </div>
                 )
               })}
             </div>
 
-            <button onClick={() => { setShowTripPopup(false); setTab('trip') }} className="mt-1 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer">{t('dr.openStopDeskBtn')}</button>
+            {/* Rider roster — every onboard passenger, their alight
+                point, and whether they're "soon" (within the alight-
+                alert threshold above) or just "on" — the design
+                reference's "Route Group" rider list. */}
+            <FleetPanel>
+              <FleetPanelHead icon={<Users2 size={14} />} title={t('dr.onboardRosterHeading')} action={<span className="bg-[#F9F9F6] text-[#64748b] rounded-full px-2.5 py-1 font-sans text-[11px] font-bold ltr-num">{onboardRoster.reduce((sum, r) => sum + r.seats, 0)}</span>} />
+              <FleetPanelBody className="flex flex-col divide-y divide-[#f1f5f9] p-0">
+                {onboardRoster.length === 0 ? (
+                  <p className="font-sans text-[12px] text-[#94a3b8] text-center py-4">{t('dr.noOneOnboardHint')}</p>
+                ) : onboardRoster.map((r) => {
+                  const point = r.alight_request_lat != null ? { lat: r.alight_request_lat, lng: r.alight_request_lng! } : (r.alight_lat != null ? { lat: r.alight_lat, lng: r.alight_lng! } : null)
+                  const kmAhead = (myLivePos && routePath && routePath.length >= 2 && point)
+                    ? Math.max(0, projectOntoRoute(routePath, point).distanceAlongKm - projectOntoRoute(routePath, myLivePos).distanceAlongKm) : null
+                  const soon = kmAhead != null && kmAhead <= 5
+                  return (
+                    <div key={r.id} className="px-3.5 py-2 flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{r.name}</p>
+                        <p className="font-sans text-[10.5px] text-[#94a3b8] truncate">{r.alight_request_lat != null ? t('dr.freeGpsAlightBadge') : (r.alight_label ?? '—')} · <span className="ltr-num">{r.seats}</span></p>
+                      </div>
+                      <FleetStatusPill tone={soon ? 'amber' : 'green'}>{soon ? t('dr.riderStateSoon') : t('dr.riderStateOn')}</FleetStatusPill>
+                    </div>
+                  )
+                })}
+              </FleetPanelBody>
+            </FleetPanel>
+
+            {/* Trip-scoped chat (938) */}
+            <FleetPanel>
+              <FleetPanelHead icon={<MessageCircleQuestion size={14} />} title={t('dr.tripChatHeading')} />
+              <FleetPanelBody className="flex flex-col gap-1.5 p-2.5 max-h-[180px] overflow-y-auto">
+                {chatMessages.length === 0 ? (
+                  <p className="font-sans text-[11.5px] text-[#94a3b8] text-center py-2">{t('dr.noChatMessagesHint')}</p>
+                ) : chatMessages.map((m) => (
+                  <div key={m.id} className={`max-w-[85%] rounded-xl px-2.5 py-1.5 ${m.is_me ? 'self-end bg-[#166534] text-white' : 'self-start bg-[#F9F9F6] text-[#1e293b]'}`}>
+                    {!m.is_me && <p className={`font-sans text-[9.5px] font-bold ${m.sender_role === 'driver' ? 'text-[#b8862f]' : 'text-[#64748b]'}`}>{m.sender_name}</p>}
+                    <p className="font-sans text-[12px]">{m.body}</p>
+                  </div>
+                ))}
+              </FleetPanelBody>
+              <div className="flex items-center gap-2 p-2.5 border-t border-[#e5e2d0]">
+                <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendChat() }} placeholder={t('dr.chatPlaceholder')} className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-full font-sans text-[12.5px]" />
+                <button onClick={sendChat} disabled={chatSending || !chatInput.trim()} className="w-9 h-9 rounded-full bg-[#166534] text-white flex items-center justify-center cursor-pointer disabled:opacity-50 shrink-0">➤</button>
+              </div>
+            </FleetPanel>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => { setShowTripPopup(false); setTab('trip') }} className="py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer">{t('dr.openStopDeskBtn')}</button>
+              <button onClick={endTripNow} disabled={endingTrip} className="py-2.5 rounded-xl border border-[#b91c1c] text-[#b91c1c] font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">{endingTrip ? t('action.loading') : t('dr.endTripBtn')}</button>
+            </div>
           </div>
         </div>
       )}
