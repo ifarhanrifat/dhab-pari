@@ -112,6 +112,7 @@ export default function DriveOperationsPage() {
   const [attendance, setAttendance] = useState<AttendanceStatus | null>(null)
   const [checkingAttendance, setCheckingAttendance] = useState(false)
   const [payroll, setPayroll] = useState<Payroll | null>(null)
+  const [vehicleSeating, setVehicleSeating] = useState<{ totalSeats: number; isVanKind: boolean } | null>(null)
 
   // Terminal stop desk
   const [selectedStopKey, setSelectedStopKey] = useState<string>('origin')
@@ -218,6 +219,21 @@ export default function DriveOperationsPage() {
       setStops(rows)
     })()
   }, [routeId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A van-kind vehicle requires explicit seat numbers on every booking
+  // (record_manual_booking, 926) — real gap found live: the walk-up
+  // form had no seat picker at all, so a sale on a van always rejected
+  // with "Pick exactly 1 seat(s)." Rather than make a driver browse a
+  // seat map mid-route, auto-assign the next free seat number.
+  useEffect(() => {
+    const r = routes.find((x) => x.id === routeId)
+    if (!r) { setVehicleSeating(null); return }
+    (async () => {
+      const { data: v } = await supabase.from('vehicles').select('total_seats, category_id').eq('id', r.vehicle_id).single()
+      const { data: vc } = v?.category_id ? await supabase.from('vehicle_categories').select('vehicle_kind').eq('id', v.category_id).single() : { data: null }
+      setVehicleSeating(v ? { totalSeats: v.total_seats, isVanKind: vc?.vehicle_kind === 'van' } : null)
+    })()
+  }, [routeId, routes]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const reload = async (rid: string, dir: Direction) => {
     if (!rid) return
@@ -331,6 +347,16 @@ export default function DriveOperationsPage() {
 
   const recordWalkup = async () => {
     if (!routeId || !walkupName.trim() || !walkupAmount) { toast.error(t('mv.walkupFieldsRequiredError')); return }
+    const seats = Number(walkupSeats) || 1
+    let seatNumbers: number[] | undefined
+    if (vehicleSeating?.isVanKind) {
+      const { data: taken } = await supabase.rpc('route_seat_status', { p_route_id: routeId, p_travel_date: today(), p_direction: direction })
+      const takenSet = new Set((taken as number[]) ?? [])
+      const free: number[] = []
+      for (let n = 1; n <= vehicleSeating.totalSeats && free.length < seats; n++) if (!takenSet.has(n)) free.push(n)
+      if (free.length < seats) { toast.error(t('mv.pickASeatError')); return }
+      seatNumbers = free
+    }
     setSavingWalkup(true)
     // Real gap found live: this always sold from the origin (board_stop_id
     // omitted = NULL = implicit origin), which record_manual_booking (926)
@@ -338,9 +364,9 @@ export default function DriveOperationsPage() {
     // driver selling a seat mid-route. Pass the currently selected stop
     // desk terminal so a walk-up sale boards where the driver actually is.
     const { error } = await supabase.rpc('record_manual_booking', {
-      p_route_id: routeId, p_travel_date: today(), p_seats: Number(walkupSeats) || 1,
+      p_route_id: routeId, p_travel_date: today(), p_seats: seats,
       p_passenger_name: walkupName, p_total_amount_pkr: Number(walkupAmount), p_payment_method: 'cash',
-      p_board_stop_id: isOriginSelected ? null : selectedStopKey,
+      p_board_stop_id: isOriginSelected ? null : selectedStopKey, p_seat_numbers: seatNumbers,
     })
     setSavingWalkup(false)
     if (error) { toast.error(friendlyError(error)); return }
