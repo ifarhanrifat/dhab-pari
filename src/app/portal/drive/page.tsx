@@ -19,11 +19,11 @@
 // The old version of this page (read-only onboard list + a walk-up
 // form) is folded into the new Trip tab; nothing from it is lost.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import {
   Bus, MapPin, Wallet, Plus, Minus, Clock, LogIn, LogOut, CheckCircle2, UserX, ClipboardCheck,
-  HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation, Map as MapIcon,
+  HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation,
   Crosshair, Send, Gauge, Route as RouteIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -183,7 +183,6 @@ export default function DriveOperationsPage() {
   const [sharing, setSharing] = useState(false)
   const [myLivePos, setMyLivePos] = useState<{ lat: number; lng: number } | null>(null)
   const [showTripPopup, setShowTripPopup] = useState(false)
-  const [popupTab, setPopupTab] = useState<'map' | 'stops' | 'riders' | 'chat'>('map')
   const tripMapRef = useRef<LeafletMapHandle>(null)
   const autoOpenedRunRef = useRef<string | null>(null)
   const [catchRequests, setCatchRequests] = useState<CatchRequestRow[]>([])
@@ -816,15 +815,21 @@ export default function DriveOperationsPage() {
           live map, next stop, and a real done/current/upcoming stop
           timeline (ported from Chalan's own Stop Sequence panel). */}
       {showTripPopup && chalan && (() => {
-        // Full visual port of driver-live-trip.html, not just the same
-        // data in our own card style — the user was explicit that a
-        // "same features, different look" pass wasn't what was asked
-        // for. Same four-tab structure (Map/Stops/Riders/Chat), same
-        // dark-green/gold/cream token palette the reference's own
-        // :root block defines, same speed-HUD-over-map + next-stop-
-        // ribbon-over-map + KPI-strip-below-map composition, same
-        // rail/node/line stop timeline, same avatar-card alight alerts
-        // and rider rows, same chat bubble shapes + quick chips.
+        // Real visual port of driver-live-trip.html's styling (dark-
+        // green/gold/cream token palette, speed HUD + map controls +
+        // next-stop ribbon over the map, KPI accent-bar cards, avatar-
+        // card alight alerts and rider rows, rail/node/line stop
+        // timeline, chat bubbles + quick chips) — but NOT that file's
+        // mobile tab-bar pagination, which was the reference HTML's own
+        // responsive-breakpoint choice, never something the user asked
+        // for. The user's actual original spec (re-read directly):
+        // stops "under the map," a sidebar of cards (next stop/speed/
+        // ETA) visible alongside, the onboard route group visible, and
+        // a chat box "at the bottom" — i.e. one continuous view with
+        // chat anchored as a persistent footer, not four screens a
+        // driver has to tap between while driving. Restructured to
+        // match that: everything below scrolls together in the user's
+        // own described order, chat is a fixed bottom section.
         const mapPins: LeafletPin[] = [
           ...stops.filter((s) => s.lat != null && s.lng != null).map((s): LeafletPin => ({
             lat: s.lat!, lng: s.lng!, emoji: '📍', color: '#d4a13c',
@@ -884,11 +889,13 @@ export default function DriveOperationsPage() {
               {sharing && geoError && <span className="font-sans text-[10px] text-amber-200 truncate">· {geoError}</span>}
             </div>
 
-            {/* Scrollable tab body */}
+            {/* One continuous scrolling view — map, then stops/KPI
+                sidebar cards, then alight alerts, then route group —
+                matching the order the user originally described. */}
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5">
-
-              {popupTab === 'map' && (
-                <>
+              {(() => {
+                  return (
+                  <>
                   {stops.some((s) => s.lat != null) ? (
                     <div className="relative rounded-xl overflow-hidden" style={{ border: '1px solid #e2ded0', background: '#e7eadf' }}>
                       <LeafletMap ref={tripMapRef} pins={mapPins} route={routePath ?? undefined} height={230} />
@@ -961,11 +968,7 @@ export default function DriveOperationsPage() {
                       </div>
                     )
                   })()}
-                </>
-              )}
 
-              {popupTab === 'stops' && (
-                <>
                   {/* Alight alerts */}
                   {alightDue.length > 0 && (
                     <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
@@ -1107,11 +1110,7 @@ export default function DriveOperationsPage() {
                       })()}
                     </div>
                   </div>
-                </>
-              )}
 
-              {popupTab === 'riders' && (
-                <>
                   <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
                     <div className="flex items-center gap-2 px-3.5 py-2.5" style={{ borderBottom: '1px solid #f1f5f9', background: '#faf8f2' }}>
                       <span className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: '#e3f2ea', color: '#14523c' }}><Users2 size={15} /></span>
@@ -1156,53 +1155,39 @@ export default function DriveOperationsPage() {
                       <button onClick={endTripNow} disabled={endingTrip} className="py-2.5 rounded-full font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50" style={{ background: 'linear-gradient(180deg,#c73c3c,#b32b2b)', color: '#fff' }}>{endingTrip ? t('action.loading') : t('dr.endTripBtn')}</button>
                     </div>
                   </div>
-                </>
-              )}
-
-              {popupTab === 'chat' && (
-                <div className="rounded-2xl overflow-hidden flex flex-col flex-1" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
-                  <div className="flex items-center gap-2 px-3.5 py-2.5" style={{ borderBottom: '1px solid #f1f5f9', background: '#faf8f2' }}>
-                    <span className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: '#e3f2ea', color: '#14523c' }}><MessageCircleQuestion size={15} /></span>
-                    <p className="font-sans text-[13px] font-bold flex-1" style={{ color: '#16221c' }}>{t('dr.tripChatHeading')}</p>
-                  </div>
-                  <div className="flex flex-col gap-2 p-3 overflow-y-auto" style={{ minHeight: 220, maxHeight: 320, background: '#faf8f2' }}>
-                    {chatMessages.length === 0 ? (
-                      <p className="font-sans text-[11.5px] text-center py-4" style={{ color: '#7a857d' }}>{t('dr.noChatMessagesHint')}</p>
-                    ) : chatMessages.map((m) => (
-                      <div key={m.id} className="max-w-[80%] rounded-2xl px-3 py-2" style={m.is_me
-                        ? { alignSelf: 'flex-end', background: 'linear-gradient(180deg,#2a8a63,#1c6a4c)', color: '#fff', borderStartStartRadius: 16, borderEndEndRadius: 5 }
-                        : { alignSelf: 'flex-start', background: '#fff', border: '1px solid #e2ded0', color: '#16221c', borderStartEndRadius: 16, borderEndStartRadius: 5 }}>
-                        {!m.is_me && <p className="font-sans text-[10px] font-bold mb-0.5" style={{ color: '#14523c' }}>{m.sender_name}</p>}
-                        <p className="font-sans text-[13px]">{m.body}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto px-3 pt-2.5" style={{ scrollbarWidth: 'none' }}>
-                    {QUICK_CHIPS.map((c) => (
-                      <button key={c} onClick={() => sendChat(c)} disabled={chatSending} className="shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 font-sans text-[11.5px] cursor-pointer disabled:opacity-50" style={{ background: '#fff', border: '1px solid #cfc9b6', color: '#4a564e' }}>{c}</button>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2 p-2.5">
-                    <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendChat() }} placeholder={t('dr.chatPlaceholder')} className="flex-1 px-3.5 py-2.5 rounded-full font-sans text-[13px]" style={{ background: '#faf8f2', border: '1px solid #cfc9b6', color: '#16221c' }} />
-                    <button onClick={() => sendChat()} disabled={chatSending || !chatInput.trim()} className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-50 shrink-0" style={{ backgroundImage: 'linear-gradient(145deg,#2a8a63,#14523c)', color: '#fff' }}><Send size={16} /></button>
-                  </div>
-                </div>
-              )}
+                  </>
+                  )
+              })()}
             </div>
 
-            {/* Bottom tab bar */}
-            <div className="grid grid-cols-4 gap-1 px-2 shrink-0" style={{ background: 'rgba(255,255,255,.95)', borderTop: '1px solid #e2ded0', paddingBlock: 7 }}>
-              {([
-                ['map', <MapIcon size={18} key="i" />, t('dr.mapTabLabel')],
-                ['stops', <MapPin size={18} key="i" />, t('dr.stopsTabLabel')],
-                ['riders', <Users2 size={18} key="i" />, t('dr.ridersTabLabel')],
-                ['chat', <MessageCircleQuestion size={18} key="i" />, t('dr.chatTabLabel')],
-              ] as [typeof popupTab, ReactNode, string][]).map(([key, icon, label]) => (
-                <button key={key} onClick={() => setPopupTab(key)} className="flex flex-col items-center gap-0.5 py-1.5 rounded-xl cursor-pointer" style={{ background: popupTab === key ? '#e3f2ea' : 'transparent', color: popupTab === key ? '#14523c' : '#7a857d' }}>
-                  {icon}
-                  <span className="font-sans text-[10px] font-bold">{label}</span>
-                </button>
-              ))}
+            {/* Chat — pinned as a persistent footer, not a tab, per the
+                user's own original description ("at the bottom there
+                is a chat box from where driver can send messages") —
+                always reachable without navigating away from the map/
+                stops/riders above. Collapsed to a compact log + quick
+                chips + composer so it doesn't eat the whole screen. */}
+            <div className="shrink-0 flex flex-col" style={{ borderTop: '1px solid #e2ded0', background: '#faf8f2' }}>
+              <div className="flex flex-col gap-1.5 px-3 pt-2 overflow-y-auto" style={{ maxHeight: 92 }}>
+                {chatMessages.length === 0 ? (
+                  <p className="font-sans text-[10.5px] text-center" style={{ color: '#7a857d' }}>{t('dr.noChatMessagesHint')}</p>
+                ) : chatMessages.slice(-6).map((m) => (
+                  <div key={m.id} className="max-w-[82%] rounded-2xl px-2.5 py-1.5" style={m.is_me
+                    ? { alignSelf: 'flex-end', background: 'linear-gradient(180deg,#2a8a63,#1c6a4c)', color: '#fff', borderStartStartRadius: 14, borderEndEndRadius: 5 }
+                    : { alignSelf: 'flex-start', background: '#fff', border: '1px solid #e2ded0', color: '#16221c', borderStartEndRadius: 14, borderEndStartRadius: 5 }}>
+                    {!m.is_me && <p className="font-sans text-[9px] font-bold mb-0.5" style={{ color: '#14523c' }}>{m.sender_name}</p>}
+                    <p className="font-sans text-[12px]">{m.body}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 overflow-x-auto px-3 pt-2" style={{ scrollbarWidth: 'none' }}>
+                {QUICK_CHIPS.map((c) => (
+                  <button key={c} onClick={() => sendChat(c)} disabled={chatSending} className="shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 font-sans text-[11px] cursor-pointer disabled:opacity-50" style={{ background: '#fff', border: '1px solid #cfc9b6', color: '#4a564e' }}>{c}</button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 p-2.5">
+                <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendChat() }} placeholder={t('dr.chatPlaceholder')} className="flex-1 px-3.5 py-2.5 rounded-full font-sans text-[13px]" style={{ background: '#fff', border: '1px solid #cfc9b6', color: '#16221c' }} />
+                <button onClick={() => sendChat()} disabled={chatSending || !chatInput.trim()} className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-50 shrink-0" style={{ backgroundImage: 'linear-gradient(145deg,#2a8a63,#14523c)', color: '#fff' }}><Send size={16} /></button>
+              </div>
             </div>
           </div>
         </div>
