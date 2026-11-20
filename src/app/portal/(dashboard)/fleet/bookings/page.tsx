@@ -339,6 +339,16 @@ export default function FleetBookingsPage() {
       if (!returnDate) { toast.error(t('mv.fillReturnJourneyError')); return }
       if (seating?.isVanKind && returnSelectedSeats.length !== seats) { toast.error(t('mv.pickReturnSeatError')); return }
     }
+    // 2026-11-20: real gap reported live — a fleet owner has no own
+    // fleet_staff row, so my_counter() never auto-fills "Booked at"
+    // for them, and the dropdown silently sits on its "No counter"
+    // default. That default is a real, intentional category (a
+    // driver's on-road sale), so it can't just be disallowed — but
+    // submitting it unnoticed mislabels a real terminal sale as a
+    // walk-up on every terminal-wise report downstream (confirmed:
+    // two real bookings had to be corrected). A confirm here is the
+    // minimal fix — informs without blocking the genuine walk-up case.
+    if (!counterId && !confirm(t('mv.confirmNoCounterWalkupHint'))) return
     setRecording(true)
     const passengers = showPassengers
       ? [
