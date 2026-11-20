@@ -46,7 +46,7 @@ interface RouteOption { route_id: string; origin: string; destination: string; o
 interface Passenger {
   id: string; source: 'manual' | 'app'; passenger_name: string; passenger_mobile: string | null; seats: number; seat_numbers: number[] | null
   amount: number; payment_method: string | null; is_confirmed: boolean
-  boarded_at: string | null; dropped_off_at: string | null; status: string
+  boarded_at: string | null; dropped_off_at: string | null; status: string; counter_id: string | null
 }
 interface Chalan {
   route_id: string; origin: string; destination: string; travel_date: string; owner_name: string; vehicle_type: string; vehicle_number: string | null
@@ -290,6 +290,13 @@ export default function FleetChalanPage() {
     setShowMessageForm(false); setMessageTitle(''); setMessageBody('')
   }
 
+  // 2026-11-20: 927 — same UX convenience as the Bookings page's
+  // canManageCounter: pre-emptively grey the legacy onboard-now/
+  // next-stop panels' own Cancel/No-show-transfer buttons for a
+  // wrong-terminal staff member, instead of letting them click into
+  // the (already correct) server-side rejection from 926.
+  const canManageCounter = (rowCounterId: string | null) => isOwner || !myCounterId || myCounterId === rowCounterId
+
   // ─── Terminal stop desk ───────────────────────────────────────────
   const isLockedToOwnTerminal = !isOwner && !!myCounterId
   const sequencedStops = direction === 'return' ? [...stops].reverse() : stops
@@ -420,6 +427,8 @@ export default function FleetChalanPage() {
         </div>
       ) : isAccountantBlocked ? (
         <p className="font-sans text-[11px] text-[#94a3b8] mt-2 pt-2 border-t border-[#f1f5f9]">{t('mv.accountantBookingsBlockedHint')}</p>
+      ) : p.source === 'manual' && !canManageCounter(p.counter_id) ? (
+        <p className="font-sans text-[11px] text-[#94a3b8] mt-2 pt-2 border-t border-[#f1f5f9]">{t('mv.cannotManageThisBookingHint')}</p>
       ) : (
         <div className="flex gap-2 mt-2 pt-2 border-t border-[#f1f5f9]">
           {p.is_confirmed ? (
