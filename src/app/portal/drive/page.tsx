@@ -372,7 +372,7 @@ export default function DriveOperationsPage() {
     loadOnboardRoster(routeId)
     const interval = setInterval(() => loadOnboardRoster(routeId), 12000)
     const channel = supabase
-      .channel(`pending_requests:${user!.id}:alight`)
+      .channel(`drive_pending_requests:${user!.id}:alight`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'portal_notifications', filter: `portal_user_id=eq.${user!.id}` },
         (payload) => {
           if ((payload.new as { event_type: string }).event_type === 'route_alight_request') loadOnboardRoster(routeId)
@@ -419,8 +419,17 @@ export default function DriveOperationsPage() {
     if (!routeId) { setCatchRequests([]); return }
     loadCatchRequests(routeId)
     const interval = setInterval(() => loadCatchRequests(routeId), 12000)
+    // Real crash found live, confirmed via a connected device: this used
+    // the exact same channel topic (`pending_requests:${user.id}`) as
+    // PendingRequestOverlay.tsx, which the root layout.tsx mounts on
+    // every page — Supabase's realtime client reuses a channel object
+    // for a repeated topic, so this second `.on()` call landed on an
+    // already-`.subscribe()`'d channel and threw ("cannot add
+    // postgres_changes callbacks ... after subscribe()"), uncaught,
+    // crashing the whole page before anything below it could render.
+    // A distinct topic avoids the collision entirely.
     const channel = supabase
-      .channel(`pending_requests:${user!.id}`)
+      .channel(`drive_pending_requests:${user!.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'portal_notifications', filter: `portal_user_id=eq.${user!.id}` },
         (payload) => {
           if ((payload.new as { event_type: string }).event_type === 'route_catch_request') loadCatchRequests(routeId)
