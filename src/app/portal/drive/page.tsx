@@ -24,7 +24,7 @@ import dynamic from 'next/dynamic'
 import {
   Bus, MapPin, Wallet, Plus, Minus, Clock, LogIn, LogOut, CheckCircle2, UserX, ClipboardCheck,
   HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation,
-  Crosshair, Send, Gauge, Route as RouteIcon, Maximize2, Minimize2,
+  Crosshair, Send, Gauge, Route as RouteIcon, Maximize2, Minimize2, ChevronDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -185,6 +185,7 @@ export default function DriveOperationsPage() {
   const [showTripPopup, setShowTripPopup] = useState(false)
   const tripMapRef = useRef<LeafletMapHandle>(null)
   const [mapExpanded, setMapExpanded] = useState(false)
+  const [showStopsList, setShowStopsList] = useState(false)
   const autoOpenedRunRef = useRef<string | null>(null)
   const [catchRequests, setCatchRequests] = useState<CatchRequestRow[]>([])
   const [catchActionId, setCatchActionId] = useState<string | null>(null)
@@ -840,9 +841,16 @@ export default function DriveOperationsPage() {
             lat: r.catch_lat!, lng: r.catch_lng!, emoji: '🙋', color: '#c73c3c',
             popupHtml: `<b>${r.name || t('dr.catchRequestRiderFallback')}</b>`,
           })),
+          // A rider's free-GPS "drop me off here" request — the real
+          // purpose of this pin: it marks the EXACT point on the road
+          // where a boarded passenger wants off, not the next formal
+          // stop, so the driver can see it directly on the map, always
+          // open (no need to tap it) since it's the thing this view
+          // exists to surface.
           ...onboardRoster.filter((r) => r.alight_request_lat != null && r.alight_request_lng != null).map((r): LeafletPin => ({
             lat: r.alight_request_lat!, lng: r.alight_request_lng!, emoji: '🛑', color: '#2f6fb0',
-            popupHtml: `<b>${r.name}</b> · ${t('dr.freeGpsAlightBadge')}`,
+            popupHtml: `<b>${r.name}</b><br/>${t('dr.freeGpsAlightBadge')}`,
+            openPopup: true,
           })),
           ...(myLivePos ? [{ lat: myLivePos.lat, lng: myLivePos.lng, emoji: '🚐', color: '#1c6a4c', isVehicle: true, label: t('dr.myBusLabel') } as LeafletPin] : []),
         ]
@@ -901,14 +909,24 @@ export default function DriveOperationsPage() {
                     <div className="relative rounded-xl overflow-hidden" style={{ border: '1px solid #e2ded0', background: '#e7eadf' }}>
                       <LeafletMap ref={tripMapRef} pins={mapPins} route={routePath ?? undefined} height={mapExpanded ? 560 : 300} />
 
+                      {/* Full-map toggle sits first in the top-start
+                          corner; the speed HUD (compact view only)
+                          stacks directly below it in the same column
+                          instead of overlapping it — the real alignment
+                          bug from the previous pass. */}
+                      <button
+                        onClick={() => setMapExpanded((v) => !v)}
+                        className="absolute z-[5] flex items-center gap-1.5 rounded-full px-3 py-2 font-sans text-[12px] font-bold cursor-pointer"
+                        style={mapExpanded
+                          ? { top: 10, insetInlineEnd: 10, background: '#14523c', color: '#fff' }
+                          : { top: 10, insetInlineStart: 10, background: '#14523c', color: '#fff' }}
+                      >
+                        {mapExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />} {t(mapExpanded ? 'dr.exitFullMapBtn' : 'dr.fullMapBtn')}
+                      </button>
+
                       {!mapExpanded && (
                         <>
-                          {/* Speed HUD — compact view only; per the
-                              reference design the main-page map stays
-                              clean (speed already lives in the KPI
-                              strip right below), with a labeled Full
-                              Map pill instead of an icon-only toggle. */}
-                          <div className="absolute z-[5] rounded-xl px-3.5 py-2.5 text-center min-w-[84px]" style={{ top: 10, insetInlineStart: 10, background: 'rgba(11,46,34,.88)', border: '1px solid rgba(255,255,255,.14)', backdropFilter: 'blur(6px)' }}>
+                          <div className="absolute z-[5] rounded-xl px-3.5 py-2.5 text-center min-w-[84px]" style={{ top: 54, insetInlineStart: 10, background: 'rgba(11,46,34,.88)', border: '1px solid rgba(255,255,255,.14)', backdropFilter: 'blur(6px)' }}>
                             <p className="font-sans text-[30px] font-bold text-white leading-none ltr-num">{speedKph ?? '—'}</p>
                             <p className="font-sans text-[9.5px] mt-0.5" style={{ color: '#b7cdc0' }}>{t('dr.kphUnit')}</p>
                             <div className="mt-1.5 mx-auto rounded-full overflow-hidden" style={{ width: 60, height: 4, background: 'rgba(255,255,255,.16)' }}>
@@ -926,37 +944,11 @@ export default function DriveOperationsPage() {
                         </>
                       )}
 
-                      <button
-                        onClick={() => setMapExpanded((v) => !v)}
-                        className="absolute z-[5] flex items-center gap-1.5 rounded-full px-3 py-2 font-sans text-[12px] font-bold cursor-pointer"
-                        style={mapExpanded
-                          ? { top: 10, insetInlineEnd: 10, background: '#14523c', color: '#fff' }
-                          : { top: 10, insetInlineStart: 10, background: '#14523c', color: '#fff' }}
-                      >
-                        {mapExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />} {t(mapExpanded ? 'dr.exitFullMapBtn' : 'dr.fullMapBtn')}
-                      </button>
-
                       {mapExpanded && vehiclePinIndex >= 0 && (
                         <div className="absolute z-[5] flex flex-col gap-1.5" style={{ top: 10, insetInlineStart: 10 }}>
                           <button onClick={() => tripMapRef.current?.zoomIn()} className="w-8 h-8 rounded-[10px] flex items-center justify-center cursor-pointer" style={{ background: 'rgba(255,255,255,.94)', color: '#0f3d2e' }}><Plus size={14} /></button>
                           <button onClick={() => tripMapRef.current?.zoomOut()} className="w-8 h-8 rounded-[10px] flex items-center justify-center cursor-pointer" style={{ background: 'rgba(255,255,255,.94)', color: '#0f3d2e' }}><Minus size={14} /></button>
                           <button onClick={() => tripMapRef.current?.focusPin(vehiclePinIndex, 14)} className="w-8 h-8 rounded-[10px] flex items-center justify-center cursor-pointer" style={{ background: '#14523c', color: '#fff' }}><Crosshair size={14} /></button>
-                        </div>
-                      )}
-
-                      {/* Next-stop callout — full-map mode only, styled
-                          as the orange marker card from the reference
-                          (not pixel-tracked to the pin's exact screen
-                          position — a fixed callout under the controls
-                          is the practical equivalent in a popup this
-                          size). */}
-                      {mapExpanded && chalan.next_stops.length > 0 && (
-                        <div className="absolute z-[5] rounded-xl px-3 py-2 flex items-center gap-2.5" style={{ top: 58, insetInlineStart: 10, insetInlineEnd: 56, background: '#fff', borderInlineStart: '4px solid #e08b1f' }}>
-                          <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#fef3e2', color: '#e08b1f' }}><MapPin size={15} /></span>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-sans text-[12.5px] font-bold truncate" style={{ color: '#16221c' }}>{chalan.next_stops[0].label}</p>
-                            <p className="font-sans text-[10.5px] truncate" style={{ color: '#e08b1f' }}>{t('dr.passengersWaitingHint').replace('{n}', String(chalan.next_stops[0].passengers.length))} · {t('dr.dropOffLabel')}</p>
-                          </div>
                         </div>
                       )}
 
@@ -983,9 +975,9 @@ export default function DriveOperationsPage() {
                       )}
 
                       {/* Bottom floating cards — full-map mode only,
-                          replacing the below-map KPI strip (hidden
-                          while expanded) with the two the reference
-                          keeps on the map itself. */}
+                          small half-width cards (not the big callout
+                          removed above): remaining distance, and the
+                          next terminal's name + distance. */}
                       {mapExpanded && (() => {
                         const remainingKm = routePath && routePath.length >= 2 && driverKmNow != null ? Math.max(0, projectOntoRoute(routePath, routePath[routePath.length - 1]).distanceAlongKm - driverKmNow) : null
                         const nextKm = (nextStop?.lat != null && nextStop?.lng != null) ? kmAheadOf(nextStop.lat, nextStop.lng) : null
@@ -998,13 +990,15 @@ export default function DriveOperationsPage() {
                                 <p className="font-sans text-[9px]" style={{ color: '#7a857d' }}>{t('dr.remainingDistLabel')}</p>
                               </div>
                             </div>
-                            <div className="rounded-xl px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(255,255,255,.95)' }}>
-                              <Clock size={15} style={{ color: '#7a857d' }} />
-                              <div>
-                                <p className="font-sans text-[13px] font-bold ltr-num" style={{ color: '#16221c' }}>{nextKm != null ? `${etaMinutesFor(nextKm, speedKph)} ${t('dr.minUnit')}` : '—'}</p>
-                                <p className="font-sans text-[9px]" style={{ color: '#7a857d' }}>{t('dr.nextStopHeading')}</p>
+                            {chalan.next_stops.length > 0 && (
+                              <div className="rounded-xl px-3 py-2 flex items-center gap-2 min-w-0" style={{ background: 'rgba(255,255,255,.95)' }}>
+                                <MapPin size={15} className="shrink-0" style={{ color: '#7a857d' }} />
+                                <div className="min-w-0">
+                                  <p className="font-sans text-[12.5px] font-bold truncate" style={{ color: '#16221c' }}>{chalan.next_stops[0].label}</p>
+                                  <p className="font-sans text-[9px] ltr-num" style={{ color: '#7a857d' }}>{nextKm != null ? `${nextKm.toFixed(1)} ${t('dr.kmUnit')}` : '—'}</p>
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         )
                       })()}
@@ -1117,13 +1111,19 @@ export default function DriveOperationsPage() {
                     </div>
                   )}
 
-                  {/* Stops timeline */}
+                  {/* Stops — collapsed by default, like the reference
+                      design's main page (which only ever shows the
+                      passenger list inline); a dedicated "Stops" button
+                      reveals the timeline instead of it always taking
+                      up scroll space. */}
                   <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
-                    <div className="flex items-center gap-2 px-3.5 py-2.5" style={{ borderBottom: '1px solid #f1f5f9', background: '#faf8f2' }}>
+                    <button onClick={() => setShowStopsList((v) => !v)} className="w-full flex items-center gap-2 px-3.5 py-2.5 cursor-pointer" style={{ borderBottom: showStopsList ? '1px solid #f1f5f9' : 'none', background: '#faf8f2' }}>
                       <span className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: '#e3f2ea', color: '#14523c' }}><MapPin size={15} /></span>
                       <p className="font-sans text-[13px] font-bold flex-1" style={{ color: '#16221c' }}>{t('dr.routeTimelineHeading')}</p>
                       <span className="rounded-full px-2.5 py-1 font-sans text-[11px] font-bold ltr-num" style={{ background: '#eeece3', color: '#4a564e' }}>{sequencedStops.filter((s) => !masterChallan?.stop_challans.find((sc) => sc.stop_id === s.id)).length}</span>
-                    </div>
+                      <ChevronDown size={16} style={{ color: '#7a857d', transform: showStopsList ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+                    </button>
+                    {showStopsList && (
                     <div className="p-2.5 flex flex-col overflow-y-auto" style={{ maxHeight: 280 }}>
                       {(() => {
                         const originDone = !!masterChallan?.stop_challans.find((sc) => sc.stop_id === null)
@@ -1175,6 +1175,7 @@ export default function DriveOperationsPage() {
                         ))
                       })()}
                     </div>
+                    )}
                   </div>
 
                   <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
@@ -1256,14 +1257,6 @@ export default function DriveOperationsPage() {
                 <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendChat() }} placeholder={t('dr.chatPlaceholder')} className="flex-1 px-3.5 py-2.5 rounded-full font-sans text-[13px]" style={{ background: '#fff', border: '1px solid #cfc9b6', color: '#16221c' }} />
                 <button onClick={() => sendChat()} disabled={chatSending || !chatInput.trim()} className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-50 shrink-0" style={{ backgroundImage: 'linear-gradient(145deg,#2a8a63,#14523c)', color: '#fff' }}><Send size={16} /></button>
               </div>
-              {/* Decorative green wave footer — per the reference
-                  design, main view only; explicitly left off the
-                  full-map view so the map stays edge-to-edge there. */}
-              {!mapExpanded && (
-                <svg viewBox="0 0 400 28" preserveAspectRatio="none" className="w-full block" style={{ height: 22 }}>
-                  <path d="M0 10 Q100 28 200 10 T400 10 V28 H0 Z" fill="#14523c" />
-                </svg>
-              )}
             </div>
           </div>
         </div>
