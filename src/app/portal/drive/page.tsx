@@ -31,6 +31,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useLiveLocation } from '@/hooks/useLiveLocation'
+import { haversineKm } from '@/lib/roadRoute'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat, FleetFormGrid, FleetFormField, FleetStatusPill, FleetKpiRow,
@@ -81,6 +82,12 @@ interface Payroll {
   recent_salary_payments: (PayrollEntry & { paid_on: string; note: string | null })[]
 }
 interface CashPosition { vehicle_id: string; cash_in_hand_pkr: number }
+interface CatchRequestRow {
+  id: string; name: string; seats: number; seat_accepted_at: string | null; boarded_at: string | null
+  is_mid_route_catch: boolean; catch_lat: number | null; catch_lng: number | null; catch_updated_at: string | null
+  alight_stop_id: string | null; total_amount_pkr: number | null; announced_method: string | null
+  catch_request_expires_at: string | null
+}
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 function today() { return new Date().toISOString().slice(0, 10) }
@@ -126,6 +133,10 @@ export default function DriveOperationsPage() {
   const [myLivePos, setMyLivePos] = useState<{ lat: number; lng: number } | null>(null)
   const [showTripPopup, setShowTripPopup] = useState(false)
   const autoOpenedRunRef = useRef<string | null>(null)
+  const [catchRequests, setCatchRequests] = useState<CatchRequestRow[]>([])
+  const [catchActionId, setCatchActionId] = useState<string | null>(null)
+  const newCatchIdsRef = useRef<Set<string>>(new Set())
+  const [nowTick, setNowTick] = useState(() => Date.now())
 
   // Terminal stop desk
   const [selectedStopKey, setSelectedStopKey] = useState<string>('origin')
@@ -271,6 +282,74 @@ export default function DriveOperationsPage() {
       if (error) setSharing(false)
     },
   })
+
+  // Mid-route "catch" requests (check_catch_feasibility/place_ride_booking,
+  // 850/859/920) already only let a rider request a pickup when they're
+  // on this route's actual road and still ahead of the bus — that gate
+  // is untouched. What was missing entirely was the driver side: before
+  // 935, a catch booking confirmed itself instantly with zero driver
+  // visibility on /portal/drive. route_today_ad_hoc_bookings already
+  // returns every catch row (is_mid_route_catch, catch_lat/lng,
+  // seat_accepted_at) — reused as-is, just filtered here to catch rows.
+  const loadCatchRequests = async (rid: string) => {
+    if (!rid) { setCatchRequests([]); return }
+    const { data } = await supabase.rpc('route_today_ad_hoc_bookings', { p_route_id: rid })
+    const rows = ((data ?? []) as CatchRequestRow[]).filter((r) => r.is_mid_route_catch)
+    setCatchRequests(rows)
+  }
+
+  useEffect(() => {
+    if (!routeId) { setCatchRequests([]); return }
+    loadCatchRequests(routeId)
+    const interval = setInterval(() => loadCatchRequests(routeId), 12000)
+    const channel = supabase
+      .channel(`pending_requests:${user!.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'portal_notifications', filter: `portal_user_id=eq.${user!.id}` },
+        (payload) => {
+          if ((payload.new as { event_type: string }).event_type === 'route_catch_request') loadCatchRequests(routeId)
+        })
+      .subscribe()
+    return () => { clearInterval(interval); supabase.removeChannel(channel) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeId])
+
+  // Force the popup open the moment a genuinely NEW catch request shows
+  // up (not already-seen), even if the driver had dismissed it for some
+  // other reason — urgent, time-boxed, matches the auto-open-on-run-
+  // start precedent above but keyed per-booking instead of per-run so
+  // it doesn't re-trigger for a request already seen once.
+  useEffect(() => {
+    const pendingUnseen = catchRequests.filter((r) => !r.seat_accepted_at && !newCatchIdsRef.current.has(r.id))
+    if (pendingUnseen.length === 0) return
+    for (const r of pendingUnseen) newCatchIdsRef.current.add(r.id)
+    setShowTripPopup(true)
+  }, [catchRequests])
+
+  useEffect(() => {
+    const anyPending = catchRequests.some((r) => !r.seat_accepted_at)
+    if (!anyPending) return
+    const t = setInterval(() => setNowTick(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [catchRequests])
+
+  const acceptCatch = async (id: string) => {
+    setCatchActionId(id)
+    const { error } = await supabase.rpc('accept_ride_booking_seat', { p_booking_id: id })
+    setCatchActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.seatAcceptedToast'))
+    loadCatchRequests(routeId)
+    reload(routeId, direction)
+  }
+  const declineCatch = async (id: string) => {
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setCatchActionId(id)
+    const { error } = await supabase.rpc('decline_ride_booking_seat', { p_booking_id: id, p_reason: reason || null })
+    setCatchActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.seatDeclinedToast'))
+    loadCatchRequests(routeId)
+  }
 
   // Real ask: "driver will always get a job on floating button" — the
   // live trip view opens on its own the moment a run goes active (once
@@ -545,12 +624,69 @@ export default function DriveOperationsPage() {
             <FleetStatusPill tone={sharing ? 'green' : 'amber'} className="self-start"><Radio size={9} className={sharing ? 'animate-pulse' : ''} /> {sharing ? t('dr.liveSharingOnLabel') : t('dr.liveSharingOffLabel')}</FleetStatusPill>
             {sharing && geoError && <p className="font-sans text-[11px] text-amber-700">{geoError}</p>}
 
+            {(() => {
+              const pending = catchRequests.filter((r) => !r.seat_accepted_at)
+              const accepted = catchRequests.filter((r) => r.seat_accepted_at && !r.boarded_at)
+              if (pending.length === 0 && accepted.length === 0) return null
+              return (
+                <FleetPanel tone="warning">
+                  <FleetPanelHead icon={<Navigation size={14} />} title={t('dr.catchRequestsHeading')} tone="warning" />
+                  <FleetPanelBody className="flex flex-col divide-y divide-[#fde68a] p-0">
+                    {pending.map((r) => {
+                      const msLeft = r.catch_request_expires_at ? new Date(r.catch_request_expires_at).getTime() - nowTick : null
+                      const expired = msLeft != null && msLeft <= 0
+                      const mm = msLeft != null && msLeft > 0 ? Math.floor(msLeft / 60000) : 0
+                      const ss = msLeft != null && msLeft > 0 ? Math.floor((msLeft % 60000) / 1000) : 0
+                      const alightStop = stops.find((s) => s.id === r.alight_stop_id)
+                      const distKm = myLivePos && r.catch_lat != null && r.catch_lng != null
+                        ? haversineKm(myLivePos, { lat: r.catch_lat, lng: r.catch_lng }) : null
+                      return (
+                        <div key={r.id} className="px-3.5 py-2.5 flex flex-col gap-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-sans text-[12.5px] font-bold text-[#92400e]">{r.name || t('dr.catchRequestRiderFallback')}</span>
+                            <FleetStatusPill tone={expired ? 'gray' : 'amber'}>
+                              {expired ? t('dr.catchRequestExpiredLabel') : t('dr.catchRequestExpiresLabel').replace('{mmss}', `${mm}:${String(ss).padStart(2, '0')}`)}
+                            </FleetStatusPill>
+                          </div>
+                          <p className="font-sans text-[11px] text-[#334155]">
+                            {t('dr.catchRequestSeatsLabel').replace('{n}', String(r.seats))}
+                            {alightStop ? ` · ${t('dr.catchRequestAlightLabel').replace('{stop}', alightStop.counter_name ? `${alightStop.counter_name} · ${alightStop.counter_city}` : alightStop.label)}` : ''}
+                          </p>
+                          <p className="font-sans text-[11px] text-[#64748b]">
+                            {r.total_amount_pkr != null ? `${t('dr.catchRequestFareLabel')} ₨${fmt(r.total_amount_pkr)}` : ''}
+                            {r.announced_method ? ` · ${t('dr.catchRequestMethodLabel')}: ${r.announced_method}` : ''}
+                            {distKm != null ? ` · ${t('dr.catchRequestDistanceLabel').replace('{km}', distKm.toFixed(1))}` : ''}
+                          </p>
+                          <div className="flex gap-2 mt-1">
+                            <button onClick={() => acceptCatch(r.id)} disabled={catchActionId === r.id || expired} className="flex-1 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12px] font-bold cursor-pointer disabled:opacity-50">{t('dr.acceptCatchBtn')}</button>
+                            <button onClick={() => declineCatch(r.id)} disabled={catchActionId === r.id} className="flex-1 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12px] font-semibold text-[#b91c1c] cursor-pointer disabled:opacity-50">{t('dr.declineCatchBtn')}</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {accepted.length > 0 && (
+                      <div className="px-3.5 py-2 flex flex-col gap-1">
+                        <p className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#92400e]">{t('dr.acceptedCatchHeading')}</p>
+                        {accepted.map((r) => (
+                          <p key={r.id} className="font-sans text-[11.5px] text-[#334155]">· {r.name || t('dr.catchRequestRiderFallback')} ({r.seats})</p>
+                        ))}
+                      </div>
+                    )}
+                  </FleetPanelBody>
+                </FleetPanel>
+              )
+            })()}
+
             {stops.some((s) => s.lat != null) && (
               <LeafletMap
                 pins={[
                   ...stops.filter((s) => s.lat != null && s.lng != null).map((s): LeafletPin => ({
                     lat: s.lat!, lng: s.lng!, emoji: '📍', color: '#f59e0b',
                     popupHtml: `<b>${s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label}</b>`,
+                  })),
+                  ...catchRequests.filter((r) => !r.seat_accepted_at && r.catch_lat != null && r.catch_lng != null).map((r): LeafletPin => ({
+                    lat: r.catch_lat!, lng: r.catch_lng!, emoji: '🙋', color: '#dc2626',
+                    popupHtml: `<b>${r.name || t('dr.catchRequestRiderFallback')}</b>`,
                   })),
                   ...(myLivePos ? [{ lat: myLivePos.lat, lng: myLivePos.lng, emoji: '🚐', color: '#166534', isVehicle: true, label: t('dr.myBusLabel') } as LeafletPin] : []),
                 ]}
