@@ -19,21 +19,26 @@
 // The old version of this page (read-only onboard list + a walk-up
 // form) is folded into the new Trip tab; nothing from it is lost.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import {
   Bus, MapPin, Wallet, Plus, Clock, LogIn, LogOut, CheckCircle2, UserX, ClipboardCheck,
-  HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion,
+  HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { useLiveLocation } from '@/hooks/useLiveLocation'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat, FleetFormGrid, FleetFormField, FleetStatusPill, FleetKpiRow,
 } from '@/components/portal/FleetPanel'
 import { DriverShuffleFloatingButton } from '@/components/mobility/DriverShuffleFloatingButton'
+import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
+
+const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 type Direction = 'outbound' | 'return'
 type Tab = 'home' | 'trip' | 'cash' | 'pay'
@@ -43,7 +48,7 @@ interface MyRoute {
   days_of_week: number[]; vehicle_id: string; vehicle_number: string | null; vehicle_type: string | null
   fleet_id: string; is_co_driver: boolean
 }
-interface StopRow { id: string; label: string; stop_order: number; counter_id: string | null; counter_name: string | null; counter_city: string | null }
+interface StopRow { id: string; label: string; stop_order: number; counter_id: string | null; counter_name: string | null; counter_city: string | null; lat: number | null; lng: number | null }
 interface Passenger {
   id: string; source: 'manual' | 'app'; passenger_name: string; passenger_mobile: string | null; seats: number
   amount: number; boarded_at: string | null; dropped_off_at: string | null; status: string; counter_id: string | null
@@ -113,6 +118,9 @@ export default function DriveOperationsPage() {
   const [checkingAttendance, setCheckingAttendance] = useState(false)
   const [payroll, setPayroll] = useState<Payroll | null>(null)
   const [vehicleSeating, setVehicleSeating] = useState<{ totalSeats: number; isVanKind: boolean } | null>(null)
+  const [routePath, setRoutePath] = useState<{ lat: number; lng: number }[] | null>(null)
+  const [sharing, setSharing] = useState(false)
+  const [myLivePos, setMyLivePos] = useState<{ lat: number; lng: number } | null>(null)
 
   // Terminal stop desk
   const [selectedStopKey, setSelectedStopKey] = useState<string>('origin')
@@ -209,16 +217,54 @@ export default function DriveOperationsPage() {
   }, [routeId, routes]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!routeId) { setStops([]); return }
+    if (!routeId) { setStops([]); setRoutePath(null); return }
     (async () => {
-      const { data } = await supabase.from('route_stops')
-        .select('id, label, stop_order, counter_id, fleet_counters(name, city)')
-        .eq('route_id', routeId).order('stop_order')
-      const rows = ((data ?? []) as unknown as { id: string; label: string; stop_order: number; counter_id: string | null; fleet_counters: { name: string | null; city: string } | null }[])
-        .map((r) => ({ id: r.id, label: r.label, stop_order: r.stop_order, counter_id: r.counter_id, counter_name: r.fleet_counters?.name ?? null, counter_city: r.fleet_counters?.city ?? null }))
+      const [{ data }, { data: vr }] = await Promise.all([
+        supabase.from('route_stops')
+          .select('id, label, stop_order, counter_id, fleet_counters(name, city, lat, lng)')
+          .eq('route_id', routeId).order('stop_order'),
+        supabase.from('vehicle_routes').select('route_path').eq('id', routeId).single(),
+      ])
+      const rows = ((data ?? []) as unknown as { id: string; label: string; stop_order: number; counter_id: string | null; fleet_counters: { name: string | null; city: string; lat: number | null; lng: number | null } | null }[])
+        .map((r) => ({
+          id: r.id, label: r.label, stop_order: r.stop_order, counter_id: r.counter_id,
+          counter_name: r.fleet_counters?.name ?? null, counter_city: r.fleet_counters?.city ?? null,
+          lat: r.fleet_counters?.lat ?? null, lng: r.fleet_counters?.lng ?? null,
+        }))
       setStops(rows)
+      setRoutePath((vr?.route_path as { lat: number; lng: number }[] | null) ?? null)
     })()
   }, [routeId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Real gap found live: nothing on the driver's own screen ever pushed
+  // GPS anywhere, even though the admin's Live Fleet Map (fleet_vehicle_
+  // locations, 854) and route_live_locations have existed for a while —
+  // a fleet driver's dot just never showed up because nobody called
+  // ping_route_location (717). Same primitive RouteGroupPanel already
+  // uses for village-carpool routes — reused here directly (deliberately
+  // NOT the whole RouteGroupPanel, which my-vehicle/routes/page.tsx
+  // explicitly excludes for fare_mode='terminal_zone' fleet routes,
+  // since its chat/roster/wait-window machinery is for a different
+  // booking system; the GPS-share/map primitives themselves are generic).
+  useEffect(() => {
+    if (!routeId || !chalan?.run_started_at) { setSharing(false); return }
+    supabase.rpc('set_route_location_sharing', { p_route_id: routeId, p_on: true }).then(({ error }) => {
+      if (!error) setSharing(true)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeId, chalan?.run_started_at])
+
+  const { error: geoError } = useLiveLocation({
+    enabled: sharing,
+    minIntervalMs: 12000,
+    backgroundTitle: t('cm.liveShareNotifTitle'),
+    backgroundMessage: t('cm.liveShareNotifBody'),
+    onFix: async ({ lat, lng }) => {
+      setMyLivePos({ lat, lng })
+      const { error } = await supabase.rpc('ping_route_location', { p_route_id: routeId, p_lat: lat, p_lng: lng })
+      if (error) setSharing(false)
+    },
+  })
 
   // A van-kind vehicle requires explicit seat numbers on every booking
   // (record_manual_booking, 926) — real gap found live: the walk-up
@@ -547,6 +593,43 @@ export default function DriveOperationsPage() {
                 <FleetStat label={t('mv.unconfirmedLabel')} icon={<Users2 size={12} />} value={chalan.total_unconfirmed_count} valueClassName="text-[#92400e]" />
                 <FleetStat label={t('mv.cashLabel')} icon={<Wallet size={12} />} value={`₨${fmt(chalan.cash_collected_pkr)}`} valueClassName="text-[#1e293b]" />
               </FleetPanelBody>
+
+              {chalan.run_started_at && (
+                <FleetPanel>
+                  <FleetPanelHead icon={<Navigation size={14} />} title={t('dr.nextStopHeading')}
+                    action={<FleetStatusPill tone={sharing ? 'green' : 'amber'}><Radio size={9} className={sharing ? 'animate-pulse' : ''} /> {sharing ? t('dr.liveSharingOnLabel') : t('dr.liveSharingOffLabel')}</FleetStatusPill>} />
+                  <FleetPanelBody className="flex flex-col gap-2 p-2.5">
+                    {chalan.next_stops.length === 0 ? (
+                      <p className="font-sans text-[12px] text-[#94a3b8] text-center py-2">{t('dr.noMoreStopsHint')}</p>
+                    ) : (
+                      <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl px-3 py-2">
+                        <p className="font-sans text-[12.5px] font-bold text-[#166534]">{chalan.next_stops[0].label}</p>
+                        <p className="font-sans text-[11px] text-[#166534]">
+                          {t('dr.passengersWaitingHint').replace('{n}', String(chalan.next_stops[0].passengers.length))}
+                        </p>
+                        {chalan.next_stops[0].passengers.slice(0, 3).map((p) => (
+                          <p key={p.id} className="font-sans text-[11px] text-[#334155] mt-0.5">· {p.passenger_name} ({p.seats})</p>
+                        ))}
+                      </div>
+                    )}
+                    {sharing && geoError && <p className="font-sans text-[11px] text-amber-700">{geoError}</p>}
+                    {stops.some((s) => s.lat != null) && (
+                      <LeafletMap
+                        pins={[
+                          ...stops.filter((s) => s.lat != null && s.lng != null).map((s): LeafletPin => ({
+                            lat: s.lat!, lng: s.lng!, emoji: '📍', color: '#f59e0b',
+                            popupHtml: `<b>${s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label}</b>`,
+                          })),
+                          ...(myLivePos ? [{ lat: myLivePos.lat, lng: myLivePos.lng, emoji: '🚐', color: '#166534', isVehicle: true, label: t('dr.myBusLabel') } as LeafletPin] : []),
+                        ]}
+                        route={routePath ?? undefined}
+                        height={180}
+                        className="rounded-xl"
+                      />
+                    )}
+                  </FleetPanelBody>
+                </FleetPanel>
+              )}
 
               <FleetPanel>
                 <FleetPanelHead icon={<ClipboardCheck size={14} />} title={t('mv.terminalStopDeskHeading')} description={isLockedToOwnTerminal ? t('mv.yourTerminalHint') : undefined} />
