@@ -19,11 +19,12 @@
 // The old version of this page (read-only onboard list + a walk-up
 // form) is folded into the new Trip tab; nothing from it is lost.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import {
-  Bus, MapPin, Wallet, Plus, Clock, LogIn, LogOut, CheckCircle2, UserX, ClipboardCheck,
-  HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation,
+  Bus, MapPin, Wallet, Plus, Minus, Clock, LogIn, LogOut, CheckCircle2, UserX, ClipboardCheck,
+  HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation, Map as MapIcon,
+  Crosshair, Send, Gauge, Route as RouteIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -37,7 +38,7 @@ import {
   FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat, FleetFormGrid, FleetFormField, FleetStatusPill, FleetKpiRow,
 } from '@/components/portal/FleetPanel'
 import { DriverShuffleFloatingButton } from '@/components/mobility/DriverShuffleFloatingButton'
-import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
+import type { MapPin as LeafletPin, LeafletMapHandle } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -127,6 +128,20 @@ function etaMinutesFor(kmAhead: number, speedKph: number | null) {
   return Math.max(0, Math.round(kmAhead / Math.max(12, speedKph ?? 0) * 60))
 }
 
+// Avatar gradient + initial — matches the design reference's .avatar.g1..g5
+// palette exactly, cycled by a stable hash of the rider's id so the same
+// rider keeps the same color across re-renders.
+const AVATAR_GRADIENTS = [
+  'linear-gradient(145deg,#1c6a4c,#0f3d2e)', 'linear-gradient(145deg,#7a5bb5,#4a3277)',
+  'linear-gradient(145deg,#b5772f,#7a4a14)', 'linear-gradient(145deg,#2f7fb5,#1a4d73)',
+  'linear-gradient(145deg,#b53f5e,#73203a)',
+]
+function avatarBackground(seed: string) {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
+  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length]
+}
+
 function Stepper({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-[#F9F9F6] rounded-lg">
@@ -168,6 +183,8 @@ export default function DriveOperationsPage() {
   const [sharing, setSharing] = useState(false)
   const [myLivePos, setMyLivePos] = useState<{ lat: number; lng: number } | null>(null)
   const [showTripPopup, setShowTripPopup] = useState(false)
+  const [popupTab, setPopupTab] = useState<'map' | 'stops' | 'riders' | 'chat'>('map')
+  const tripMapRef = useRef<LeafletMapHandle>(null)
   const autoOpenedRunRef = useRef<string | null>(null)
   const [catchRequests, setCatchRequests] = useState<CatchRequestRow[]>([])
   const [catchActionId, setCatchActionId] = useState<string | null>(null)
@@ -499,14 +516,14 @@ export default function DriveOperationsPage() {
     loadOnboardRoster(routeId)
   }
 
-  const sendChat = async () => {
-    const body = chatInput.trim()
+  const sendChat = async (override?: string) => {
+    const body = (override ?? chatInput).trim()
     if (!body || !routeId) return
     setChatSending(true)
     const { error } = await supabase.rpc('send_route_trip_message', { p_route_id: routeId, p_travel_date: today(), p_body: body })
     setChatSending(false)
     if (error) { toast.error(friendlyError(error)); return }
-    setChatInput('')
+    if (!override) setChatInput('')
     loadChat(routeId)
   }
 
@@ -798,304 +815,399 @@ export default function DriveOperationsPage() {
           row on the Trip tab — matching the blueprint's "Trip" screen:
           live map, next stop, and a real done/current/upcoming stop
           timeline (ported from Chalan's own Stop Sequence panel). */}
-      {showTripPopup && chalan && (
+      {showTripPopup && chalan && (() => {
+        // Full visual port of driver-live-trip.html, not just the same
+        // data in our own card style — the user was explicit that a
+        // "same features, different look" pass wasn't what was asked
+        // for. Same four-tab structure (Map/Stops/Riders/Chat), same
+        // dark-green/gold/cream token palette the reference's own
+        // :root block defines, same speed-HUD-over-map + next-stop-
+        // ribbon-over-map + KPI-strip-below-map composition, same
+        // rail/node/line stop timeline, same avatar-card alight alerts
+        // and rider rows, same chat bubble shapes + quick chips.
+        const mapPins: LeafletPin[] = [
+          ...stops.filter((s) => s.lat != null && s.lng != null).map((s): LeafletPin => ({
+            lat: s.lat!, lng: s.lng!, emoji: '📍', color: '#d4a13c',
+            popupHtml: `<b>${s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label}</b>`,
+          })),
+          ...catchRequests.filter((r) => !r.seat_accepted_at && r.catch_lat != null && r.catch_lng != null).map((r): LeafletPin => ({
+            lat: r.catch_lat!, lng: r.catch_lng!, emoji: '🙋', color: '#c73c3c',
+            popupHtml: `<b>${r.name || t('dr.catchRequestRiderFallback')}</b>`,
+          })),
+          ...onboardRoster.filter((r) => r.alight_request_lat != null && r.alight_request_lng != null).map((r): LeafletPin => ({
+            lat: r.alight_request_lat!, lng: r.alight_request_lng!, emoji: '🛑', color: '#2f6fb0',
+            popupHtml: `<b>${r.name}</b> · ${t('dr.freeGpsAlightBadge')}`,
+          })),
+          ...(myLivePos ? [{ lat: myLivePos.lat, lng: myLivePos.lng, emoji: '🚐', color: '#1c6a4c', isVehicle: true, label: t('dr.myBusLabel') } as LeafletPin] : []),
+        ]
+        const vehiclePinIndex = mapPins.findIndex((p) => p.isVehicle)
+        const driverKmNow = (myLivePos && routePath && routePath.length >= 2) ? projectOntoRoute(routePath, myLivePos).distanceAlongKm : null
+        const kmAheadOf = (lat: number, lng: number) => (driverKmNow != null && routePath ? Math.max(0, projectOntoRoute(routePath, { lat, lng }).distanceAlongKm - driverKmNow) : null)
+        const nextStop = sequencedStops.find((x) => (x.counter_name ? `${x.counter_name} · ${x.counter_city}` : x.label) === chalan.next_stops[0]?.label)
+        const alightDue = onboardRoster.map((r) => {
+          const isFreeRequest = r.alight_request_lat != null && r.alight_request_lng != null
+          const point = isFreeRequest ? { lat: r.alight_request_lat!, lng: r.alight_request_lng! } : (r.alight_lat != null && r.alight_lng != null ? { lat: r.alight_lat, lng: r.alight_lng } : null)
+          const kmAhead = point ? kmAheadOf(point.lat, point.lng) : null
+          return { r, isFreeRequest, kmAhead }
+        }).filter((x) => x.kmAhead != null && (x.isFreeRequest || x.kmAhead <= 5)) as { r: OnboardRow; isFreeRequest: boolean; kmAhead: number }[]
+        alightDue.sort((a, b) => a.kmAhead - b.kmAhead)
+        const pendingCatch = catchRequests.filter((r) => !r.seat_accepted_at)
+        const acceptedCatch = catchRequests.filter((r) => r.seat_accepted_at && !r.boarded_at)
+        const QUICK_CHIPS = [t('dr.quickChip1'), t('dr.quickChip2'), t('dr.quickChip3'), t('dr.quickChip4')]
+
+        return (
         <div className="fixed inset-0 bg-black/60 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowTripPopup(false)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-[420px] max-h-[92vh] overflow-y-auto p-3.5 flex flex-col gap-2.5" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex items-center gap-1.5 font-sans text-[14px] font-bold text-[#102a36]"><Navigation size={16} /> {t('dr.openLiveTripBtn')}</span>
-              <button onClick={() => setShowTripPopup(false)} className="w-7 h-7 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748b] cursor-pointer">✕</button>
+          <div className="rounded-t-2xl sm:rounded-2xl w-full sm:max-w-[420px] h-[92vh] sm:h-[680px] overflow-hidden flex flex-col" style={{ background: '#f3f1e9' }} onClick={(e) => e.stopPropagation()}>
+
+            {/* Topbar */}
+            <div className="flex items-center gap-2.5 px-3.5 py-2.5 shrink-0" style={{ background: 'linear-gradient(180deg,#0f3d2e,#0b2e22)' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'radial-gradient(120% 120% at 30% 20%,#e8bd63,#b8862f)' }}>
+                <Bus size={15} color="#2a1c05" />
+              </div>
+              <p className="font-sans text-[13px] font-bold text-white truncate flex-1 min-w-0">{t('dr.openLiveTripBtn')}</p>
+              <span className="inline-flex items-center gap-1.5 shrink-0 rounded-full px-2.5 py-1 font-sans text-[10px] font-bold" style={{ background: 'rgba(42,138,99,.22)', border: '1px solid rgba(123,214,170,.35)', color: '#b9f0d2' }}>
+                <span className="relative inline-flex w-[7px] h-[7px] rounded-full shrink-0" style={{ background: '#54e39b' }}>
+                  {sharing && <span className="absolute -inset-1 rounded-full animate-ping" style={{ border: '2px solid #54e39b' }} />}
+                </span>
+                {sharing ? t('dr.liveSharingOnLabel') : t('dr.liveSharingOffLabel')}
+              </span>
+              <button onClick={() => setShowTripPopup(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0 cursor-pointer" style={{ background: 'rgba(255,255,255,.1)' }}>✕</button>
             </div>
-            <FleetStatusPill tone={sharing ? 'green' : 'amber'} className="self-start"><Radio size={9} className={sharing ? 'animate-pulse' : ''} /> {sharing ? t('dr.liveSharingOnLabel') : t('dr.liveSharingOffLabel')}</FleetStatusPill>
-            {sharing && geoError && <p className="font-sans text-[11px] text-amber-700">{geoError}</p>}
 
-            {/* Speed / ETA / remaining-distance strip — the design
-                reference's speed-HUD + KPI strip, condensed into one row
-                since this is a popup, not a full page. All three derive
-                client-side from the driver's own GPS fixes projected
-                onto routePath (projectOntoRoute), the same nearest-
-                vertex approach the backend's own catch-feasibility check
-                uses, so these numbers always agree with what the server
-                would compute for the same point. */}
-            {myLivePos && routePath && routePath.length >= 2 && (() => {
-              const { distanceAlongKm, totalKm } = projectOntoRoute(routePath, myLivePos)
-              const remainingKm = Math.max(0, totalKm - distanceAlongKm)
-              return (
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-white border border-[#e5e2d0] rounded-xl px-2.5 py-2 text-center">
-                    <p className="font-sans text-[9.5px] text-[#94a3b8]">{t('dr.currentSpeedLabel')}</p>
-                    <p className="font-sans text-[16px] font-bold text-[#102a36] ltr-num">{speedKph ?? '—'}<span className="text-[10px] font-semibold text-[#94a3b8]"> {t('dr.kphUnit')}</span></p>
-                  </div>
-                  <div className="bg-white border border-[#e5e2d0] rounded-xl px-2.5 py-2 text-center">
-                    <p className="font-sans text-[9.5px] text-[#94a3b8]">{t('dr.etaToDestLabel')}</p>
-                    <p className="font-sans text-[16px] font-bold text-[#102a36] ltr-num">{etaMinutesFor(remainingKm, speedKph)}<span className="text-[10px] font-semibold text-[#94a3b8]"> {t('dr.minUnit')}</span></p>
-                  </div>
-                  <div className="bg-white border border-[#e5e2d0] rounded-xl px-2.5 py-2 text-center">
-                    <p className="font-sans text-[9.5px] text-[#94a3b8]">{t('dr.remainingDistLabel')}</p>
-                    <p className="font-sans text-[16px] font-bold text-[#102a36] ltr-num">{remainingKm.toFixed(1)}<span className="text-[10px] font-semibold text-[#94a3b8]"> {t('dr.kmUnit')}</span></p>
-                  </div>
-                </div>
-              )
-            })()}
+            {/* Trip strip */}
+            <div className="flex items-center gap-2 px-3.5 py-2 shrink-0 flex-wrap" style={{ background: '#14523c' }}>
+              <span className="flex items-center gap-2 rounded-full pe-3 ps-1 py-1" style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.12)' }}>
+                <span className="rounded-full px-2 py-0.5 font-sans text-[10px] font-bold ltr-num" style={{ background: '#d4a13c', color: '#2a1c05' }}>{currentRoute?.vehicle_number || currentRoute?.vehicle_type || '—'}</span>
+                <span className="font-sans text-[12px] font-bold text-white truncate">{chalan.origin} → {chalan.destination}</span>
+              </span>
+              <span className="font-sans text-[10.5px] text-[#b7cdc0] truncate">{user?.full_name}</span>
+              {sharing && geoError && <span className="font-sans text-[10px] text-amber-200 truncate">· {geoError}</span>}
+            </div>
 
-            {/* Alight Alerts — the real gap the user raised: before 938
-                there was no per-rider mid-route drop-off action at all.
-                Shows an onboard rider once their alight point (a formal
-                stop OR a free-GPS request) is within alightThresholdKm
-                of the bus along the actual route, urgent styling inside
-                urgentKm — same two-tier model as the design reference. */}
-            {(() => {
-              if (!myLivePos || !routePath || routePath.length < 2 || onboardRoster.length === 0) return null
-              const driverKm = projectOntoRoute(routePath, myLivePos).distanceAlongKm
-              const withDistance = onboardRoster.map((r) => {
-                const isFreeRequest = r.alight_request_lat != null && r.alight_request_lng != null
-                const point = isFreeRequest ? { lat: r.alight_request_lat!, lng: r.alight_request_lng! } : (r.alight_lat != null && r.alight_lng != null ? { lat: r.alight_lat, lng: r.alight_lng } : null)
-                if (!point) return null
-                const pointKm = projectOntoRoute(routePath, point).distanceAlongKm
-                const kmAhead = Math.max(0, pointKm - driverKm)
-                return { r, isFreeRequest, kmAhead }
-              }).filter((x): x is { r: OnboardRow; isFreeRequest: boolean; kmAhead: number } => x != null)
-              const due = withDistance.filter((x) => x.isFreeRequest || x.kmAhead <= 5)
-              if (due.length === 0) return null
-              due.sort((a, b) => a.kmAhead - b.kmAhead)
-              return (
-                <FleetPanel tone="warning">
-                  <FleetPanelHead icon={<UserX size={14} />} title={t('dr.alightAlertsHeading')} tone="warning" />
-                  <FleetPanelBody className="flex flex-col divide-y divide-[#fde68a] p-0">
-                    {due.map(({ r, isFreeRequest, kmAhead }) => {
-                      const urgent = kmAhead <= 2
-                      return (
-                        <div key={r.id} className="px-3.5 py-2.5 flex flex-col gap-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-sans text-[12.5px] font-bold text-[#92400e]">{r.name}</span>
-                            {isFreeRequest && <FleetStatusPill tone="blue">{t('dr.freeGpsAlightBadge')}</FleetStatusPill>}
-                          </div>
-                          <p className="font-sans text-[11px] text-[#334155]">
-                            {t('dr.catchRequestSeatsLabel').replace('{n}', String(r.seats))}
-                            {!isFreeRequest && r.alight_label ? ` · ${t('dr.catchRequestAlightLabel').replace('{stop}', r.alight_label)}` : ''}
-                          </p>
-                          <p className={`font-sans text-[11px] font-semibold ${urgent ? 'text-[#b91c1c]' : 'text-[#92400e]'}`}>
-                            {urgent ? t('dr.alightNowHint') : t('dr.alightSoonHint')} · <span className="ltr-num">{kmAhead.toFixed(1)}</span> {t('dr.kmUnit')} · <span className="ltr-num">{etaMinutesFor(kmAhead, speedKph)}</span> {t('dr.minUnit')}
-                          </p>
-                          <div className="flex gap-2 mt-1">
-                            <button onClick={() => offloadRider(r)} disabled={offloadActionId === r.id} className={`flex-1 py-2 rounded-lg text-white font-sans text-[12px] font-bold cursor-pointer disabled:opacity-50 ${urgent ? 'bg-[#b91c1c]' : 'bg-[#b8862f]'}`}>{t('dr.offloadPassengerBtn')}</button>
-                            {isFreeRequest && (
-                              <button onClick={() => declineAlightRequest(r)} disabled={offloadActionId === r.id} className="flex-1 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12px] font-semibold text-[#b91c1c] cursor-pointer disabled:opacity-50">{t('dr.cantStopHereBtn')}</button>
-                            )}
-                          </div>
+            {/* Scrollable tab body */}
+            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5">
+
+              {popupTab === 'map' && (
+                <>
+                  {stops.some((s) => s.lat != null) ? (
+                    <div className="relative rounded-xl overflow-hidden" style={{ border: '1px solid #e2ded0', background: '#e7eadf' }}>
+                      <LeafletMap ref={tripMapRef} pins={mapPins} route={routePath ?? undefined} height={230} />
+
+                      {/* Speed HUD */}
+                      <div className="absolute z-[5] rounded-xl px-3.5 py-2.5 text-center min-w-[84px]" style={{ top: 10, insetInlineStart: 10, background: 'rgba(11,46,34,.88)', border: '1px solid rgba(255,255,255,.14)', backdropFilter: 'blur(6px)' }}>
+                        <p className="font-sans text-[30px] font-bold text-white leading-none ltr-num">{speedKph ?? '—'}</p>
+                        <p className="font-sans text-[9.5px] mt-0.5" style={{ color: '#b7cdc0' }}>{t('dr.kphUnit')}</p>
+                        <div className="mt-1.5 mx-auto rounded-full overflow-hidden" style={{ width: 60, height: 4, background: 'rgba(255,255,255,.16)' }}>
+                          <div className="h-full rounded-full" style={{ width: `${Math.min(100, ((speedKph ?? 0) / 90) * 100)}%`, background: 'linear-gradient(90deg,#e8bd63,#7be3ac)' }} />
                         </div>
-                      )
-                    })}
-                  </FleetPanelBody>
-                </FleetPanel>
-              )
-            })()}
-
-            {(() => {
-              const pending = catchRequests.filter((r) => !r.seat_accepted_at)
-              const accepted = catchRequests.filter((r) => r.seat_accepted_at && !r.boarded_at)
-              if (pending.length === 0 && accepted.length === 0) return null
-              return (
-                <FleetPanel tone="warning">
-                  <FleetPanelHead icon={<Navigation size={14} />} title={t('dr.catchRequestsHeading')} tone="warning" />
-                  <FleetPanelBody className="flex flex-col divide-y divide-[#fde68a] p-0">
-                    {pending.map((r) => {
-                      const msLeft = r.catch_request_expires_at ? new Date(r.catch_request_expires_at).getTime() - nowTick : null
-                      const expired = msLeft != null && msLeft <= 0
-                      const mm = msLeft != null && msLeft > 0 ? Math.floor(msLeft / 60000) : 0
-                      const ss = msLeft != null && msLeft > 0 ? Math.floor((msLeft % 60000) / 1000) : 0
-                      const alightStop = stops.find((s) => s.id === r.alight_stop_id)
-                      const distKm = myLivePos && r.catch_lat != null && r.catch_lng != null
-                        ? haversineKm(myLivePos, { lat: r.catch_lat, lng: r.catch_lng }) : null
-                      return (
-                        <div key={r.id} className="px-3.5 py-2.5 flex flex-col gap-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-sans text-[12.5px] font-bold text-[#92400e]">{r.name || t('dr.catchRequestRiderFallback')}</span>
-                            <FleetStatusPill tone={expired ? 'gray' : 'amber'}>
-                              {expired ? t('dr.catchRequestExpiredLabel') : t('dr.catchRequestExpiresLabel').replace('{mmss}', `${mm}:${String(ss).padStart(2, '0')}`)}
-                            </FleetStatusPill>
-                          </div>
-                          <p className="font-sans text-[11px] text-[#334155]">
-                            {t('dr.catchRequestSeatsLabel').replace('{n}', String(r.seats))}
-                            {alightStop ? ` · ${t('dr.catchRequestAlightLabel').replace('{stop}', alightStop.counter_name ? `${alightStop.counter_name} · ${alightStop.counter_city}` : alightStop.label)}` : ''}
-                          </p>
-                          <p className="font-sans text-[11px] text-[#64748b]">
-                            {r.total_amount_pkr != null ? `${t('dr.catchRequestFareLabel')} ₨${fmt(r.total_amount_pkr)}` : ''}
-                            {r.announced_method ? ` · ${t('dr.catchRequestMethodLabel')}: ${r.announced_method}` : ''}
-                            {distKm != null ? ` · ${t('dr.catchRequestDistanceLabel').replace('{km}', distKm.toFixed(1))}` : ''}
-                          </p>
-                          <div className="flex gap-2 mt-1">
-                            <button onClick={() => acceptCatch(r.id)} disabled={catchActionId === r.id || expired} className="flex-1 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12px] font-bold cursor-pointer disabled:opacity-50">{t('dr.acceptCatchBtn')}</button>
-                            <button onClick={() => declineCatch(r.id)} disabled={catchActionId === r.id} className="flex-1 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12px] font-semibold text-[#b91c1c] cursor-pointer disabled:opacity-50">{t('dr.declineCatchBtn')}</button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {accepted.length > 0 && (
-                      <div className="px-3.5 py-2 flex flex-col gap-1">
-                        <p className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#92400e]">{t('dr.acceptedCatchHeading')}</p>
-                        {accepted.map((r) => (
-                          <p key={r.id} className="font-sans text-[11.5px] text-[#334155]">· {r.name || t('dr.catchRequestRiderFallback')} ({r.seats})</p>
-                        ))}
                       </div>
-                    )}
-                  </FleetPanelBody>
-                </FleetPanel>
-              )
-            })()}
 
-            {stops.some((s) => s.lat != null) && (
-              <LeafletMap
-                pins={[
-                  ...stops.filter((s) => s.lat != null && s.lng != null).map((s): LeafletPin => ({
-                    lat: s.lat!, lng: s.lng!, emoji: '📍', color: '#f59e0b',
-                    popupHtml: `<b>${s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label}</b>`,
-                  })),
-                  ...catchRequests.filter((r) => !r.seat_accepted_at && r.catch_lat != null && r.catch_lng != null).map((r): LeafletPin => ({
-                    lat: r.catch_lat!, lng: r.catch_lng!, emoji: '🙋', color: '#dc2626',
-                    popupHtml: `<b>${r.name || t('dr.catchRequestRiderFallback')}</b>`,
-                  })),
-                  ...onboardRoster.filter((r) => r.alight_request_lat != null && r.alight_request_lng != null).map((r): LeafletPin => ({
-                    lat: r.alight_request_lat!, lng: r.alight_request_lng!, emoji: '🛑', color: '#2563eb',
-                    popupHtml: `<b>${r.name}</b> · ${t('dr.freeGpsAlightBadge')}`,
-                  })),
-                  ...(myLivePos ? [{ lat: myLivePos.lat, lng: myLivePos.lng, emoji: '🚐', color: '#166534', isVehicle: true, label: t('dr.myBusLabel') } as LeafletPin] : []),
-                ]}
-                route={routePath ?? undefined}
-                height={170}
-                className="rounded-xl"
-              />
-            )}
+                      {/* Map controls */}
+                      <div className="absolute z-[5] flex flex-col gap-1.5" style={{ top: 10, insetInlineEnd: 10 }}>
+                        <button onClick={() => tripMapRef.current?.zoomIn()} className="w-8 h-8 rounded-[10px] flex items-center justify-center cursor-pointer" style={{ background: 'rgba(255,255,255,.94)', color: '#0f3d2e' }}><Plus size={14} /></button>
+                        <button onClick={() => tripMapRef.current?.zoomOut()} className="w-8 h-8 rounded-[10px] flex items-center justify-center cursor-pointer" style={{ background: 'rgba(255,255,255,.94)', color: '#0f3d2e' }}><Minus size={14} /></button>
+                        {vehiclePinIndex >= 0 && (
+                          <button onClick={() => tripMapRef.current?.focusPin(vehiclePinIndex, 14)} className="w-8 h-8 rounded-[10px] flex items-center justify-center cursor-pointer" style={{ background: '#14523c', color: '#fff' }}><Crosshair size={14} /></button>
+                        )}
+                      </div>
 
-            {chalan.next_stops.length === 0 ? (
-              <p className="font-sans text-[12px] text-[#94a3b8] text-center py-2">{t('dr.noMoreStopsHint')}</p>
-            ) : (
-              <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#166534]">{t('dr.nextStopHeading')}</p>
-                    <p className="font-sans text-[12.5px] font-bold text-[#166534] mt-0.5">{chalan.next_stops[0].label}</p>
-                  </div>
+                      {/* Next-stop ribbon */}
+                      {chalan.next_stops.length > 0 && (
+                        <div className="absolute z-[5] rounded-xl px-3 py-2 flex items-center gap-2.5" style={{ insetInlineStart: 10, insetInlineEnd: 10, bottom: 10, background: 'rgba(255,255,255,.95)', backdropFilter: 'blur(6px)' }}>
+                          <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fbf2de', color: '#b8862f' }}><MapPin size={16} /></span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-sans text-[9.5px]" style={{ color: '#7a857d' }}>{t('dr.nextStopHeading')}</p>
+                            <p className="font-sans text-[13.5px] font-bold truncate" style={{ color: '#16221c' }}>{chalan.next_stops[0].label}</p>
+                          </div>
+                          {nextStop?.lat != null && nextStop?.lng != null && (() => {
+                            const km = kmAheadOf(nextStop.lat!, nextStop.lng!)
+                            if (km == null) return null
+                            return (
+                              <div className="flex items-center gap-2.5 shrink-0 ps-2" style={{ borderInlineStart: '1px dashed #cfc9b6' }}>
+                                <div className="text-center">
+                                  <p className="font-sans text-[15px] font-bold ltr-num" style={{ color: '#16221c' }}>{km.toFixed(1)}</p>
+                                  <p className="font-sans text-[9.5px]" style={{ color: '#7a857d' }}>{t('dr.kmUnit')}</p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="font-sans text-[15px] font-bold ltr-num" style={{ color: '#16221c' }}>{etaMinutesFor(km, speedKph)}</p>
+                                  <p className="font-sans text-[9.5px]" style={{ color: '#7a857d' }}>{t('dr.minUnit')}</p>
+                                </div>
+                              </div>
+                            )
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="font-sans text-[12px] text-center py-6" style={{ color: '#7a857d' }}>{t('dr.noMoreStopsHint')}</p>
+                  )}
+
+                  {/* KPI strip */}
                   {(() => {
-                    if (!myLivePos || !routePath || routePath.length < 2) return null
-                    const s = sequencedStops.find((x) => (x.counter_name ? `${x.counter_name} · ${x.counter_city}` : x.label) === chalan.next_stops[0].label)
-                    if (!s || s.lat == null || s.lng == null) return null
-                    const driverKm = projectOntoRoute(routePath, myLivePos).distanceAlongKm
-                    const stopKm = projectOntoRoute(routePath, { lat: s.lat, lng: s.lng }).distanceAlongKm
-                    const kmAhead = Math.max(0, stopKm - driverKm)
+                    const remainingKm = routePath && routePath.length >= 2 && driverKmNow != null ? Math.max(0, projectOntoRoute(routePath, routePath[routePath.length - 1]).distanceAlongKm - driverKmNow) : null
                     return (
-                      <div className="text-end shrink-0">
-                        <p className="font-sans text-[14px] font-bold text-[#166534] ltr-num">{kmAhead.toFixed(1)} {t('dr.kmUnit')}</p>
-                        <p className="font-sans text-[9.5px] text-[#166534] ltr-num">{etaMinutesFor(kmAhead, speedKph)} {t('dr.minUnit')}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { icon: <Gauge size={13} />, label: t('dr.currentSpeedLabel'), value: speedKph ?? '—', unit: t('dr.kphUnit'), bar: '#2a8a63' },
+                          { icon: <Clock size={13} />, label: t('dr.etaToDestLabel'), value: remainingKm != null ? etaMinutesFor(remainingKm, speedKph) : '—', unit: t('dr.minUnit'), bar: '#d4a13c' },
+                          { icon: <RouteIcon size={13} />, label: t('dr.remainingDistLabel'), value: remainingKm != null ? remainingKm.toFixed(1) : '—', unit: t('dr.kmUnit'), bar: '#2f6fb0' },
+                        ].map((kpi, i) => (
+                          <div key={i} className="relative rounded-xl p-2.5 overflow-hidden" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
+                            <span className="absolute inset-y-0 start-0" style={{ width: 4, background: kpi.bar }} />
+                            <p className="flex items-center gap-1.5 font-sans text-[10px]" style={{ color: '#7a857d' }}>{kpi.icon}{kpi.label}</p>
+                            <p className="font-sans text-[18px] font-bold mt-0.5 ltr-num" style={{ color: '#16221c' }}>{kpi.value}<span className="font-sans text-[10.5px] font-semibold ms-1" style={{ color: '#7a857d' }}>{kpi.unit}</span></p>
+                          </div>
+                        ))}
                       </div>
                     )
                   })()}
-                </div>
-                <p className="font-sans text-[11px] text-[#166534] mt-1">
-                  {t('dr.passengersWaitingHint').replace('{n}', String(chalan.next_stops[0].passengers.length))}
-                </p>
-                {chalan.next_stops[0].passengers.slice(0, 4).map((p) => (
-                  <p key={p.id} className="font-sans text-[11px] text-[#334155] mt-0.5">· {p.passenger_name} ({p.seats})</p>
-                ))}
-              </div>
-            )}
+                </>
+              )}
 
-            <p className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#94a3b8] mt-1">{t('dr.routeTimelineHeading')}</p>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#F9F9F6]">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: masterChallan?.stop_challans.find((sc) => sc.stop_id === null) ? '#166534' : '#cbd5e1' }} />
-                <span className="font-sans text-[11.5px] text-[#1e293b] font-semibold">{t('mv.originStopOption')} · {chalan.origin}</span>
-              </div>
-              {sequencedStops.map((s) => {
-                const closed = !!masterChallan?.stop_challans.find((sc) => sc.stop_id === s.id)
-                const isNext = chalan.next_stops[0]?.label === (s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label)
-                const alightingHere = onboardRoster.filter((r) => r.alight_stop_id === s.id).length
-                const distEta = (!closed && myLivePos && routePath && routePath.length >= 2 && s.lat != null && s.lng != null)
-                  ? (() => {
-                      const driverKm = projectOntoRoute(routePath, myLivePos).distanceAlongKm
-                      const stopKm = projectOntoRoute(routePath, { lat: s.lat!, lng: s.lng! }).distanceAlongKm
-                      return Math.max(0, stopKm - driverKm)
-                    })()
-                  : null
-                return (
-                  <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{ background: isNext ? '#F0FDF4' : '#F9F9F6', border: isNext ? '1px solid #166534' : '1px solid transparent' }}>
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: closed ? '#166534' : isNext ? '#fff' : '#cbd5e1', border: isNext ? '2px solid #166534' : 'none' }} />
-                    <span className="min-w-0 flex-1">
-                      <span className="font-sans text-[11.5px] text-[#1e293b] font-semibold block truncate">{s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label}</span>
-                      <span className="flex items-center gap-1.5 flex-wrap">
-                        {(s.arrival_time || s.departure_time) && (
-                          <span className="font-sans text-[9.5px] text-[#94a3b8] ltr-num">{s.arrival_time ? s.arrival_time.slice(0, 5) : ''}{s.departure_time ? ` – ${s.departure_time.slice(0, 5)}` : ''}</span>
+              {popupTab === 'stops' && (
+                <>
+                  {/* Alight alerts */}
+                  {alightDue.length > 0 && (
+                    <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
+                      <div className="flex items-center gap-2 px-3.5 py-2.5" style={{ borderBottom: '1px solid #f1f5f9', background: '#faf8f2' }}>
+                        <span className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: '#fbf2de', color: '#b8862f' }}><UserX size={15} /></span>
+                        <p className="font-sans text-[13px] font-bold flex-1" style={{ color: '#16221c' }}>{t('dr.alightAlertsHeading')}</p>
+                        <span className="rounded-full px-2.5 py-1 font-sans text-[11px] font-bold ltr-num" style={{ background: '#eeece3', color: '#4a564e' }}>{alightDue.length}</span>
+                      </div>
+                      <div className="p-2.5 flex flex-col gap-2">
+                        {alightDue.map(({ r, isFreeRequest, kmAhead }) => {
+                          const urgent = kmAhead <= 2
+                          return (
+                            <div key={r.id} className="relative rounded-xl p-2.5 pe-3 ps-3 flex gap-2.5 overflow-hidden" style={{ background: urgent ? 'linear-gradient(180deg,#fbe9e9,#fff)' : 'linear-gradient(180deg,#fbf2de,#fff)', border: `1px solid ${urgent ? 'rgba(179,43,43,.35)' : 'rgba(184,134,47,.4)'}` }}>
+                              <span className="absolute inset-y-0 start-0" style={{ width: 4, background: urgent ? '#c73c3c' : '#d4a13c' }} />
+                              <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-sans text-[14px] font-bold text-white" style={{ backgroundImage: avatarBackground(r.id) }}>{r.name.trim().charAt(0).toUpperCase() || '?'}</span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="font-sans text-[13.5px] font-bold truncate" style={{ color: '#16221c' }}>{r.name}</p>
+                                  {isFreeRequest && <span className="shrink-0 rounded-full px-2 py-0.5 font-sans text-[9px] font-bold" style={{ background: '#2f6fb0', color: '#fff' }}>{t('dr.freeGpsAlightBadge')}</span>}
+                                </div>
+                                <p className="font-sans text-[11px] mt-0.5" style={{ color: '#4a564e' }}>
+                                  {!isFreeRequest && r.alight_label ? r.alight_label : t('dr.freeGpsAlightBadge')} · <span className="ltr-num">{r.seats}</span> {t('dr.catchRequestSeatsLabel').replace('{n}', '').trim()}
+                                </p>
+                                <p className="font-sans text-[11.5px] font-bold mt-1" style={{ color: urgent ? '#b32b2b' : '#b8862f' }}>
+                                  {urgent ? t('dr.alightNowHint') : t('dr.alightSoonHint')} — <span className="ltr-num">{kmAhead.toFixed(1)}</span> {t('dr.kmUnit')} · <span className="ltr-num">{etaMinutesFor(kmAhead, speedKph)}</span> {t('dr.minUnit')}
+                                </p>
+                                <div className="flex gap-2 mt-2">
+                                  <button onClick={() => offloadRider(r)} disabled={offloadActionId === r.id} className="flex-1 py-1.5 rounded-full font-sans text-[11.5px] font-bold cursor-pointer disabled:opacity-50" style={{ background: urgent ? 'linear-gradient(180deg,#c73c3c,#b32b2b)' : 'linear-gradient(180deg,#d4a13c,#b8862f)', color: urgent ? '#fff' : '#2a1c05' }}>{t('dr.offloadPassengerBtn')}</button>
+                                  {isFreeRequest && (
+                                    <button onClick={() => declineAlightRequest(r)} disabled={offloadActionId === r.id} className="flex-1 py-1.5 rounded-full font-sans text-[11.5px] font-semibold cursor-pointer disabled:opacity-50" style={{ background: '#fff', border: '1px solid #cfc9b6', color: '#4a564e' }}>{t('dr.cantStopHereBtn')}</button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mid-route catch requests */}
+                  {(pendingCatch.length > 0 || acceptedCatch.length > 0) && (
+                    <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
+                      <div className="flex items-center gap-2 px-3.5 py-2.5" style={{ borderBottom: '1px solid #f1f5f9', background: '#faf8f2' }}>
+                        <span className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: '#fbf2de', color: '#b8862f' }}><Navigation size={15} /></span>
+                        <p className="font-sans text-[13px] font-bold flex-1" style={{ color: '#16221c' }}>{t('dr.catchRequestsHeading')}</p>
+                      </div>
+                      <div className="p-2.5 flex flex-col gap-2">
+                        {pendingCatch.map((r) => {
+                          const msLeft = r.catch_request_expires_at ? new Date(r.catch_request_expires_at).getTime() - nowTick : null
+                          const expired = msLeft != null && msLeft <= 0
+                          const mm = msLeft != null && msLeft > 0 ? Math.floor(msLeft / 60000) : 0
+                          const ss = msLeft != null && msLeft > 0 ? Math.floor((msLeft % 60000) / 1000) : 0
+                          const alightStop = stops.find((s) => s.id === r.alight_stop_id)
+                          const distKm = myLivePos && r.catch_lat != null && r.catch_lng != null ? haversineKm(myLivePos, { lat: r.catch_lat, lng: r.catch_lng }) : null
+                          return (
+                            <div key={r.id} className="rounded-xl p-2.5 flex flex-col gap-1" style={{ background: '#faf8f2', border: '1px solid #e2ded0' }}>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-sans text-[12.5px] font-bold" style={{ color: '#16221c' }}>{r.name || t('dr.catchRequestRiderFallback')}</span>
+                                <span className="rounded-full px-2 py-0.5 font-sans text-[10px] font-bold ltr-num" style={{ background: expired ? '#eeece3' : '#fbf2de', color: expired ? '#7a857d' : '#b8862f' }}>
+                                  {expired ? t('dr.catchRequestExpiredLabel') : t('dr.catchRequestExpiresLabel').replace('{mmss}', `${mm}:${String(ss).padStart(2, '0')}`)}
+                                </span>
+                              </div>
+                              <p className="font-sans text-[11px]" style={{ color: '#4a564e' }}>
+                                {t('dr.catchRequestSeatsLabel').replace('{n}', String(r.seats))}
+                                {alightStop ? ` · ${t('dr.catchRequestAlightLabel').replace('{stop}', alightStop.counter_name ? `${alightStop.counter_name} · ${alightStop.counter_city}` : alightStop.label)}` : ''}
+                                {distKm != null ? ` · ${t('dr.catchRequestDistanceLabel').replace('{km}', distKm.toFixed(1))}` : ''}
+                              </p>
+                              <div className="flex gap-2 mt-1">
+                                <button onClick={() => acceptCatch(r.id)} disabled={catchActionId === r.id || expired} className="flex-1 py-1.5 rounded-full font-sans text-[11.5px] font-bold cursor-pointer disabled:opacity-50" style={{ background: '#1c6a4c', color: '#fff' }}>{t('dr.acceptCatchBtn')}</button>
+                                <button onClick={() => declineCatch(r.id)} disabled={catchActionId === r.id} className="flex-1 py-1.5 rounded-full font-sans text-[11.5px] font-semibold cursor-pointer disabled:opacity-50" style={{ background: '#fff', border: '1px solid #cfc9b6', color: '#b32b2b' }}>{t('dr.declineCatchBtn')}</button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        {acceptedCatch.length > 0 && (
+                          <p className="font-sans text-[11px]" style={{ color: '#4a564e' }}>{t('dr.acceptedCatchHeading')}: {acceptedCatch.map((r) => r.name || t('dr.catchRequestRiderFallback')).join(', ')}</p>
                         )}
-                        {alightingHere > 0 && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[#dcfce7] text-[#166534] font-sans text-[9px] font-bold ltr-num">↓ {alightingHere}</span>
-                        )}
-                      </span>
-                    </span>
-                    {closed ? (
-                      <CheckCircle2 size={13} className="text-[#166534] shrink-0" />
-                    ) : distEta != null ? (
-                      <span className="text-end shrink-0">
-                        <span className="font-sans text-[11px] font-bold text-[#1e293b] block ltr-num">{distEta.toFixed(1)} {t('dr.kmUnit')}</span>
-                        <span className="font-sans text-[8.5px] text-[#94a3b8] block ltr-num">{etaMinutesFor(distEta, speedKph)} {t('dr.minUnit')}</span>
-                      </span>
-                    ) : null}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Stops timeline */}
+                  <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
+                    <div className="flex items-center gap-2 px-3.5 py-2.5" style={{ borderBottom: '1px solid #f1f5f9', background: '#faf8f2' }}>
+                      <span className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: '#e3f2ea', color: '#14523c' }}><MapPin size={15} /></span>
+                      <p className="font-sans text-[13px] font-bold flex-1" style={{ color: '#16221c' }}>{t('dr.routeTimelineHeading')}</p>
+                      <span className="rounded-full px-2.5 py-1 font-sans text-[11px] font-bold ltr-num" style={{ background: '#eeece3', color: '#4a564e' }}>{sequencedStops.filter((s) => !masterChallan?.stop_challans.find((sc) => sc.stop_id === s.id)).length}</span>
+                    </div>
+                    <div className="p-2.5 flex flex-col">
+                      {(() => {
+                        const originDone = !!masterChallan?.stop_challans.find((sc) => sc.stop_id === null)
+                        const rows = [{ key: 'origin', label: `${t('mv.originStopOption')} · ${chalan.origin}`, done: originDone, isNext: false, sub: null as number | null, dist: null as number | null, lat: null as number | null, lng: null as number | null }, ...sequencedStops.map((s) => ({
+                          key: s.id,
+                          label: s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label,
+                          done: !!masterChallan?.stop_challans.find((sc) => sc.stop_id === s.id),
+                          isNext: chalan.next_stops[0]?.label === (s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label),
+                          sub: onboardRoster.filter((r) => r.alight_stop_id === s.id).length,
+                          dist: s.lat != null && s.lng != null ? kmAheadOf(s.lat, s.lng) : null,
+                          lat: s.lat, lng: s.lng,
+                        }))]
+                        return rows.map((row, i) => (
+                          <div key={row.key} className="relative flex gap-3 px-1" style={{ paddingBlock: 9 }}>
+                            <div className="relative flex flex-col items-center shrink-0" style={{ width: 16 }}>
+                              <span className="rounded-full shrink-0 z-10" style={{
+                                width: 15, height: 15,
+                                background: row.done ? '#b9c7bd' : row.isNext ? '#d4a13c' : '#fff',
+                                border: `3px solid ${row.done ? '#b9c7bd' : row.isNext ? '#d4a13c' : '#cfc9b6'}`,
+                                boxShadow: row.isNext ? '0 0 0 4px rgba(212,161,60,.22)' : 'none',
+                              }} />
+                              {i < rows.length - 1 && <span className="absolute top-[15px] bottom-[-18px] w-[2px]" style={{ background: row.isNext ? 'linear-gradient(#d4a13c,#e2ded0)' : '#e2ded0' }} />}
+                            </div>
+                            <div className="min-w-0 flex-1 pb-0.5">
+                              <p className="font-sans text-[13px] font-bold truncate" style={{ color: row.done ? '#7a857d' : '#16221c', textDecorationLine: row.done ? 'line-through' : 'none', textDecorationColor: '#cfc9b6' }}>{row.label}</p>
+                              <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                {row.done ? (
+                                  <span className="font-sans text-[10.5px]" style={{ color: '#7a857d' }}>{t('dr.stopPassedHint')}</span>
+                                ) : row.dist != null ? (
+                                  <span className="font-sans text-[10.5px] ltr-num" style={{ color: '#4a564e' }}>{row.dist.toFixed(1)} {t('dr.kmUnit')}</span>
+                                ) : null}
+                                {!!row.sub && row.sub > 0 && (
+                                  <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-sans text-[9px] font-bold ltr-num" style={{ background: '#e3f2ea', color: '#14523c' }}>↓ {row.sub}</span>
+                                )}
+                                {row.isNext && (
+                                  <span className="rounded-full px-1.5 py-0.5 font-sans text-[9px] font-bold" style={{ background: '#d4a13c', color: '#2a1c05' }}>{t('dr.nextTag')}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-end shrink-0 self-center">
+                              {row.done ? <CheckCircle2 size={14} style={{ color: '#2a8a63' }} /> : row.dist != null ? (
+                                <>
+                                  <p className="font-sans text-[12px] font-bold ltr-num" style={{ color: '#16221c' }}>{etaMinutesFor(row.dist, speedKph)}</p>
+                                  <p className="font-sans text-[8.5px]" style={{ color: '#7a857d' }}>{t('dr.minUnit')}</p>
+                                </>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))
+                      })()}
+                    </div>
                   </div>
-                )
-              })}
+                </>
+              )}
+
+              {popupTab === 'riders' && (
+                <>
+                  <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
+                    <div className="flex items-center gap-2 px-3.5 py-2.5" style={{ borderBottom: '1px solid #f1f5f9', background: '#faf8f2' }}>
+                      <span className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: '#e3f2ea', color: '#14523c' }}><Users2 size={15} /></span>
+                      <p className="font-sans text-[13px] font-bold flex-1" style={{ color: '#16221c' }}>{t('dr.onboardRosterHeading')}</p>
+                      <span className="rounded-full px-2.5 py-1 font-sans text-[11px] font-bold ltr-num" style={{ background: '#eeece3', color: '#4a564e' }}>{onboardRoster.reduce((sum, r) => sum + r.seats, 0)}</span>
+                    </div>
+                    <div className="p-2.5 flex flex-col">
+                      {onboardRoster.length === 0 ? (
+                        <p className="font-sans text-[12px] text-center py-4" style={{ color: '#7a857d' }}>{t('dr.noOneOnboardHint')}</p>
+                      ) : onboardRoster.map((r) => {
+                        const point = r.alight_request_lat != null ? { lat: r.alight_request_lat, lng: r.alight_request_lng! } : (r.alight_lat != null ? { lat: r.alight_lat, lng: r.alight_lng! } : null)
+                        const kmAhead = point ? kmAheadOf(point.lat, point.lng) : null
+                        const soon = kmAhead != null && kmAhead <= 5
+                        return (
+                          <div key={r.id} className="flex items-center gap-2.5 py-2" style={{ borderTop: '1px solid #f1f5f9' }}>
+                            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-sans text-[12.5px] font-bold text-white" style={{ backgroundImage: avatarBackground(r.id) }}>{r.name.trim().charAt(0).toUpperCase() || '?'}</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-sans text-[12.5px] font-semibold truncate" style={{ color: '#16221c' }}>{r.name}</p>
+                              <p className="font-sans text-[10.5px] truncate" style={{ color: '#7a857d' }}>{r.alight_request_lat != null ? t('dr.freeGpsAlightBadge') : (r.alight_label ?? '—')} · <span className="ltr-num">{r.seats}</span></p>
+                            </div>
+                            <span className="shrink-0 rounded-full px-2.5 py-1 font-sans text-[10.5px] font-bold" style={{ background: soon ? '#fbf2de' : '#e3f2ea', color: soon ? '#b8862f' : '#14523c' }}>{soon ? t('dr.riderStateSoon') : t('dr.riderStateOn')}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
+                    <button
+                      onClick={async () => {
+                        const on = !sharing
+                        const { error } = await supabase.rpc('set_route_location_sharing', { p_route_id: routeId, p_on: on })
+                        if (!error) setSharing(on)
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-full font-sans text-[13px] font-bold cursor-pointer"
+                      style={{ background: 'linear-gradient(180deg,#2a8a63,#1c6a4c)', color: '#fff' }}
+                    >
+                      <Radio size={14} className={sharing ? 'animate-pulse' : ''} /> {sharing ? t('dr.liveSharingOnLabel') : t('dr.liveSharingOffLabel')}
+                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => { setShowTripPopup(false); setTab('trip') }} className="py-2.5 rounded-full font-sans text-[12.5px] font-semibold cursor-pointer" style={{ background: '#fff', border: '1px solid #cfc9b6', color: '#4a564e' }}>{t('dr.openStopDeskBtn')}</button>
+                      <button onClick={endTripNow} disabled={endingTrip} className="py-2.5 rounded-full font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50" style={{ background: 'linear-gradient(180deg,#c73c3c,#b32b2b)', color: '#fff' }}>{endingTrip ? t('action.loading') : t('dr.endTripBtn')}</button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {popupTab === 'chat' && (
+                <div className="rounded-2xl overflow-hidden flex flex-col flex-1" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
+                  <div className="flex items-center gap-2 px-3.5 py-2.5" style={{ borderBottom: '1px solid #f1f5f9', background: '#faf8f2' }}>
+                    <span className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: '#e3f2ea', color: '#14523c' }}><MessageCircleQuestion size={15} /></span>
+                    <p className="font-sans text-[13px] font-bold flex-1" style={{ color: '#16221c' }}>{t('dr.tripChatHeading')}</p>
+                  </div>
+                  <div className="flex flex-col gap-2 p-3 overflow-y-auto" style={{ minHeight: 220, maxHeight: 320, background: '#faf8f2' }}>
+                    {chatMessages.length === 0 ? (
+                      <p className="font-sans text-[11.5px] text-center py-4" style={{ color: '#7a857d' }}>{t('dr.noChatMessagesHint')}</p>
+                    ) : chatMessages.map((m) => (
+                      <div key={m.id} className="max-w-[80%] rounded-2xl px-3 py-2" style={m.is_me
+                        ? { alignSelf: 'flex-end', background: 'linear-gradient(180deg,#2a8a63,#1c6a4c)', color: '#fff', borderStartStartRadius: 16, borderEndEndRadius: 5 }
+                        : { alignSelf: 'flex-start', background: '#fff', border: '1px solid #e2ded0', color: '#16221c', borderStartEndRadius: 16, borderEndStartRadius: 5 }}>
+                        {!m.is_me && <p className="font-sans text-[10px] font-bold mb-0.5" style={{ color: '#14523c' }}>{m.sender_name}</p>}
+                        <p className="font-sans text-[13px]">{m.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto px-3 pt-2.5" style={{ scrollbarWidth: 'none' }}>
+                    {QUICK_CHIPS.map((c) => (
+                      <button key={c} onClick={() => sendChat(c)} disabled={chatSending} className="shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 font-sans text-[11.5px] cursor-pointer disabled:opacity-50" style={{ background: '#fff', border: '1px solid #cfc9b6', color: '#4a564e' }}>{c}</button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 p-2.5">
+                    <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendChat() }} placeholder={t('dr.chatPlaceholder')} className="flex-1 px-3.5 py-2.5 rounded-full font-sans text-[13px]" style={{ background: '#faf8f2', border: '1px solid #cfc9b6', color: '#16221c' }} />
+                    <button onClick={() => sendChat()} disabled={chatSending || !chatInput.trim()} className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-50 shrink-0" style={{ backgroundImage: 'linear-gradient(145deg,#2a8a63,#14523c)', color: '#fff' }}><Send size={16} /></button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Rider roster — every onboard passenger, their alight
-                point, and whether they're "soon" (within the alight-
-                alert threshold above) or just "on" — the design
-                reference's "Route Group" rider list. */}
-            <FleetPanel>
-              <FleetPanelHead icon={<Users2 size={14} />} title={t('dr.onboardRosterHeading')} action={<span className="bg-[#F9F9F6] text-[#64748b] rounded-full px-2.5 py-1 font-sans text-[11px] font-bold ltr-num">{onboardRoster.reduce((sum, r) => sum + r.seats, 0)}</span>} />
-              <FleetPanelBody className="flex flex-col divide-y divide-[#f1f5f9] p-0">
-                {onboardRoster.length === 0 ? (
-                  <p className="font-sans text-[12px] text-[#94a3b8] text-center py-4">{t('dr.noOneOnboardHint')}</p>
-                ) : onboardRoster.map((r) => {
-                  const point = r.alight_request_lat != null ? { lat: r.alight_request_lat, lng: r.alight_request_lng! } : (r.alight_lat != null ? { lat: r.alight_lat, lng: r.alight_lng! } : null)
-                  const kmAhead = (myLivePos && routePath && routePath.length >= 2 && point)
-                    ? Math.max(0, projectOntoRoute(routePath, point).distanceAlongKm - projectOntoRoute(routePath, myLivePos).distanceAlongKm) : null
-                  const soon = kmAhead != null && kmAhead <= 5
-                  return (
-                    <div key={r.id} className="px-3.5 py-2 flex items-center gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{r.name}</p>
-                        <p className="font-sans text-[10.5px] text-[#94a3b8] truncate">{r.alight_request_lat != null ? t('dr.freeGpsAlightBadge') : (r.alight_label ?? '—')} · <span className="ltr-num">{r.seats}</span></p>
-                      </div>
-                      <FleetStatusPill tone={soon ? 'amber' : 'green'}>{soon ? t('dr.riderStateSoon') : t('dr.riderStateOn')}</FleetStatusPill>
-                    </div>
-                  )
-                })}
-              </FleetPanelBody>
-            </FleetPanel>
-
-            {/* Trip-scoped chat (938) */}
-            <FleetPanel>
-              <FleetPanelHead icon={<MessageCircleQuestion size={14} />} title={t('dr.tripChatHeading')} />
-              <FleetPanelBody className="flex flex-col gap-1.5 p-2.5 max-h-[180px] overflow-y-auto">
-                {chatMessages.length === 0 ? (
-                  <p className="font-sans text-[11.5px] text-[#94a3b8] text-center py-2">{t('dr.noChatMessagesHint')}</p>
-                ) : chatMessages.map((m) => (
-                  <div key={m.id} className={`max-w-[85%] rounded-xl px-2.5 py-1.5 ${m.is_me ? 'self-end bg-[#166534] text-white' : 'self-start bg-[#F9F9F6] text-[#1e293b]'}`}>
-                    {!m.is_me && <p className={`font-sans text-[9.5px] font-bold ${m.sender_role === 'driver' ? 'text-[#b8862f]' : 'text-[#64748b]'}`}>{m.sender_name}</p>}
-                    <p className="font-sans text-[12px]">{m.body}</p>
-                  </div>
-                ))}
-              </FleetPanelBody>
-              <div className="flex items-center gap-2 p-2.5 border-t border-[#e5e2d0]">
-                <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendChat() }} placeholder={t('dr.chatPlaceholder')} className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-full font-sans text-[12.5px]" />
-                <button onClick={sendChat} disabled={chatSending || !chatInput.trim()} className="w-9 h-9 rounded-full bg-[#166534] text-white flex items-center justify-center cursor-pointer disabled:opacity-50 shrink-0">➤</button>
-              </div>
-            </FleetPanel>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => { setShowTripPopup(false); setTab('trip') }} className="py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer">{t('dr.openStopDeskBtn')}</button>
-              <button onClick={endTripNow} disabled={endingTrip} className="py-2.5 rounded-xl border border-[#b91c1c] text-[#b91c1c] font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">{endingTrip ? t('action.loading') : t('dr.endTripBtn')}</button>
+            {/* Bottom tab bar */}
+            <div className="grid grid-cols-4 gap-1 px-2 shrink-0" style={{ background: 'rgba(255,255,255,.95)', borderTop: '1px solid #e2ded0', paddingBlock: 7 }}>
+              {([
+                ['map', <MapIcon size={18} key="i" />, t('dr.mapTabLabel')],
+                ['stops', <MapPin size={18} key="i" />, t('dr.stopsTabLabel')],
+                ['riders', <Users2 size={18} key="i" />, t('dr.ridersTabLabel')],
+                ['chat', <MessageCircleQuestion size={18} key="i" />, t('dr.chatTabLabel')],
+              ] as [typeof popupTab, ReactNode, string][]).map(([key, icon, label]) => (
+                <button key={key} onClick={() => setPopupTab(key)} className="flex flex-col items-center gap-0.5 py-1.5 rounded-xl cursor-pointer" style={{ background: popupTab === key ? '#e3f2ea' : 'transparent', color: popupTab === key ? '#14523c' : '#7a857d' }}>
+                  {icon}
+                  <span className="font-sans text-[10px] font-bold">{label}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
       <h1 className="font-bold text-[20px] text-dp-primary flex items-center gap-2"><Bus size={19} /> SAFAR Driver</h1>
 
       <div className="flex gap-1.5 bg-white border border-[#e5e2d0] rounded-xl p-1">

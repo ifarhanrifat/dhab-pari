@@ -36,6 +36,11 @@ export interface LeafletMapHandle {
   // Leaflet internals. Index-based rather than lat/lng-matching since
   // floating point equality across a prop round-trip is fragile.
   focusPin: (index: number, zoom?: number) => void
+  // Plain zoom buttons — the driver live-trip popup's map controls
+  // overlay (ported from the design reference) needs these directly;
+  // every existing caller is unaffected since these are additive.
+  zoomIn: () => void
+  zoomOut: () => void
 }
 
 interface Props {
@@ -148,6 +153,8 @@ const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pin
       map.setView(marker.getLatLng(), focusZoom ?? Math.max(map.getZoom(), 14))
       marker.openPopup()
     },
+    zoomIn: () => mapRef.current?.zoomIn(),
+    zoomOut: () => mapRef.current?.zoomOut(),
   }), [])
 
   useEffect(() => {
