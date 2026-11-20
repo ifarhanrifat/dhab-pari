@@ -21,6 +21,7 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 
 interface StaffMember {
   id: string; portal_user_id: string; full_name: string; counter_id: string | null; counter_city: string | null; counter_name: string | null
+  home_terminal_id: string | null; home_terminal_city: string | null; home_terminal_name: string | null
   role: string; commission_amount_pkr: number | null; commission_this_month_pkr: number; current_monthly_salary_pkr: number | null
   overtime_this_month_pkr: number; on_duty_since: string | null; on_duty_shift_id: string | null
   license_number: string | null; license_expiry: string | null; cnic_number: string | null
@@ -139,6 +140,16 @@ export default function FleetStaffPage() {
   const assignCounter = async (portalUserId: string, counterId: string) => {
     if (!fleetId) return
     const { error } = await supabase.rpc('assign_staff_to_counter', { p_fleet_id: fleetId, p_portal_user_id: portalUserId, p_counter_id: counterId || null })
+    if (error) { toast.error(friendlyError(error)); return }
+    load()
+  }
+
+  // 932: a driver's home terminal (for GPS attendance check-in) is a
+  // separate concept from counter_id (terminal-desk write scoping) —
+  // assigning one must never narrow the other.
+  const assignHomeTerminal = async (portalUserId: string, terminalId: string) => {
+    if (!fleetId) return
+    const { error } = await supabase.rpc('set_staff_home_terminal', { p_fleet_id: fleetId, p_portal_user_id: portalUserId, p_home_terminal_id: terminalId || null })
     if (error) { toast.error(friendlyError(error)); return }
     load()
   }
@@ -430,6 +441,16 @@ export default function FleetStaffPage() {
                       <option value="">{t('mv.noCounterOption')}</option>
                       {counters.map((c) => <option key={c.id} value={c.id}>{c.city}{c.name ? ` · ${c.name}` : ''}</option>)}
                     </select>
+                  )}
+                  {s.role === 'driver' && counters.length > 0 && (
+                    <div className="mt-1.5">
+                      <p className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#94a3b8] mb-1">{t('mv.homeTerminalLabel')}</p>
+                      <select value={s.home_terminal_id ?? ''} onChange={(e) => assignHomeTerminal(s.portal_user_id, e.target.value)} className="w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px]">
+                        <option value="">{t('mv.noCounterOption')}</option>
+                        {counters.map((c) => <option key={c.id} value={c.id}>{c.city}{c.name ? ` · ${c.name}` : ''}</option>)}
+                      </select>
+                      <p className="font-sans text-[9.5px] text-[#94a3b8] mt-0.5">{t('mv.homeTerminalHint')}</p>
+                    </div>
                   )}
                   {/* 2026-11-17: Staff screen rebuild — real gap found
                       reading the code: set_fleet_staff_salary (860)
