@@ -33,6 +33,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat, FleetFormGrid, FleetFormField, FleetStatusPill, FleetKpiRow,
 } from '@/components/portal/FleetPanel'
+import { DriverShuffleFloatingButton } from '@/components/mobility/DriverShuffleFloatingButton'
 
 type Direction = 'outbound' | 'return'
 type Tab = 'home' | 'trip' | 'cash' | 'pay'
@@ -413,13 +414,22 @@ export default function DriveOperationsPage() {
     )
   }
 
-  if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
-  if (routes.length === 0) return <p className="font-sans text-[13px] text-[#64748b] text-center py-12">{t('mv.noVehicleAssignedHint')}</p>
+  // 879's mid-route shuffle button has its own independent data fetch
+  // (not derived from this page's state) and was previously only ever
+  // mounted on my-vehicle/layout.tsx — this page sits outside that
+  // layout entirely (portal/drive isn't under the my-vehicle route
+  // group), so a driver using the real driver app never saw it. Mounted
+  // unconditionally here, including through the loading/no-route early
+  // returns, since the button renders null on its own until a route is
+  // actually active.
+  if (userLoading || loading) return <><DriverShuffleFloatingButton /><div className="text-center py-12"><LoadingDots /></div></>
+  if (routes.length === 0) return <><DriverShuffleFloatingButton /><p className="font-sans text-[13px] text-[#64748b] text-center py-12">{t('mv.noVehicleAssignedHint')}</p></>
 
   const currentRoute = routes.find((r) => r.id === routeId)
 
   return (
     <div className="flex flex-col gap-3 p-3">
+      <DriverShuffleFloatingButton />
       <h1 className="font-bold text-[20px] text-dp-primary flex items-center gap-2"><Bus size={19} /> SAFAR Driver</h1>
 
       <div className="flex gap-1.5 bg-white border border-[#e5e2d0] rounded-xl p-1">
