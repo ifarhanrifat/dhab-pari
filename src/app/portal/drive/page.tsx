@@ -48,7 +48,10 @@ interface MyRoute {
   days_of_week: number[]; vehicle_id: string; vehicle_number: string | null; vehicle_type: string | null
   fleet_id: string; is_co_driver: boolean
 }
-interface StopRow { id: string; label: string; stop_order: number; counter_id: string | null; counter_name: string | null; counter_city: string | null; lat: number | null; lng: number | null }
+interface StopRow {
+  id: string; label: string; stop_order: number; counter_id: string | null; counter_name: string | null; counter_city: string | null
+  lat: number | null; lng: number | null; arrival_time: string | null; departure_time: string | null
+}
 interface Passenger {
   id: string; source: 'manual' | 'app'; passenger_name: string; passenger_mobile: string | null; seats: number
   amount: number; boarded_at: string | null; dropped_off_at: string | null; status: string; counter_id: string | null
@@ -121,6 +124,8 @@ export default function DriveOperationsPage() {
   const [routePath, setRoutePath] = useState<{ lat: number; lng: number }[] | null>(null)
   const [sharing, setSharing] = useState(false)
   const [myLivePos, setMyLivePos] = useState<{ lat: number; lng: number } | null>(null)
+  const [showTripPopup, setShowTripPopup] = useState(false)
+  const autoOpenedRunRef = useRef<string | null>(null)
 
   // Terminal stop desk
   const [selectedStopKey, setSelectedStopKey] = useState<string>('origin')
@@ -221,15 +226,16 @@ export default function DriveOperationsPage() {
     (async () => {
       const [{ data }, { data: vr }] = await Promise.all([
         supabase.from('route_stops')
-          .select('id, label, stop_order, counter_id, fleet_counters(name, city, lat, lng)')
+          .select('id, label, stop_order, counter_id, arrival_time, departure_time, fleet_counters(name, city, lat, lng)')
           .eq('route_id', routeId).order('stop_order'),
         supabase.from('vehicle_routes').select('route_path').eq('id', routeId).single(),
       ])
-      const rows = ((data ?? []) as unknown as { id: string; label: string; stop_order: number; counter_id: string | null; fleet_counters: { name: string | null; city: string; lat: number | null; lng: number | null } | null }[])
+      const rows = ((data ?? []) as unknown as { id: string; label: string; stop_order: number; counter_id: string | null; arrival_time: string | null; departure_time: string | null; fleet_counters: { name: string | null; city: string; lat: number | null; lng: number | null } | null }[])
         .map((r) => ({
           id: r.id, label: r.label, stop_order: r.stop_order, counter_id: r.counter_id,
           counter_name: r.fleet_counters?.name ?? null, counter_city: r.fleet_counters?.city ?? null,
           lat: r.fleet_counters?.lat ?? null, lng: r.fleet_counters?.lng ?? null,
+          arrival_time: r.arrival_time, departure_time: r.departure_time,
         }))
       setStops(rows)
       setRoutePath((vr?.route_path as { lat: number; lng: number }[] | null) ?? null)
@@ -265,6 +271,17 @@ export default function DriveOperationsPage() {
       if (error) setSharing(false)
     },
   })
+
+  // Real ask: "driver will always get a job on floating button" — the
+  // live trip view opens on its own the moment a run goes active (once
+  // per run, via the ref guard), matching the always-visible pattern
+  // DriverShuffleFloatingButton already uses for the shuffle status. A
+  // driver can still close it and reopen later from the floating button.
+  useEffect(() => {
+    if (!chalan?.run_started_at || autoOpenedRunRef.current === chalan.run_started_at) return
+    autoOpenedRunRef.current = chalan.run_started_at
+    setShowTripPopup(true)
+  }, [chalan?.run_started_at])
 
   // A van-kind vehicle requires explicit seat numbers on every booking
   // (record_manual_booking, 926) — real gap found live: the walk-up
@@ -508,6 +525,83 @@ export default function DriveOperationsPage() {
   return (
     <div className="flex flex-col gap-3 p-3">
       <DriverShuffleFloatingButton />
+
+      {/* 2026-11-20: real ask — "I need popup module to display these
+          things" — this was built as just another scrolling Trip-tab
+          card at first. Converted into an actual popup (same fixed-
+          overlay pattern DriverShuffleFloatingButton's own confirm
+          dialog already uses in this file), auto-opened the moment a
+          run goes active and reachable again any time via the trigger
+          row on the Trip tab — matching the blueprint's "Trip" screen:
+          live map, next stop, and a real done/current/upcoming stop
+          timeline (ported from Chalan's own Stop Sequence panel). */}
+      {showTripPopup && chalan && (
+        <div className="fixed inset-0 bg-black/60 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowTripPopup(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-[420px] max-h-[92vh] overflow-y-auto p-3.5 flex flex-col gap-2.5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 font-sans text-[14px] font-bold text-[#102a36]"><Navigation size={16} /> {t('dr.openLiveTripBtn')}</span>
+              <button onClick={() => setShowTripPopup(false)} className="w-7 h-7 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748b] cursor-pointer">✕</button>
+            </div>
+            <FleetStatusPill tone={sharing ? 'green' : 'amber'} className="self-start"><Radio size={9} className={sharing ? 'animate-pulse' : ''} /> {sharing ? t('dr.liveSharingOnLabel') : t('dr.liveSharingOffLabel')}</FleetStatusPill>
+            {sharing && geoError && <p className="font-sans text-[11px] text-amber-700">{geoError}</p>}
+
+            {stops.some((s) => s.lat != null) && (
+              <LeafletMap
+                pins={[
+                  ...stops.filter((s) => s.lat != null && s.lng != null).map((s): LeafletPin => ({
+                    lat: s.lat!, lng: s.lng!, emoji: '📍', color: '#f59e0b',
+                    popupHtml: `<b>${s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label}</b>`,
+                  })),
+                  ...(myLivePos ? [{ lat: myLivePos.lat, lng: myLivePos.lng, emoji: '🚐', color: '#166534', isVehicle: true, label: t('dr.myBusLabel') } as LeafletPin] : []),
+                ]}
+                route={routePath ?? undefined}
+                height={170}
+                className="rounded-xl"
+              />
+            )}
+
+            {chalan.next_stops.length === 0 ? (
+              <p className="font-sans text-[12px] text-[#94a3b8] text-center py-2">{t('dr.noMoreStopsHint')}</p>
+            ) : (
+              <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl px-3 py-2">
+                <p className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#166534]">{t('dr.nextStopHeading')}</p>
+                <p className="font-sans text-[12.5px] font-bold text-[#166534] mt-0.5">{chalan.next_stops[0].label}</p>
+                <p className="font-sans text-[11px] text-[#166534]">
+                  {t('dr.passengersWaitingHint').replace('{n}', String(chalan.next_stops[0].passengers.length))}
+                </p>
+                {chalan.next_stops[0].passengers.slice(0, 4).map((p) => (
+                  <p key={p.id} className="font-sans text-[11px] text-[#334155] mt-0.5">· {p.passenger_name} ({p.seats})</p>
+                ))}
+              </div>
+            )}
+
+            <p className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#94a3b8] mt-1">{t('dr.routeTimelineHeading')}</p>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#F9F9F6]">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: masterChallan?.stop_challans.find((sc) => sc.stop_id === null) ? '#166534' : '#cbd5e1' }} />
+                <span className="font-sans text-[11.5px] text-[#1e293b] font-semibold">{t('mv.originStopOption')} · {chalan.origin}</span>
+              </div>
+              {sequencedStops.map((s) => {
+                const closed = !!masterChallan?.stop_challans.find((sc) => sc.stop_id === s.id)
+                const isNext = chalan.next_stops[0]?.label === (s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label)
+                return (
+                  <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{ background: isNext ? '#F0FDF4' : '#F9F9F6', border: isNext ? '1px solid #166534' : '1px solid transparent' }}>
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: closed ? '#166534' : isNext ? '#fff' : '#cbd5e1', border: isNext ? '2px solid #166534' : 'none' }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="font-sans text-[11.5px] text-[#1e293b] font-semibold block truncate">{s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label}</span>
+                      {(s.arrival_time || s.departure_time) && (
+                        <span className="font-sans text-[9.5px] text-[#94a3b8] ltr-num">{s.arrival_time ? s.arrival_time.slice(0, 5) : ''}{s.departure_time ? ` – ${s.departure_time.slice(0, 5)}` : ''}</span>
+                      )}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <button onClick={() => { setShowTripPopup(false); setTab('trip') }} className="mt-1 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer">{t('dr.openStopDeskBtn')}</button>
+          </div>
+        </div>
+      )}
       <h1 className="font-bold text-[20px] text-dp-primary flex items-center gap-2"><Bus size={19} /> SAFAR Driver</h1>
 
       <div className="flex gap-1.5 bg-white border border-[#e5e2d0] rounded-xl p-1">
@@ -595,40 +689,10 @@ export default function DriveOperationsPage() {
               </FleetPanelBody>
 
               {chalan.run_started_at && (
-                <FleetPanel>
-                  <FleetPanelHead icon={<Navigation size={14} />} title={t('dr.nextStopHeading')}
-                    action={<FleetStatusPill tone={sharing ? 'green' : 'amber'}><Radio size={9} className={sharing ? 'animate-pulse' : ''} /> {sharing ? t('dr.liveSharingOnLabel') : t('dr.liveSharingOffLabel')}</FleetStatusPill>} />
-                  <FleetPanelBody className="flex flex-col gap-2 p-2.5">
-                    {chalan.next_stops.length === 0 ? (
-                      <p className="font-sans text-[12px] text-[#94a3b8] text-center py-2">{t('dr.noMoreStopsHint')}</p>
-                    ) : (
-                      <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl px-3 py-2">
-                        <p className="font-sans text-[12.5px] font-bold text-[#166534]">{chalan.next_stops[0].label}</p>
-                        <p className="font-sans text-[11px] text-[#166534]">
-                          {t('dr.passengersWaitingHint').replace('{n}', String(chalan.next_stops[0].passengers.length))}
-                        </p>
-                        {chalan.next_stops[0].passengers.slice(0, 3).map((p) => (
-                          <p key={p.id} className="font-sans text-[11px] text-[#334155] mt-0.5">· {p.passenger_name} ({p.seats})</p>
-                        ))}
-                      </div>
-                    )}
-                    {sharing && geoError && <p className="font-sans text-[11px] text-amber-700">{geoError}</p>}
-                    {stops.some((s) => s.lat != null) && (
-                      <LeafletMap
-                        pins={[
-                          ...stops.filter((s) => s.lat != null && s.lng != null).map((s): LeafletPin => ({
-                            lat: s.lat!, lng: s.lng!, emoji: '📍', color: '#f59e0b',
-                            popupHtml: `<b>${s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label}</b>`,
-                          })),
-                          ...(myLivePos ? [{ lat: myLivePos.lat, lng: myLivePos.lng, emoji: '🚐', color: '#166534', isVehicle: true, label: t('dr.myBusLabel') } as LeafletPin] : []),
-                        ]}
-                        route={routePath ?? undefined}
-                        height={180}
-                        className="rounded-xl"
-                      />
-                    )}
-                  </FleetPanelBody>
-                </FleetPanel>
+                <button onClick={() => setShowTripPopup(true)} className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-[#102a36] text-white cursor-pointer">
+                  <span className="flex items-center gap-2 font-sans text-[12.5px] font-bold"><Navigation size={14} /> {t('dr.openLiveTripBtn')}</span>
+                  <FleetStatusPill tone={sharing ? 'green' : 'amber'}><Radio size={9} className={sharing ? 'animate-pulse' : ''} /> {sharing ? t('dr.liveSharingOnLabel') : t('dr.liveSharingOffLabel')}</FleetStatusPill>
+                </button>
               )}
 
               <FleetPanel>
