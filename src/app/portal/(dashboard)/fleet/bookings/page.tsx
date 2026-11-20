@@ -46,6 +46,7 @@ interface SearchableRoute extends Route {
 interface VehicleSeating { totalSeats: number; isVanKind: boolean; isSleeper: boolean }
 interface Counter { id: string; city: string; name: string | null }
 interface StaffContext { is_owner: boolean; role: string | null; counter_id: string | null; bookings_unlocked: boolean }
+interface PassengerHistory { trip_count: number; last_full_name?: string; last_travel_date?: string; last_origin?: string; last_destination?: string }
 interface FoundBooking {
   id: string; source: 'manual' | 'app'; passenger_name: string; passenger_mobile: string | null
   route_id: string; origin: string; destination: string; owner_name: string
@@ -92,6 +93,7 @@ export default function FleetBookingsPage() {
   const [routeSearchQuery, setRouteSearchQuery] = useState('')
   const [seatsAvailByRoute, setSeatsAvailByRoute] = useState<Record<string, number>>({})
   const [staffContext, setStaffContext] = useState<StaffContext | null>(null)
+  const [passengerHistory, setPassengerHistory] = useState<PassengerHistory | null>(null)
   const [counters, setCounters] = useState<Counter[]>([])
   const [counterId, setCounterId] = useState('')
   const [myCounter, setMyCounter] = useState<Counter | null>(null)
@@ -304,6 +306,23 @@ export default function FleetBookingsPage() {
     })
     if (seats === 1) setFreeChildren((prev) => prev.slice(0, 1))
   }, [seats])
+
+  // 2026-11-20: real gap confirmed directly — a manual/counter booking
+  // was never recognized as a returning customer (plain retyped text
+  // every time, no lookup). fleet_passenger_history (928) reuses the
+  // existing booking history (it already persists forever) rather than
+  // a new "customer" table. Debounced so it doesn't fire on every
+  // keystroke while a mobile number is still being typed.
+  useEffect(() => {
+    if (!fleetId || passengerMobile.trim().length < 10) { setPassengerHistory(null); return }
+    const timer = setTimeout(() => {
+      supabase.rpc('fleet_passenger_history', { p_fleet_id: fleetId, p_mobile: passengerMobile.trim() }).then(({ data }) => {
+        const h = data as PassengerHistory | null
+        setPassengerHistory(h && h.trip_count > 0 ? h : null)
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [passengerMobile, fleetId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const runSearch = async () => {
     if (!fleetId) return
@@ -701,6 +720,21 @@ export default function FleetBookingsPage() {
               <input value={passengerMobile} onChange={(e) => setPassengerMobile(e.target.value)} placeholder={t('mv.passengerMobileOptionalPlaceholder')}
                 className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
             </div>
+            {passengerHistory && (
+              <div className="flex items-center justify-between gap-2 px-3 py-2 bg-[#F0FDF4] border border-[#166534] rounded-lg mb-2">
+                <p className="font-sans text-[11px] text-[#166534] flex-1">
+                  {t('mv.returningPassengerLabel').replace('{n}', String(passengerHistory.trip_count))}
+                  {passengerHistory.last_origin && passengerHistory.last_destination ? ` · ${passengerHistory.last_origin} → ${passengerHistory.last_destination}` : ''}
+                  {passengerHistory.last_travel_date ? ` · ${passengerHistory.last_travel_date}` : ''}
+                </p>
+                {passengerHistory.last_full_name && !passengerName.trim() && (
+                  <button type="button" onClick={() => setPassengerName(passengerHistory.last_full_name!)}
+                    className="shrink-0 font-sans text-[11px] font-bold text-[#166534] cursor-pointer underline underline-offset-2">
+                    {t('mv.useThisNameBtn')}
+                  </button>
+                )}
+              </div>
+            )}
             <input value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} placeholder={t('mv.emergencyContactPlaceholder')}
               className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2 ltr-num" />
 
