@@ -146,6 +146,7 @@ export default function FleetChalanPage() {
   const [handoverCounterId, setHandoverCounterId] = useState('')
   const [handoverNote, setHandoverNote] = useState('')
   const [recordingHandover, setRecordingHandover] = useState(false)
+  const [isAccountantBlocked, setIsAccountantBlocked] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -157,6 +158,14 @@ export default function FleetChalanPage() {
       if (f) {
         const { data: counterData } = await supabase.rpc('my_counter')
         setMyCounterId((counterData as { id: string } | null)?.id ?? null)
+
+        // 2026-11-20: 926 — accountants are blocked from booking writes
+        // (create/cancel/board/no-show/alight/close-stop) by default;
+        // this is a UX convenience to hide actions that will just be
+        // rejected server-side either way.
+        const { data: ctx } = await supabase.rpc('my_fleet_staff_context', { p_fleet_id: f.fleet_id })
+        const staffCtx = ctx as { role: string | null; bookings_unlocked: boolean } | null
+        setIsAccountantBlocked(staffCtx?.role === 'accountant' && !staffCtx?.bookings_unlocked)
 
         const { data: sched } = await supabase.rpc('fleet_vehicle_schedule', { p_fleet_id: f.fleet_id })
         const rows = (sched ?? []) as { route_id: string; origin: string; destination: string; owner_name: string; vehicle_type: string | null; vehicle_number: string | null; vehicle_id: string; is_active: boolean }[]
@@ -409,6 +418,8 @@ export default function FleetChalanPage() {
             <button onClick={() => setTransferring(null)} className="flex-1 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12px] font-semibold text-[#64748b] cursor-pointer">{t('action.cancel')}</button>
           </div>
         </div>
+      ) : isAccountantBlocked ? (
+        <p className="font-sans text-[11px] text-[#94a3b8] mt-2 pt-2 border-t border-[#f1f5f9]">{t('mv.accountantBookingsBlockedHint')}</p>
       ) : (
         <div className="flex gap-2 mt-2 pt-2 border-t border-[#f1f5f9]">
           {p.is_confirmed ? (
@@ -444,7 +455,10 @@ export default function FleetChalanPage() {
             {noShow ? t('mv.noShowLabel') : alighted ? t('mv.alightedLabel') : boarded ? t('mv.boardedLabel') : t('mv.awaitingBoardingLabel')}
           </FleetStatusPill>
         </div>
-        {isManual && !noShow && (
+        {isManual && !noShow && isAccountantBlocked && (
+          <p className="font-sans text-[11px] text-[#94a3b8] mt-2 pt-2 border-t border-[#f1f5f9]">{t('mv.accountantBookingsBlockedHint')}</p>
+        )}
+        {isManual && !noShow && !isAccountantBlocked && (
           isBoardingThis ? (
             <div className="mt-2 pt-2 border-t border-[#f1f5f9] flex flex-col gap-1.5">
               <p className="font-sans text-[9.5px] font-bold uppercase tracking-[0.05em] text-[#94a3b8]">{t('mv.luggageHeading')}</p>
@@ -580,7 +594,9 @@ export default function FleetChalanPage() {
                   ) : (
                     <div className="flex flex-col divide-y divide-[#f1f5f9] -mx-2.5">{deskQueue.map(renderDeskRow)}</div>
                   )}
-                  {alreadyClosed ? (
+                  {isAccountantBlocked ? (
+                    <p className="font-sans text-[11.5px] text-[#94a3b8] text-center py-2">{t('mv.accountantBookingsBlockedHint')}</p>
+                  ) : alreadyClosed ? (
                     <p className="font-sans text-[11.5px] text-[#166534] font-semibold text-center py-2 bg-[#F0FDF4] rounded-lg">{t('mv.stopAlreadyClosedHint')}</p>
                   ) : (
                     <div className="flex flex-col gap-2 pt-2 border-t border-[#f1f5f9]">

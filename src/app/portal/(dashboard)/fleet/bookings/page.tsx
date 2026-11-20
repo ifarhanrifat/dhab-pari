@@ -45,6 +45,7 @@ interface SearchableRoute extends Route {
 }
 interface VehicleSeating { totalSeats: number; isVanKind: boolean; isSleeper: boolean }
 interface Counter { id: string; city: string; name: string | null }
+interface StaffContext { is_owner: boolean; role: string | null; counter_id: string | null; bookings_unlocked: boolean }
 interface FoundBooking {
   id: string; source: 'manual' | 'app'; passenger_name: string; passenger_mobile: string | null
   route_id: string; origin: string; destination: string; owner_name: string
@@ -90,6 +91,7 @@ export default function FleetBookingsPage() {
   const [allRoutes, setAllRoutes] = useState<SearchableRoute[]>([])
   const [routeSearchQuery, setRouteSearchQuery] = useState('')
   const [seatsAvailByRoute, setSeatsAvailByRoute] = useState<Record<string, number>>({})
+  const [staffContext, setStaffContext] = useState<StaffContext | null>(null)
   const [counters, setCounters] = useState<Counter[]>([])
   const [counterId, setCounterId] = useState('')
   const [myCounter, setMyCounter] = useState<Counter | null>(null)
@@ -166,11 +168,13 @@ export default function FleetBookingsPage() {
       const f = mine as { fleet_id: string } | null
       setFleetId(f?.fleet_id ?? null)
       if (f) {
-        const [{ data: v }, { data: c }, { data: mc }] = await Promise.all([
+        const [{ data: v }, { data: c }, { data: mc }, { data: ctx }] = await Promise.all([
           supabase.rpc('my_fleet_vehicles'),
           supabase.rpc('my_fleet_counters', { p_fleet_id: f.fleet_id }),
           supabase.rpc('my_counter'),
+          supabase.rpc('my_fleet_staff_context', { p_fleet_id: f.fleet_id }),
         ])
+        setStaffContext((ctx as StaffContext) ?? null)
         const loadedVehicles = (v ?? []) as FleetVehicle[]
         setVehicles(loadedVehicles)
         setCounters((c ?? []) as Counter[])
@@ -330,6 +334,15 @@ export default function FleetBookingsPage() {
   const suggestedFare = selectedRoute
     ? Math.round(paidPassengers.reduce((sum, p) => sum + selectedRoute.fare_per_seat_pkr * (PASSENGER_TYPE_MULTIPLIER[p.type] ?? 1), 0))
     : 0
+
+  // 2026-11-20: real server-side rules (926) — accountants are blocked
+  // from booking writes by default, and a counter-assigned staff member
+  // can only manage (not create) another terminal's own bookings. This
+  // is a UX convenience only, so a blocked action never even renders —
+  // the RPC gate is the real authority either way.
+  const isAccountantBlocked = staffContext?.role === 'accountant' && !staffContext?.bookings_unlocked
+  const canManageCounter = (rowCounterId: string | null) =>
+    !!staffContext?.is_owner || !staffContext?.counter_id || staffContext.counter_id === rowCounterId
 
   const recordBooking = async () => {
     if (!routeId || !passengerName.trim() || !amount) { toast.error(t('mv.fillManualBookingError')); return }
@@ -810,9 +823,13 @@ export default function FleetBookingsPage() {
               </>
             )}
 
-            <button onClick={recordBooking} disabled={recording} className="w-full px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
-              {recording ? t('action.loading') : t('mv.recordBookingBtn')}
-            </button>
+            {isAccountantBlocked ? (
+              <p className="font-sans text-[12px] text-[#b91c1c] text-center py-2">{t('mv.accountantBookingsBlockedHint')}</p>
+            ) : (
+              <button onClick={recordBooking} disabled={recording} className="w-full px-4 py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[13.5px] font-bold cursor-pointer disabled:opacity-50">
+                {recording ? t('action.loading') : t('mv.recordBookingBtn')}
+              </button>
+            )}
           </>
         )}
         </FleetPanelBody>
@@ -859,6 +876,9 @@ export default function FleetBookingsPage() {
               // can surface a cancelled row, it must render as inert.
               const isCancelled = b.status === 'cancelled' || b.status === 'rejected'
               const isPending = b.status === 'announced'
+              // App-sourced bookings (b.counter_id always null) are unaffected by
+              // 926 — only manual/counter-sold rows get terminal-scoped.
+              const isLocked = isAccountantBlocked || (b.source === 'manual' && !canManageCounter(b.counter_id))
               return (
               <div key={`${b.source}-${b.id}`} className="px-3.5 py-2.5">
                 <div className="flex items-center justify-between gap-2">
@@ -883,7 +903,9 @@ export default function FleetBookingsPage() {
                     <span className="font-sans text-[13px] font-bold text-[#166534] ltr-num">₨{fmt(b.amount_pkr)}</span>
                   </div>
                 </div>
-                {isCancelled ? null : rescheduling?.id === b.id ? (
+                {isCancelled ? null : isLocked ? (
+                  <p className="font-sans text-[11px] text-[#94a3b8] mt-2">{t('mv.cannotManageThisBookingHint')}</p>
+                ) : rescheduling?.id === b.id ? (
                   <div className="flex flex-col gap-2 mt-2">
                     <div className="flex gap-2">
                       <input type="date" value={rescheduleDate} min={today()} onChange={(e) => { setRescheduleDate(e.target.value); setRescheduleSeats([]) }}

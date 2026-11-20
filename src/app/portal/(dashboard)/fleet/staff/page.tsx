@@ -46,7 +46,7 @@ interface RosterShift {
 const PAY_FREQUENCY_SUFFIX_KEY: Record<string, string> = { monthly: 'mv.perMonthSuffixLabel', weekly: 'mv.perWeekSuffixLabel', per_trip: 'mv.perTripSuffixLabel' }
 
 const PERMISSION_ROLES = ['booking_officer', 'terminal_manager', 'accountant', 'other'] as const
-const PERMISSION_MODULES = ['staff_payroll', 'cash'] as const
+const PERMISSION_MODULES = ['staff_payroll', 'cash', 'bookings'] as const
 
 export default function FleetStaffPage() {
   const { t, isUrdu } = useLocale()
@@ -574,6 +574,13 @@ export default function FleetStaffPage() {
                 </tbody>
               </table>
             </div>
+            {/* 2026-11-20: Accountant is now blocked from booking writes
+                (create/cancel/reschedule/board/no-show/alight/close-stop)
+                by default, server-side — the "Bookings" column is what
+                re-enables it for that role on this fleet. The other 3
+                roles were never restricted, so toggling it for them is
+                a no-op — stated plainly rather than hidden. */}
+            <p className="font-sans text-[10.5px] text-[#64748b] px-3.5 pb-3">{t('mv.bookingsPermHint')}</p>
           </FleetPanel>
 
           {/* 2026-11-18: the mockup's duty-rule callout is accurate
