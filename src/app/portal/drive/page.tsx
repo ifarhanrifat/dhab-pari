@@ -129,6 +129,7 @@ export default function DriveOperationsPage() {
   const [payroll, setPayroll] = useState<Payroll | null>(null)
   const [vehicleSeating, setVehicleSeating] = useState<{ totalSeats: number; isVanKind: boolean } | null>(null)
   const [routePath, setRoutePath] = useState<{ lat: number; lng: number }[] | null>(null)
+  const [staffedStopIds, setStaffedStopIds] = useState<Set<string>>(new Set())
   const [sharing, setSharing] = useState(false)
   const [myLivePos, setMyLivePos] = useState<{ lat: number; lng: number } | null>(null)
   const [showTripPopup, setShowTripPopup] = useState(false)
@@ -233,14 +234,16 @@ export default function DriveOperationsPage() {
   }, [routeId, routes]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!routeId) { setStops([]); setRoutePath(null); return }
+    if (!routeId) { setStops([]); setRoutePath(null); setStaffedStopIds(new Set()); return }
     (async () => {
-      const [{ data }, { data: vr }] = await Promise.all([
+      const [{ data }, { data: vr }, { data: staffed }] = await Promise.all([
         supabase.from('route_stops')
           .select('id, label, stop_order, counter_id, arrival_time, departure_time, fleet_counters(name, city, lat, lng)')
           .eq('route_id', routeId).order('stop_order'),
         supabase.from('vehicle_routes').select('route_path').eq('id', routeId).single(),
+        supabase.rpc('route_staffed_stop_ids', { p_route_id: routeId }),
       ])
+      setStaffedStopIds(new Set((staffed as string[] | null) ?? []))
       const rows = ((data ?? []) as unknown as { id: string; label: string; stop_order: number; counter_id: string | null; arrival_time: string | null; departure_time: string | null; fleet_counters: { name: string | null; city: string; lat: number | null; lng: number | null } | null }[])
         .map((r) => ({
           id: r.id, label: r.label, stop_order: r.stop_order, counter_id: r.counter_id,
@@ -423,13 +426,27 @@ export default function DriveOperationsPage() {
     { key: 'origin', label: `${t('mv.originStopOption')} · ${chalan?.origin ?? ''}`, counterId: null },
     ...sequencedStops.map((s) => ({ key: s.id, label: s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label, counterId: s.counter_id })),
   ]
-  const visibleStopOptions = isLockedToOwnTerminal ? stopOptions.filter((o) => o.counterId === myCounterId) : stopOptions
+  // Real gap raised by the user: this dropdown used to list every stop on
+  // the route flatly — ones already closed today, and ones that have
+  // their own dedicated terminal staff (that's staff-only territory;
+  // close_route_stop_challan now rejects a driver there too, enforced
+  // server-side via driver_blocked_from_staffed_counter, 936/937 — this
+  // is just the matching UI declutter, not the only guard).
+  const closedStopKeys = new Set((masterChallan?.stop_challans ?? []).map((sc) => sc.stop_id ?? 'origin'))
+  const nextStopKey = chalan && chalan.next_stops.length > 0
+    ? sequencedStops.find((s) => (s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label) === chalan.next_stops[0].label)?.id ?? null
+    : null
+  const visibleStopOptions = stopOptions
+    .filter((o) => !isLockedToOwnTerminal || o.counterId === myCounterId)
+    .filter((o) => !closedStopKeys.has(o.key))
+    .filter((o) => o.counterId === myCounterId || !staffedStopIds.has(o.key))
 
   useEffect(() => {
     if (visibleStopOptions.length === 0) return
-    if (!visibleStopOptions.find((o) => o.key === selectedStopKey)) setSelectedStopKey(visibleStopOptions[0].key)
+    if (visibleStopOptions.find((o) => o.key === selectedStopKey)) return
+    setSelectedStopKey((visibleStopOptions.find((o) => o.key === nextStopKey) ?? visibleStopOptions[0]).key)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stops, myCounterId])
+  }, [stops, myCounterId, masterChallan, chalan, staffedStopIds])
 
   const isOriginSelected = selectedStopKey === 'origin'
   const selectedStop = isOriginSelected ? null : stops.find((s) => s.id === selectedStopKey) ?? null
