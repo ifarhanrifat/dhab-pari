@@ -332,9 +332,15 @@ export default function DriveOperationsPage() {
   const recordWalkup = async () => {
     if (!routeId || !walkupName.trim() || !walkupAmount) { toast.error(t('mv.walkupFieldsRequiredError')); return }
     setSavingWalkup(true)
+    // Real gap found live: this always sold from the origin (board_stop_id
+    // omitted = NULL = implicit origin), which record_manual_booking (926)
+    // locks once the bus has departed today — exactly the case for a
+    // driver selling a seat mid-route. Pass the currently selected stop
+    // desk terminal so a walk-up sale boards where the driver actually is.
     const { error } = await supabase.rpc('record_manual_booking', {
       p_route_id: routeId, p_travel_date: today(), p_seats: Number(walkupSeats) || 1,
       p_passenger_name: walkupName, p_total_amount_pkr: Number(walkupAmount), p_payment_method: 'cash',
+      p_board_stop_id: isOriginSelected ? null : selectedStopKey,
     })
     setSavingWalkup(false)
     if (error) { toast.error(friendlyError(error)); return }
