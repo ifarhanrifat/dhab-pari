@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, UserPlus, Users2, ShieldCheck, History, Search, Wallet, Clock, Repeat2 } from 'lucide-react'
+import { ChevronLeft, UserPlus, Users2, ShieldCheck, History, Search, Wallet, Clock, Repeat2, Copy, Check, Send, X } from 'lucide-react'
 import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat, FleetFormGrid, FleetFormField } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -35,6 +35,11 @@ interface Counter { id: string; city: string; name: string | null }
 interface RolePermission { role: string; module: string; can_edit: boolean }
 interface AuditEntry { id: string; actor_name: string | null; action: string; details: Record<string, unknown> | null; created_at: string }
 interface FleetVehicle { id: string; vehicle_number: string | null; vehicle_type: string }
+interface StaffInvite {
+  id: string; invited_phone: string; role: string; code: string; created_at: string; expires_at: string
+  redeemed_at: string | null; redeemed_full_name: string | null
+}
+const INVITE_ROLES = ['staff', 'booking_officer', 'terminal_manager', 'accountant', 'other'] as const
 interface PayrollSettings {
   pay_frequency: 'monthly' | 'weekly' | 'per_trip'; overtime_calculation: 'hourly_rate' | 'fixed_shift' | 'manual'
   overtime_hourly_rate_pkr: number | null; overtime_fixed_shift_pkr: number | null
@@ -68,7 +73,11 @@ export default function FleetStaffPage() {
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [counters, setCounters] = useState<Counter[]>([])
   const [phone, setPhone] = useState('')
+  const [inviteRole, setInviteRole] = useState<string>('staff')
   const [adding, setAdding] = useState(false)
+  const [invites, setInvites] = useState<StaffInvite[]>([])
+  const [lastCode, setLastCode] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
   const [salaryDraft, setSalaryDraft] = useState<Record<string, string>>({})
   const [paymentDraft, setPaymentDraft] = useState<Record<string, string>>({})
   const [commissionDraft, setCommissionDraft] = useState<Record<string, string>>({})
@@ -97,13 +106,14 @@ export default function FleetStaffPage() {
     setFleetId(f?.fleet_id ?? null)
     setIsOwner(f?.is_owner ?? false)
     if (f?.is_owner) {
-      const [{ data: s }, { data: c }, { data: p }, { data: a }, { data: v }, { data: ps }] = await Promise.all([
+      const [{ data: s }, { data: c }, { data: p }, { data: a }, { data: v }, { data: ps }, { data: inv }] = await Promise.all([
         supabase.rpc('my_fleet_staff', { p_fleet_id: f.fleet_id }),
         supabase.rpc('my_fleet_counters', { p_fleet_id: f.fleet_id }),
         supabase.rpc('fleet_role_permissions_matrix', { p_fleet_id: f.fleet_id }),
         supabase.rpc('fleet_audit_log_recent', { p_fleet_id: f.fleet_id, p_limit: 50 }),
         supabase.rpc('my_fleet_vehicles'),
         supabase.rpc('my_fleet_payroll_settings', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('my_fleet_staff_invites', { p_fleet_id: f.fleet_id }),
       ])
       setStaff((s ?? []) as StaffMember[])
       setCounters((c ?? []) as Counter[])
@@ -112,6 +122,7 @@ export default function FleetStaffPage() {
       setVehicles((v ?? []) as FleetVehicle[])
       setPayrollSettings((ps ?? null) as PayrollSettings | null)
       setPayrollDraft((ps ?? null) as PayrollSettings | null)
+      setInvites((inv ?? []) as StaffInvite[])
     }
     setLoading(false)
   }
@@ -128,15 +139,50 @@ export default function FleetStaffPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  const addStaff = async () => {
+  // 2026-11-21: unified invite — "everyone should be invited from the
+  // same window, select the role and invite, saved with reinvite/
+  // delete." One call does both: a phone that already has an account
+  // is added immediately, a brand-new one gets a real, resendable/
+  // cancellable code-based invite — same mechanism as the existing
+  // driver-invite flow, deliberately NOT extended to the 'driver' role
+  // itself (rejected server-side; onboarding a driver = onboarding a
+  // whole new vehicle through its own admin-reviewed registration,
+  // not a one-click add).
+  const inviteStaff = async () => {
     if (!fleetId || !phone.trim()) { toast.error(t('mv.enterDriverPhoneError')); return }
     setAdding(true)
-    const { error } = await supabase.rpc('add_fleet_staff', { p_fleet_id: fleetId, p_phone: phone })
+    const { data, error } = await supabase.rpc('invite_fleet_staff', { p_fleet_id: fleetId, p_phone: phone, p_role: inviteRole })
     setAdding(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('mv.staffAddedToast'))
+    const result = data as { status: 'added' | 'invited'; full_name?: string; code?: string }
+    if (result.status === 'added') {
+      toast.success(t('mv.staffAddedDirectlyToast').replace('{name}', result.full_name ?? ''))
+      setLastCode(null)
+    } else {
+      setLastCode(result.code ?? null)
+      toast.success(t('mv.staffInviteSentToast'))
+    }
     setPhone('')
     load()
+  }
+
+  const cancelInvite = async (id: string) => {
+    if (!confirm(t('mv.confirmCancelInviteHint'))) return
+    const { error } = await supabase.rpc('cancel_fleet_staff_invite', { p_invite_id: id })
+    if (error) { toast.error(friendlyError(error)); return }
+    load()
+  }
+
+  const reinviteStaff = async (id: string) => {
+    const { data, error } = await supabase.rpc('reinvite_fleet_staff', { p_invite_id: id })
+    if (error) { toast.error(friendlyError(error)); return }
+    setLastCode(data as string)
+    toast.success(t('mv.staffInviteSentToast'))
+    load()
+  }
+
+  const copyCode = (id: string, code: string) => {
+    navigator.clipboard?.writeText(code).then(() => { setCopiedId(id); setTimeout(() => setCopiedId(null), 2000) })
   }
 
   const removeStaff = async (portalUserId: string) => {
@@ -341,29 +387,84 @@ export default function FleetStaffPage() {
           </div>
 
           <FleetPanel>
-            <FleetPanelHead icon={<UserPlus size={14} />} title={t('mv.addStaffBtn')} description={t('mv.panelDesc.addStaff')} />
+            <FleetPanelHead icon={<UserPlus size={14} />} title={t('mv.inviteStaffHeading')} description={t('mv.panelDesc.inviteStaff')} />
             <FleetPanelBody>
-              <p className="font-sans text-[11.5px] text-[#64748b] mb-2.5">{t('mv.fleetStaffHint')}</p>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t('mv.driverPhonePlaceholder')}
-                  className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-                <button onClick={addStaff} disabled={adding} className="shrink-0 px-4 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">
-                  {adding ? t('action.loading') : t('mv.addStaffBtn')}
+                  className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                  {INVITE_ROLES.map((r) => <option key={r} value={r}>{t(`mv.role.${r}`)}</option>)}
+                </select>
+                <button onClick={inviteStaff} disabled={adding} className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">
+                  <Send size={13} /> {adding ? t('action.loading') : t('mv.sendInviteBtn')}
                 </button>
               </div>
-              {/* 2026-11-21: real gap, found live while comparing this
-                  page to a professional invite flow — this box only
-                  ever works for a phone that already has an account
-                  ("they need to sign up first" otherwise); a genuinely
-                  new person has to go through the separate Invite page
-                  instead, with no link between the two. Said plainly
-                  here rather than silently merging two different RPCs
-                  with different guarantees. */}
+              {/* 888: a driver is onboarding a whole new vehicle through
+                  its own admin-reviewed registration (CNIC, license,
+                  vehicle doc, photo) — kept as its own real flow on
+                  purpose, not collapsed into this one-click invite. */}
               <p className="font-sans text-[10.5px] text-[#94a3b8] mt-2">
-                {t('mv.addStaffNeedsAccountHint')} <Link href="/portal/fleet/invite" className="font-semibold text-[#166534] underline underline-offset-2">{t('mv.inviteDriverHeading')}</Link>.
+                {t('mv.driverUsesOwnFlowHint')} <Link href="/portal/fleet/invite" className="font-semibold text-[#166534] underline underline-offset-2">{t('mv.inviteDriverHeading')}</Link>.
               </p>
+              {lastCode && (
+                <div className="mt-2.5 bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg p-3 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-sans text-[11px] text-[#166534]">{t('mv.shareThisCodeHint')}</p>
+                    <p className="font-sans text-[22px] font-extrabold text-[#166534] ltr-num tracking-wider">{lastCode}</p>
+                    <p className="font-sans text-[10px] text-[#166534] mt-0.5">{t('mv.tellThemToVisitHint')} <span className="font-semibold ltr-num">dhabpari.com/portal/fleet/join</span></p>
+                  </div>
+                  <button onClick={() => copyCode('last', lastCode)} className="shrink-0 p-2 rounded-lg border border-[#bbf7d0] cursor-pointer text-[#166534]" aria-label={t('action.copy')}>
+                    {copiedId === 'last' ? <Check size={16} /> : <Copy size={16} />}
+                  </button>
+                </div>
+              )}
             </FleetPanelBody>
           </FleetPanel>
+
+          {/* 2026-11-21: "saved with reinvite or delete button" — every
+              invite ever sent, pending/added/expired, with its code
+              still visible while pending so the owner can read it out
+              again without regenerating. */}
+          {invites.length > 0 && (
+            <FleetPanel>
+              <FleetPanelHead icon={<Send size={14} />} title={t('mv.invitationsHeading')}
+                action={<span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{invites.length}</span>} />
+              <div className="flex flex-col divide-y divide-[#f1f5f9]">
+                {invites.map((i) => {
+                  const pending = !i.redeemed_at && new Date(i.expires_at) > new Date()
+                  const expired = !i.redeemed_at && new Date(i.expires_at) <= new Date()
+                  return (
+                    <div key={i.id} className="px-3.5 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-sans text-[12.5px] font-semibold text-[#1e293b] ltr-num">{i.invited_phone}</span>
+                        <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-[#F1F5F9] text-[#64748b] font-sans text-[9.5px] font-bold">{t(`mv.role.${i.role}`)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-1">
+                        <span className="font-sans text-[11px] font-bold" style={{ color: i.redeemed_at ? '#166534' : expired ? '#b91c1c' : '#b45309' }}>
+                          {i.redeemed_at ? `${t('mv.inviteStatusJoined')}${i.redeemed_full_name ? ` · ${i.redeemed_full_name}` : ''}` : expired ? t('mv.inviteStatusExpired') : t('mv.inviteStatusPending')}
+                        </span>
+                        {pending && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button onClick={() => copyCode(i.id, i.code)} className="flex items-center gap-1 font-sans text-[11px] font-bold text-[#166534] cursor-pointer ltr-num">
+                              {copiedId === i.id ? <Check size={11} /> : <Copy size={11} />} {i.code}
+                            </button>
+                            <button onClick={() => reinviteStaff(i.id)} className="font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('mv.reinviteBtn')}</button>
+                            <button onClick={() => cancelInvite(i.id)} className="p-1 text-[#b91c1c] cursor-pointer"><X size={13} /></button>
+                          </div>
+                        )}
+                        {expired && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button onClick={() => reinviteStaff(i.id)} className="font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('mv.reinviteBtn')}</button>
+                            <button onClick={() => cancelInvite(i.id)} className="p-1 text-[#b91c1c] cursor-pointer"><X size={13} /></button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </FleetPanel>
+          )}
 
           <FleetPanel>
             <FleetPanelHead icon={<Users2 size={14} />} title={t('mv.fleetStaffHeading')} description={t('mv.panelDesc.staff')}
