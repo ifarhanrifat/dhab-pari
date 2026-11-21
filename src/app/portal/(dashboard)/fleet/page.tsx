@@ -645,10 +645,21 @@ export default function FleetDashboardPage() {
                     // there's no real speed signal before a run starts.
                     const liveAgoMin = minutesAgo(s.driver_live_updated_at)
                     const liveFresh = liveAgoMin != null && liveAgoMin <= 10 && s.driver_live_distance_km != null
+                    // 2026-11-21: real confusion caught live — the line
+                    // showed a bare number with no indication of WHOSE
+                    // position it was (driver vs. vehicle vs. rider —
+                    // it's always the driver's own phone, resolved the
+                    // same way as current_driver_name above) or HOW OLD
+                    // it was, so a stale ping looked identical to a
+                    // fresh one. Both now spelled out explicitly.
                     const liveRow = liveFresh && (
                       <p className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#1d4ed8] mt-1">
                         <Navigation size={11} />
-                        {t('mv.driverLiveDistanceLabel').replace('{km}', s.driver_live_distance_km!.toFixed(1)).replace('{eta}', String(Math.max(1, Math.round((s.driver_live_distance_km! / 25) * 60))))}
+                        {t('mv.driverLiveDistanceLabel')
+                          .replace('{name}', s.current_driver_name)
+                          .replace('{km}', s.driver_live_distance_km!.toFixed(1))
+                          .replace('{eta}', String(Math.max(1, Math.round((s.driver_live_distance_km! / 25) * 60))))
+                          .replace('{ago}', String(liveAgoMin ?? 0))}
                       </p>
                     )
                     if (!s.driver_home_terminal_city) {
