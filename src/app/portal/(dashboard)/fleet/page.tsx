@@ -21,7 +21,7 @@
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, Plus, Pencil, Trash2, RotateCcw, IdCard, ShieldAlert, Clock, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, Plus, Pencil, Trash2, RotateCcw, IdCard, ShieldAlert, Clock, CheckCircle2, AlertTriangle, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -47,6 +47,13 @@ interface ScheduleCard {
   // departure.
   driver_home_terminal_city: string | null; driver_home_terminal_name: string | null
   driver_checked_in: boolean; driver_check_in_at: string | null
+  // 944: real live distance before a run starts — route_live_locations
+  // was never actually tied to an active run, only gated by the
+  // driver's own app trigger (which only turned sharing on after
+  // run_started_at). Now shared in a window before departure too, so
+  // this is a real GPS distance to the route's own origin point, not a
+  // fabricated number.
+  driver_live_distance_km: number | null; driver_live_updated_at: string | null
 }
 interface DepartureStats { bookings_today_count: number; runs_scheduled: number; runs_departed: number }
 interface FleetVehicleSummary {
@@ -639,13 +646,30 @@ export default function FleetDashboardPage() {
                     }
                     const mins = minutesUntilDeparture(s.departure_time)
                     const urgent = mins != null && mins <= 60
+                    // 944: a real live GPS distance before the run has
+                    // started — only trusted within 10 minutes old, so
+                    // a stale ping from hours ago never gets shown as
+                    // if it were current. ETA is a flat-speed estimate
+                    // (25km/h), same honesty-over-false-precision
+                    // choice as this session's other speed-less
+                    // estimates — there's no real speed signal yet.
+                    const liveAgoMin = minutesAgo(s.driver_live_updated_at)
+                    const liveFresh = liveAgoMin != null && liveAgoMin <= 10 && s.driver_live_distance_km != null
                     return (
-                      <p className={`flex items-center gap-1 font-sans text-[10.5px] font-semibold mt-1.5 ${urgent ? 'text-[#b91c1c]' : 'text-[#b45309]'}`}>
-                        <AlertTriangle size={11} />
-                        {mins == null ? t('mv.driverNotCheckedInLabel')
-                          : mins < 0 ? t('mv.driverNotCheckedInPastDepartureLabel')
-                          : t('mv.driverNotCheckedInCountdownLabel').replace('{n}', String(mins))}
-                      </p>
+                      <>
+                        <p className={`flex items-center gap-1 font-sans text-[10.5px] font-semibold mt-1.5 ${urgent ? 'text-[#b91c1c]' : 'text-[#b45309]'}`}>
+                          <AlertTriangle size={11} />
+                          {mins == null ? t('mv.driverNotCheckedInLabel')
+                            : mins < 0 ? t('mv.driverNotCheckedInPastDepartureLabel')
+                            : t('mv.driverNotCheckedInCountdownLabel').replace('{n}', String(mins))}
+                        </p>
+                        {liveFresh && (
+                          <p className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#1d4ed8] mt-1">
+                            <Navigation size={11} />
+                            {t('mv.driverLiveDistanceLabel').replace('{km}', s.driver_live_distance_km!.toFixed(1)).replace('{eta}', String(Math.max(1, Math.round((s.driver_live_distance_km! / 25) * 60))))}
+                          </p>
+                        )}
+                      </>
                     )
                   })()}
                   {!editing && (formatDays(s.days_of_week, t) || (s.is_two_way && s.return_days_of_week?.length)) && (

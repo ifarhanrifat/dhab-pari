@@ -113,6 +113,15 @@ interface LeaveDay { the_date: string; reason: string | null }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 function today() { return new Date().toISOString().slice(0, 10) }
+// 944: minutes from now until today's scheduled departure_time
+// ("HH:MM:SS"), in Asia/Karachi — negative once departure has passed.
+function minutesUntilDeparture(departureTime: string | null): number | null {
+  if (!departureTime) return null
+  const nowKhi = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }))
+  const [h, m] = departureTime.split(':').map(Number)
+  const dep = new Date(nowKhi); dep.setHours(h, m, 0, 0)
+  return Math.round((dep.getTime() - nowKhi.getTime()) / 60000)
+}
 
 // Nearest-vertex projection onto a stored route_path — the exact same
 // approach route_catch_feasibility (859) uses server-side for "how far
@@ -392,13 +401,28 @@ function DriveOperationsPageInner() {
   // explicitly excludes for fare_mode='terminal_zone' fleet routes,
   // since its chat/roster/wait-window machinery is for a different
   // booking system; the GPS-share/map primitives themselves are generic).
+  // 944: real follow-up — "will everyone reach before the bus leaves"
+  // was only ever answered with a binary checked-in flag, because
+  // sharing only ever turned on once a run had already started.
+  // route_live_locations/ping_route_location were never actually tied
+  // to an active run (just route_id + sharing_location) — nothing
+  // backend stopped pre-trip sharing except this one condition. Widened
+  // to also share in a ±2h window around the scheduled departure, so
+  // the admin gets a real live distance/ETA before departure instead of
+  // nothing — bounded so a driver's phone isn't pinging GPS all day for
+  // a 9pm departure. nowTick (already ticking every second elsewhere in
+  // this file) keeps preTripActive fresh without re-firing the RPC
+  // every tick — the effect only depends on the derived boolean itself.
+  const preTripMinutes = minutesUntilDeparture(routes.find((r) => r.id === routeId)?.departure_time ?? null)
+  const preTripActive = preTripMinutes != null && preTripMinutes <= 120 && preTripMinutes >= -120
   useEffect(() => {
-    if (!routeId || !chalan?.run_started_at) { setSharing(false); return }
+    if (!routeId) { setSharing(false); return }
+    if (!chalan?.run_started_at && !preTripActive) { setSharing(false); return }
     supabase.rpc('set_route_location_sharing', { p_route_id: routeId, p_on: true }).then(({ error }) => {
       if (!error) setSharing(true)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeId, chalan?.run_started_at])
+  }, [routeId, chalan?.run_started_at, preTripActive])
 
   const { error: geoError } = useLiveLocation({
     enabled: sharing,
