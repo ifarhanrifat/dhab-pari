@@ -48,6 +48,14 @@ const PAY_FREQUENCY_SUFFIX_KEY: Record<string, string> = { monthly: 'mv.perMonth
 
 const PERMISSION_ROLES = ['booking_officer', 'terminal_manager', 'accountant', 'other'] as const
 const PERMISSION_MODULES = ['staff_payroll', 'cash', 'bookings', 'schedule'] as const
+// 2026-11-21: real complaint, given live — "huge page, don't know what
+// it's for," next to a direct comparison to how professional HR/staff
+// tools organize this (separate Directory/Payroll/Permissions areas,
+// not one long scroll). Nothing here changes what any control does —
+// every handler/RPC below is untouched — this only regroups the exact
+// same sections behind tabs, same pattern /portal/drive's own
+// Home/Trip/Cash/Pay tabs already use in this codebase.
+type StaffTab = 'directory' | 'payroll' | 'drivers' | 'permissions'
 
 export default function FleetStaffPage() {
   const { t, isUrdu } = useLocale()
@@ -81,6 +89,7 @@ export default function FleetStaffPage() {
   const [handoverDraft, setHandoverDraft] = useState<Record<string, string>>({})
   const [showRoster, setShowRoster] = useState(false)
   const [roster, setRoster] = useState<RosterShift[]>([])
+  const [tab, setTab] = useState<StaffTab>('directory')
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
@@ -302,6 +311,7 @@ export default function FleetStaffPage() {
 
   const q = searchQuery.trim().toLowerCase()
   const filteredStaff = staff.filter((s) => (!roleFilter || s.role === roleFilter) && (!q || s.full_name.toLowerCase().includes(q)))
+  const driverStaff = staff.filter((s) => s.role === 'driver')
 
   return (
     <div className="flex flex-col gap-3">
@@ -314,68 +324,21 @@ export default function FleetStaffPage() {
         <p className="font-sans text-[13px] text-[#64748b] text-center py-12">{t('mv.ownerOnlySectionHint')}</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-2.5">
-            <FleetStat label={t('mv.statActiveEmployeesLabel')} value={staff.length} icon={<Users2 size={12} />} />
-            <FleetStat label={t('mv.statDriversLabel')} value={staff.filter((s) => s.role === 'driver').length} />
-            <FleetStat label={t('mv.statMonthlyPayrollLabel')} value={`₨${fmt(staff.reduce((sum, s) => sum + (s.current_monthly_salary_pkr ?? 0), 0))}`} />
-            <FleetStat label={t('mv.statCommissionPayableLabel')} value={`₨${fmt(staff.reduce((sum, s) => sum + s.commission_this_month_pkr, 0))}`} valueClassName="text-[#b45309]" />
+          <div className="flex gap-1.5 bg-white border border-[#e5e2d0] rounded-xl p-1">
+            {([
+              ['directory', t('mv.staffTabDirectory')], ['payroll', t('mv.staffTabPayroll')],
+              ['drivers', t('mv.staffTabDrivers')], ['permissions', t('mv.staffTabPermissions')],
+            ] as [StaffTab, string][]).map(([key, label]) => (
+              <button key={key} onClick={() => setTab(key)} className={`flex-1 py-2 rounded-lg font-sans text-[11.5px] font-bold cursor-pointer ${tab === key ? 'bg-[#166534] text-white' : 'text-[#64748b]'}`}>{label}</button>
+            ))}
           </div>
 
-          {/* 2026-11-18: Payroll configuration that actually changes
-              computed behavior — the mockup's own panel is tagged
-              "Illustrative"; this one isn't. */}
-          {payrollDraft && (
-            <FleetPanel>
-              <FleetPanelHead icon={<Wallet size={14} />} title={t('mv.payrollSettingsHeading')} description={t('mv.panelDesc.payrollSettings')} />
-              <FleetPanelBody>
-                <FleetFormGrid>
-                  <FleetFormField label={t('mv.payFrequencyLabel')}>
-                    <select value={payrollDraft.pay_frequency} onChange={(e) => setPayrollDraft((d) => d && { ...d, pay_frequency: e.target.value as PayrollSettings['pay_frequency'] })}
-                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
-                      <option value="monthly">{t('mv.payFrequencyMonthly')}</option>
-                      <option value="weekly">{t('mv.payFrequencyWeekly')}</option>
-                      <option value="per_trip">{t('mv.payFrequencyPerTrip')}</option>
-                    </select>
-                  </FleetFormField>
-                  <FleetFormField label={t('mv.commissionEligibilityLabel')}>
-                    <select value={payrollDraft.commission_eligibility} onChange={(e) => setPayrollDraft((d) => d && { ...d, commission_eligibility: e.target.value as PayrollSettings['commission_eligibility'] })}
-                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
-                      <option value="confirmed_paid">{t('mv.commissionEligibilityConfirmedPaid')}</option>
-                      <option value="completed_journey">{t('mv.commissionEligibilityCompletedJourney')}</option>
-                    </select>
-                  </FleetFormField>
-                  <FleetFormField label={t('mv.overtimeCalculationLabel')} full>
-                    <select value={payrollDraft.overtime_calculation} onChange={(e) => setPayrollDraft((d) => d && { ...d, overtime_calculation: e.target.value as PayrollSettings['overtime_calculation'] })}
-                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
-                      <option value="manual">{t('mv.overtimeManualOption')}</option>
-                      <option value="hourly_rate">{t('mv.overtimeHourlyRateOption')}</option>
-                      <option value="fixed_shift">{t('mv.overtimeFixedShiftOption')}</option>
-                    </select>
-                  </FleetFormField>
-                  {payrollDraft.overtime_calculation === 'hourly_rate' && (
-                    <FleetFormField label={t('mv.overtimeHourlyRateLabel')}>
-                      <input type="number" value={payrollDraft.overtime_hourly_rate_pkr ?? ''} onChange={(e) => setPayrollDraft((d) => d && { ...d, overtime_hourly_rate_pkr: e.target.value ? Number(e.target.value) : null })}
-                        className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-                    </FleetFormField>
-                  )}
-                  {payrollDraft.overtime_calculation === 'fixed_shift' && (
-                    <FleetFormField label={t('mv.overtimeFixedShiftLabel')}>
-                      <input type="number" value={payrollDraft.overtime_fixed_shift_pkr ?? ''} onChange={(e) => setPayrollDraft((d) => d && { ...d, overtime_fixed_shift_pkr: e.target.value ? Number(e.target.value) : null })}
-                        className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-                    </FleetFormField>
-                  )}
-                  <FleetFormField label={t('mv.defaultCommissionLabel')} full>
-                    <input type="number" value={payrollDraft.default_commission_per_seat_pkr ?? ''} onChange={(e) => setPayrollDraft((d) => d && { ...d, default_commission_per_seat_pkr: e.target.value ? Number(e.target.value) : null })}
-                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-                  </FleetFormField>
-                  <button onClick={savePayrollSettings} disabled={savingPayroll || JSON.stringify(payrollDraft) === JSON.stringify(payrollSettings)}
-                    className="col-span-2 w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
-                    {savingPayroll ? t('action.saving') : t('action.save')}
-                  </button>
-                </FleetFormGrid>
-              </FleetPanelBody>
-            </FleetPanel>
-          )}
+          {tab === 'directory' && (
+          <>
+          <div className="grid grid-cols-2 gap-2.5">
+            <FleetStat label={t('mv.statActiveEmployeesLabel')} value={staff.length} icon={<Users2 size={12} />} />
+            <FleetStat label={t('mv.statDriversLabel')} value={driverStaff.length} />
+          </div>
 
           <FleetPanel>
             <FleetPanelHead icon={<UserPlus size={14} />} title={t('mv.addStaffBtn')} description={t('mv.panelDesc.addStaff')} />
@@ -388,6 +351,17 @@ export default function FleetStaffPage() {
                   {adding ? t('action.loading') : t('mv.addStaffBtn')}
                 </button>
               </div>
+              {/* 2026-11-21: real gap, found live while comparing this
+                  page to a professional invite flow — this box only
+                  ever works for a phone that already has an account
+                  ("they need to sign up first" otherwise); a genuinely
+                  new person has to go through the separate Invite page
+                  instead, with no link between the two. Said plainly
+                  here rather than silently merging two different RPCs
+                  with different guarantees. */}
+              <p className="font-sans text-[10.5px] text-[#94a3b8] mt-2">
+                {t('mv.addStaffNeedsAccountHint')} <Link href="/portal/fleet/invite" className="font-semibold text-[#166534] underline underline-offset-2">{t('mv.inviteDriverHeading')}</Link>.
+              </p>
             </FleetPanelBody>
           </FleetPanel>
 
@@ -452,6 +426,91 @@ export default function FleetStaffPage() {
                       <p className="font-sans text-[9.5px] text-[#94a3b8] mt-0.5">{t('mv.homeTerminalHint')}</p>
                     </div>
                   )}
+                </div>
+              ))}
+            </div>
+          )}
+          </FleetPanel>
+          </>
+          )}
+
+          {tab === 'payroll' && (
+          <>
+          <div className="grid grid-cols-2 gap-2.5">
+            <FleetStat label={t('mv.statMonthlyPayrollLabel')} value={`₨${fmt(staff.reduce((sum, s) => sum + (s.current_monthly_salary_pkr ?? 0), 0))}`} />
+            <FleetStat label={t('mv.statCommissionPayableLabel')} value={`₨${fmt(staff.reduce((sum, s) => sum + s.commission_this_month_pkr, 0))}`} valueClassName="text-[#b45309]" />
+          </div>
+
+          {/* 2026-11-18: Payroll configuration that actually changes
+              computed behavior — the mockup's own panel is tagged
+              "Illustrative"; this one isn't. */}
+          {payrollDraft && (
+            <FleetPanel>
+              <FleetPanelHead icon={<Wallet size={14} />} title={t('mv.payrollSettingsHeading')} description={t('mv.panelDesc.payrollSettings')} />
+              <FleetPanelBody>
+                <FleetFormGrid>
+                  <FleetFormField label={t('mv.payFrequencyLabel')}>
+                    <select value={payrollDraft.pay_frequency} onChange={(e) => setPayrollDraft((d) => d && { ...d, pay_frequency: e.target.value as PayrollSettings['pay_frequency'] })}
+                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                      <option value="monthly">{t('mv.payFrequencyMonthly')}</option>
+                      <option value="weekly">{t('mv.payFrequencyWeekly')}</option>
+                      <option value="per_trip">{t('mv.payFrequencyPerTrip')}</option>
+                    </select>
+                  </FleetFormField>
+                  <FleetFormField label={t('mv.commissionEligibilityLabel')}>
+                    <select value={payrollDraft.commission_eligibility} onChange={(e) => setPayrollDraft((d) => d && { ...d, commission_eligibility: e.target.value as PayrollSettings['commission_eligibility'] })}
+                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                      <option value="confirmed_paid">{t('mv.commissionEligibilityConfirmedPaid')}</option>
+                      <option value="completed_journey">{t('mv.commissionEligibilityCompletedJourney')}</option>
+                    </select>
+                  </FleetFormField>
+                  <FleetFormField label={t('mv.overtimeCalculationLabel')} full>
+                    <select value={payrollDraft.overtime_calculation} onChange={(e) => setPayrollDraft((d) => d && { ...d, overtime_calculation: e.target.value as PayrollSettings['overtime_calculation'] })}
+                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]">
+                      <option value="manual">{t('mv.overtimeManualOption')}</option>
+                      <option value="hourly_rate">{t('mv.overtimeHourlyRateOption')}</option>
+                      <option value="fixed_shift">{t('mv.overtimeFixedShiftOption')}</option>
+                    </select>
+                  </FleetFormField>
+                  {payrollDraft.overtime_calculation === 'hourly_rate' && (
+                    <FleetFormField label={t('mv.overtimeHourlyRateLabel')}>
+                      <input type="number" value={payrollDraft.overtime_hourly_rate_pkr ?? ''} onChange={(e) => setPayrollDraft((d) => d && { ...d, overtime_hourly_rate_pkr: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                    </FleetFormField>
+                  )}
+                  {payrollDraft.overtime_calculation === 'fixed_shift' && (
+                    <FleetFormField label={t('mv.overtimeFixedShiftLabel')}>
+                      <input type="number" value={payrollDraft.overtime_fixed_shift_pkr ?? ''} onChange={(e) => setPayrollDraft((d) => d && { ...d, overtime_fixed_shift_pkr: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                    </FleetFormField>
+                  )}
+                  <FleetFormField label={t('mv.defaultCommissionLabel')} full>
+                    <input type="number" value={payrollDraft.default_commission_per_seat_pkr ?? ''} onChange={(e) => setPayrollDraft((d) => d && { ...d, default_commission_per_seat_pkr: e.target.value ? Number(e.target.value) : null })}
+                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                  </FleetFormField>
+                  <button onClick={savePayrollSettings} disabled={savingPayroll || JSON.stringify(payrollDraft) === JSON.stringify(payrollSettings)}
+                    className="col-span-2 w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
+                    {savingPayroll ? t('action.saving') : t('action.save')}
+                  </button>
+                </FleetFormGrid>
+              </FleetPanelBody>
+            </FleetPanel>
+          )}
+
+          <FleetPanel>
+            <FleetPanelHead icon={<Users2 size={14} />} title={t('mv.fleetStaffHeading')} description={t('mv.panelDesc.staff')}
+              action={<span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{staff.length}</span>} />
+          {staff.length === 0 ? (
+            <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noStaffYetHint')}</p>
+          ) : (
+            <div className="flex flex-col divide-y divide-[#f1f5f9]">
+              {staff.map((s) => (
+                <div key={s.id} className="px-3.5 py-3">
+                  <span className="font-sans text-[13px] font-bold text-[#1e293b] flex items-center gap-2 min-w-0">
+                    <span className="w-7 h-7 rounded-full bg-[#F0FDF4] text-[#166534] flex items-center justify-center shrink-0 font-sans text-[11px] font-extrabold uppercase">{s.full_name.trim().charAt(0) || '?'}</span>
+                    <span className="truncate">{s.full_name}</span>
+                    <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-[#F1F5F9] text-[#64748b] font-sans text-[9.5px] font-bold">{t(`mv.role.${s.role}`)}</span>
+                  </span>
                   {/* 2026-11-17: Staff screen rebuild — real gap found
                       reading the code: set_fleet_staff_salary (860)
                       could be called, but nothing ever showed what
@@ -497,72 +556,131 @@ export default function FleetStaffPage() {
                   {s.commission_amount_pkr != null && (
                     <p className="font-sans text-[10.5px] text-[#166534] mt-1">{t('mv.commissionThisMonthLabel')}: ₨{s.commission_this_month_pkr.toLocaleString()}</p>
                   )}
-                  {/* 888: a real driver registration — licence, CNIC, DOB,
-                      blood group, medical report, photo — the same
-                      information /my-vehicle/register already collects
-                      for a self-registering driver, now available right
-                      here for a driver added as staff. */}
-                  {s.role === 'driver' && (
-                    <div className="mt-2 pt-2 border-t border-[#f1f5f9] flex flex-col gap-1.5">
-                      {/* 2026-11-18: real duty-interval tracking — the
-                          mockup's own "Open driver roster" button just
-                          toasts "Duty roster opened", no real roster
-                          exists even there. Admin-recorded here, not
-                          driver self-service. */}
-                      {s.on_duty_since ? (
-                        <div className="flex items-center justify-between gap-2 bg-[#F0FDF4] rounded-lg px-2.5 py-1.5">
-                          <span className="flex items-center gap-1 font-sans text-[11px] font-semibold text-[#166534]">
-                            <Clock size={11} /> {t('mv.onDutySinceLabel')}: {new Date(s.on_duty_since).toLocaleTimeString(isUrdu ? 'ur-PK' : 'en-PK', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                          <div className="flex gap-1.5 shrink-0">
-                            <button onClick={() => s.on_duty_shift_id && endShift(s.on_duty_shift_id)} className="px-2 py-1 rounded-lg border border-[#e5e2d0] font-sans text-[10.5px] font-semibold text-[#b91c1c] cursor-pointer">{t('mv.endShiftBtn')}</button>
-                            <select value={handoverDraft[s.id] ?? ''} onChange={(e) => { setHandoverDraft((m) => ({ ...m, [s.id]: e.target.value })); if (e.target.value && s.on_duty_shift_id) handover(s.on_duty_shift_id, e.target.value) }}
-                              className="px-1.5 py-1 border border-[#e5e2d0] rounded-lg font-sans text-[10.5px]">
-                              <option value="">{t('mv.handoverToLabel')}</option>
-                              {staff.filter((d) => d.role === 'driver' && d.id !== s.id && !d.on_duty_since).map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-                            </select>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex gap-1.5">
-                          <select value={shiftDraft[s.id]?.vehicle_id ?? ''} onChange={(e) => setShiftDraft((m) => ({ ...m, [s.id]: { vehicle_id: e.target.value, start: m[s.id]?.start ?? '' } }))}
-                            className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11px]">
-                            <option value="">{t('mv.dutyShiftVehicleLabel')}</option>
-                            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.vehicle_number || v.vehicle_type}</option>)}
-                          </select>
-                          <input type="datetime-local" value={shiftDraft[s.id]?.start ?? ''} onChange={(e) => setShiftDraft((m) => ({ ...m, [s.id]: { vehicle_id: m[s.id]?.vehicle_id ?? '', start: e.target.value } }))}
-                            className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11px] ltr-num" />
-                          <button onClick={() => recordShift(s.id)} className="shrink-0 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('mv.recordDutyShiftBtn')}</button>
-                        </div>
-                      )}
-                      <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-[#64748b]">{t('mv.driverDetailsHeading')}</p>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <input value={driverField(s, 'license_number')} onChange={(e) => setDriverField(s.id, 'license_number', e.target.value)}
-                          placeholder={t('mv.licenseNumberPlaceholder')} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
-                        <input type="date" value={driverField(s, 'license_expiry')} onChange={(e) => setDriverField(s.id, 'license_expiry', e.target.value)}
-                          className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
-                        <input value={driverField(s, 'cnic_number')} onChange={(e) => setDriverField(s.id, 'cnic_number', e.target.value)}
-                          placeholder={t('vr.cnicPlaceholder')} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
-                        <input type="date" value={driverField(s, 'date_of_birth')} onChange={(e) => setDriverField(s.id, 'date_of_birth', e.target.value)}
-                          className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
-                        <select value={driverField(s, 'blood_group')} onChange={(e) => setDriverField(s.id, 'blood_group', e.target.value)} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] col-span-2">
-                          <option value="">{t('mv.bloodGroupLabel')}</option>
-                          {BLOOD_GROUPS.map((bg) => <option key={bg} value={bg}>{bg}</option>)}
-                        </select>
-                      </div>
-                      <button onClick={() => saveDriverDetails(s)} className="px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('action.save')}</button>
-                      <div className="grid grid-cols-2 gap-1.5 mt-1">
-                        <DonationReceiptUpload bucket="vehicle_registration_documents" label={t('vr.driverPhotoLabel')} required={false} onUpload={(path) => uploadDriverFile(s.id, 'photo_url', path)} />
-                        <DonationReceiptUpload bucket="vehicle_registration_documents" label={t('mv.medicalReportLabel')} required={false} onUpload={(path) => uploadDriverFile(s.id, 'medical_report_url', path)} />
-                      </div>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
           )}
           </FleetPanel>
+          </>
+          )}
 
+          {tab === 'drivers' && (
+          <>
+          {/* 2026-11-18: the mockup's duty-rule callout is accurate
+              and kept as-is; "Open driver roster" now opens a real
+              roster instead of a toast. */}
+          <FleetPanel>
+            <FleetPanelHead icon={<Repeat2 size={14} />} title={t('mv.dutyComplianceHeading')}
+              action={<button onClick={toggleRoster} className="px-2.5 py-1 rounded-lg border border-[#e5e2d0] font-sans text-[11px] text-[#166534] font-semibold cursor-pointer">{showRoster ? t('action.showLess') : t('mv.openDriverRosterBtn')}</button>} />
+            <FleetPanelBody>
+              <p className="font-sans text-[11px] text-[#64748b] leading-relaxed bg-[#f8f6ee] rounded-lg p-2.5">{t('mv.dutyRuleExplainer')}</p>
+              {showRoster && (
+                roster.length === 0 ? (
+                  <p className="font-sans text-[12px] text-[#94a3b8] text-center py-4">{t('mv.rosterEmptyHint')}</p>
+                ) : (
+                  <div className="flex flex-col gap-2 mt-2.5">
+                    {roster.map((r) => (
+                      <div key={r.id} className="border border-[#e5e2d0] rounded-lg p-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-sans text-[12px] font-bold text-[#1e293b]">{r.driver_name}</p>
+                          <span className="font-sans text-[10.5px] text-[#64748b] ltr-num">
+                            {new Date(r.shift_start).toLocaleTimeString(isUrdu ? 'ur-PK' : 'en-PK', { hour: '2-digit', minute: '2-digit' })}
+                            {' – '}
+                            {r.shift_end ? new Date(r.shift_end).toLocaleTimeString(isUrdu ? 'ur-PK' : 'en-PK', { hour: '2-digit', minute: '2-digit' }) : t('mv.availOnTripLabel')}
+                          </span>
+                        </div>
+                        <p className="font-sans text-[10.5px] text-[#64748b] mt-0.5">{r.vehicle_number || r.vehicle_type}{r.route_label ? ` · ${r.route_label}` : ''}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {r.rest_break_count > 0 && <span className="font-sans text-[10px] text-[#166534] ltr-num">{t('mv.restBreaksCountLabel').replace('{n}', String(r.rest_break_count))}</span>}
+                          {r.handover_from_shift_id && <span className="font-sans text-[10px] text-[#b45309]">{t('mv.handedOverFromLabel')}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </FleetPanelBody>
+          </FleetPanel>
+
+          <FleetPanel>
+            <FleetPanelHead icon={<UserPlus size={14} />} title={t('mv.driverRecordsHeading')} description={t('mv.panelDesc.driverRecords')}
+              action={<span className="px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#166534] font-sans text-[10px] font-bold ltr-num">{driverStaff.length}</span>} />
+          {driverStaff.length === 0 ? (
+            <p className="font-sans text-[12px] text-[#94a3b8] text-center py-6">{t('mv.noDriversYetHint')}</p>
+          ) : (
+            <div className="flex flex-col divide-y divide-[#f1f5f9]">
+              {driverStaff.map((s) => (
+                <div key={s.id} className="px-3.5 py-3">
+                  <span className="font-sans text-[13px] font-bold text-[#1e293b] flex items-center gap-2 min-w-0 mb-1.5">
+                    <span className="w-7 h-7 rounded-full bg-[#F0FDF4] text-[#166534] flex items-center justify-center shrink-0 font-sans text-[11px] font-extrabold uppercase">{s.full_name.trim().charAt(0) || '?'}</span>
+                    <span className="truncate">{s.full_name}</span>
+                  </span>
+                  {/* 2026-11-18: real duty-interval tracking — the
+                      mockup's own "Open driver roster" button just
+                      toasts "Duty roster opened", no real roster
+                      exists even there. Admin-recorded here, not
+                      driver self-service. */}
+                  {s.on_duty_since ? (
+                    <div className="flex items-center justify-between gap-2 bg-[#F0FDF4] rounded-lg px-2.5 py-1.5">
+                      <span className="flex items-center gap-1 font-sans text-[11px] font-semibold text-[#166534]">
+                        <Clock size={11} /> {t('mv.onDutySinceLabel')}: {new Date(s.on_duty_since).toLocaleTimeString(isUrdu ? 'ur-PK' : 'en-PK', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <div className="flex gap-1.5 shrink-0">
+                        <button onClick={() => s.on_duty_shift_id && endShift(s.on_duty_shift_id)} className="px-2 py-1 rounded-lg border border-[#e5e2d0] font-sans text-[10.5px] font-semibold text-[#b91c1c] cursor-pointer">{t('mv.endShiftBtn')}</button>
+                        <select value={handoverDraft[s.id] ?? ''} onChange={(e) => { setHandoverDraft((m) => ({ ...m, [s.id]: e.target.value })); if (e.target.value && s.on_duty_shift_id) handover(s.on_duty_shift_id, e.target.value) }}
+                          className="px-1.5 py-1 border border-[#e5e2d0] rounded-lg font-sans text-[10.5px]">
+                          <option value="">{t('mv.handoverToLabel')}</option>
+                          {driverStaff.filter((d) => d.id !== s.id && !d.on_duty_since).map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1.5">
+                      <select value={shiftDraft[s.id]?.vehicle_id ?? ''} onChange={(e) => setShiftDraft((m) => ({ ...m, [s.id]: { vehicle_id: e.target.value, start: m[s.id]?.start ?? '' } }))}
+                        className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11px]">
+                        <option value="">{t('mv.dutyShiftVehicleLabel')}</option>
+                        {vehicles.map((v) => <option key={v.id} value={v.id}>{v.vehicle_number || v.vehicle_type}</option>)}
+                      </select>
+                      <input type="datetime-local" value={shiftDraft[s.id]?.start ?? ''} onChange={(e) => setShiftDraft((m) => ({ ...m, [s.id]: { vehicle_id: m[s.id]?.vehicle_id ?? '', start: e.target.value } }))}
+                        className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11px] ltr-num" />
+                      <button onClick={() => recordShift(s.id)} className="shrink-0 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('mv.recordDutyShiftBtn')}</button>
+                    </div>
+                  )}
+                  {/* 888: a real driver registration — licence, CNIC, DOB,
+                      blood group, medical report, photo — the same
+                      information /my-vehicle/register already collects
+                      for a self-registering driver, now available right
+                      here for a driver added as staff. */}
+                  <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-[#64748b] mt-2 pt-2 border-t border-[#f1f5f9]">{t('mv.driverDetailsHeading')}</p>
+                  <div className="grid grid-cols-2 gap-1.5 mt-1">
+                    <input value={driverField(s, 'license_number')} onChange={(e) => setDriverField(s.id, 'license_number', e.target.value)}
+                      placeholder={t('mv.licenseNumberPlaceholder')} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
+                    <input type="date" value={driverField(s, 'license_expiry')} onChange={(e) => setDriverField(s.id, 'license_expiry', e.target.value)}
+                      className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
+                    <input value={driverField(s, 'cnic_number')} onChange={(e) => setDriverField(s.id, 'cnic_number', e.target.value)}
+                      placeholder={t('vr.cnicPlaceholder')} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
+                    <input type="date" value={driverField(s, 'date_of_birth')} onChange={(e) => setDriverField(s.id, 'date_of_birth', e.target.value)}
+                      className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] ltr-num" />
+                    <select value={driverField(s, 'blood_group')} onChange={(e) => setDriverField(s.id, 'blood_group', e.target.value)} className="px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px] col-span-2">
+                      <option value="">{t('mv.bloodGroupLabel')}</option>
+                      {BLOOD_GROUPS.map((bg) => <option key={bg} value={bg}>{bg}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={() => saveDriverDetails(s)} className="mt-1.5 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11px] font-semibold text-[#166534] cursor-pointer">{t('action.save')}</button>
+                  <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+                    <DonationReceiptUpload bucket="vehicle_registration_documents" label={t('vr.driverPhotoLabel')} required={false} onUpload={(path) => uploadDriverFile(s.id, 'photo_url', path)} />
+                    <DonationReceiptUpload bucket="vehicle_registration_documents" label={t('mv.medicalReportLabel')} required={false} onUpload={(path) => uploadDriverFile(s.id, 'medical_report_url', path)} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          </FleetPanel>
+          </>
+          )}
+
+          {tab === 'permissions' && (
+          <>
           {/* 885: delegate a specific capability to a trusted role —
               no row at all means today's exact owner-only behavior, so
               checking a box here can only widen access, never narrow it. */}
@@ -610,42 +728,6 @@ export default function FleetStaffPage() {
             <p className="font-sans text-[10.5px] text-[#64748b] px-3.5 pb-3">{t('mv.schedulePermHint')}</p>
           </FleetPanel>
 
-          {/* 2026-11-18: the mockup's duty-rule callout is accurate
-              and kept as-is; "Open driver roster" now opens a real
-              roster instead of a toast. */}
-          <FleetPanel>
-            <FleetPanelHead icon={<Repeat2 size={14} />} title={t('mv.dutyComplianceHeading')}
-              action={<button onClick={toggleRoster} className="px-2.5 py-1 rounded-lg border border-[#e5e2d0] font-sans text-[11px] text-[#166534] font-semibold cursor-pointer">{showRoster ? t('action.showLess') : t('mv.openDriverRosterBtn')}</button>} />
-            <FleetPanelBody>
-              <p className="font-sans text-[11px] text-[#64748b] leading-relaxed bg-[#f8f6ee] rounded-lg p-2.5">{t('mv.dutyRuleExplainer')}</p>
-              {showRoster && (
-                roster.length === 0 ? (
-                  <p className="font-sans text-[12px] text-[#94a3b8] text-center py-4">{t('mv.rosterEmptyHint')}</p>
-                ) : (
-                  <div className="flex flex-col gap-2 mt-2.5">
-                    {roster.map((r) => (
-                      <div key={r.id} className="border border-[#e5e2d0] rounded-lg p-2.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-sans text-[12px] font-bold text-[#1e293b]">{r.driver_name}</p>
-                          <span className="font-sans text-[10.5px] text-[#64748b] ltr-num">
-                            {new Date(r.shift_start).toLocaleTimeString(isUrdu ? 'ur-PK' : 'en-PK', { hour: '2-digit', minute: '2-digit' })}
-                            {' – '}
-                            {r.shift_end ? new Date(r.shift_end).toLocaleTimeString(isUrdu ? 'ur-PK' : 'en-PK', { hour: '2-digit', minute: '2-digit' }) : t('mv.availOnTripLabel')}
-                          </span>
-                        </div>
-                        <p className="font-sans text-[10.5px] text-[#64748b] mt-0.5">{r.vehicle_number || r.vehicle_type}{r.route_label ? ` · ${r.route_label}` : ''}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {r.rest_break_count > 0 && <span className="font-sans text-[10px] text-[#166534] ltr-num">{t('mv.restBreaksCountLabel').replace('{n}', String(r.rest_break_count))}</span>}
-                          {r.handover_from_shift_id && <span className="font-sans text-[10px] text-[#b45309]">{t('mv.handedOverFromLabel')}</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              )}
-            </FleetPanelBody>
-          </FleetPanel>
-
           {/* 885: a real audit trail for sensitive fleet actions —
               staff/payroll/cash changes, bookings cancelled. */}
           <FleetPanel>
@@ -669,6 +751,8 @@ export default function FleetStaffPage() {
               )
             )}
           </FleetPanel>
+          </>
+          )}
         </>
       )}
     </div>
