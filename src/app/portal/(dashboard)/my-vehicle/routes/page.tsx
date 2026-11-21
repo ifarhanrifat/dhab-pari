@@ -741,6 +741,15 @@ export default function MyVehicleRoutesPage() {
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!vehicleId && !selectedVehicleId) return null
 
+  // Real bug found live (duplicate React key console error):
+  // my_fleet_vehicles() already returns every vehicle in the fleet,
+  // including this account's own — the two switcher lists below then
+  // prepended a synthetic "my own vehicle" entry using the SAME id on
+  // top of it, guaranteeing a collision whenever the signed-in driver's
+  // own vehicle is part of the fleet list (the normal case). Filtered
+  // here once instead of fixing it at each of the two spots separately.
+  const otherFleetVehicles = fleetVehicles.filter((v) => v.id !== vehicleId)
+
   return (
     <div className="flex flex-col gap-3">
       {!vehicleId && (
@@ -766,11 +775,11 @@ export default function MyVehicleRoutesPage() {
           route) to that vehicle, not just which vehicle a NEW route gets
           posted for. The same picker also appears inside the create-route
           form below, bound to the same selectedVehicleId. */}
-      {fleetVehicles.length > 0 && (
+      {otherFleetVehicles.length > 0 && (
         <div>
           <label className="block font-sans text-[11px] font-bold text-[#64748b] mb-1 uppercase tracking-[0.05em]">{t('mv.fleetViewSwitcherLabel')}</label>
           <div className="flex gap-1.5 flex-wrap">
-            {[...(vehicleId ? [{ id: vehicleId, owner_name: t('mv.fleetMyOwnVehicleLabel'), vehicle_type: '', vehicle_number: null }] : []), ...fleetVehicles].map((v) => (
+            {[...(vehicleId ? [{ id: vehicleId, owner_name: t('mv.fleetMyOwnVehicleLabel'), vehicle_type: '', vehicle_number: null }] : []), ...otherFleetVehicles].map((v) => (
               <button key={v.id} type="button" onClick={() => selectVehicle(v.id)}
                 className="px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer border"
                 style={{ background: selectedVehicleId === v.id ? '#166534' : '#F9F9F6', color: selectedVehicleId === v.id ? '#fff' : '#334155', borderColor: selectedVehicleId === v.id ? '#166534' : '#e5e2d0' }}>
@@ -820,11 +829,11 @@ export default function MyVehicleRoutesPage() {
           {/* Real ask, 2026-11-11: minimal fleet-booker support — only
               ever shown when this driver actually owns other vehicles
               in a fleet; everyone else never sees this. */}
-          {fleetVehicles.length > 0 && (
+          {otherFleetVehicles.length > 0 && (
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.fleetVehiclePickerLabel')}</label>
               <div className="flex flex-col gap-1.5">
-                {[...(vehicleId ? [{ id: vehicleId, owner_name: t('mv.fleetMyOwnVehicleLabel'), vehicle_type: '', vehicle_number: null }] : []), ...fleetVehicles].map((v) => (
+                {[...(vehicleId ? [{ id: vehicleId, owner_name: t('mv.fleetMyOwnVehicleLabel'), vehicle_type: '', vehicle_number: null }] : []), ...otherFleetVehicles].map((v) => (
                   <button key={v.id} type="button" onClick={() => selectVehicle(v.id)}
                     className="flex items-center justify-between gap-2 border rounded-lg px-3 py-2 cursor-pointer text-start"
                     style={{ background: selectedVehicleId === v.id ? '#F0FDF4' : '#fff', borderColor: selectedVehicleId === v.id ? '#166534' : '#e5e2d0' }}>
