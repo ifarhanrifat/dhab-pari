@@ -19,8 +19,9 @@
 // The old version of this page (read-only onboard list + a walk-up
 // form) is folded into the new Trip tab; nothing from it is lost.
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
+import { useSearchParams } from 'next/navigation'
 import {
   Bus, MapPin, Wallet, Plus, Minus, Clock, LogIn, LogOut, CheckCircle2, UserX, ClipboardCheck,
   HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation,
@@ -156,6 +157,27 @@ function Stepper({ label, value, onChange }: { label: string; value: number; onC
 }
 
 export default function DriveOperationsPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12"><LoadingDots /></div>}>
+      <DriveOperationsPageInner />
+    </Suspense>
+  )
+}
+
+function DriveOperationsPageInner() {
+  // 2026-11-21: real gap found via a live screenshot — the global
+  // floating bookings hub (FloatingBookingsHub.tsx, mounted on every
+  // /portal/(dashboard) page) had its own, much older shortcut straight
+  // into the driver's live route via RouteGroupPanel, completely
+  // bypassing this page's own redesigned trip popup. Driver taps that
+  // button from the home dashboard → sees the old generic "Route
+  // Group" UI instead, looking like a regression even though nothing
+  // here changed. Fixed at the source (FloatingBookingsHub now links
+  // here instead), and this page honors an optional ?route= so the
+  // right route is selected before the existing run-started auto-open
+  // effect (below) fires — a driver with more than one route would
+  // otherwise land on whichever one happens to load first.
+  const requestedRouteId = useSearchParams().get('route')
   const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
@@ -272,7 +294,8 @@ export default function DriveOperationsPage() {
 
     setRoutes(myRoutes)
     setFleetId(myFleetId)
-    if (myRoutes.length > 0 && !routeId) setRouteId(myRoutes[0].id)
+    if (requestedRouteId && myRoutes.find((r) => r.id === requestedRouteId)) { setRouteId(requestedRouteId); setTab('trip') }
+    else if (myRoutes.length > 0 && !routeId) setRouteId(myRoutes[0].id)
 
     if (myFleetId) {
       const [{ data: ctrs }, { data: att }, { data: pay }, { data: ctx }] = await Promise.all([

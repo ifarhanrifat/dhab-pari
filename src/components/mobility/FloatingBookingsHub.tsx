@@ -292,18 +292,27 @@ export function FloatingBookingsHub() {
         | { kind: 'adda_ongoing'; entry_id: string; adda_name: string; adda_name_ur: string | null }
         | { kind: 'adda_action'; entry_id: string; adda_name: string; adda_name_ur: string | null; pending_count: number }
       >) {
+        // 2026-11-21: real bug found via a live screenshot — these three
+        // used to open the old generic RouteGroupPanel, which made it
+        // look like the driver's redesigned /portal/drive trip popup had
+        // regressed back to the old design the moment they tapped this
+        // button from the home dashboard, even though /portal/drive
+        // itself was untouched. These are the driver's own vehicle route
+        // (same vehicles.portal_user_id this hub already resolved above),
+        // which /portal/drive already fully owns — so they now route
+        // there instead, with ?route= so the right one is pre-selected.
         if (item.kind === 'route_ongoing') {
-          out.push({ key: `rto-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'ongoing', since: item.started_at, routeGroupId: item.route_id })
+          out.push({ key: `rto-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'ongoing', since: item.started_at, href: `/portal/drive?route=${item.route_id}` })
         } else if (item.kind === 'route_action') {
-          out.push({ key: `rta-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'action', since: new Date().toISOString(), routeGroupId: item.route_id, badgeCount: item.pending_count })
+          out.push({ key: `rta-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'action', since: new Date().toISOString(), href: `/portal/drive?route=${item.route_id}`, badgeCount: item.pending_count })
         } else if (item.kind === 'route_idle') {
           // Real bug found 2026-11-07: a permanent, scheduled-today route
           // used to vanish from the hub the instant its run ended and
           // nothing was left pending — unlike the rider's own seat item,
           // which never disappears just because nothing needs action
           // right now. Same quiet 'waiting' styling, still one tap into
-          // the route group (chat/roster/prep for tomorrow).
-          out.push({ key: `rti-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'waiting', since: new Date().toISOString(), routeGroupId: item.route_id })
+          // the route (chat/roster/prep for tomorrow).
+          out.push({ key: `rti-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'waiting', since: new Date().toISOString(), href: `/portal/drive?route=${item.route_id}` })
         } else if (item.kind === 'adda_ongoing') {
           out.push({ key: `ado-${item.entry_id}`, emoji: '🚐', label: `${nm(item.adda_name, item.adda_name_ur)}`, state: 'ongoing', since: new Date().toISOString(), href: '/portal/my-vehicle/adda' })
         } else {
