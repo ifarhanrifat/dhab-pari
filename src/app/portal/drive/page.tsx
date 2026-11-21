@@ -24,7 +24,7 @@ import dynamic from 'next/dynamic'
 import {
   Bus, MapPin, Wallet, Plus, Minus, Clock, LogIn, LogOut, CheckCircle2, UserX, ClipboardCheck,
   HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation,
-  Crosshair, Send, Gauge, Route as RouteIcon, Maximize2, Minimize2, ChevronDown,
+  Crosshair, Send, Gauge, Route as RouteIcon, Maximize2, Minimize2, MessageCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -185,7 +185,6 @@ export default function DriveOperationsPage() {
   const [showTripPopup, setShowTripPopup] = useState(false)
   const tripMapRef = useRef<LeafletMapHandle>(null)
   const [mapExpanded, setMapExpanded] = useState(false)
-  const [showStopsList, setShowStopsList] = useState(false)
   const autoOpenedRunRef = useRef<string | null>(null)
   const [catchRequests, setCatchRequests] = useState<CatchRequestRow[]>([])
   const [catchActionId, setCatchActionId] = useState<string | null>(null)
@@ -207,6 +206,11 @@ export default function DriveOperationsPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState('')
   const [chatSending, setChatSending] = useState(false)
+  const chatScrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = chatScrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [chatMessages.length, showTripPopup])
 
   // Terminal stop desk
   const [selectedStopKey, setSelectedStopKey] = useState<string>('origin')
@@ -832,8 +836,13 @@ export default function DriveOperationsPage() {
         // driver has to tap between while driving. Restructured to
         // match that: everything below scrolls together in the user's
         // own described order, chat is a fixed bottom section.
+        // Stop pins keep a stable id→index lookup so the stop belt
+        // (below) can call focusPin on the exact right marker without
+        // re-deriving the filter/order logic twice.
+        const stopsWithCoords = stops.filter((s) => s.lat != null && s.lng != null)
+        const stopPinIndexById = new Map(stopsWithCoords.map((s, i) => [s.id, i]))
         const mapPins: LeafletPin[] = [
-          ...stops.filter((s) => s.lat != null && s.lng != null).map((s): LeafletPin => ({
+          ...stopsWithCoords.map((s): LeafletPin => ({
             lat: s.lat!, lng: s.lng!, emoji: '📍', color: '#d4a13c',
             popupHtml: `<b>${s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label}</b>`,
           })),
@@ -857,7 +866,24 @@ export default function DriveOperationsPage() {
         const vehiclePinIndex = mapPins.findIndex((p) => p.isVehicle)
         const driverKmNow = (myLivePos && routePath && routePath.length >= 2) ? projectOntoRoute(routePath, myLivePos).distanceAlongKm : null
         const kmAheadOf = (lat: number, lng: number) => (driverKmNow != null && routePath ? Math.max(0, projectOntoRoute(routePath, { lat, lng }).distanceAlongKm - driverKmNow) : null)
-        const nextStop = sequencedStops.find((x) => (x.counter_name ? `${x.counter_name} · ${x.counter_city}` : x.label) === chalan.next_stops[0]?.label)
+        // 2026-11-21: real ask — "move the stops onto the same belt we
+        // already use for vehicle drivers in the old app" (the
+        // horizontal stop-pill strip RouteGroupPanel.tsx's own
+        // fullscreen map already renders at the bottom of the map,
+        // ported verbatim here) instead of a separate full-width
+        // card — frees real vertical space for riders/chat, and is the
+        // one place "next stop" info needs to live now, so the
+        // redundant floating map card this view also had is gone.
+        const stopBeltRows = sequencedStops.filter((s) => s.lat != null && s.lng != null).map((s) => {
+          const label = s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label
+          return {
+            id: s.id, label,
+            done: !!masterChallan?.stop_challans.find((sc) => sc.stop_id === s.id),
+            isNext: chalan.next_stops[0]?.label === label,
+            dist: kmAheadOf(s.lat!, s.lng!),
+            pinIndex: stopPinIndexById.get(s.id) ?? null,
+          }
+        })
         const alightDue = onboardRoster.map((r) => {
           const isFreeRequest = r.alight_request_lat != null && r.alight_request_lng != null
           const point = isFreeRequest ? { lat: r.alight_request_lat!, lng: r.alight_request_lng! } : (r.alight_lat != null && r.alight_lng != null ? { lat: r.alight_lat, lng: r.alight_lng } : null)
@@ -900,14 +926,20 @@ export default function DriveOperationsPage() {
 
             {/* One continuous scrolling view — map, then stops/KPI
                 sidebar cards, then alight alerts, then route group —
-                matching the order the user originally described. */}
-            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5">
+                matching the order the user originally described. In
+                full-map mode the map card itself is given flex-1/
+                min-h-0 so it fills exactly the space available between
+                the trip strip and the chat footer — the real cause of
+                the "blank space under the map" bug: everything below
+                used to just disappear while the scroll container kept
+                its full height. */}
+            <div className={mapExpanded ? 'flex-1 min-h-0 flex flex-col p-3' : 'flex-1 overflow-y-auto p-3 flex flex-col gap-2.5'}>
               {(() => {
                   return (
                   <>
                   {stops.some((s) => s.lat != null) ? (
-                    <div className="relative rounded-xl overflow-hidden" style={{ border: '1px solid #e2ded0', background: '#e7eadf' }}>
-                      <LeafletMap ref={tripMapRef} pins={mapPins} route={routePath ?? undefined} height={mapExpanded ? 560 : 300} />
+                    <div className={`relative rounded-xl overflow-hidden ${mapExpanded ? 'flex-1 min-h-0' : ''}`} style={{ border: '1px solid #e2ded0', background: '#e7eadf' }}>
+                      <LeafletMap ref={tripMapRef} pins={mapPins} route={routePath ?? undefined} height={mapExpanded ? '100%' : 300} />
 
                       {/* Full-map toggle sits first in the top-start
                           corner; the speed HUD (compact view only)
@@ -960,7 +992,6 @@ export default function DriveOperationsPage() {
                             { color: '#54e39b', label: t('dr.legendRouteLabel'), shape: 'line' },
                             { color: '#2a8a63', label: t('dr.legendStartLabel'), shape: 'pin' },
                             { color: '#c73c3c', label: t('dr.legendDestLabel'), shape: 'pin' },
-                            { color: '#e08b1f', label: t('dr.legendNextStopLabel'), shape: 'pin' },
                           ].map((l) => (
                             <div key={l.label} className="flex items-center gap-1.5">
                               {l.shape === 'line' ? (
@@ -974,34 +1005,49 @@ export default function DriveOperationsPage() {
                         </div>
                       )}
 
-                      {/* Bottom floating cards — full-map mode only,
-                          small half-width cards (not the big callout
-                          removed above): remaining distance, and the
-                          next terminal's name + distance. */}
+                      {/* A single small remaining-distance chip — full-
+                          map mode only. "Next stop" is no longer
+                          duplicated here: it's what the stop belt below
+                          is for, and the compact-mode KPI strip already
+                          covers remaining distance when the map isn't
+                          expanded. */}
                       {mapExpanded && (() => {
                         const remainingKm = routePath && routePath.length >= 2 && driverKmNow != null ? Math.max(0, projectOntoRoute(routePath, routePath[routePath.length - 1]).distanceAlongKm - driverKmNow) : null
-                        const nextKm = (nextStop?.lat != null && nextStop?.lng != null) ? kmAheadOf(nextStop.lat, nextStop.lng) : null
                         return (
-                          <div className="absolute z-[5] grid grid-cols-2 gap-2" style={{ insetInlineStart: 10, insetInlineEnd: 10, bottom: 10 }}>
-                            <div className="rounded-xl px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(255,255,255,.95)' }}>
-                              <RouteIcon size={15} style={{ color: '#7a857d' }} />
-                              <div>
-                                <p className="font-sans text-[13px] font-bold ltr-num" style={{ color: '#16221c' }}>{remainingKm != null ? `≈${remainingKm.toFixed(0)} ${t('dr.kmUnit')}` : '—'}</p>
-                                <p className="font-sans text-[9px]" style={{ color: '#7a857d' }}>{t('dr.remainingDistLabel')}</p>
-                              </div>
-                            </div>
-                            {chalan.next_stops.length > 0 && (
-                              <div className="rounded-xl px-3 py-2 flex items-center gap-2 min-w-0" style={{ background: 'rgba(255,255,255,.95)' }}>
-                                <MapPin size={15} className="shrink-0" style={{ color: '#7a857d' }} />
-                                <div className="min-w-0">
-                                  <p className="font-sans text-[12.5px] font-bold truncate" style={{ color: '#16221c' }}>{chalan.next_stops[0].label}</p>
-                                  <p className="font-sans text-[9px] ltr-num" style={{ color: '#7a857d' }}>{nextKm != null ? `${nextKm.toFixed(1)} ${t('dr.kmUnit')}` : '—'}</p>
-                                </div>
-                              </div>
-                            )}
+                          <div className="absolute z-[5] flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ top: 54, insetInlineEnd: 10, background: 'rgba(11,46,34,.88)', border: '1px solid rgba(255,255,255,.14)' }}>
+                            <RouteIcon size={13} style={{ color: '#b7cdc0' }} />
+                            <p className="font-sans text-[12px] font-bold text-white ltr-num">{remainingKm != null ? `≈${remainingKm.toFixed(0)} ${t('dr.kmUnit')}` : '—'}</p>
                           </div>
                         )
                       })()}
+
+                      {/* Stop belt — ported from the horizontal stop
+                          strip RouteGroupPanel.tsx's own fullscreen map
+                          already uses for drivers elsewhere in this app
+                          ("the same old belt"). Always on, compact and
+                          full-map alike, so there's one single place
+                          "next stop" lives instead of a card repeating
+                          what this already shows. */}
+                      {stopBeltRows.length > 0 && (
+                        <div className="absolute inset-x-0 bottom-0 pt-7 pb-2 px-2 z-[4]" style={{ background: 'linear-gradient(to top, rgba(10,30,22,.5), transparent)' }}>
+                          <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                            {stopBeltRows.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => { if (s.pinIndex != null) tripMapRef.current?.focusPin(s.pinIndex, 14) }}
+                                className="shrink-0 rounded-xl px-3 py-2 min-w-[110px] text-start cursor-pointer"
+                                style={{ background: '#fff', border: s.isNext ? '1.5px solid #d4a13c' : '1px solid transparent' }}
+                              >
+                                <p className="font-sans text-[11px] font-bold truncate" style={{ color: s.done ? '#94a3b8' : '#16221c', textDecorationLine: s.done ? 'line-through' : 'none' }}>{s.label}</p>
+                                <p className="font-sans text-[10px] font-bold ltr-num" style={{ color: s.done ? '#94a3b8' : s.isNext ? '#b8862f' : '#166534' }}>
+                                  {s.done ? t('dr.stopPassedHint') : s.dist != null ? `${etaMinutesFor(s.dist, speedKph)} ${t('dr.minUnit')}` : '—'}
+                                </p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="font-sans text-[12px] text-center py-6" style={{ color: '#7a857d' }}>{t('dr.noMoreStopsHint')}</p>
@@ -1111,73 +1157,10 @@ export default function DriveOperationsPage() {
                     </div>
                   )}
 
-                  {/* Stops — collapsed by default, like the reference
-                      design's main page (which only ever shows the
-                      passenger list inline); a dedicated "Stops" button
-                      reveals the timeline instead of it always taking
-                      up scroll space. */}
-                  <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
-                    <button onClick={() => setShowStopsList((v) => !v)} className="w-full flex items-center gap-2 px-3.5 py-2.5 cursor-pointer" style={{ borderBottom: showStopsList ? '1px solid #f1f5f9' : 'none', background: '#faf8f2' }}>
-                      <span className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: '#e3f2ea', color: '#14523c' }}><MapPin size={15} /></span>
-                      <p className="font-sans text-[13px] font-bold flex-1" style={{ color: '#16221c' }}>{t('dr.routeTimelineHeading')}</p>
-                      <span className="rounded-full px-2.5 py-1 font-sans text-[11px] font-bold ltr-num" style={{ background: '#eeece3', color: '#4a564e' }}>{sequencedStops.filter((s) => !masterChallan?.stop_challans.find((sc) => sc.stop_id === s.id)).length}</span>
-                      <ChevronDown size={16} style={{ color: '#7a857d', transform: showStopsList ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
-                    </button>
-                    {showStopsList && (
-                    <div className="p-2.5 flex flex-col overflow-y-auto" style={{ maxHeight: 280 }}>
-                      {(() => {
-                        const originDone = !!masterChallan?.stop_challans.find((sc) => sc.stop_id === null)
-                        const rows = [{ key: 'origin', label: `${t('mv.originStopOption')} · ${chalan.origin}`, done: originDone, isNext: false, sub: null as number | null, dist: null as number | null, lat: null as number | null, lng: null as number | null }, ...sequencedStops.map((s) => ({
-                          key: s.id,
-                          label: s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label,
-                          done: !!masterChallan?.stop_challans.find((sc) => sc.stop_id === s.id),
-                          isNext: chalan.next_stops[0]?.label === (s.counter_name ? `${s.counter_name} · ${s.counter_city}` : s.label),
-                          sub: onboardRoster.filter((r) => r.alight_stop_id === s.id).length,
-                          dist: s.lat != null && s.lng != null ? kmAheadOf(s.lat, s.lng) : null,
-                          lat: s.lat, lng: s.lng,
-                        }))]
-                        return rows.map((row, i) => (
-                          <div key={row.key} className="relative flex gap-3 px-1" style={{ paddingBlock: 9 }}>
-                            <div className="relative flex flex-col items-center shrink-0" style={{ width: 16 }}>
-                              <span className="rounded-full shrink-0 z-10" style={{
-                                width: 15, height: 15,
-                                background: row.done ? '#b9c7bd' : row.isNext ? '#d4a13c' : '#fff',
-                                border: `3px solid ${row.done ? '#b9c7bd' : row.isNext ? '#d4a13c' : '#cfc9b6'}`,
-                                boxShadow: row.isNext ? '0 0 0 4px rgba(212,161,60,.22)' : 'none',
-                              }} />
-                              {i < rows.length - 1 && <span className="absolute top-[15px] bottom-[-18px] w-[2px]" style={{ background: row.isNext ? 'linear-gradient(#d4a13c,#e2ded0)' : '#e2ded0' }} />}
-                            </div>
-                            <div className="min-w-0 flex-1 pb-0.5">
-                              <p className="font-sans text-[13px] font-bold truncate" style={{ color: row.done ? '#7a857d' : '#16221c', textDecorationLine: row.done ? 'line-through' : 'none', textDecorationColor: '#cfc9b6' }}>{row.label}</p>
-                              <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                                {row.done ? (
-                                  <span className="font-sans text-[10.5px]" style={{ color: '#7a857d' }}>{t('dr.stopPassedHint')}</span>
-                                ) : row.dist != null ? (
-                                  <span className="font-sans text-[10.5px] ltr-num" style={{ color: '#4a564e' }}>{row.dist.toFixed(1)} {t('dr.kmUnit')}</span>
-                                ) : null}
-                                {!!row.sub && row.sub > 0 && (
-                                  <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-sans text-[9px] font-bold ltr-num" style={{ background: '#e3f2ea', color: '#14523c' }}>↓ {row.sub}</span>
-                                )}
-                                {row.isNext && (
-                                  <span className="rounded-full px-1.5 py-0.5 font-sans text-[9px] font-bold" style={{ background: '#d4a13c', color: '#2a1c05' }}>{t('dr.nextTag')}</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-end shrink-0 self-center">
-                              {row.done ? <CheckCircle2 size={14} style={{ color: '#2a8a63' }} /> : row.dist != null ? (
-                                <>
-                                  <p className="font-sans text-[12px] font-bold ltr-num" style={{ color: '#16221c' }}>{etaMinutesFor(row.dist, speedKph)}</p>
-                                  <p className="font-sans text-[8.5px]" style={{ color: '#7a857d' }}>{t('dr.minUnit')}</p>
-                                </>
-                              ) : null}
-                            </div>
-                          </div>
-                        ))
-                      })()}
-                    </div>
-                    )}
-                  </div>
-
+                  {/* Stops no longer get their own card here — they live
+                      on the belt attached to the map above now (the
+                      real point of moving them there: this frees the
+                      space for Riders/Chat below). */}
                   <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2ded0' }}>
                     <div className="flex items-center gap-2 px-3.5 py-2.5" style={{ borderBottom: '1px solid #f1f5f9', background: '#faf8f2' }}>
                       <span className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: '#e3f2ea', color: '#14523c' }}><Users2 size={15} /></span>
@@ -1233,18 +1216,28 @@ export default function DriveOperationsPage() {
                 user's own original description ("at the bottom there
                 is a chat box from where driver can send messages") —
                 always reachable without navigating away from the map/
-                stops/riders above. Collapsed to a compact log + quick
-                chips + composer so it doesn't eat the whole screen. */}
+                stops/riders above. 2026-11-21: given real breathing
+                room now that the Stops card moved onto the map belt,
+                so the log is taller, scrolls through full history (not
+                just the last 6), and auto-scrolls to the newest message. */}
             <div className="shrink-0 flex flex-col" style={{ borderTop: '1px solid #e2ded0', background: '#faf8f2' }}>
-              <div className="flex flex-col gap-1.5 px-3 pt-2 overflow-y-auto" style={{ maxHeight: 92 }}>
+              <div className="flex items-center gap-1.5 px-3 pt-2">
+                <MessageCircle size={13} style={{ color: '#14523c' }} />
+                <p className="font-sans text-[11px] font-bold" style={{ color: '#14523c' }}>{t('dr.tripChatHeading')}</p>
+                {chatMessages.length > 0 && <span className="rounded-full px-1.5 py-0.5 font-sans text-[9.5px] font-bold ltr-num" style={{ background: '#eeece3', color: '#4a564e' }}>{chatMessages.length}</span>}
+              </div>
+              <div ref={chatScrollRef} className="flex flex-col gap-2 px-3 pt-1.5 pb-1 overflow-y-auto scroll-smooth" style={{ maxHeight: 170 }}>
                 {chatMessages.length === 0 ? (
-                  <p className="font-sans text-[10.5px] text-center" style={{ color: '#7a857d' }}>{t('dr.noChatMessagesHint')}</p>
-                ) : chatMessages.slice(-6).map((m) => (
-                  <div key={m.id} className="max-w-[82%] rounded-2xl px-2.5 py-1.5" style={m.is_me
-                    ? { alignSelf: 'flex-end', background: 'linear-gradient(180deg,#2a8a63,#1c6a4c)', color: '#fff', borderStartStartRadius: 14, borderEndEndRadius: 5 }
-                    : { alignSelf: 'flex-start', background: '#fff', border: '1px solid #e2ded0', color: '#16221c', borderStartEndRadius: 14, borderEndStartRadius: 5 }}>
-                    {!m.is_me && <p className="font-sans text-[9px] font-bold mb-0.5" style={{ color: '#14523c' }}>{m.sender_name}</p>}
-                    <p className="font-sans text-[12px]">{m.body}</p>
+                  <p className="font-sans text-[10.5px] text-center py-3" style={{ color: '#7a857d' }}>{t('dr.noChatMessagesHint')}</p>
+                ) : chatMessages.map((m) => (
+                  <div key={m.id} className="max-w-[82%] rounded-2xl px-3 py-2" style={m.is_me
+                    ? { alignSelf: 'flex-end', background: 'linear-gradient(180deg,#2a8a63,#1c6a4c)', color: '#fff', borderStartStartRadius: 16, borderEndEndRadius: 5, boxShadow: '0 1px 4px rgba(20,82,60,.25)' }
+                    : { alignSelf: 'flex-start', background: '#fff', border: '1px solid #e2ded0', color: '#16221c', borderStartEndRadius: 16, borderEndStartRadius: 5, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
+                    {!m.is_me && <p className="font-sans text-[9.5px] font-bold mb-0.5" style={{ color: '#14523c' }}>{m.sender_name}</p>}
+                    <p className="font-sans text-[12.5px] leading-snug">{m.body}</p>
+                    <p className="font-sans text-[8.5px] mt-1 text-end ltr-num" style={{ color: m.is_me ? 'rgba(255,255,255,.65)' : '#9ca8a0' }}>
+                      {new Date(m.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    </p>
                   </div>
                 ))}
               </div>
