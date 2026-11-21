@@ -5,10 +5,14 @@
 // names, driver will have separate list with there status, list on
 // travelling drivers will be labled on travel and free drivers will be
 // labled as free and on there avialable on which station". Read-only by
-// design: no allotment/dispatch write action here — the standing
-// instruction is to leave driver-handover/assignment exactly as it
-// already works (fleet_vehicle_schedule's substitute system), not to add
-// a second one.
+// design: this page answers "who's free right now," a different
+// question from forward-looking assignment planning — that now lives
+// at /portal/fleet/roster (942's Job Calendar: plan ahead which driver
+// covers each route, record leave, see conflicts), which explicitly
+// reversed this comment's earlier "don't add a second allotment system"
+// instruction after a direct, specific ask — same as 879 reversing an
+// earlier driver-shuffle rule. route_run_substitutions (the same-day
+// emergency swap this comment originally meant) is untouched.
 
 import { useEffect, useState } from 'react'
 import { IdCard, Phone, MessageCircle } from 'lucide-react'

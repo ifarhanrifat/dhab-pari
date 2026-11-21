@@ -25,7 +25,7 @@ import { useSearchParams } from 'next/navigation'
 import {
   Bus, MapPin, Wallet, Plus, Minus, Clock, LogIn, LogOut, CheckCircle2, UserX, ClipboardCheck,
   HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation,
-  Crosshair, Send, Gauge, Route as RouteIcon, Maximize2, Minimize2, MessageCircle,
+  Crosshair, Send, Gauge, Route as RouteIcon, Maximize2, Minimize2, MessageCircle, CalendarDays,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -102,6 +102,14 @@ interface OnboardRow {
 interface ChatMessage {
   id: string; sender_role: 'driver' | 'rider'; sender_name: string; is_me: boolean; body: string; created_at: string
 }
+// 942: the driver-facing half of the job calendar — "when and where is
+// my next job," merging default routes, same-day cover, and any
+// roster-planned day someone else's route was assigned to me.
+interface JobCalendarEntry {
+  route_id: string; origin: string; destination: string; departure_time: string | null
+  vehicle_number: string | null; vehicle_type: string; the_date: string; via: string
+}
+interface LeaveDay { the_date: string; reason: string | null }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 function today() { return new Date().toISOString().slice(0, 10) }
@@ -187,6 +195,8 @@ function DriveOperationsPageInner() {
   const [fleetId, setFleetId] = useState<string | null>(null)
   const [myCounterId, setMyCounterId] = useState<string | null>(null)
   const [routes, setRoutes] = useState<MyRoute[]>([])
+  const [jobCalendar, setJobCalendar] = useState<JobCalendarEntry[]>([])
+  const [leaveDays, setLeaveDays] = useState<LeaveDay[]>([])
   const [routeId, setRouteId] = useState('')
   const [direction, setDirection] = useState<Direction>('outbound')
   const [stops, setStops] = useState<StopRow[]>([])
@@ -233,6 +243,21 @@ function DriveOperationsPageInner() {
     const el = chatScrollRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [chatMessages.length, showTripPopup])
+
+  // 942: upcoming jobs + leave, next 14 days — the driver-facing half
+  // of the job calendar, shown on the Home tab right under "My Routes".
+  useEffect(() => {
+    if (!user) return
+    const from = today()
+    const to = new Date(Date.now() + 13 * 86400000).toISOString().slice(0, 10)
+    supabase.rpc('my_driver_job_calendar', { p_date_from: from, p_date_to: to }).then(({ data }) => {
+      const rows = (data ?? []) as (JobCalendarEntry | { leave_dates: LeaveDay[] })[]
+      const leaveRow = rows.find((r): r is { leave_dates: LeaveDay[] } => 'leave_dates' in r)
+      setLeaveDays(leaveRow?.leave_dates ?? [])
+      setJobCalendar(rows.filter((r): r is JobCalendarEntry => 'route_id' in r))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   // Terminal stop desk
   const [selectedStopKey, setSelectedStopKey] = useState<string>('origin')
@@ -1335,6 +1360,36 @@ function DriveOperationsPageInner() {
               </div>
             )}
           </FleetPanel>
+
+          {/* 942: "when and where is my next job" — merges my own
+              default routes with any day I've been roster-assigned to
+              cover someone else's, and my own upcoming leave days. */}
+          {(jobCalendar.length > 0 || leaveDays.length > 0) && (
+            <FleetPanel>
+              <FleetPanelHead icon={<CalendarDays size={14} />} title={t('dr.jobCalendarHeading')} description={t('dr.jobCalendarDesc')} />
+              <div className="flex flex-col divide-y divide-[#f1f5f9]">
+                {jobCalendar.slice(0, 7).map((j) => (
+                  <div key={`${j.route_id}|${j.the_date}`} className="px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">{j.origin} → {j.destination}</p>
+                      <p className="font-sans text-[10.5px] text-[#94a3b8] ltr-num">
+                        {new Date(j.the_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
+                        {j.departure_time ? ` · ${j.departure_time.slice(0, 5)}` : ''} · {j.vehicle_number || j.vehicle_type}
+                      </p>
+                    </div>
+                    {j.via === 'roster_override' && <FleetStatusPill tone="amber">{t('dr.coveringForLabel')}</FleetStatusPill>}
+                  </div>
+                ))}
+                {leaveDays.map((l) => (
+                  <div key={l.the_date} className="px-3.5 py-2.5 flex items-center justify-between gap-2" style={{ background: '#FEF2F2' }}>
+                    <p className="font-sans text-[12px] font-semibold text-[#b91c1c]">
+                      {t('dr.onLeaveLabel')} · {new Date(l.the_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}{l.reason ? ` · ${l.reason}` : ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </FleetPanel>
+          )}
         </>
       )}
 

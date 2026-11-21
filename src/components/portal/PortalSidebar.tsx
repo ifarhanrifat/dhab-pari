@@ -153,6 +153,7 @@ const fleetChildren = (fleetName?: string | null): LeafItem[] => [
   { href: '/portal/fleet/terminal-schedule', label: 'Terminal Schedule', tKey: 'mv.terminalScheduleHeading', icon: Clock },
   { href: '/portal/fleet/vehicles', label: 'Vehicles', tKey: 'mv.busManagementHeading', icon: Car },
   { href: '/portal/fleet/drivers', label: 'Drivers', tKey: 'mv.driverRosterHeading', icon: IdCard },
+  { href: '/portal/fleet/roster', label: 'Job Calendar', tKey: 'mv.jobCalendarHeading', icon: CalendarDays },
   { href: '/portal/fleet/maintenance', label: 'Maintenance & Fuel', tKey: 'mv.maintenanceHeading', icon: Wrench },
   // People & commerce.
   { href: '/portal/fleet/staff', label: 'Staff', tKey: 'mv.fleetStaffHeading', icon: Users2, sectionTKey: 'mv.navSectionPeopleCommerce' },
