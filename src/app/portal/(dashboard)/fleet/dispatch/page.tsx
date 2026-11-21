@@ -25,26 +25,36 @@ interface ScheduleRow {
   route_id: string; origin: string; destination: string; service_code: string | null; is_active: boolean
   departure_time: string | null; is_two_way: boolean; runs_today: boolean; state: string
   current_driver_name: string | null; delay_minutes: number | null
+  // 941: this board is the fleet's real go/no-go dispatch view — it
+  // already folds in maintenance holds and document expiry, but was
+  // completely blind to whether the driver had actually checked in,
+  // which is exactly the "will everyone reach before the bus leaves"
+  // question this board exists to answer. Only flagged once a home
+  // terminal is actually configured for that driver (929/932) — a
+  // fleet that hasn't set one up yet keeps today's exact behavior
+  // rather than wrongly blocking dispatch over missing admin setup.
+  driver_home_terminal_city: string | null; driver_checked_in: boolean
 }
 interface MaintenanceOrder { vehicle_id: string; status: string }
 interface VehicleDocRow { vehicle_id: string; status: 'valid' | 'expiring_soon' | 'expired' }
 interface ChalanRow { route_id: string; total_confirmed_count: number }
 
-type DispatchStatus = 'maintenance_hold' | 'docs_expired' | 'docs_expiring' | 'ready' | 'in_progress'
+type DispatchStatus = 'maintenance_hold' | 'docs_expired' | 'docs_expiring' | 'driver_not_ready' | 'ready' | 'in_progress'
 function dispatchStatusFor(r: ScheduleRow, maintenanceVehicles: Set<string>, docs: VehicleDocRow[]): DispatchStatus {
   if (maintenanceVehicles.has(r.vehicle_id)) return 'maintenance_hold'
   const rows = docs.filter((d) => d.vehicle_id === r.vehicle_id)
   if (rows.some((d) => d.status === 'expired')) return 'docs_expired'
   if (rows.some((d) => d.status === 'expiring_soon')) return 'docs_expiring'
+  if (r.state === 'not_started' && r.driver_home_terminal_city && !r.driver_checked_in) return 'driver_not_ready'
   if (r.state === 'not_started') return 'ready'
   return 'in_progress'
 }
 const DISPATCH_TONE: Record<DispatchStatus, 'red' | 'amber' | 'green' | 'blue'> = {
-  maintenance_hold: 'red', docs_expired: 'red', docs_expiring: 'amber', ready: 'green', in_progress: 'blue',
+  maintenance_hold: 'red', docs_expired: 'red', docs_expiring: 'amber', driver_not_ready: 'amber', ready: 'green', in_progress: 'blue',
 }
 const DISPATCH_LABEL_KEY: Record<DispatchStatus, string> = {
   maintenance_hold: 'mv.dispatchStatusMaintenanceHold', docs_expired: 'mv.dispatchStatusDocsExpired', docs_expiring: 'mv.dispatchStatusDocsExpiring',
-  ready: 'mv.dispatchStatusReady', in_progress: 'mv.availOnTripLabel',
+  driver_not_ready: 'mv.dispatchStatusDriverNotReady', ready: 'mv.dispatchStatusReady', in_progress: 'mv.availOnTripLabel',
 }
 const TABS = ['all', 'scheduled', 'ready', 'departed'] as const
 type Tab = (typeof TABS)[number]
@@ -95,7 +105,7 @@ export default function FleetDispatchPage() {
 
   const dispatched = schedule.filter((r) => dispatchStatusFor(r, maintenanceVehicles, docs) === 'in_progress' || r.state === 'completed_today').length
   const waiting = schedule.filter((r) => r.state === 'waiting_at_destination').length
-  const issues = schedule.filter((r) => ['maintenance_hold', 'docs_expired', 'docs_expiring'].includes(dispatchStatusFor(r, maintenanceVehicles, docs))).length
+  const issues = schedule.filter((r) => ['maintenance_hold', 'docs_expired', 'docs_expiring', 'driver_not_ready'].includes(dispatchStatusFor(r, maintenanceVehicles, docs))).length
 
   const filtered = schedule.filter((r) => {
     const status = dispatchStatusFor(r, maintenanceVehicles, docs)
@@ -153,6 +163,9 @@ export default function FleetDispatchPage() {
                   )}
                   {(status === 'docs_expired' || status === 'docs_expiring') && (
                     <Link href="/portal/fleet/vehicles" className="font-sans text-[10.5px] font-semibold text-[#166534] mt-1 inline-block">{t('mv.reviewMaintenanceLink')} →</Link>
+                  )}
+                  {status === 'driver_not_ready' && (
+                    <Link href="/portal/fleet/staff" className="font-sans text-[10.5px] font-semibold text-[#166534] mt-1 inline-block">{t('mv.fleetStaffHeading')} →</Link>
                   )}
                 </div>
               )
