@@ -21,7 +21,7 @@
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, Plus, Pencil, Trash2, RotateCcw, IdCard, ShieldAlert, Clock } from 'lucide-react'
+import { Users2, Map as MapIcon, UserPlus, Building2, UserCog, Receipt, ChevronRight, Bus, List, Ticket, Plus, Pencil, Trash2, RotateCcw, IdCard, ShieldAlert, Clock, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -40,6 +40,13 @@ interface ScheduleCard {
   is_two_way: boolean; days_of_week: number[]; return_days_of_week: number[] | null; runs_today: boolean; state: string
   current_driver_name: string; covered_by_substitute: boolean
   delay_minutes: number | null; delay_note: string | null; total_seats: number | null
+  // 941: today's driver-readiness signal (checked in at their home
+  // terminal yet?) — the real gap: this "Today's Schedule" card's own
+  // state only ever changes once a run has already started, so there
+  // was no visibility at all into the window that matters most, before
+  // departure.
+  driver_home_terminal_city: string | null; driver_home_terminal_name: string | null
+  driver_checked_in: boolean; driver_check_in_at: string | null
 }
 interface DepartureStats { bookings_today_count: number; runs_scheduled: number; runs_departed: number }
 interface FleetVehicleSummary {
@@ -59,6 +66,21 @@ function fmtTime(t: string | null) {
   return `${h12}:${m} ${ampm}`
 }
 function today() { return new Date().toISOString().slice(0, 10) }
+// 941: minutes from now until today's departure_time ("HH:MM:SS"),
+// in Asia/Karachi (the site's one operating timezone, same as every
+// other travel_date/departure_time comparison in this codebase) —
+// negative once departure has passed.
+function minutesUntilDeparture(departureTime: string | null): number | null {
+  if (!departureTime) return null
+  const nowKhi = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }))
+  const [h, m] = departureTime.split(':').map(Number)
+  const dep = new Date(nowKhi); dep.setHours(h, m, 0, 0)
+  return Math.round((dep.getTime() - nowKhi.getTime()) / 60000)
+}
+function minutesAgo(iso: string | null): number | null {
+  if (!iso) return null
+  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
+}
 function greetingKey(): string {
   const h = new Date().getHours()
   return h < 12 ? 'mv.goodMorningGreeting' : h < 17 ? 'mv.goodAfternoonGreeting' : 'mv.goodEveningGreeting'
@@ -599,6 +621,33 @@ export default function FleetDashboardPage() {
                       {s.current_driver_name}{s.covered_by_substitute ? ` (${t('mv.scheduleSubstituteLabel')})` : ''}
                     </span>
                   </div>
+                  {/* 941: real-time driver readiness — only meaningful
+                      in the window before a run actually starts; once
+                      it's in progress/completed the lifecycle state
+                      above already covers it. */}
+                  {s.runs_today && s.state === 'not_started' && (() => {
+                    if (!s.driver_home_terminal_city) {
+                      return <p className="font-sans text-[10.5px] text-[#b45309] mt-1.5">{t('mv.noHomeTerminalSetHint')}</p>
+                    }
+                    if (s.driver_checked_in) {
+                      const ago = minutesAgo(s.driver_check_in_at)
+                      return (
+                        <p className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#166534] mt-1.5">
+                          <CheckCircle2 size={11} /> {t('mv.driverCheckedInLabel').replace('{terminal}', s.driver_home_terminal_name ? `${s.driver_home_terminal_city} · ${s.driver_home_terminal_name}` : s.driver_home_terminal_city).replace('{n}', String(ago ?? 0))}
+                        </p>
+                      )
+                    }
+                    const mins = minutesUntilDeparture(s.departure_time)
+                    const urgent = mins != null && mins <= 60
+                    return (
+                      <p className={`flex items-center gap-1 font-sans text-[10.5px] font-semibold mt-1.5 ${urgent ? 'text-[#b91c1c]' : 'text-[#b45309]'}`}>
+                        <AlertTriangle size={11} />
+                        {mins == null ? t('mv.driverNotCheckedInLabel')
+                          : mins < 0 ? t('mv.driverNotCheckedInPastDepartureLabel')
+                          : t('mv.driverNotCheckedInCountdownLabel').replace('{n}', String(mins))}
+                      </p>
+                    )
+                  })()}
                   {!editing && (formatDays(s.days_of_week, t) || (s.is_two_way && s.return_days_of_week?.length)) && (
                     <div className="font-sans text-[10.5px] text-[#94a3b8] mt-1">
                       {formatDays(s.days_of_week, t) && <>{t('mv.operatingDaysLabel')}: {formatDays(s.days_of_week, t)}</>}
