@@ -633,8 +633,29 @@ export default function FleetDashboardPage() {
                       it's in progress/completed the lifecycle state
                       above already covers it. */}
                   {s.runs_today && s.state === 'not_started' && (() => {
+                    // 944: live GPS distance is its own independent
+                    // signal from check-in/home-terminal — surfaced
+                    // first and regardless of whether a home terminal
+                    // is even configured, so a fleet that hasn't set
+                    // attendance up yet still gets a real live distance
+                    // once the driver's phone starts sharing. Only
+                    // trusted within 10 minutes old, so a stale ping
+                    // from hours ago is never shown as current. ETA is
+                    // a flat-speed estimate (25km/h), labelled as such —
+                    // there's no real speed signal before a run starts.
+                    const liveAgoMin = minutesAgo(s.driver_live_updated_at)
+                    const liveFresh = liveAgoMin != null && liveAgoMin <= 10 && s.driver_live_distance_km != null
+                    const liveRow = liveFresh && (
+                      <p className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#1d4ed8] mt-1">
+                        <Navigation size={11} />
+                        {t('mv.driverLiveDistanceLabel').replace('{km}', s.driver_live_distance_km!.toFixed(1)).replace('{eta}', String(Math.max(1, Math.round((s.driver_live_distance_km! / 25) * 60))))}
+                      </p>
+                    )
                     if (!s.driver_home_terminal_city) {
-                      return <p className="font-sans text-[10.5px] text-[#b45309] mt-1.5">{t('mv.noHomeTerminalSetHint')}</p>
+                      return <>
+                        <p className="font-sans text-[10.5px] text-[#b45309] mt-1.5">{t('mv.noHomeTerminalSetHint')}</p>
+                        {liveRow}
+                      </>
                     }
                     if (s.driver_checked_in) {
                       const ago = minutesAgo(s.driver_check_in_at)
@@ -646,15 +667,6 @@ export default function FleetDashboardPage() {
                     }
                     const mins = minutesUntilDeparture(s.departure_time)
                     const urgent = mins != null && mins <= 60
-                    // 944: a real live GPS distance before the run has
-                    // started — only trusted within 10 minutes old, so
-                    // a stale ping from hours ago never gets shown as
-                    // if it were current. ETA is a flat-speed estimate
-                    // (25km/h), same honesty-over-false-precision
-                    // choice as this session's other speed-less
-                    // estimates — there's no real speed signal yet.
-                    const liveAgoMin = minutesAgo(s.driver_live_updated_at)
-                    const liveFresh = liveAgoMin != null && liveAgoMin <= 10 && s.driver_live_distance_km != null
                     return (
                       <>
                         <p className={`flex items-center gap-1 font-sans text-[10.5px] font-semibold mt-1.5 ${urgent ? 'text-[#b91c1c]' : 'text-[#b45309]'}`}>
@@ -663,12 +675,7 @@ export default function FleetDashboardPage() {
                             : mins < 0 ? t('mv.driverNotCheckedInPastDepartureLabel')
                             : t('mv.driverNotCheckedInCountdownLabel').replace('{n}', String(mins))}
                         </p>
-                        {liveFresh && (
-                          <p className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#1d4ed8] mt-1">
-                            <Navigation size={11} />
-                            {t('mv.driverLiveDistanceLabel').replace('{km}', s.driver_live_distance_km!.toFixed(1)).replace('{eta}', String(Math.max(1, Math.round((s.driver_live_distance_km! / 25) * 60))))}
-                          </p>
-                        )}
+                        {liveRow}
                       </>
                     )
                   })()}
