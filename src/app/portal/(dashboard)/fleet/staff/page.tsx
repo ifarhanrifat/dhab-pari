@@ -47,7 +47,7 @@ interface RosterShift {
 const PAY_FREQUENCY_SUFFIX_KEY: Record<string, string> = { monthly: 'mv.perMonthSuffixLabel', weekly: 'mv.perWeekSuffixLabel', per_trip: 'mv.perTripSuffixLabel' }
 
 const PERMISSION_ROLES = ['booking_officer', 'terminal_manager', 'accountant', 'other'] as const
-const PERMISSION_MODULES = ['staff_payroll', 'cash', 'bookings'] as const
+const PERMISSION_MODULES = ['staff_payroll', 'cash', 'bookings', 'schedule'] as const
 
 export default function FleetStaffPage() {
   const { t, isUrdu } = useLocale()
@@ -601,7 +601,13 @@ export default function FleetStaffPage() {
                 re-enables it for that role on this fleet. The other 3
                 roles were never restricted, so toggling it for them is
                 a no-op — stated plainly rather than hidden. */}
-            <p className="font-sans text-[10.5px] text-[#64748b] px-3.5 pb-3">{t('mv.bookingsPermHint')}</p>
+            <p className="font-sans text-[10.5px] text-[#64748b] px-3.5">{t('mv.bookingsPermHint')}</p>
+            {/* 2026-11-21: real gap found live — every non-driver staff
+                role could edit a route's schedule or close/relaunch it
+                entirely, a dispatch-level decision. "Schedule" is the
+                opposite direction from Bookings: OFF by default for
+                every role (owner-only) until explicitly turned on here. */}
+            <p className="font-sans text-[10.5px] text-[#64748b] px-3.5 pb-3">{t('mv.schedulePermHint')}</p>
           </FleetPanel>
 
           {/* 2026-11-18: the mockup's duty-rule callout is accurate
