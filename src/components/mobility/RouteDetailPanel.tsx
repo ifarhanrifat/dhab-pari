@@ -100,6 +100,11 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   // at a time instead, same pill-tab pattern already used elsewhere in
   // this app (e.g. /portal/drive's Home/Trip/Cash/Pay tabs).
   const [bookingDirection, setBookingDirection] = useState<'outbound' | 'return'>('outbound')
+  // Default on — a round trip means both legs unless the rider opts
+  // out, which only matters for the original "wasn't on the way out,
+  // just grabbing the freed return seat" case book_standalone_return_
+  // seat was actually built for.
+  const [includeOutboundInRoundTrip, setIncludeOutboundInRoundTrip] = useState(true)
   const [available, setAvailable] = useState<number | null>(null)
   const [checkingAvailability, setCheckingAvailability] = useState(false)
   const [seats, setSeats] = useState(1)
@@ -110,7 +115,6 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [takenSeats, setTakenSeats] = useState<number[]>([])
   const [selectedSeats, setSelectedSeats] = useState<number[]>([])
   const isSeatNumbered = vehicleKind === 'van'
-  const [method, setMethod] = useState('cash')
   const [submitting, setSubmitting] = useState(false)
   const [ticketView, setTicketView] = useState<RideTicketInfo | null>(null)
   const [bookable, setBookable] = useState(true)
@@ -130,8 +134,6 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [selectedReturnSeat, setSelectedReturnSeat] = useState<number | null>(null)
   const [takenSeatsMonthly, setTakenSeatsMonthly] = useState<number[]>([])
   const [selectedMonthlySeat, setSelectedMonthlySeat] = useState<number | null>(null)
-  const [returnProofPath, setReturnProofPath] = useState('')
-  const [bookingReturn, setBookingReturn] = useState(false)
   const [myBookings, setMyBookings] = useState<MyBooking[]>([])
   const [actionId, setActionId] = useState<string | null>(null)
   const [reschedulingId, setReschedulingId] = useState<string | null>(null)
@@ -340,30 +342,101 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route?.id, route?.is_monthly_fixed, selectedBoardStopId, monthlyDetail?.my_subscription])
 
-  const bookReturnSeat = async () => {
+  // 2026-11-22: real ask — "we are booking for the air ticket? use that
+  // concept... now we first book jana seat then separately book the
+  // wapisi seat? this is garbage... for the wapsi system is asking to
+  // post the attached receipt." Two real fixes bundled into this one
+  // handler:
+  //   1. One combined action books both legs (when the rider wants
+  //      both), instead of two separate forms each with their own
+  //      submit — same spirit as an airline's one-tap round trip.
+  //      includeOutboundInRoundTrip stays a real opt-out (not forced),
+  //      because book_standalone_return_seat's own original purpose —
+  //      anyone grabbing a freed return seat who was never on the way
+  //      out — is still a real, separate, legitimate use of this same
+  //      tab and must keep working.
+  //   2. No upfront payment proof for the return leg any more, matching
+  //      the outbound leg's own 2026-11-12 fix: both legs now defer to
+  //      the same post-booking Pay Now flow (RideTicketSheet), which
+  //      settles both with one screenshot via its own returnLeg support.
+  const bookRoundTrip = async () => {
     if (!route) return
     if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
+    if (wrongDay) { toast.error(t('mp.wrongDayError')); return }
     if (!returnBoardStopId) { toast.error(t('mv.pickBoardStopLabel')); return }
     if (isSeatNumbered && !selectedReturnSeat) { toast.error(t('mv.pickASeatError')); return }
-    if (!isPerOrder && !returnProofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
-    setBookingReturn(true)
-    const { data, error } = await supabase.rpc('book_standalone_return_seat', {
+    if (includeOutboundInRoundTrip) {
+      if ((boardStopId && !alightStopId) || (!boardStopId && alightStopId)) { toast.error(t('mv.pickBothStopsError')); return }
+      if (isSeatNumbered && selectedSeats.length !== seats) { toast.error(t('mv.pickASeatError')); return }
+      if (alightStopId && segmentFraction <= 0) { toast.error(t('mv.invalidStopPairError')); return }
+    }
+    setSubmitting(true)
+
+    let outboundResult: { booking_id: string; ticket_no: string } | null = null
+    if (includeOutboundInRoundTrip) {
+      const { data, error } = await supabase.rpc('place_ride_booking', {
+        p_route_id: route.id, p_travel_date: travelDate, p_seats: seats, p_method: isPerOrder ? 'direct' : null, p_proof_url: null,
+        p_board_stop_id: boardStopId, p_alight_stop_id: alightStopId,
+        p_seat_numbers: isSeatNumbered ? selectedSeats : null,
+      })
+      if (error) { setSubmitting(false); toast.error(friendlyError(error)); return }
+      outboundResult = data as { booking_id: string; ticket_no: string }
+    }
+
+    const { data: returnData, error: returnError } = await supabase.rpc('book_standalone_return_seat', {
       p_route_id: route.id, p_travel_date: travelDate, p_board_stop_id: returnBoardStopId,
-      p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : returnProofPath,
+      p_method: isPerOrder ? 'direct' : null, p_proof_url: null,
       p_seat_number: isSeatNumbered ? selectedReturnSeat : null,
     })
-    setBookingReturn(false)
-    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    const d = data as { booking_id: string; total: number; ticket_no: string }
-    toast.success(t('mv.returnSeatBookedToast').replace('{amount}', fmt(d.total)))
+    setSubmitting(false)
+
+    const boardStop = boardStopId ? stops.find((s) => s.id === boardStopId) : null
+    if (returnError) {
+      if (!outboundResult) { toast.error(friendlyError(returnError, undefined, isUrdu)); return }
+      // The going half is real and booked — say so plainly rather than
+      // letting a failed return leg look like the whole thing failed.
+      toast.error(t('mv.outboundBookedReturnFailedHint'))
+      setTicketView({
+        bookingId: outboundResult.booking_id, vehicleId: route.vehicle_id, ticketNo: outboundResult.ticket_no,
+        origin: isUrdu && route.origin_ur ? route.origin_ur : route.origin, destination: isUrdu && route.destination_ur ? route.destination_ur : route.destination,
+        travelDate, departureTime: route.departure_time, seats, seatNumbers: isSeatNumbered ? selectedSeats : null, amountPkr: total,
+        boardLabel: boardStop ? (isUrdu && boardStop.label_ur ? boardStop.label_ur : boardStop.label) : null,
+        paymentConfirmed: false, isPerOrder,
+      })
+      loadMyBookings()
+      return
+    }
+
+    const rData = returnData as { booking_id: string; ticket_no: string; total: number }
     const returnStop = stops.find((s) => s.id === returnBoardStopId)
-    setTicketView({
-      bookingId: d.booking_id, vehicleId: route.vehicle_id, ticketNo: d.ticket_no,
+    const returnLeg = {
+      bookingId: rData.booking_id, ticketNo: rData.ticket_no,
       origin: returnStop ? (isUrdu && returnStop.label_ur ? returnStop.label_ur : returnStop.label) : route.destination,
       destination: isUrdu && route.origin_ur ? route.origin_ur : route.origin,
-      travelDate, departureTime: route.return_departure_time, seats: 1, seatNumbers: isSeatNumbered && selectedReturnSeat ? [selectedReturnSeat] : null, amountPkr: d.total,
-      paymentConfirmed: false, isPerOrder,
-    })
+      travelDate, seats: 1, amountPkr: rData.total,
+    }
+
+    if (outboundResult) {
+      toast.success(t('mv.roundTripBookedToast'))
+      setTicketView({
+        bookingId: outboundResult.booking_id, vehicleId: route.vehicle_id, ticketNo: outboundResult.ticket_no,
+        origin: isUrdu && route.origin_ur ? route.origin_ur : route.origin, destination: isUrdu && route.destination_ur ? route.destination_ur : route.destination,
+        travelDate, departureTime: route.departure_time, seats, seatNumbers: isSeatNumbered ? selectedSeats : null, amountPkr: total,
+        boardLabel: boardStop ? (isUrdu && boardStop.label_ur ? boardStop.label_ur : boardStop.label) : null,
+        paymentConfirmed: false, isPerOrder, returnLeg,
+      })
+    } else {
+      toast.success(t('mv.returnSeatBookedToast').replace('{amount}', fmt(rData.total)))
+      setTicketView({
+        bookingId: rData.booking_id, vehicleId: route.vehicle_id, ticketNo: rData.ticket_no,
+        origin: returnLeg.origin, destination: returnLeg.destination,
+        travelDate, departureTime: route.return_departure_time, seats: 1, seatNumbers: isSeatNumbered && selectedReturnSeat ? [selectedReturnSeat] : null, amountPkr: rData.total,
+        paymentConfirmed: false, isPerOrder,
+      })
+    }
+
+    setBoardStopId(null); setAlightStopId(null); setSelectedSeats([]); setSeats(1)
+    setReturnBoardStopId(null); setSelectedReturnSeat(null)
     loadMyBookings()
   }
 
@@ -1152,17 +1225,63 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
           </div>
         )}
 
-        {/* Real ask, 2026-10-21: "an alert will be sent to the riders... with
-            1 seat or 2 seat available and now they can join the ride with
-            one way fare" — a seat released by an offboard (RouteGroupPanel's
-            own flow) shows up here for anyone, not just people already on
-            the outbound leg, bookable one-way at a distance-proportional
-            fare (book_standalone_return_seat). */}
+        {/* 2026-11-22: real ask — "like an air ticket... one combined
+            booking, not two separate ones." Shows the going leg and the
+            return leg together, one combined total, one Book button
+            that places both in one action. The checkbox is the one
+            deliberate opt-out: book_standalone_return_seat's original
+            purpose — anyone grabbing a freed return seat who was never
+            on the way out — is still real and still lives right here. */}
         {bookingDirection === 'return' && route.is_two_way && (
           <div className="mt-4">
             {!wrongDay && travelDate ? (
               (returnSeatsAvailable ?? 0) > 0 ? (
                 <>
+                  <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                    <input type="checkbox" checked={includeOutboundInRoundTrip} onChange={(e) => setIncludeOutboundInRoundTrip(e.target.checked)} className="w-4 h-4" />
+                    <span className="font-sans text-[12.5px] font-semibold text-dp-on-surface-variant">{t('mv.includeGoingSeatLabel')}</span>
+                  </label>
+
+                  {includeOutboundInRoundTrip && (
+                    <div className="mb-4 pb-4 border-b border-dp-outline-variant">
+                      <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-dp-secondary mb-2">{t('mv.outboundTabLabel')}</p>
+                      {stops.length > 0 && (
+                        <>
+                          <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mv.boardStopLabel')}</label>
+                          <select value={boardStopId ?? ''} onChange={(e) => { setBoardStopId(e.target.value || null); if (e.target.value && e.target.value === alightStopId) setAlightStopId(null) }} className="input-field">
+                            <option value="">{t('mv.fullRouteOption')}</option>
+                            {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
+                          </select>
+                          {boardStopId && (
+                            <>
+                              <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1 mt-2.5">{t('mv.alightStopLabel')}</label>
+                              <select value={alightStopId ?? ''} onChange={(e) => setAlightStopId(e.target.value || null)} className="input-field">
+                                <option value="">—</option>
+                                {stops.filter((s) => s.stop_order > (stops.find((b) => b.id === boardStopId)?.stop_order ?? -Infinity)).map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
+                              </select>
+                            </>
+                          )}
+                          {boardStopId && alightStopId && segmentFraction <= 0 && (
+                            <p className="font-sans text-[11.5px] text-dp-error mt-1.5">{t('mv.invalidStopPairError')}</p>
+                          )}
+                        </>
+                      )}
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 mt-3">{t('mk.seatsLabel')}</label>
+                      <div className="flex items-center gap-3">
+                        <button type="button" onClick={() => setSeats((s) => Math.max(1, s - 1))} className="w-8 h-8 rounded-full bg-dp-surface-container-high flex items-center justify-center cursor-pointer"><Minus size={14} /></button>
+                        <span className="font-sans text-[15px] font-bold ltr-num w-8 text-center">{seats}</span>
+                        <button type="button" onClick={() => setSeats((s) => Math.min(available ?? 99, s + 1))} className="w-8 h-8 rounded-full bg-dp-secondary text-white flex items-center justify-center cursor-pointer"><Plus size={14} /></button>
+                      </div>
+                      {isSeatNumbered && vehicle && (
+                        <div className="mt-3">
+                          <SeatPickerField totalSeats={effectiveSeatsForDate ?? vehicle.total_seats} takenSeatNumbers={takenSeats} seatsNeeded={seats} selected={selectedSeats} onChange={setSelectedSeats} isSleeper={vehicle.is_sleeper} />
+                        </div>
+                      )}
+                      <p className="font-sans text-[11.5px] text-dp-secondary mt-2 text-end">₨{fmt(total)}</p>
+                    </div>
+                  )}
+
+                  <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-dp-secondary mb-2">{t('mv.returnTabLabel')}</p>
                   <p className="font-sans text-[13px] font-bold text-[#166534]">🔄 {t('mv.returnSeatsOpenNote').replace('{n}', String(returnSeatsAvailable))}</p>
                   <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('mv.returnSeatHint')}</p>
 
@@ -1184,14 +1303,16 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                   {isPerOrder ? (
                     <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-3">{t('cm.payDirectlyNote')}</p>
                   ) : (
-                    <div className="mt-3">
-                      <DonationReceiptUpload onUpload={setReturnProofPath} />
-                    </div>
+                    /* 2026-11-22: real fix — payment used to be forced
+                       upfront here, unlike the going leg (deferred to
+                       Pay Now since 2026-11-12). Both legs now defer
+                       the same way, settled together with one upload. */
+                    <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
                   )}
-                  <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
 
-                  <button onClick={bookReturnSeat} disabled={bookingReturn || !returnBoardStopId || (isSeatNumbered && !selectedReturnSeat)} className="w-full mt-3 bg-[#166534] text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-[#0f4b27] transition-all disabled:opacity-50">
-                    {bookingReturn ? t('mp.placingBooking') : t('mv.bookReturnSeatBtn')}
+                  <button onClick={bookRoundTrip} disabled={submitting || !returnBoardStopId || (isSeatNumbered && !selectedReturnSeat) || (includeOutboundInRoundTrip && ((isSeatNumbered && selectedSeats.length !== seats) || (!!alightStopId && segmentFraction <= 0)))}
+                    className="w-full mt-3 bg-[#166534] text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-[#0f4b27] transition-all disabled:opacity-50">
+                    {submitting ? t('mp.placingBooking') : includeOutboundInRoundTrip ? t('mv.bookRoundTripBtn') : t('mv.bookReturnSeatBtn')}
                   </button>
                 </>
               ) : (

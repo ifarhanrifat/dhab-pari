@@ -31,6 +31,16 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 
+export interface RideTicketLeg {
+  bookingId: string
+  ticketNo: string
+  origin: string
+  destination: string
+  travelDate: string
+  seats: number
+  amountPkr: number
+}
+
 export interface RideTicketInfo {
   bookingId: string
   vehicleId: string
@@ -45,6 +55,16 @@ export interface RideTicketInfo {
   boardLabel?: string | null
   paymentConfirmed: boolean
   isPerOrder: boolean
+  // 2026-11-22: real ask — "we are booking for the air ticket? use that
+  // concept... now we first book jana seat then separately book the
+  // wapisi seat? this is garbage." A round trip is still, underneath,
+  // two separate ride_bookings rows (different leg, often a different
+  // board stop, sometimes a different fare rule) — that doesn't change.
+  // What changes is the experience: one combined booking action, one
+  // combined price, and — here — one ticket sheet showing both legs
+  // with a single Pay Now that settles both at once. Mirrors
+  // ManualTicketDocument's own existing returnLeg field/pattern.
+  returnLeg?: RideTicketLeg
 }
 
 interface PaymentInfo {
@@ -58,6 +78,7 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [qr, setQr] = useState('')
+  const [qrReturn, setQrReturn] = useState('')
   const [showPay, setShowPay] = useState(false)
   const [payInfo, setPayInfo] = useState<PaymentInfo | null>(null)
   const [payMethod, setPayMethod] = useState('bank')
@@ -66,8 +87,13 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
   const [submitted, setSubmitted] = useState(false)
 
   useEffect(() => {
-    QRCode.toDataURL(info.ticketNo, { margin: 1, width: 180 }).then(setQr)
+    QRCode.toDataURL(info.ticketNo, { margin: 1, width: 140 }).then(setQr)
   }, [info.ticketNo])
+
+  useEffect(() => {
+    if (!info.returnLeg) { setQrReturn(''); return }
+    QRCode.toDataURL(info.returnLeg.ticketNo, { margin: 1, width: 110 }).then(setQrReturn)
+  }, [info.returnLeg])
 
   const openPay = async () => {
     setShowPay(true)
@@ -77,10 +103,18 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
     }
   }
 
+  const totalDue = info.amountPkr + (info.returnLeg?.amountPkr ?? 0)
+
   const submitProof = async () => {
     if (!proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     setSubmitting(true)
+    // One screenshot settles both legs — a round trip is still two
+    // separate ride_bookings rows underneath, but the rider shouldn't
+    // have to find and upload the same receipt twice.
     const { error } = await supabase.rpc('submit_booking_payment_proof', { p_booking_id: info.bookingId, p_method: payMethod, p_proof_url: proofPath })
+    if (!error && info.returnLeg) {
+      await supabase.rpc('submit_booking_payment_proof', { p_booking_id: info.returnLeg.bookingId, p_method: payMethod, p_proof_url: proofPath })
+    }
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('rw.paymentProofSentToast'))
@@ -117,12 +151,29 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
           </span>
 
           <div className="rounded-2xl border border-[#e8eaee] p-3.5 grid grid-cols-2 gap-2.5 text-[12.5px]">
+            {info.returnLeg && <p className="col-span-2 font-sans text-[10px] font-bold uppercase tracking-[0.05em] text-dp-secondary">{t('mv.outboundTabLabel')}</p>}
             <div className="col-span-2"><p className="text-[#64748b] text-[10.5px]">{t('mv.fromToLabel')}</p><p className="font-semibold">{info.boardLabel ?? info.origin} → {info.destination}</p></div>
             <div><p className="text-[#64748b] text-[10.5px]">{t('mv.travelDateLabel')}</p><p className="font-semibold ltr-num">{info.travelDate}</p></div>
             <div><p className="text-[#64748b] text-[10.5px]">{t('mk.seatsLabel')}</p><p className="font-semibold ltr-num">{info.seats}{info.seatNumbers?.length ? ` (#${info.seatNumbers.join(', ')})` : ''}</p></div>
+
+            {info.returnLeg && (
+              <>
+                <div className="col-span-2 flex items-center gap-2.5 pt-2.5 mt-1 border-t border-[#e8eaee]">
+                  {qrReturn && <img src={qrReturn} alt="QR" width={56} height={56} className="rounded-lg border border-[#e8eaee] shrink-0" />}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-sans text-[10px] font-bold uppercase tracking-[0.05em] text-dp-secondary">{t('mv.returnTabLabel')}</p>
+                    <p className="font-mono text-[13px] font-bold tracking-wide ltr-num">{info.returnLeg.ticketNo}</p>
+                    <p className="font-semibold text-[12.5px] mt-0.5">{info.returnLeg.origin} → {info.returnLeg.destination}</p>
+                  </div>
+                </div>
+                <div><p className="text-[#64748b] text-[10.5px]">{t('mk.seatsLabel')}</p><p className="font-semibold ltr-num">{info.returnLeg.seats}</p></div>
+                <div><p className="text-[#64748b] text-[10.5px]">{t('mp.cartTotal')}</p><p className="font-semibold ltr-num">₨{fmt(info.returnLeg.amountPkr)}</p></div>
+              </>
+            )}
+
             <div className="col-span-2 flex items-center justify-between pt-2 mt-1 border-t border-[#e8eaee]">
-              <p className="font-sans text-[12.5px] font-bold text-[#0f172a]">{t('mp.cartTotal')}</p>
-              <p className="font-sans text-[15px] font-extrabold text-[#166534] ltr-num">₨{fmt(info.amountPkr)}</p>
+              <p className="font-sans text-[12.5px] font-bold text-[#0f172a]">{info.returnLeg ? t('mv.roundTripTotalLabel') : t('mp.cartTotal')}</p>
+              <p className="font-sans text-[15px] font-extrabold text-[#166534] ltr-num">₨{fmt(totalDue)}</p>
             </div>
           </div>
 
