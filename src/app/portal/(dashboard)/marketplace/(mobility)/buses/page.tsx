@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Bus, Search, Clock, Users, MessageCircle, ArrowRight, CalendarDays, Repeat, MapPinned } from 'lucide-react'
+import { Bus, Search, Clock, Users, MessageCircle, ArrowRight, CalendarDays, Repeat, MapPinned, ArrowRightLeft, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -93,6 +93,17 @@ export default function BusesPage() {
   const [city, setCity] = useState<string | null>(null)
   const [vehicleGroup, setVehicleGroup] = useState<VehicleGroup | null>(null)
   const [view, setView] = useState<'perRide' | 'monthly'>('perRide')
+  // 2026-11-22: real ask — "dozens of bus services running from one
+  // same city to same destination city... rider can search the buses
+  // routes of all services and then filter out the cheapest fare one
+  // too." The existing destination-grouped browse below stays exactly
+  // as-is for "I don't know where I'm going yet" browsing — this is a
+  // real From→To search layered on top of it, matching every operator
+  // (same-tenant and cross-tenant alike, already pulled into `routes`/
+  // `trips`) for that exact pair, sorted cheapest-first by default.
+  const [fromCity, setFromCity] = useState('')
+  const [toCity, setToCity] = useState('')
+  const [sortBy, setSortBy] = useState<'price' | 'time'>('price')
 
   useEffect(() => {
     if (!user) return
@@ -159,6 +170,38 @@ export default function BusesPage() {
   }, [routes, trips, query, vehicleGroup, view, isUrdu])
   const shown = city ? groups.filter((g) => g.key === city) : groups
 
+  // Real cities actually served, derived from the data itself (same
+  // source groups/destination tabs already use) rather than a fixed
+  // list — a new fleet's route shows up here the moment it's created.
+  const cityOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const r of routes) { seen.set(r.origin.trim().toLowerCase(), nm(r.origin, r.origin_ur)); seen.set(r.destination.trim().toLowerCase(), nm(r.destination, r.destination_ur)) }
+    for (const o of trips) { seen.set(o.origin.trim().toLowerCase(), nm(o.origin, o.origin_ur)); seen.set(o.destination.trim().toLowerCase(), nm(o.destination, o.destination_ur)) }
+    return Array.from(seen.entries()).map(([key, label]) => ({ key, label })).sort((a, b) => a.label.localeCompare(b.label))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routes, trips, isUrdu])
+
+  const pairSearchActive = !!fromCity && !!toCity
+  const pairResults = useMemo(() => {
+    if (!pairSearchActive) return { routes: [] as RouteRow[], trips: [] as TripRow[] }
+    const sameCity = (a: string, key: string) => a.trim().toLowerCase() === key
+    const groupOk = (type: string | undefined) => !vehicleGroup || vehicleGroupFor(type) === vehicleGroup
+    const wantMonthly = view === 'monthly'
+    const r = routes.filter((r) => !!r.is_monthly_fixed === wantMonthly && sameCity(r.origin, fromCity) && sameCity(r.destination, toCity) && groupOk(r.vehicles?.vehicle_type))
+    const o = !wantMonthly ? trips.filter((o) => sameCity(o.origin, fromCity) && sameCity(o.destination, toCity) && groupOk(o.vehicles?.vehicle_type)) : []
+    const routeFare = (x: RouteRow) => x.is_monthly_fixed ? (x.monthly_reference_fee_pkr ?? Infinity) : (x.fare_per_seat_pkr ?? Infinity)
+    r.sort((a, b) => sortBy === 'price' ? routeFare(a) - routeFare(b) : (a.departure_time ?? '99:99').localeCompare(b.departure_time ?? '99:99'))
+    o.sort((a, b) => sortBy === 'price' ? (a.listed_fare_per_seat_pkr ?? Infinity) - (b.listed_fare_per_seat_pkr ?? Infinity) : (a.departure_time_estimate ?? '99:99').localeCompare(b.departure_time_estimate ?? '99:99'))
+    return { routes: r, trips: o }
+  }, [pairSearchActive, routes, trips, fromCity, toCity, vehicleGroup, view, sortBy])
+  const cheapestPairFare = useMemo(() => {
+    const fares = [
+      ...pairResults.routes.map((r) => r.is_monthly_fixed ? null : r.fare_per_seat_pkr),
+      ...pairResults.trips.map((o) => o.listed_fare_per_seat_pkr),
+    ].filter((f): f is number => f != null)
+    return fares.length ? Math.min(...fares) : null
+  }, [pairResults])
+
   const openRoute = (r: RouteRow) => {
     if (r.source_tenant_name) { setBookSeats(1); setBookDate(''); setCrossTenantTarget({ kind: 'route', row: r }) }
     else setOpenRouteId(r.id)
@@ -214,6 +257,76 @@ export default function BusesPage() {
 
   if (loading) return <div className="text-center py-12"><LoadingDots /></div>
 
+  // Extracted so the exact same card renders both in the destination-
+  // grouped browse below and in the new From→To search results.
+  const renderRoute = (r: RouteRow) => {
+    const [c1, c2] = PALETTE[hashIdx(r.destination)]
+    const runsToday = (r.days_of_week ?? []).includes(todayDow)
+    return (
+      <div key={r.id} role="button" tabIndex={0} onClick={() => openRoute(r)} className="block rounded-[22px] overflow-hidden bg-white border border-[#e5e7eb] shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)] active:scale-[0.99] transition-transform cursor-pointer">
+        <div className="relative px-4 pt-3.5 pb-4 text-white" style={{ backgroundImage: `linear-gradient(135deg, ${c1}, ${c2})` }}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-sans text-[11px] font-semibold text-white/80">{t('bus.departs')}</p>
+              <p className="font-sans text-[24px] font-black leading-none mt-0.5"><span className="ltr-num">{timeLabel(r.departure_time)}</span></p>
+            </div>
+            <span className="text-[34px] leading-none">{emojiFor(r.vehicles?.vehicle_type)}</span>
+          </div>
+          <div className="mt-3 flex items-center gap-2 font-sans text-[14px] font-bold">
+            <bdi className="truncate">{nm(r.origin, r.origin_ur)}</bdi>
+            <ArrowRight size={15} className="shrink-0 rtl:rotate-180" />
+            <bdi className="truncate">{nm(r.destination, r.destination_ur)}</bdi>
+          </div>
+          <div className="mt-2.5 flex gap-1">
+            {dayNames.map((d, i) => (
+              <span key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10.5px] font-bold ${(r.days_of_week ?? []).includes(i) ? 'bg-white text-[#0f172a]' : 'bg-white/15 text-white/60'}`}>{d}</span>
+            ))}
+          </div>
+        </div>
+        <div className="px-4 py-3 flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="font-sans text-[13px] font-bold text-[#0f172a] truncate">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'}</p>
+            <p className="font-sans text-[11.5px] text-[#64748b] truncate">{r.vehicles?.owner_name}{r.vehicles?.has_ac ? ' · AC' : ''}{r.vehicles?.total_seats ? ` · ${r.vehicles.total_seats} ${t('bus.seatsShort')}` : ''}</p>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {runsToday && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
+              {r.is_two_way && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={10} /> {t('bus.twoWay')}{r.return_departure_time ? ` · ${timeLabel(r.return_departure_time)}` : ''}</span>}
+              {r.route_duration_min && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#f1f5f9] text-[#334155] inline-flex items-center gap-1"><Clock size={10} /> <span className="ltr-num">{Math.round(r.route_duration_min)} min</span></span>}
+              {r.source_tenant_name && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#fef9c3] text-[#854d0e] inline-flex items-center gap-1"><MapPinned size={10} /> {r.source_tenant_name}</span>}
+            </div>
+          </div>
+          <div className="text-end shrink-0">
+            {r.is_monthly_fixed ? (
+              <>
+                <p className="font-sans text-[18px] font-black text-[#6b21a8]"><span className="ltr-num">₨{fmt(r.monthly_reference_fee_pkr ?? 0)}</span></p>
+                <p className="font-sans text-[10.5px] text-[#64748b]">{t('bus.perMonth')}</p>
+                <span className="mt-1.5 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#6b21a8] text-white font-sans text-[12px] font-bold">{t('bus.applyMonthlyBtn')}</span>
+              </>
+            ) : (
+              <>
+                {r.fare_per_seat_pkr != null && <p className="font-sans text-[18px] font-black text-[#14532d]"><span className="ltr-num">₨{fmt(r.fare_per_seat_pkr)}</span></p>}
+                <p className="font-sans text-[10.5px] text-[#64748b]">{t('bus.perSeat')}</p>
+                <span className="mt-1.5 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[12px] font-bold">{t('bus.book')}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+  const renderTrip = (o: TripRow) => (
+    <div key={o.id} role="button" tabIndex={0} onClick={() => openTrip(o)} className="block rounded-[22px] bg-white border border-dashed border-[#94a3b8] p-3.5 active:scale-[0.99] transition-transform cursor-pointer">
+      <div className="flex items-center gap-3">
+        <span className="w-12 h-12 rounded-2xl bg-[#f1f5f9] flex items-center justify-center text-[26px] shrink-0">{emojiFor(o.vehicles?.vehicle_type)}</span>
+        <div className="min-w-0 flex-1">
+          <p className="font-sans text-[10.5px] font-bold text-[#7c3aed] flex items-center gap-1"><CalendarDays size={11} /> {t('bus.oneOffTrip')} · <span className="ltr-num">{o.travel_date}</span> · {timeLabel(o.departure_time_estimate)}</p>
+          <p className="font-sans text-[13.5px] font-bold text-[#0f172a] truncate"><bdi>{nm(o.origin, o.origin_ur)}</bdi> → <bdi>{nm(o.destination, o.destination_ur)}</bdi></p>
+          <p className="font-sans text-[11.5px] text-[#64748b] truncate flex items-center gap-1"><Users size={11} /> {o.seats_available} {t('bus.seatsLeft')} · {o.vehicles?.owner_name}{o.source_tenant_name ? ` · 🏘️ ${o.source_tenant_name}` : ''}</p>
+        </div>
+        <p className="font-sans text-[16px] font-black text-[#14532d] shrink-0"><span className="ltr-num">₨{fmt(o.listed_fare_per_seat_pkr)}</span></p>
+      </div>
+    </div>
+  )
+
   return (
     <div className="flex flex-col gap-4 pb-6">
       <div className="rounded-[24px] p-4 text-white" style={{ backgroundImage: 'linear-gradient(140deg,#0f3d2e,#166534 55%,#15803d)' }}>
@@ -224,6 +337,49 @@ export default function BusesPage() {
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('bus.searchPlaceholder')}
             className="flex-1 min-w-0 bg-transparent outline-none font-sans text-[14px] text-[#0f172a]" />
         </div>
+      </div>
+
+      {/* 2026-11-22: real ask — "dozens of bus services running from
+          one same city to same destination city... rider can search
+          the routes of all services and filter out the cheapest fare
+          one too." A real From→To search, matching every operator
+          already pulled into `routes`/`trips` (same-tenant and
+          cross-tenant alike) for that exact city pair. */}
+      <div className="bg-white border border-[#e5e7eb] rounded-[20px] p-3.5 flex flex-col gap-2.5 -mt-6 relative z-10 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)]">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.fromLabel')}</label>
+            <select value={fromCity} onChange={(e) => setFromCity(e.target.value)} className="w-full font-sans text-[13.5px] font-bold text-[#0f172a] bg-transparent outline-none">
+              <option value="">{t('bus.anyCityOption')}</option>
+              {cityOptions.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </div>
+          <button type="button" aria-label={t('bus.swapCitiesAlt')} onClick={() => { const a = fromCity; setFromCity(toCity); setToCity(a) }}
+            className="shrink-0 w-9 h-9 rounded-full border border-[#e5e7eb] flex items-center justify-center text-[#166534] cursor-pointer">
+            <ArrowRightLeft size={15} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.toLabel')}</label>
+            <select value={toCity} onChange={(e) => setToCity(e.target.value)} className="w-full font-sans text-[13.5px] font-bold text-[#0f172a] bg-transparent outline-none">
+              <option value="">{t('bus.anyCityOption')}</option>
+              {cityOptions.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </div>
+        </div>
+        {pairSearchActive && (
+          <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[#f1f5f9]">
+            <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-0.5">
+              {(['price', 'time'] as const).map((s) => (
+                <button key={s} onClick={() => setSortBy(s)} className={`h-7 px-2.5 rounded-full font-sans text-[11px] font-bold cursor-pointer ${sortBy === s ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
+                  {s === 'price' ? t('bus.sortCheapest') : t('bus.sortEarliest')}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => { setFromCity(''); setToCity('') }} className="flex items-center gap-1 font-sans text-[11.5px] font-bold text-[#b91c1c] cursor-pointer">
+              <X size={12} /> {t('bus.clearSearchBtn')}
+            </button>
+          </div>
+        )}
       </div>
 
       {mine.length > 0 && (
@@ -273,7 +429,7 @@ export default function BusesPage() {
         ))}
       </div>
 
-      {groups.length > 1 && (
+      {!pairSearchActive && groups.length > 1 && (
         <div className="flex gap-2 overflow-x-auto hide-scrollbar">
           <button onClick={() => setCity(null)} className={`shrink-0 h-9 px-3.5 rounded-full font-sans text-[12.5px] font-bold border ${!city ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>{t('bus.allCities')}</button>
           {groups.map((g) => (
@@ -286,82 +442,33 @@ export default function BusesPage() {
 
       <FarePolicyCard service="seat" defaultOpen={false} />
 
+      {pairSearchActive ? (
+        <section className="flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-sans text-[13px] font-bold text-[#0f172a]">
+              {t('bus.searchResultsHeading').replace('{n}', String(pairResults.routes.length + pairResults.trips.length)).replace('{from}', cityOptions.find((c) => c.key === fromCity)?.label ?? '').replace('{to}', cityOptions.find((c) => c.key === toCity)?.label ?? '')}
+            </p>
+            {cheapestPairFare != null && <p className="font-sans text-[11.5px] font-bold text-[#166534] shrink-0">{t('bus.cheapestFareLabel')} ₨{fmt(cheapestPairFare)}</p>}
+          </div>
+          {pairResults.routes.length === 0 && pairResults.trips.length === 0 && (
+            <p className="text-center font-sans text-[13px] text-[#64748b] py-10">{t('bus.noResultsForPairHint')}</p>
+          )}
+          {pairResults.routes.map(renderRoute)}
+          {pairResults.trips.map(renderTrip)}
+        </section>
+      ) : (
+      <>
       {shown.length === 0 && <p className="text-center font-sans text-[13px] text-[#64748b] py-10">{t('bus.empty')}</p>}
 
       {shown.map((g) => (
         <section key={g.key} className="flex flex-col gap-2.5">
           <p className="flex items-center gap-2 font-sans text-[16px] font-extrabold text-[#0f172a]"><span className="w-1.5 h-5 rounded-full bg-[#16a34a]" /> <bdi>{g.label}</bdi></p>
-
-          {g.routes.map((r) => {
-            const [c1, c2] = PALETTE[hashIdx(r.destination)]
-            const runsToday = (r.days_of_week ?? []).includes(todayDow)
-            return (
-              <div key={r.id} role="button" tabIndex={0} onClick={() => openRoute(r)} className="block rounded-[22px] overflow-hidden bg-white border border-[#e5e7eb] shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)] active:scale-[0.99] transition-transform cursor-pointer">
-                <div className="relative px-4 pt-3.5 pb-4 text-white" style={{ backgroundImage: `linear-gradient(135deg, ${c1}, ${c2})` }}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-sans text-[11px] font-semibold text-white/80">{t('bus.departs')}</p>
-                      <p className="font-sans text-[24px] font-black leading-none mt-0.5"><span className="ltr-num">{timeLabel(r.departure_time)}</span></p>
-                    </div>
-                    <span className="text-[34px] leading-none">{emojiFor(r.vehicles?.vehicle_type)}</span>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2 font-sans text-[14px] font-bold">
-                    <bdi className="truncate">{nm(r.origin, r.origin_ur)}</bdi>
-                    <ArrowRight size={15} className="shrink-0 rtl:rotate-180" />
-                    <bdi className="truncate">{nm(r.destination, r.destination_ur)}</bdi>
-                  </div>
-                  <div className="mt-2.5 flex gap-1">
-                    {dayNames.map((d, i) => (
-                      <span key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10.5px] font-bold ${(r.days_of_week ?? []).includes(i) ? 'bg-white text-[#0f172a]' : 'bg-white/15 text-white/60'}`}>{d}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="px-4 py-3 flex items-center gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-sans text-[13px] font-bold text-[#0f172a] truncate">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'}</p>
-                    <p className="font-sans text-[11.5px] text-[#64748b] truncate">{r.vehicles?.owner_name}{r.vehicles?.has_ac ? ' · AC' : ''}{r.vehicles?.total_seats ? ` · ${r.vehicles.total_seats} ${t('bus.seatsShort')}` : ''}</p>
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      {runsToday && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
-                      {r.is_two_way && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={10} /> {t('bus.twoWay')}{r.return_departure_time ? ` · ${timeLabel(r.return_departure_time)}` : ''}</span>}
-                      {r.route_duration_min && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#f1f5f9] text-[#334155] inline-flex items-center gap-1"><Clock size={10} /> <span className="ltr-num">{Math.round(r.route_duration_min)} min</span></span>}
-                      {r.source_tenant_name && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#fef9c3] text-[#854d0e] inline-flex items-center gap-1"><MapPinned size={10} /> {r.source_tenant_name}</span>}
-                    </div>
-                  </div>
-                  <div className="text-end shrink-0">
-                    {r.is_monthly_fixed ? (
-                      <>
-                        <p className="font-sans text-[18px] font-black text-[#6b21a8]"><span className="ltr-num">₨{fmt(r.monthly_reference_fee_pkr ?? 0)}</span></p>
-                        <p className="font-sans text-[10.5px] text-[#64748b]">{t('bus.perMonth')}</p>
-                        <span className="mt-1.5 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#6b21a8] text-white font-sans text-[12px] font-bold">{t('bus.applyMonthlyBtn')}</span>
-                      </>
-                    ) : (
-                      <>
-                        {r.fare_per_seat_pkr != null && <p className="font-sans text-[18px] font-black text-[#14532d]"><span className="ltr-num">₨{fmt(r.fare_per_seat_pkr)}</span></p>}
-                        <p className="font-sans text-[10.5px] text-[#64748b]">{t('bus.perSeat')}</p>
-                        <span className="mt-1.5 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[12px] font-bold">{t('bus.book')}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-
-          {g.trips.map((o) => (
-            <div key={o.id} role="button" tabIndex={0} onClick={() => openTrip(o)} className="block rounded-[22px] bg-white border border-dashed border-[#94a3b8] p-3.5 active:scale-[0.99] transition-transform cursor-pointer">
-              <div className="flex items-center gap-3">
-                <span className="w-12 h-12 rounded-2xl bg-[#f1f5f9] flex items-center justify-center text-[26px] shrink-0">{emojiFor(o.vehicles?.vehicle_type)}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-sans text-[10.5px] font-bold text-[#7c3aed] flex items-center gap-1"><CalendarDays size={11} /> {t('bus.oneOffTrip')} · <span className="ltr-num">{o.travel_date}</span> · {timeLabel(o.departure_time_estimate)}</p>
-                  <p className="font-sans text-[13.5px] font-bold text-[#0f172a] truncate"><bdi>{nm(o.origin, o.origin_ur)}</bdi> → <bdi>{nm(o.destination, o.destination_ur)}</bdi></p>
-                  <p className="font-sans text-[11.5px] text-[#64748b] truncate flex items-center gap-1"><Users size={11} /> {o.seats_available} {t('bus.seatsLeft')} · {o.vehicles?.owner_name}{o.source_tenant_name ? ` · 🏘️ ${o.source_tenant_name}` : ''}</p>
-                </div>
-                <p className="font-sans text-[16px] font-black text-[#14532d] shrink-0"><span className="ltr-num">₨{fmt(o.listed_fare_per_seat_pkr)}</span></p>
-              </div>
-            </div>
-          ))}
+          {g.routes.map(renderRoute)}
+          {g.trips.map(renderTrip)}
         </section>
       ))}
+      </>
+      )}
 
       {crossTenantTarget && (
         <MobilityBottomSheet title={t('bus.crossTenantSheetTitle')} onClose={() => setCrossTenantTarget(null)}>
