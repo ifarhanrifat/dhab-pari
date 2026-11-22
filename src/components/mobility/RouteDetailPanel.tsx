@@ -1281,7 +1281,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                     </div>
                   )}
 
-                  <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-dp-secondary mb-2">{t('mv.returnTabLabel')}</p>
+                  <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-dp-secondary mb-2">{t('mv.returnLegSubheading')}</p>
                   <p className="font-sans text-[13px] font-bold text-[#166534]">🔄 {t('mv.returnSeatsOpenNote').replace('{n}', String(returnSeatsAvailable))}</p>
                   <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('mv.returnSeatHint')}</p>
 

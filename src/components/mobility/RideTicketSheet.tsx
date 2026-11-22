@@ -161,7 +161,7 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
                 <div className="col-span-2 flex items-center gap-2.5 pt-2.5 mt-1 border-t border-[#e8eaee]">
                   {qrReturn && <img src={qrReturn} alt="QR" width={56} height={56} className="rounded-lg border border-[#e8eaee] shrink-0" />}
                   <div className="min-w-0 flex-1">
-                    <p className="font-sans text-[10px] font-bold uppercase tracking-[0.05em] text-dp-secondary">{t('mv.returnTabLabel')}</p>
+                    <p className="font-sans text-[10px] font-bold uppercase tracking-[0.05em] text-dp-secondary">{t('mv.returnLegSubheading')}</p>
                     <p className="font-mono text-[13px] font-bold tracking-wide ltr-num">{info.returnLeg.ticketNo}</p>
                     <p className="font-semibold text-[12.5px] mt-0.5">{info.returnLeg.origin} → {info.returnLeg.destination}</p>
                   </div>
