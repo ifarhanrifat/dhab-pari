@@ -450,6 +450,19 @@ export default function BusesPage() {
             </p>
             {cheapestPairFare != null && <p className="font-sans text-[11.5px] font-bold text-[#166534] shrink-0">{t('bus.cheapestFareLabel')} ₨{fmt(cheapestPairFare)}</p>}
           </div>
+          {/* 2026-11-22: real ask — "how will he search which is the
+              cheapest bus ticket for the return? what if the same bus
+              service, what if a different one?" A round trip here is
+              just two independent one-way searches/bookings, same as
+              two different airlines on an air-ticket round trip — this
+              button re-runs the exact same search in the reverse
+              direction so the rider can shop and book the return leg
+              from ANY operator, same one or different, as its own
+              separate ticket. */}
+          <button onClick={() => { const a = fromCity; setFromCity(toCity); setToCity(a) }}
+            className="self-start flex items-center gap-1.5 h-8 px-3 rounded-full bg-[#ecfdf5] border border-[#a7f3d0] font-sans text-[11.5px] font-bold text-[#166534] cursor-pointer">
+            <ArrowRightLeft size={12} /> {t('bus.searchReturnTripBtn')}
+          </button>
           {pairResults.routes.length === 0 && pairResults.trips.length === 0 && (
             <p className="text-center font-sans text-[13px] text-[#64748b] py-10">{t('bus.noResultsForPairHint')}</p>
           )}
