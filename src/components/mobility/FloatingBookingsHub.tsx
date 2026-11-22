@@ -36,6 +36,7 @@ import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
 import { BookingLifecycleSheet, type LifecycleKind } from '@/components/mobility/BookingLifecycleSheet'
 import { RouteBookingSheet } from '@/components/mobility/RouteBookingSheet'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
+import { RideTicketSheet, type RideTicketInfo } from '@/components/mobility/RideTicketSheet'
 
 type ItemState = 'ongoing' | 'searching' | 'action' | 'waiting'
 
@@ -56,6 +57,12 @@ interface HubItem {
   // directly (book/cancel/reschedule), same popup the browse screen
   // now uses, instead of a page navigation.
   routeSheetId?: string
+  // 2026-11-22: real ask — before the driver has started the route,
+  // tapping into a booked seat should show ONLY the ticket + departure
+  // line (+ pay-now if unconfirmed), not the whole route-browsing page
+  // (map, stop pickers, "book another seat" form) that routeSheetId
+  // opens. Takes over from routeSheetId whenever a real ticket exists.
+  ticketInfo?: RideTicketInfo
   // The driver's own route needing attention (roster to review, or
   // already live) — opens RouteGroupPanel directly, the same popup
   // already used for day-to-day route management.
@@ -190,6 +197,7 @@ export function FloatingBookingsHub() {
   const [openDriverLifecycle, setOpenDriverLifecycle] = useState<HubItem['driverLifecycle'] | null>(null)
   const [openRouteSheetId, setOpenRouteSheetId] = useState<string | null>(null)
   const [openGroupRouteId, setOpenGroupRouteId] = useState<string | null>(null)
+  const [openTicketInfo, setOpenTicketInfo] = useState<RideTicketInfo | null>(null)
   const [listOpen, setListOpen] = useState(false)
   const drag = useDraggablePosition()
 
@@ -206,7 +214,7 @@ export function FloatingBookingsHub() {
       // confirmed it — exactly the moment a rider most wants a quick way
       // back into it. 'confirmed' now stays in, bounded to today/future
       // so a long-past booking doesn't linger forever.
-      supabase.from('ride_bookings').select('id, route_id, seats, travel_date, total_amount_pkr, created_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time), adda_queue_entries(addas(name, name_ur))').eq('portal_user_id', user!.id).in('status', ['announced', 'confirmed']).gte('travel_date', new Date().toISOString().slice(0, 10)),
+      supabase.from('ride_bookings').select('id, route_id, seats, travel_date, total_amount_pkr, created_at, ticket_no, seat_accepted_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time, vehicle_id, vehicles(commission_mode)), adda_queue_entries(addas(name, name_ur))').eq('portal_user_id', user!.id).in('status', ['announced', 'confirmed']).gte('travel_date', new Date().toISOString().slice(0, 10)),
       supabase.from('ride_dispatch_requests').select('id, pickup_label, dropoff_label, fare_pkr, created_at').eq('initiator_portal_user_id', user!.id).eq('status', 'open'),
       supabase.rpc('my_city_purchase_requests'),
       supabase.rpc('my_parcel_deliveries'),
@@ -394,7 +402,12 @@ export function FloatingBookingsHub() {
         state: payAdvance ? 'action' : ongoing ? 'ongoing' : 'searching', since: b.requested_at,
         sheet: { kind: 'equipment', id: b.id, viewHref: `/portal/marketplace/${b.kind}`, summary: { vehicleLabel: vehicleDisplayName(b.vehicle_type, b.model), driverName: b.owner_name, from: b.site_address, amount: b.total_amount_pkr ?? b.rate_pkr } } })
     }
-    const seatRows = (seats.data ?? []) as unknown as { id: string; route_id: string | null; seats: number; travel_date: string; total_amount_pkr: number; created_at: string; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null } | null; adda_queue_entries: { addas: { name: string; name_ur: string | null } | null } | null }[]
+    const seatRows = (seats.data ?? []) as unknown as {
+      id: string; route_id: string | null; seats: number; travel_date: string; total_amount_pkr: number; created_at: string
+      ticket_no: string | null; seat_accepted_at: string | null
+      vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null; vehicle_id: string; vehicles: { commission_mode: string } | null } | null
+      adda_queue_entries: { addas: { name: string; name_ur: string | null } | null } | null
+    }[]
     // Real ask, 2026-11-06: "when rider click on the floating button
     // then it will view everything in real time... along with full
     // chat" — if the van for one of these routes is actually live right
@@ -413,14 +426,24 @@ export function FloatingBookingsHub() {
       // plain "waiting" status instead of a fabricated countdown.
       const countdownTarget = r?.departure_time ? new Date(`${b.travel_date}T${r.departure_time}+05:00`).getTime() : undefined
       const isLive = !!b.route_id && activeRunRouteIds.has(b.route_id)
-      // A route booking opens the same popup (book/cancel/reschedule)
-      // the browse screen now uses, directly — unless the van is
-      // already live, which opens the group/live-map view instead — an
-      // adda booking (no route_id) falls back to the existing
-      // waiting-sheet pattern.
+      // A route booking opens the group/live-map view once the van is
+      // actually live. Before that, a real ticket (948) opens the plain
+      // ticket view (+ pay-now if unconfirmed) — never the full route-
+      // browsing page, which has nothing a rider who already booked
+      // needs. Only a route with no ticket yet (shouldn't happen post-
+      // 948, but a pre-migration row could lack one) falls back to that
+      // older popup; an adda booking (no route_id at all) keeps the
+      // existing waiting-sheet pattern.
       out.push({ key: `s-${b.id}`, emoji: '🚌', label: `${t('rq.kind.route')} · ${title}`, state: isLive ? 'ongoing' : 'waiting', since: b.created_at, countdownTarget: isLive ? undefined : countdownTarget,
         ...(isLive && b.route_id
           ? { routeGroupId: b.route_id }
+          : b.route_id && b.ticket_no && r
+          ? { ticketInfo: {
+              bookingId: b.id, vehicleId: r.vehicle_id, ticketNo: b.ticket_no,
+              origin: nm(r.origin, r.origin_ur), destination: nm(r.destination, r.destination_ur),
+              travelDate: b.travel_date, departureTime: r.departure_time, seats: b.seats, amountPkr: b.total_amount_pkr,
+              paymentConfirmed: !!b.seat_accepted_at, isPerOrder: r.vehicles?.commission_mode === 'per_order',
+            } as RideTicketInfo }
           : b.route_id
           ? { routeSheetId: b.route_id }
           : { sheet: { kind: 'seat', id: b.id, viewHref: '/portal/marketplace/trips', summary: { vehicleLabel: title, from: nm(adda?.name, adda?.name_ur), to: null, amount: b.total_amount_pkr, facts: [b.travel_date, t('rw.seats').replace('{n}', String(b.seats))] } } }) })
@@ -454,6 +477,7 @@ export function FloatingBookingsHub() {
     setListOpen(false)
     if (it.rideSheetBookingId) setOpenRideSheetId(it.rideSheetBookingId)
     else if (it.driverLifecycle) setOpenDriverLifecycle(it.driverLifecycle)
+    else if (it.ticketInfo) setOpenTicketInfo(it.ticketInfo)
     else if (it.routeSheetId) setOpenRouteSheetId(it.routeSheetId)
     else if (it.routeGroupId) setOpenGroupRouteId(it.routeGroupId)
     else if (it.sheet) setOpenSheet(it.sheet)
@@ -462,6 +486,7 @@ export function FloatingBookingsHub() {
 
   const renderSheet = () => {
     if (openRideSheetId) return <RideLifecycleSheet bookingId={openRideSheetId} onClose={() => { setOpenRideSheetId(null); load() }} />
+    if (openTicketInfo) return <RideTicketSheet info={openTicketInfo} onClose={() => { setOpenTicketInfo(null); load() }} onPaid={load} />
     if (openRouteSheetId) return <RouteBookingSheet routeId={openRouteSheetId} onClose={() => { setOpenRouteSheetId(null); load() }} />
     if (openGroupRouteId) return <RouteGroupPanel routeId={openGroupRouteId} onClose={() => { setOpenGroupRouteId(null); load() }} />
     if (openDriverLifecycle) {

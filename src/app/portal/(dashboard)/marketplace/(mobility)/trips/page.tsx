@@ -43,10 +43,12 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { BookingQuickViewSheet, type QuickViewKind } from '@/components/mobility/BookingQuickViewSheet'
 import { RouteBookingSheet } from '@/components/mobility/RouteBookingSheet'
+import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
+import { RideTicketSheet, type RideTicketInfo } from '@/components/mobility/RideTicketSheet'
 import { RideLifecycleSheet } from '@/components/portal/RideLifecycleSheet'
 
 type Kind = 'trip' | 'hourly' | 'equipment' | 'ride' | 'shadi' | 'cityPurchase' | 'rental' | 'parcel' | 'dispatch' | 'shop' | 'rideDispatch' | 'monthly'
-interface BookingRow { id: string; rawId: string; kind: Kind; title: string; subtitle: string; amount: number | null; status: 'pending' | 'confirmed' | 'declined' | 'cancelled' | 'completed'; date: string; href: string | null; note?: string; routeId?: string | null; proofUrl?: string | null }
+interface BookingRow { id: string; rawId: string; kind: Kind; title: string; subtitle: string; amount: number | null; status: 'pending' | 'confirmed' | 'declined' | 'cancelled' | 'completed'; date: string; href: string | null; note?: string; routeId?: string | null; proofUrl?: string | null; ticket?: RideTicketInfo; isLiveRoute?: boolean }
 // Real ask: hourly/equipment/ride rows used to send the rider to a
 // generic, unscoped browse page instead of their own booking — these 3
 // now pop up that one booking's own status/actions instead (see
@@ -103,6 +105,8 @@ export default function TripsPage() {
   const [loading, setLoading] = useState(true)
   const [openRow, setOpenRow] = useState<BookingRow | null>(null)
   const [openRouteId, setOpenRouteId] = useState<string | null>(null)
+  const [openGroupRouteId, setOpenGroupRouteId] = useState<string | null>(null)
+  const [openTicket, setOpenTicket] = useState<RideTicketInfo | null>(null)
   const [openTripBookingId, setOpenTripBookingId] = useState<string | null>(null)
   const [seg, setSeg] = useState<'active' | 'past'>('active')
   const [disputedIds, setDisputedIds] = useState<Set<string>>(new Set())
@@ -119,7 +123,7 @@ export default function TripsPage() {
       // Filtered to the signed-in rider: ride_bookings' keeper policy also
       // lets a driver read every booking on their own routes, which landed
       // other people's seats in the driver's own "My Bookings".
-      supabase.from('ride_bookings').select('id, route_id, status, total_amount_pkr, travel_date, announced_proof_url, dropped_off_at, vehicle_routes(origin, origin_ur, destination, destination_ur)').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
+      supabase.from('ride_bookings').select('id, route_id, status, seats, total_amount_pkr, travel_date, announced_proof_url, dropped_off_at, ticket_no, seat_accepted_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time, vehicle_id, vehicles(commission_mode))').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
       supabase.rpc('my_shadi_events'),
       supabase.rpc('my_city_purchase_requests'),
       supabase.rpc('my_rental_bookings'),
@@ -144,13 +148,36 @@ export default function TripsPage() {
     for (const b of (equipment.data ?? []) as Array<{ id: string; kind: string; model: string | null; vehicle_type: string; total_amount_pkr: number | null; rate_pkr: number; status: string; requested_at: string }>) {
       out.push({ id: `equip-${b.id}`, rawId: b.id, kind: 'equipment', title: t(`vp.${b.kind}PageTitle`), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.rate_pkr, status: mapStatus(b.status), date: b.requested_at, href: `/portal/marketplace/${b.kind}` })
     }
-    for (const b of (ride.data ?? []) as unknown as Array<{ id: string; route_id: string | null; status: string; total_amount_pkr: number; travel_date: string; announced_proof_url: string | null; dropped_off_at: string | null; vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }>) {
+    const rideRows = (ride.data ?? []) as unknown as Array<{
+      id: string; route_id: string | null; status: string; seats: number; total_amount_pkr: number; travel_date: string; announced_proof_url: string | null; dropped_off_at: string | null
+      ticket_no: string | null; seat_accepted_at: string | null
+      vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null; vehicle_id: string; vehicles: { commission_mode: string } | null } | null
+    }>
+    // 2026-11-22: real ask — tapping a booked seat here (same as the
+    // floating button) should show the plain ticket until the bus
+    // actually departs, not the full route-browsing page. Once live,
+    // it opens the live group/map view instead, same as the hub.
+    const rideRouteIds = [...new Set(rideRows.map((b) => b.route_id).filter((id): id is string => !!id))]
+    const rideActiveRunRouteIds = rideRouteIds.length > 0
+      ? new Set(((await supabase.from('route_runs').select('route_id').in('route_id', rideRouteIds).is('ended_at', null)).data ?? []).map((r) => r.route_id))
+      : new Set<string>()
+    for (const b of rideRows) {
       const vr = b.vehicle_routes
+      const isLive = !!b.route_id && rideActiveRunRouteIds.has(b.route_id)
       // Real bug reported live: a seat already boarded AND dropped off
       // (end_route_run) kept showing in the Active tab forever — status
       // alone only ever tracks payment ('announced'/'confirmed'), never
       // the physical trip, so dropped_off_at is the real completion signal.
-      out.push({ id: `ride-${b.id}`, rawId: b.id, kind: 'ride', title: vr ? t('mv.tab.routes') : t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: b.dropped_off_at ? 'completed' : mapStatus(b.status), date: b.travel_date, href: '/portal/marketplace', routeId: b.route_id, proofUrl: b.announced_proof_url })
+      out.push({
+        id: `ride-${b.id}`, rawId: b.id, kind: 'ride', title: vr ? t('mv.tab.routes') : t('af.addaBoardPageTitle'), subtitle: vr ? `${isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin} → ${isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination}` : '—', amount: b.total_amount_pkr, status: b.dropped_off_at ? 'completed' : mapStatus(b.status), date: b.travel_date, href: '/portal/marketplace', routeId: b.route_id, proofUrl: b.announced_proof_url,
+        isLiveRoute: isLive,
+        ticket: (!isLive && vr && b.ticket_no && !b.dropped_off_at && ['announced', 'confirmed'].includes(b.status)) ? {
+          bookingId: b.id, vehicleId: vr.vehicle_id, ticketNo: b.ticket_no,
+          origin: isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin, destination: isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination,
+          travelDate: b.travel_date, departureTime: vr.departure_time, seats: b.seats, amountPkr: b.total_amount_pkr,
+          paymentConfirmed: !!b.seat_accepted_at, isPerOrder: vr.vehicles?.commission_mode === 'per_order',
+        } : undefined,
+      })
     }
     for (const e of (shadi.data ?? []) as Array<{ id: string; event_date: string; venue_address: string; status: string; advance_amount_pkr: number | null; created_at: string }>) {
       out.push({ id: `shadi-${e.id}`, rawId: e.id, kind: 'shadi', title: t('vp.shadiPageTitle'), subtitle: e.venue_address, amount: e.advance_amount_pkr, status: mapStatus(e.status), date: e.event_date || e.created_at, href: `/portal/marketplace/shadi/${e.id}` })
@@ -279,7 +306,7 @@ export default function TripsPage() {
             const showDisputeAction = r.status === 'cancelled' && !!r.proofUrl
             return (
               <div key={r.id} className="flex flex-col gap-1.5">
-                <button onClick={() => setOpenRouteId(r.routeId!)} className={cls}>{content}</button>
+                <button onClick={() => { if (r.ticket) setOpenTicket(r.ticket); else if (r.isLiveRoute) setOpenGroupRouteId(r.routeId!); else setOpenRouteId(r.routeId!) }} className={cls}>{content}</button>
                 {r.status === 'cancelled' && (
                   <div className="flex gap-1.5 px-1">
                     {showDisputeAction && (
@@ -345,6 +372,12 @@ export default function TripsPage() {
       )}
       {openRouteId && (
         <RouteBookingSheet routeId={openRouteId} onClose={() => { setOpenRouteId(null); reloadMine() }} />
+      )}
+      {openGroupRouteId && (
+        <RouteGroupPanel routeId={openGroupRouteId} onClose={() => { setOpenGroupRouteId(null); reloadMine() }} />
+      )}
+      {openTicket && (
+        <RideTicketSheet info={openTicket} onClose={() => { setOpenTicket(null); reloadMine() }} onPaid={reloadMine} />
       )}
       {openTripBookingId && (
         <RideLifecycleSheet bookingId={openTripBookingId} onClose={() => { setOpenTripBookingId(null); reloadMine() }} />

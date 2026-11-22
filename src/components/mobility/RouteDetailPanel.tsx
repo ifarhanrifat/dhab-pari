@@ -341,15 +341,15 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     })
     setBookingReturn(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    const d = data as { total: number; ticket_no: string }
+    const d = data as { booking_id: string; total: number; ticket_no: string }
     toast.success(t('mv.returnSeatBookedToast').replace('{amount}', fmt(d.total)))
     const returnStop = stops.find((s) => s.id === returnBoardStopId)
     setTicketView({
-      ticketNo: d.ticket_no,
+      bookingId: d.booking_id, vehicleId: route.vehicle_id, ticketNo: d.ticket_no,
       origin: returnStop ? (isUrdu && returnStop.label_ur ? returnStop.label_ur : returnStop.label) : route.destination,
       destination: isUrdu && route.origin_ur ? route.origin_ur : route.origin,
-      travelDate, seats: 1, seatNumbers: isSeatNumbered && selectedReturnSeat ? [selectedReturnSeat] : null, amountPkr: d.total,
-      paymentConfirmed: false,
+      travelDate, departureTime: route.return_departure_time, seats: 1, seatNumbers: isSeatNumbered && selectedReturnSeat ? [selectedReturnSeat] : null, amountPkr: d.total,
+      paymentConfirmed: false, isPerOrder,
     })
     loadMyBookings()
   }
@@ -410,13 +410,14 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     // InGroupNote), exactly as before.
     toast.success(t('mp.bookingPlacedToast'))
     const boardStop = boardStopId ? stops.find((s) => s.id === boardStopId) : null
+    const bookedData = placed as { booking_id: string; ticket_no: string }
     setTicketView({
-      ticketNo: (placed as { ticket_no: string }).ticket_no,
+      bookingId: bookedData.booking_id, vehicleId: route.vehicle_id, ticketNo: bookedData.ticket_no,
       origin: isUrdu && route.origin_ur ? route.origin_ur : route.origin,
       destination: isUrdu && route.destination_ur ? route.destination_ur : route.destination,
-      travelDate, seats, seatNumbers: isSeatNumbered ? selectedSeats : null, amountPkr: total,
+      travelDate, departureTime: route.departure_time, seats, seatNumbers: isSeatNumbered ? selectedSeats : null, amountPkr: total,
       boardLabel: boardStop ? (isUrdu && boardStop.label_ur ? boardStop.label_ur : boardStop.label) : null,
-      paymentConfirmed: false,
+      paymentConfirmed: false, isPerOrder,
     })
     setBoardStopId(null); setAlightStopId(null); setSelectedSeats([]); setSeats(1)
     loadMyBookings()
@@ -729,12 +730,12 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 <button onClick={() => {
                   const boardStop = b.board_stop_id ? stops.find((s) => s.id === b.board_stop_id) : null
                   setTicketView({
-                    ticketNo: b.ticket_no!,
+                    bookingId: b.id, vehicleId: route.vehicle_id, ticketNo: b.ticket_no!,
                     origin: isUrdu && route.origin_ur ? route.origin_ur : route.origin,
                     destination: isUrdu && route.destination_ur ? route.destination_ur : route.destination,
-                    travelDate: b.travel_date, seats: b.seats, amountPkr: b.total_amount_pkr,
+                    travelDate: b.travel_date, departureTime: route.departure_time, seats: b.seats, amountPkr: b.total_amount_pkr,
                     boardLabel: boardStop ? (isUrdu && boardStop.label_ur ? boardStop.label_ur : boardStop.label) : null,
-                    paymentConfirmed: !!b.seat_accepted_at,
+                    paymentConfirmed: !!b.seat_accepted_at, isPerOrder,
                   })
                 }} className="mt-1.5 font-sans text-[11px] font-bold text-dp-secondary underline cursor-pointer">
                   {t('mv.viewTicketBtn')}
@@ -1148,7 +1149,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
           </button>
         </div>
       )}
-      {ticketView && <RideTicketSheet info={ticketView} onClose={() => setTicketView(null)} />}
+      {ticketView && <RideTicketSheet info={ticketView} onClose={() => setTicketView(null)} onPaid={loadMyBookings} />}
     </div>
   )
 }

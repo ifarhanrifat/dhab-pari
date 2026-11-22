@@ -12,8 +12,9 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Wallet, Bus, Building2, Receipt, Plus, HandCoins } from 'lucide-react'
+import { Wallet, Bus, Building2, Receipt, Plus, HandCoins, Landmark } from 'lucide-react'
 import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels, FleetStat } from '@/components/portal/FleetPanel'
+import { ImageUpload } from '@/components/admin/ImageUpload'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -25,6 +26,10 @@ interface CounterCash { counter_id: string; city: string; name: string | null; t
 interface VehicleCash { vehicle_id: string; owner_name: string; vehicle_type: string | null; vehicle_number: string | null; total_collected_pkr: number; total_remitted_pkr: number; cash_in_hand_pkr: number }
 interface Channels { online_pkr: number; terminal_pkr: number; driver_pkr: number; total_pkr: number }
 interface PendingHandover { id: string; amount_pkr: number; travel_date: string; direction: string; note: string | null; route_label: string; vehicle_number: string | null; driver_name: string | null; counter_label: string | null }
+interface FleetPaymentInfo {
+  name: string; logo_url: string | null; bank_account_title: string | null; bank_name: string | null; bank_account_number: string | null
+  easypaisa_number: string | null; easypaisa_account_title: string | null
+}
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -37,7 +42,17 @@ export default function FleetCashPage() {
 
   const [loading, setLoading] = useState(true)
   const [fleetId, setFleetId] = useState<string | null>(null)
+  const [isOwner, setIsOwner] = useState(false)
   const [canEditCash, setCanEditCash] = useState(false)
+  const [paymentInfo, setPaymentInfo] = useState<FleetPaymentInfo | null>(null)
+  const [editingPayment, setEditingPayment] = useState(false)
+  const [bankTitle, setBankTitle] = useState('')
+  const [bankName, setBankName] = useState('')
+  const [bankNumber, setBankNumber] = useState('')
+  const [easypaisaNumber, setEasypaisaNumber] = useState('')
+  const [easypaisaTitle, setEasypaisaTitle] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
+  const [savingPayment, setSavingPayment] = useState(false)
   const [counterCash, setCounterCash] = useState<CounterCash[]>([])
   const [remitCounterId, setRemitCounterId] = useState<string | null>(null)
   const [remitAmount, setRemitAmount] = useState('')
@@ -52,22 +67,44 @@ export default function FleetCashPage() {
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
-    const f = mine as { fleet_id: string; can_edit_cash: boolean } | null
+    const f = mine as { fleet_id: string; is_owner: boolean; can_edit_cash: boolean } | null
     setFleetId(f?.fleet_id ?? null)
+    setIsOwner(f?.is_owner ?? false)
     setCanEditCash(f?.can_edit_cash ?? false)
     if (f?.can_edit_cash) {
-      const [{ data: cashData }, { data: vehData }, { data: chData }, { data: handoverData }] = await Promise.all([
+      const [{ data: cashData }, { data: vehData }, { data: chData }, { data: handoverData }, { data: pay }] = await Promise.all([
         supabase.rpc('fleet_counter_cash_positions', { p_fleet_id: f.fleet_id }),
         supabase.rpc('fleet_vehicle_cash_positions', { p_fleet_id: f.fleet_id }),
         supabase.rpc('fleet_collection_channels', { p_fleet_id: f.fleet_id }),
         supabase.rpc('fleet_pending_driver_handovers', { p_fleet_id: f.fleet_id }),
+        supabase.from('fleets').select('name, logo_url, bank_account_title, bank_name, bank_account_number, easypaisa_number, easypaisa_account_title').eq('id', f.fleet_id).single(),
       ])
       setCounterCash((cashData ?? []) as CounterCash[])
       setVehicleCash((vehData ?? []) as VehicleCash[])
       setChannels((chData ?? null) as Channels | null)
       setPendingHandovers((handoverData ?? []) as PendingHandover[])
+      const p = pay as FleetPaymentInfo | null
+      setPaymentInfo(p)
+      if (p) {
+        setBankTitle(p.bank_account_title ?? ''); setBankName(p.bank_name ?? ''); setBankNumber(p.bank_account_number ?? '')
+        setEasypaisaNumber(p.easypaisa_number ?? ''); setEasypaisaTitle(p.easypaisa_account_title ?? ''); setLogoUrl(p.logo_url ?? '')
+      }
     }
     setLoading(false)
+  }
+
+  const savePaymentInfo = async () => {
+    if (!fleetId) return
+    setSavingPayment(true)
+    const { error } = await supabase.rpc('set_fleet_payment_info', {
+      p_fleet_id: fleetId, p_bank_account_title: bankTitle || null, p_bank_name: bankName || null, p_bank_account_number: bankNumber || null,
+      p_easypaisa_number: easypaisaNumber || null, p_easypaisa_account_title: easypaisaTitle || null, p_logo_url: logoUrl || null,
+    })
+    setSavingPayment(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.paymentInfoSavedToast'))
+    setEditingPayment(false)
+    load()
   }
 
   const confirmHandover = async (id: string) => {
@@ -125,6 +162,53 @@ export default function FleetCashPage() {
       </div>
 
       <p className="font-sans text-[11px] text-[#64748b] -mt-1">{t('mv.panelDesc.cash')}</p>
+
+      {/* Real gap named directly, 2026-11-22: a rider paying for their
+          seat had nowhere to see WHERE to actually send the money, or
+          any brand identity to go with it — this had simply never been
+          collected. Owner-only edit, same discipline as every other
+          identity-level (not day-to-day cash operation) write in this
+          codebase. Riders read this back via vehicle_payment_info. */}
+      <FleetPanel>
+        <FleetPanelHead icon={<Landmark size={14} />} title={t('mv.paymentDetailsHeading')} description={t('mv.panelDesc.paymentDetails')}
+          action={isOwner && !editingPayment ? <button onClick={() => setEditingPayment(true)} className="font-sans text-[11px] font-bold text-[#166534] cursor-pointer">{t('action.edit')}</button> : undefined} />
+        <FleetPanelBody className="flex flex-col gap-2.5">
+          {!editingPayment ? (
+            <div className="flex items-start gap-3">
+              {paymentInfo?.logo_url ? (
+                <img src={paymentInfo.logo_url} alt="" className="w-12 h-12 rounded-xl object-cover border border-[#e5e2d0] shrink-0" />
+              ) : (
+                <span className="w-12 h-12 rounded-xl bg-[#f1f5f9] flex items-center justify-center shrink-0"><Landmark size={18} className="text-[#94a3b8]" /></span>
+              )}
+              <div className="min-w-0 flex-1 flex flex-col gap-1">
+                <p className="font-sans text-[13.5px] font-bold text-[#1e293b] truncate">{paymentInfo?.name}</p>
+                {paymentInfo?.bank_account_number ? (
+                  <p className="font-sans text-[12px] text-[#64748b]">{paymentInfo.bank_name} · <span className="ltr-num">{paymentInfo.bank_account_number}</span> · {paymentInfo.bank_account_title}</p>
+                ) : null}
+                {paymentInfo?.easypaisa_number ? (
+                  <p className="font-sans text-[12px] text-[#64748b]">{t('mv.easypaisaLabel')} · <span className="ltr-num">{paymentInfo.easypaisa_number}</span> · {paymentInfo.easypaisa_account_title}</p>
+                ) : null}
+                {!paymentInfo?.bank_account_number && !paymentInfo?.easypaisa_number && (
+                  <p className="font-sans text-[12px] text-amber-700">{t('mv.noPaymentInfoYetHint')}</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              <ImageUpload bucket="images" currentUrl={logoUrl || undefined} onUpload={setLogoUrl} label={t('mv.busServiceLogoLabel')} />
+              <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder={t('mv.bankNameLabel')} className="input-field text-[13px]" />
+              <input value={bankNumber} onChange={(e) => setBankNumber(e.target.value)} placeholder={t('mv.bankAccountNumberLabel')} className="input-field text-[13px] ltr-num" />
+              <input value={bankTitle} onChange={(e) => setBankTitle(e.target.value)} placeholder={t('mv.bankAccountTitleLabel')} className="input-field text-[13px]" />
+              <input value={easypaisaNumber} onChange={(e) => setEasypaisaNumber(e.target.value)} placeholder={t('mv.easypaisaNumberLabel')} className="input-field text-[13px] ltr-num" />
+              <input value={easypaisaTitle} onChange={(e) => setEasypaisaTitle(e.target.value)} placeholder={t('mv.easypaisaAccountTitleLabel')} className="input-field text-[13px]" />
+              <div className="flex gap-2">
+                <button onClick={savePaymentInfo} disabled={savingPayment} className="flex-1 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">{savingPayment ? t('action.saving') : t('action.save')}</button>
+                <button onClick={() => setEditingPayment(false)} className="flex-1 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12.5px] font-semibold cursor-pointer">{t('action.cancel')}</button>
+              </div>
+            </div>
+          )}
+        </FleetPanelBody>
+      </FleetPanel>
 
       {/* 2026-11-18: Cash & accounts unification — this page already had
           real counter/vehicle cash positions + remittance actions

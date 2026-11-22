@@ -11,23 +11,26 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Truck, Phone, Lock, ChevronRight, Package, CalendarClock, ShoppingBag, CheckCircle2, Route as RouteIcon, Megaphone } from 'lucide-react'
+import { Truck, Phone, Lock, ChevronRight, Package, CalendarClock, ShoppingBag, CheckCircle2, Route as RouteIcon, Megaphone, Landmark } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { ImageUpload } from '@/components/admin/ImageUpload'
 
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string; owner_whatsapp: string | null
   vehicle_type: string; vehicle_number: string; total_seats: number | null; color: string | null; model: string | null
-  commission_mode: string; created_at: string; delivers: boolean
+  commission_mode: string; created_at: string; delivers: boolean; fleet_id: string | null
   offers_hourly: boolean; offers_shadi: boolean; offers_rental: boolean; offers_machinery: boolean; offers_tractor: boolean; offers_loader: boolean
   hourly_rate_pkr: number | null; shadi_full_day_rate_pkr: number | null
   machinery_hourly_rate_pkr: number | null; machinery_mobilization_fee_pkr: number | null
   machinery_hourly_rate_min_pkr: number | null; machinery_hourly_rate_max_pkr: number | null
   loader_trip_rate_pkr: number | null; rental_tier: string | null
+  logo_url: string | null; bank_account_title: string | null; bank_name: string | null; bank_account_number: string | null
+  easypaisa_number: string | null; easypaisa_account_title: string | null
 }
 // 838: Hourly/Rental figures come from the committee's fare guide for the
 // vehicle's rental_tier — the only thing riders are actually charged by
@@ -56,13 +59,23 @@ export default function MyVehicleVehiclePage() {
   const [tractorServices, setTractorServices] = useState<TractorService[]>([])
   const [fareGuide, setFareGuide] = useState<FareGuide | null>(null)
   const [loading, setLoading] = useState(true)
+  const [editingPayment, setEditingPayment] = useState(false)
+  const [bankTitle, setBankTitle] = useState('')
+  const [bankName, setBankName] = useState('')
+  const [bankNumber, setBankNumber] = useState('')
+  const [easypaisaNumber, setEasypaisaNumber] = useState('')
+  const [easypaisaTitle, setEasypaisaTitle] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
+  const [savingPayment, setSavingPayment] = useState(false)
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, owner_mobile, owner_whatsapp, vehicle_type, vehicle_number, total_seats, color, model, commission_mode, created_at, delivers, offers_hourly, offers_shadi, offers_rental, offers_machinery, offers_tractor, offers_loader, hourly_rate_pkr, shadi_full_day_rate_pkr, machinery_hourly_rate_pkr, machinery_mobilization_fee_pkr, machinery_hourly_rate_min_pkr, machinery_hourly_rate_max_pkr, loader_trip_rate_pkr, rental_tier')
+    supabase.from('vehicles').select('id, owner_name, owner_mobile, owner_whatsapp, vehicle_type, vehicle_number, total_seats, color, model, commission_mode, created_at, delivers, fleet_id, offers_hourly, offers_shadi, offers_rental, offers_machinery, offers_tractor, offers_loader, hourly_rate_pkr, shadi_full_day_rate_pkr, machinery_hourly_rate_pkr, machinery_mobilization_fee_pkr, machinery_hourly_rate_min_pkr, machinery_hourly_rate_max_pkr, loader_trip_rate_pkr, rental_tier, logo_url, bank_account_title, bank_name, bank_account_number, easypaisa_number, easypaisa_account_title')
       .eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
         setVehicle(data)
         if (data) {
+          setBankTitle(data.bank_account_title ?? ''); setBankName(data.bank_name ?? ''); setBankNumber(data.bank_account_number ?? '')
+          setEasypaisaNumber(data.easypaisa_number ?? ''); setEasypaisaTitle(data.easypaisa_account_title ?? ''); setLogoUrl(data.logo_url ?? '')
           const [{ data: reg }, { data: tractor }, { data: guides }] = await Promise.all([
             supabase.from('vehicle_registration_requests').select('owner_id_card_url, license_url, vehicle_doc_url, driver_photo_url')
               .eq('portal_user_id', user.id).eq('status', 'approved').order('created_at', { ascending: false }).limit(1).maybeSingle(),
@@ -92,6 +105,20 @@ export default function MyVehicleVehiclePage() {
     setSavingMachineryRate(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     setVehicle((v) => v ? { ...v, machinery_hourly_rate_pkr: next } : v)
+  }
+
+  const savePaymentInfo = async () => {
+    if (!vehicle) return
+    setSavingPayment(true)
+    const { error } = await supabase.rpc('set_vehicle_payment_info', {
+      p_vehicle_id: vehicle.id, p_bank_account_title: bankTitle || null, p_bank_name: bankName || null, p_bank_account_number: bankNumber || null,
+      p_easypaisa_number: easypaisaNumber || null, p_easypaisa_account_title: easypaisaTitle || null, p_logo_url: logoUrl || null,
+    })
+    setSavingPayment(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('mv.paymentInfoSavedToast'))
+    setVehicle((v) => v ? { ...v, bank_account_title: bankTitle || null, bank_name: bankName || null, bank_account_number: bankNumber || null, easypaisa_number: easypaisaNumber || null, easypaisa_account_title: easypaisaTitle || null, logo_url: logoUrl || null } : v)
+    setEditingPayment(false)
   }
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
@@ -201,6 +228,49 @@ export default function MyVehicleVehiclePage() {
               ? t('vp.ratesLockNoteWithMachineryBand').replace('{min}', fmt(vehicle.machinery_hourly_rate_min_pkr)).replace('{max}', fmt(vehicle.machinery_hourly_rate_max_pkr))
               : t('vp.ratesLockNote')}
           </div>
+        </div>
+      )}
+
+      {!vehicle.fleet_id && (
+        <div className="bg-white border border-[#e5e2d0] rounded-2xl p-4">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h3 className="font-sans text-[13px] font-bold text-[#1e293b] flex items-center gap-1.5"><Landmark size={14} /> {t('mv.paymentDetailsHeading')}</h3>
+            {!editingPayment && <button onClick={() => setEditingPayment(true)} className="font-sans text-[11px] font-bold text-[#166534] cursor-pointer">{t('action.edit')}</button>}
+          </div>
+          <p className="font-sans text-[11px] text-[#64748b] -mt-1 mb-2">{t('mv.panelDesc.paymentDetails')}</p>
+          {!editingPayment ? (
+            <div className="flex items-start gap-3">
+              {vehicle.logo_url ? (
+                <img src={vehicle.logo_url} alt="" className="w-12 h-12 rounded-xl object-cover border border-[#e5e2d0] shrink-0" />
+              ) : (
+                <span className="w-12 h-12 rounded-xl bg-[#f1f5f9] flex items-center justify-center shrink-0"><Landmark size={18} className="text-[#94a3b8]" /></span>
+              )}
+              <div className="min-w-0 flex-1 flex flex-col gap-1">
+                {vehicle.bank_account_number ? (
+                  <p className="font-sans text-[12px] text-[#64748b]">{vehicle.bank_name} · <span className="ltr-num">{vehicle.bank_account_number}</span> · {vehicle.bank_account_title}</p>
+                ) : null}
+                {vehicle.easypaisa_number ? (
+                  <p className="font-sans text-[12px] text-[#64748b]">{t('mv.easypaisaLabel')} · <span className="ltr-num">{vehicle.easypaisa_number}</span> · {vehicle.easypaisa_account_title}</p>
+                ) : null}
+                {!vehicle.bank_account_number && !vehicle.easypaisa_number && (
+                  <p className="font-sans text-[12px] text-amber-700">{t('mv.noPaymentInfoYetHint')}</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              <ImageUpload bucket="images" currentUrl={logoUrl || undefined} onUpload={setLogoUrl} label={t('mv.busServiceLogoLabel')} />
+              <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder={t('mv.bankNameLabel')} className="input-field text-[13px]" />
+              <input value={bankNumber} onChange={(e) => setBankNumber(e.target.value)} placeholder={t('mv.bankAccountNumberLabel')} className="input-field text-[13px] ltr-num" />
+              <input value={bankTitle} onChange={(e) => setBankTitle(e.target.value)} placeholder={t('mv.bankAccountTitleLabel')} className="input-field text-[13px]" />
+              <input value={easypaisaNumber} onChange={(e) => setEasypaisaNumber(e.target.value)} placeholder={t('mv.easypaisaNumberLabel')} className="input-field text-[13px] ltr-num" />
+              <input value={easypaisaTitle} onChange={(e) => setEasypaisaTitle(e.target.value)} placeholder={t('mv.easypaisaAccountTitleLabel')} className="input-field text-[13px]" />
+              <div className="flex gap-2">
+                <button onClick={savePaymentInfo} disabled={savingPayment} className="flex-1 py-2 rounded-lg bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">{savingPayment ? t('action.saving') : t('action.save')}</button>
+                <button onClick={() => setEditingPayment(false)} className="flex-1 py-2 rounded-lg border border-[#e5e2d0] font-sans text-[12.5px] font-semibold cursor-pointer">{t('action.cancel')}</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
