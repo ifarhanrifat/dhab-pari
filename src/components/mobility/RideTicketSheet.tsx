@@ -117,7 +117,7 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
           </span>
 
           <div className="rounded-2xl border border-[#e8eaee] p-3.5 grid grid-cols-2 gap-2.5 text-[12.5px]">
-            <div className="col-span-2"><p className="text-[#64748b] text-[10.5px]">{t('mv.fromToLabel')}</p><p className="font-semibold"><bdi>{info.boardLabel ?? info.origin}</bdi> → <bdi>{info.destination}</bdi></p></div>
+            <div className="col-span-2"><p className="text-[#64748b] text-[10.5px]">{t('mv.fromToLabel')}</p><p className="font-semibold">{info.boardLabel ?? info.origin} → {info.destination}</p></div>
             <div><p className="text-[#64748b] text-[10.5px]">{t('mv.travelDateLabel')}</p><p className="font-semibold ltr-num">{info.travelDate}</p></div>
             <div><p className="text-[#64748b] text-[10.5px]">{t('mk.seatsLabel')}</p><p className="font-semibold ltr-num">{info.seats}{info.seatNumbers?.length ? ` (#${info.seatNumbers.join(', ')})` : ''}</p></div>
             <div className="col-span-2 flex items-center justify-between pt-2 mt-1 border-t border-[#e8eaee]">
