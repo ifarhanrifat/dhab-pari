@@ -94,6 +94,12 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(true)
   const [travelDate, setTravelDate] = useState('')
+  // 2026-11-22: real ask — the outbound and return-leg booking forms
+  // used to both render stacked, one under the other, with two
+  // separate book buttons visible at once. This toggle shows only one
+  // at a time instead, same pill-tab pattern already used elsewhere in
+  // this app (e.g. /portal/drive's Home/Trip/Cash/Pay tabs).
+  const [bookingDirection, setBookingDirection] = useState<'outbound' | 'return'>('outbound')
   const [available, setAvailable] = useState<number | null>(null)
   const [checkingAvailability, setCheckingAvailability] = useState(false)
   const [seats, setSeats] = useState(1)
@@ -313,8 +319,15 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
       supabase.rpc('route_fraction_remaining', { p_route_id: route.id, p_lat: boardStop.lat, p_lng: boardStop.lng }),
       supabase.rpc('route_fraction_remaining', { p_route_id: route.id, p_lat: alightStop.lat, p_lng: alightStop.lng }),
     ]).then(([a, b]) => {
+      // Real bug found live, 2026-11-22: "select start point Peshawar,
+      // end point Peshawar — ticket calculates as full fare." An
+      // invalid pair (same stop twice, or alight not actually further
+      // along) silently fell back to segmentFraction=1 here — which
+      // reads as "book the whole route," not as the error it actually
+      // is. Surfaced as the real 0-or-negative value instead, so the
+      // UI above can show mv.invalidStopPairError and disable Book.
       const f = (a.data as number) - (b.data as number)
-      setSegmentFraction(f > 0 ? f : 1)
+      setSegmentFraction(f)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route?.id, boardStopId, alightStopId, stops])
@@ -1009,145 +1022,187 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
         {myBookings.length > 0 && (
           <p className="font-sans text-[11.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mb-3">{t('mv.bookNewVsEditHint')}</p>
         )}
-        {stops.length > 0 && (
-          <div className="mb-4 pb-4 border-b border-dp-outline-variant">
-            <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{t('mv.boardAlightHeading')}</p>
-            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mv.boardStopLabel')}</label>
-            <select value={boardStopId ?? ''} onChange={(e) => setBoardStopId(e.target.value || null)} className="input-field">
-              <option value="">{t('mv.fullRouteOption')}</option>
-              {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
-            </select>
-            {boardStopId && (
-              <>
-                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1 mt-2.5">{t('mv.alightStopLabel')}</label>
-                <select value={alightStopId ?? ''} onChange={(e) => setAlightStopId(e.target.value || null)} className="input-field">
-                  <option value="">—</option>
-                  {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
-                </select>
-              </>
-            )}
-            {boardStopId && alightStopId && (
-              isFlex ? (
-                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('mv.flexStopNoFareChangeHint')}</p>
-              ) : (
-                <p className="font-sans text-[11.5px] text-dp-secondary mt-1.5">{t('mv.segmentFareHint').replace('{pct}', String(Math.round(segmentFraction * 100)))}</p>
-              )
-            )}
-          </div>
-        )}
+
         <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('mp.travelDateLabel')}</label>
         <input type="date" min={todayStr()} value={travelDate} onChange={(e) => setTravelDate(e.target.value)} className="input-field" />
         {wrongDay && <p className="font-sans text-[12px] text-dp-error mt-1.5">{t('mp.wrongDayError')}</p>}
 
-        {/* 868: real gap — booking for today used to carry zero signal
-            about whether the scheduled departure had already passed.
-            Ambiguous case (no live run yet — delayed, or the driver
-            forgot to tap Start): warn, don't block, since we genuinely
-            don't know if it left. Confirmed case (a live run exists AND
-            this exact board point has already been physically passed):
-            block this board point outright — the "Ride Now" section
-            below is the only way to still catch it from here. A board
-            point still ahead of the vehicle (common on a long route) is
-            never touched by either check. */}
-        {!wrongDay && travelDate === todayStr() && runStatus && (
-          runStatus.has_active_run && runStatus.already_passed ? (
-            <p className="font-sans text-[12px] text-dp-error bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 mt-2.5">{t('mv.boardPointAlreadyPassedHint')}</p>
-          ) : !runStatus.has_active_run && runStatus.departure_time_passed ? (
-            <p className="font-sans text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-2.5">{t('mv.departureTimePassedNoRunHint')}</p>
-          ) : null
-        )}
-        {!wrongDay && travelDate && (
-          <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">
-            {checkingAvailability ? t('action.loading') : available !== null ? `${available} ${t('mp.seatsAvailableSuffix')}` : ''}
-          </p>
+        {/* 2026-11-22: real ask — "why not we just let the user book the
+            one way and move the popup to next popup for two way booking
+            and create a toggle... where user can select one way or two
+            way booking" — one pill toggle, one form visible at a time,
+            instead of both the outbound and return-leg forms permanently
+            stacked with two separate book buttons on screen together. */}
+        {route.is_two_way && (
+          <div className="flex gap-1 p-1 rounded-xl bg-dp-surface-container-high mt-3">
+            {(['outbound', 'return'] as const).map((dir) => (
+              <button key={dir} type="button" onClick={() => setBookingDirection(dir)}
+                className={`flex-1 py-2 rounded-lg font-sans text-[12.5px] font-bold cursor-pointer transition-colors ${bookingDirection === dir ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>
+                {dir === 'outbound' ? t('mv.outboundTabLabel') : t('mv.returnTabLabel')}
+              </button>
+            ))}
+          </div>
         )}
 
-        {!wrongDay && travelDate && available !== null && available > 0 && (
-          <>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 mt-4">{t('mk.seatsLabel')}</label>
-            <div className="flex items-center gap-3">
-              <button onClick={() => setSeats((s) => Math.max(1, s - 1))} className="w-8 h-8 rounded-full bg-dp-surface-container-high flex items-center justify-center cursor-pointer"><Minus size={14} /></button>
-              <span className="font-sans text-[15px] font-bold ltr-num w-8 text-center">{seats}</span>
-              <button onClick={() => setSeats((s) => Math.min(available, s + 1))} className="w-8 h-8 rounded-full bg-dp-secondary text-white flex items-center justify-center cursor-pointer"><Plus size={14} /></button>
-            </div>
-
-            {isSeatNumbered && vehicle && (
-              <div className="mt-3">
-                <SeatPickerField totalSeats={effectiveSeatsForDate ?? vehicle.total_seats} takenSeatNumbers={takenSeats} seatsNeeded={seats} selected={selectedSeats} onChange={setSelectedSeats} isSleeper={vehicle.is_sleeper} />
+        {bookingDirection === 'outbound' && (
+          <div className="mt-4">
+            {stops.length > 0 && (
+              <div className="mb-4 pb-4 border-b border-dp-outline-variant">
+                <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{t('mv.boardAlightHeading')}</p>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mv.boardStopLabel')}</label>
+                <select value={boardStopId ?? ''} onChange={(e) => { setBoardStopId(e.target.value || null); if (e.target.value && e.target.value === alightStopId) setAlightStopId(null) }} className="input-field">
+                  <option value="">{t('mv.fullRouteOption')}</option>
+                  {stops.map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
+                </select>
+                {boardStopId && (
+                  <>
+                    <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1 mt-2.5">{t('mv.alightStopLabel')}</label>
+                    <select value={alightStopId ?? ''} onChange={(e) => setAlightStopId(e.target.value || null)} className="input-field">
+                      <option value="">—</option>
+                      {/* Real bug found live, 2026-11-22: the alight list
+                          used to include the already-picked board stop
+                          itself, letting a rider pick e.g. Peshawar→
+                          Peshawar — segmentFraction then silently fell
+                          back to 1 (full fare) instead of erroring.
+                          Excluding it here removes the nonsensical pick
+                          at the source, on top of the fallback fix below. */}
+                      {stops.filter((s) => s.stop_order > (stops.find((b) => b.id === boardStopId)?.stop_order ?? -Infinity)).map((s) => <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>)}
+                    </select>
+                  </>
+                )}
+                {boardStopId && alightStopId && (
+                  isFlex ? (
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('mv.flexStopNoFareChangeHint')}</p>
+                  ) : segmentFraction <= 0 ? (
+                    <p className="font-sans text-[11.5px] text-dp-error mt-1.5">{t('mv.invalidStopPairError')}</p>
+                  ) : (
+                    <p className="font-sans text-[11.5px] text-dp-secondary mt-1.5">{t('mv.segmentFareHint').replace('{pct}', String(Math.round(segmentFraction * 100)))}</p>
+                  )
+                )}
               </div>
             )}
 
-            {isFlex && (
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{t('mp.flexEstimateNote').replace('{n}', String(seatsBookedSoFar + seats))}</p>
+            {/* 868: real gap — booking for today used to carry zero signal
+                about whether the scheduled departure had already passed.
+                Ambiguous case (no live run yet — delayed, or the driver
+                forgot to tap Start): warn, don't block, since we genuinely
+                don't know if it left. Confirmed case (a live run exists AND
+                this exact board point has already been physically passed):
+                block this board point outright — the "Ride Now" section
+                below is the only way to still catch it from here. A board
+                point still ahead of the vehicle (common on a long route) is
+                never touched by either check. */}
+            {!wrongDay && travelDate === todayStr() && runStatus && (
+              runStatus.has_active_run && runStatus.already_passed ? (
+                <p className="font-sans text-[12px] text-dp-error bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 mt-2.5">{t('mv.boardPointAlreadyPassedHint')}</p>
+              ) : !runStatus.has_active_run && runStatus.departure_time_passed ? (
+                <p className="font-sans text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-2.5">{t('mv.departureTimePassedNoRunHint')}</p>
+              ) : null
             )}
-            <div className="flex items-center justify-between pt-3 mt-3 border-t border-dp-outline-variant">
-              <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('mp.cartTotal')}</p>
-              <p className="font-heading text-[19px] font-bold text-dp-secondary">{fmt(total)}</p>
-            </div>
+            {!wrongDay && travelDate && (
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">
+                {checkingAvailability ? t('action.loading') : available !== null ? `${available} ${t('mp.seatsAvailableSuffix')}` : ''}
+              </p>
+            )}
 
-            {isPerOrder ? (
-              <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-4">{t('cm.payDirectlyNote')}</p>
-            ) : (
-              /* Real fix, 2026-11-12: booking and paying are now two
-                 separate steps — the payment method + receipt upload
-                 moved to the waiting sheet, shown only once the rider
-                 has read the unconfirmed-seat notice and decided to pay.
-                 Requiring it here, before the booking even existed,
-                 meant a rider could pay for a bus that had already left
-                 with no chance to find that out first. */
-              <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-4">{t('mv.seatNeedsDriverConfirmNote')}</p>
+            {!wrongDay && travelDate && available !== null && available > 0 && (
+              <>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 mt-4">{t('mk.seatsLabel')}</label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setSeats((s) => Math.max(1, s - 1))} className="w-8 h-8 rounded-full bg-dp-surface-container-high flex items-center justify-center cursor-pointer"><Minus size={14} /></button>
+                  <span className="font-sans text-[15px] font-bold ltr-num w-8 text-center">{seats}</span>
+                  <button onClick={() => setSeats((s) => Math.min(available, s + 1))} className="w-8 h-8 rounded-full bg-dp-secondary text-white flex items-center justify-center cursor-pointer"><Plus size={14} /></button>
+                </div>
+
+                {isSeatNumbered && vehicle && (
+                  <div className="mt-3">
+                    <SeatPickerField totalSeats={effectiveSeatsForDate ?? vehicle.total_seats} takenSeatNumbers={takenSeats} seatsNeeded={seats} selected={selectedSeats} onChange={setSelectedSeats} isSleeper={vehicle.is_sleeper} />
+                  </div>
+                )}
+
+                {isFlex && (
+                  <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{t('mp.flexEstimateNote').replace('{n}', String(seatsBookedSoFar + seats))}</p>
+                )}
+                <div className="flex items-center justify-between pt-3 mt-3 border-t border-dp-outline-variant">
+                  <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('mp.cartTotal')}</p>
+                  <p className="font-heading text-[19px] font-bold text-dp-secondary">{fmt(total)}</p>
+                </div>
+
+                {isPerOrder ? (
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-4">{t('cm.payDirectlyNote')}</p>
+                ) : (
+                  /* Real fix, 2026-11-12: booking and paying are now two
+                     separate steps — the payment method + receipt upload
+                     moved to the waiting sheet, shown only once the rider
+                     has read the unconfirmed-seat notice and decided to pay.
+                     Requiring it here, before the booking even existed,
+                     meant a rider could pay for a bus that had already left
+                     with no chance to find that out first. */
+                  <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-4">{t('mv.seatNeedsDriverConfirmNote')}</p>
+                )}
+                <div className="mt-3"><FarePolicyCard service="seat" defaultOpen={false} /></div>
+                <button onClick={submit} disabled={submitting || (isSeatNumbered && selectedSeats.length !== seats) || (!!alightStopId && segmentFraction <= 0) || (travelDate === todayStr() && !!runStatus?.has_active_run && !!runStatus?.already_passed)} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {submitting ? t('mp.placingBooking') : t('mp.bookSeatsBtn')}
+                </button>
+              </>
             )}
-            <div className="mt-3"><FarePolicyCard service="seat" defaultOpen={false} /></div>
-            <button onClick={submit} disabled={submitting || (isSeatNumbered && selectedSeats.length !== seats) || (travelDate === todayStr() && !!runStatus?.has_active_run && !!runStatus?.already_passed)} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-              {submitting ? t('mp.placingBooking') : t('mp.bookSeatsBtn')}
-            </button>
-          </>
+            {!wrongDay && travelDate && available === 0 && (
+              <p className="font-sans text-[13px] text-dp-error mt-3">{t('mp.fullyBookedError')}</p>
+            )}
+          </div>
         )}
-        {!wrongDay && travelDate && available === 0 && (
-          <p className="font-sans text-[13px] text-dp-error mt-3">{t('mp.fullyBookedError')}</p>
+
+        {/* Real ask, 2026-10-21: "an alert will be sent to the riders... with
+            1 seat or 2 seat available and now they can join the ride with
+            one way fare" — a seat released by an offboard (RouteGroupPanel's
+            own flow) shows up here for anyone, not just people already on
+            the outbound leg, bookable one-way at a distance-proportional
+            fare (book_standalone_return_seat). */}
+        {bookingDirection === 'return' && route.is_two_way && (
+          <div className="mt-4">
+            {!wrongDay && travelDate ? (
+              (returnSeatsAvailable ?? 0) > 0 ? (
+                <>
+                  <p className="font-sans text-[13px] font-bold text-[#166534]">🔄 {t('mv.returnSeatsOpenNote').replace('{n}', String(returnSeatsAvailable))}</p>
+                  <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('mv.returnSeatHint')}</p>
+
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 mt-3">{t('mv.pickBoardStopLabel')}</label>
+                  <select value={returnBoardStopId ?? ''} onChange={(e) => setReturnBoardStopId(e.target.value || null)} className="input-field">
+                    <option value="">{t('mv.pickBoardStopLabel')}</option>
+                    {stops.map((s) => (
+                      <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>
+                    ))}
+                  </select>
+
+                  {isSeatNumbered && vehicle && (
+                    <div className="mt-3">
+                      <SeatPickerField totalSeats={effectiveSeatsForDate ?? vehicle.total_seats} takenSeatNumbers={takenSeatsReturn} seatsNeeded={1} isSleeper={vehicle.is_sleeper}
+                        selected={selectedReturnSeat ? [selectedReturnSeat] : []} onChange={(s) => setSelectedReturnSeat(s[0] ?? null)} />
+                    </div>
+                  )}
+
+                  {isPerOrder ? (
+                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-3">{t('cm.payDirectlyNote')}</p>
+                  ) : (
+                    <div className="mt-3">
+                      <DonationReceiptUpload onUpload={setReturnProofPath} />
+                    </div>
+                  )}
+                  <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
+
+                  <button onClick={bookReturnSeat} disabled={bookingReturn || !returnBoardStopId || (isSeatNumbered && !selectedReturnSeat)} className="w-full mt-3 bg-[#166534] text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-[#0f4b27] transition-all disabled:opacity-50">
+                    {bookingReturn ? t('mp.placingBooking') : t('mv.bookReturnSeatBtn')}
+                  </button>
+                </>
+              ) : (
+                <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-6">{t('mv.noReturnSeatsYetHint')}</p>
+              )
+            ) : (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-6">{wrongDay ? t('mp.wrongDayError') : t('mv.pickDateForReturnHint')}</p>
+            )}
+          </div>
         )}
       </div>
-      )}
-
-      {/* Real ask, 2026-10-21: "an alert will be sent to the riders... with
-          1 seat or 2 seat available and now they can join the ride with
-          one way fare" — a seat released by an offboard (RouteGroupPanel's
-          own flow) shows up here for anyone, not just people already on
-          the outbound leg, bookable one-way at a distance-proportional
-          fare (book_standalone_return_seat). */}
-      {!route.is_monthly_fixed && bookable && route.is_two_way && !wrongDay && travelDate && (returnSeatsAvailable ?? 0) > 0 && (
-        <div className="bg-[#F0FDF4] border border-[#bbf7d0] rounded-lg p-4 mt-4">
-          <p className="font-sans text-[13px] font-bold text-[#166534]">🔄 {t('mv.returnSeatsOpenNote').replace('{n}', String(returnSeatsAvailable))}</p>
-          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('mv.returnSeatHint')}</p>
-
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 mt-3">{t('mv.pickBoardStopLabel')}</label>
-          <select value={returnBoardStopId ?? ''} onChange={(e) => setReturnBoardStopId(e.target.value || null)} className="input-field">
-            <option value="">{t('mv.pickBoardStopLabel')}</option>
-            {stops.map((s) => (
-              <option key={s.id} value={s.id}>{isUrdu && s.label_ur ? s.label_ur : s.label}</option>
-            ))}
-          </select>
-
-          {isSeatNumbered && vehicle && (
-            <div className="mt-3">
-              <SeatPickerField totalSeats={effectiveSeatsForDate ?? vehicle.total_seats} takenSeatNumbers={takenSeatsReturn} seatsNeeded={1} isSleeper={vehicle.is_sleeper}
-                selected={selectedReturnSeat ? [selectedReturnSeat] : []} onChange={(s) => setSelectedReturnSeat(s[0] ?? null)} />
-            </div>
-          )}
-
-          {isPerOrder ? (
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-3">{t('cm.payDirectlyNote')}</p>
-          ) : (
-            <div className="mt-3">
-              <DonationReceiptUpload onUpload={setReturnProofPath} />
-            </div>
-          )}
-          <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3">{t('mv.seatNeedsDriverConfirmNote')}</p>
-
-          <button onClick={bookReturnSeat} disabled={bookingReturn || !returnBoardStopId || (isSeatNumbered && !selectedReturnSeat)} className="w-full mt-3 bg-[#166534] text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-[#0f4b27] transition-all disabled:opacity-50">
-            {bookingReturn ? t('mp.placingBooking') : t('mv.bookReturnSeatBtn')}
-          </button>
-        </div>
       )}
       {ticketView && <RideTicketSheet info={ticketView} onClose={() => setTicketView(null)} onPaid={loadMyBookings} />}
     </div>
