@@ -18,7 +18,6 @@
 // date and isn't safe to silently recompute here.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Minus, Plus, MapPin, Bus, Users, CalendarClock } from 'lucide-react'
@@ -31,8 +30,6 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
 import { SeatPickerField } from '@/components/mobility/SeatPickerField'
-import { RequestWaitingSheet, type WaitingSummary } from '@/components/mobility/RequestWaitingSheet'
-import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { estimateArrivalTime, estimateReturnArrivalTime, haversineKm } from '@/lib/roadRoute'
 import { useLiveLocation, getCurrentPositionOnce } from '@/hooks/useLiveLocation'
 import type { LeafletMapHandle, MapPin as LeafletMapPin } from '@/components/shared/LeafletMap'
@@ -89,7 +86,6 @@ function todayStr() {
 
 export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const { t, isUrdu } = useLocale()
-  const router = useRouter()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
 
@@ -109,7 +105,6 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const isSeatNumbered = vehicleKind === 'van'
   const [method, setMethod] = useState('cash')
   const [submitting, setSubmitting] = useState(false)
-  const [waiting, setWaiting] = useState<{ id: string; summary: WaitingSummary } | null>(null)
   const [bookable, setBookable] = useState(true)
   const [stops, setStops] = useState<Stop[]>([])
   const [showGroup, setShowGroup] = useState(false)
@@ -385,16 +380,25 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error)); return }
-    // Stays on a live "waiting for the driver" popup until they confirm
-    // or decline, instead of a toast and a jump back to the hub.
-    setWaiting({
-      id: (placed as { booking_id: string }).booking_id,
-      summary: {
-        vehicleLabel: vehicle ? vehicleDisplayName(vehicle.vehicle_type) : t('mv.tab.routes'), driverName: vehicle?.owner_name ?? null,
-        from: isUrdu && route.origin_ur ? route.origin_ur : route.origin, to: isUrdu && route.destination_ur ? route.destination_ur : route.destination,
-        amount: total, facts: [travelDate, t('rw.seats').replace('{n}', String(seats))],
-      },
-    })
+    // Real bug reported live, 2026-11-22: "I booked a bus right now,
+    // status is unconfirmed, but the popup appeared waiting for the
+    // driver approval — the popup should only appear for a bus that's
+    // already left the terminal (catching up), the rest should go
+    // straight through and get the ticket." That full-screen "waiting
+    // for the driver" sheet (RequestWaitingSheet) was built for — and
+    // still correctly belongs to — a real one-off dispatch to one
+    // driver who has to decide right now (hourly/rental/equipment, and
+    // the mid-route catch request just below, which keeps its own
+    // inline pending state). An ordinary advance seat on a scheduled
+    // route isn't that: it's buying a ticket off a timetable, already
+    // capacity-locked server-side, with nothing for a human to decide
+    // in real time. It no longer opens that modal — the rider gets
+    // their ticket immediately; whether the driver has confirmed the
+    // direct payment yet is still shown, non-blocking, right on the
+    // "My Bookings" card below (seatPendingDriverNote / seatConfirmed-
+    // InGroupNote), exactly as before.
+    toast.success(t('mp.bookingPlacedToast'))
+    setBoardStopId(null); setAlightStopId(null); setSelectedSeats([]); setSeats(1)
     loadMyBookings()
   }
 
@@ -1108,11 +1112,6 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
             {bookingReturn ? t('mp.placingBooking') : t('mv.bookReturnSeatBtn')}
           </button>
         </div>
-      )}
-      {waiting && (
-        <RequestWaitingSheet kind="seat" bookingId={waiting.id} summary={waiting.summary} isPerOrder={isPerOrder}
-          onClose={() => setWaiting(null)}
-          onViewBooking={() => { setWaiting(null); router.push('/portal/marketplace/trips') }} />
       )}
     </div>
   )
