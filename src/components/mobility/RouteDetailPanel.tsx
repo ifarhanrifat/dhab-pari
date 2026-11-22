@@ -85,7 +85,7 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
 
-export function RouteDetailPanel({ routeId }: { routeId: string }) {
+export function RouteDetailPanel({ routeId, initialDate, initialSeats, onBooked }: { routeId: string; initialDate?: string; initialSeats?: number; onBooked?: () => void }) {
   const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
@@ -93,10 +93,10 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const [route, setRoute] = useState<Route | null>(null)
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(true)
-  const [travelDate, setTravelDate] = useState('')
+  const [travelDate, setTravelDate] = useState(initialDate ?? '')
   const [available, setAvailable] = useState<number | null>(null)
   const [checkingAvailability, setCheckingAvailability] = useState(false)
-  const [seats, setSeats] = useState(1)
+  const [seats, setSeats] = useState(initialSeats ?? 1)
   // 845/846: seat-number picking is van-kind-only (van/bus/coaster/
   // hiace, per 833's vehicle_kind grouping) — every other kind keeps
   // the plain seat-count stepper, no change for them at all.
@@ -389,6 +389,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     })
     setBoardStopId(null); setAlightStopId(null); setSelectedSeats([]); setSeats(1)
     loadMyBookings()
+    onBooked?.()
   }
 
   const cancelMyBooking = async (bookingId: string, status: string) => {

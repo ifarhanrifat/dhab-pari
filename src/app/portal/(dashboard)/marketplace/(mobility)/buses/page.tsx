@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Bus, Search, Clock, Users, MessageCircle, ArrowRight, CalendarDays, Repeat, MapPinned, ArrowRightLeft, X } from 'lucide-react'
+import { Bus, Search, Clock, Users, MessageCircle, ArrowRight, CalendarDays, Repeat, MapPinned, ArrowRightLeft, X, Minus, Plus, Check, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -32,6 +32,7 @@ interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_per_seat_pkr: number | null; departure_time: string | null; return_departure_time: string | null; days_of_week: number[] | null
   is_two_way: boolean | null; is_monthly_fixed: boolean | null; monthly_reference_fee_pkr: number | null; distance_km: number | null; route_duration_min: number | null
+  service_class: string | null
   vehicles: VehicleLite | null
   source_tenant_name?: string | null
 }
@@ -49,6 +50,7 @@ interface NearbyTehsilRow {
   owner_name: string; vehicle_type: string; model: string | null; color: string | null; total_seats: number | null; has_ac: boolean | null; vehicle_number: string | null
   source_tenant_id: string; source_tenant_name: string
 }
+const SERVICE_CLASSES = ['economy', 'business', 'executive', 'sleeper', 'luxury'] as const
 interface MySeat {
   id: string; status: string; seats: number; travel_date: string; route_id: string | null
   boarded_at: string | null; dropped_off_at: string | null
@@ -101,9 +103,30 @@ export default function BusesPage() {
   // real From→To search layered on top of it, matching every operator
   // (same-tenant and cross-tenant alike, already pulled into `routes`/
   // `trips`) for that exact pair, sorted cheapest-first by default.
+  //
+  // 2026-11-22, same day — real spec from the user, a full step-based
+  // search: From/To → one-way or round trip → departure (and return)
+  // date → seat count → Search, then departure/return as two separate
+  // tabs, each with its own editable date to shop that leg, a service-
+  // class filter (economy/business/executive/sleeper/luxury — the
+  // existing vehicle_routes.service_class column, already set per
+  // route via set_route_service_class and already shown as a badge on
+  // RouteDetailPanel), picking a bus from either tab opens the exact
+  // same existing RouteBookingSheet (stops/seats/submit unchanged) —
+  // this page only adds the search/tabs/filter wrapper around it.
   const [fromCity, setFromCity] = useState('')
   const [toCity, setToCity] = useState('')
   const [sortBy, setSortBy] = useState<'price' | 'time'>('price')
+  const [tripType, setTripType] = useState<'oneway' | 'roundtrip'>('oneway')
+  const [departDate, setDepartDate] = useState('')
+  const [returnDate, setReturnDate] = useState('')
+  const [seatsWanted, setSeatsWanted] = useState(1)
+  const [serviceClassFilter, setServiceClassFilter] = useState<string | null>(null)
+  const [searched, setSearched] = useState(false)
+  const [activeTab, setActiveTab] = useState<'departure' | 'return'>('departure')
+  const [departureBooked, setDepartureBooked] = useState(false)
+  const [returnBooked, setReturnBooked] = useState(false)
+  const [bookingLegTab, setBookingLegTab] = useState<'departure' | 'return' | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -111,7 +134,7 @@ export default function BusesPage() {
     const today = new Date().toISOString().slice(0, 10)
     const veh = 'vehicles(owner_name, vehicle_type, model, color, total_seats, has_ac, vehicle_number)'
     Promise.all([
-      supabase.from('vehicle_routes').select(`id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr, departure_time, return_departure_time, days_of_week, is_two_way, is_monthly_fixed, monthly_reference_fee_pkr, distance_km, route_duration_min, ${veh}`).eq('is_active', true).order('departure_time'),
+      supabase.from('vehicle_routes').select(`id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr, departure_time, return_departure_time, days_of_week, is_two_way, is_monthly_fixed, monthly_reference_fee_pkr, distance_km, route_duration_min, service_class, ${veh}`).eq('is_active', true).order('departure_time'),
       supabase.from('vehicle_trip_offers').select(`id, origin, origin_ur, destination, destination_ur, travel_date, departure_time_estimate, seats_available, listed_fare_per_seat_pkr, trip_type, ${veh}`).eq('status', 'open').gte('travel_date', today).order('travel_date'),
       supabase.from('ride_bookings').select('id, status, seats, travel_date, route_id, boarded_at, dropped_off_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time)').eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).is('dropped_off_at', null).gte('travel_date', today).order('travel_date'),
       supabase.rpc('nearby_tehsil_rides'),
@@ -123,7 +146,7 @@ export default function BusesPage() {
         id: n.id, origin: n.origin, origin_ur: n.origin_ur, destination: n.destination, destination_ur: n.destination_ur,
         fare_per_seat_pkr: n.fare_per_seat_pkr ?? null, departure_time: n.departure_time ?? null, return_departure_time: n.return_departure_time ?? null,
         days_of_week: n.days_of_week ?? null, is_two_way: n.is_two_way ?? null, is_monthly_fixed: false, monthly_reference_fee_pkr: null,
-        distance_km: n.distance_km ?? null, route_duration_min: n.route_duration_min ?? null,
+        distance_km: n.distance_km ?? null, route_duration_min: n.route_duration_min ?? null, service_class: null,
         vehicles: { owner_name: n.owner_name, vehicle_type: n.vehicle_type, model: n.model, color: n.color, total_seats: n.total_seats, has_ac: n.has_ac, vehicle_number: n.vehicle_number },
         source_tenant_name: n.source_tenant_name,
       }))
@@ -181,33 +204,59 @@ export default function BusesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routes, trips, isUrdu])
 
-  const pairSearchActive = !!fromCity && !!toCity
-  const pairResults = useMemo(() => {
-    if (!pairSearchActive) return { routes: [] as RouteRow[], trips: [] as TripRow[] }
+  const canSearch = !!fromCity && !!toCity && fromCity !== toCity && !!departDate && (tripType === 'oneway' || !!returnDate)
+
+  const computeLegResults = (fromKey: string, toKey: string, date: string) => {
+    if (!fromKey || !toKey) return { routes: [] as RouteRow[], trips: [] as TripRow[] }
     const sameCity = (a: string, key: string) => a.trim().toLowerCase() === key
     const groupOk = (type: string | undefined) => !vehicleGroup || vehicleGroupFor(type) === vehicleGroup
+    const classOk = (sc: string | null) => !serviceClassFilter || sc === serviceClassFilter
     const wantMonthly = view === 'monthly'
-    const r = routes.filter((r) => !!r.is_monthly_fixed === wantMonthly && sameCity(r.origin, fromCity) && sameCity(r.destination, toCity) && groupOk(r.vehicles?.vehicle_type))
-    const o = !wantMonthly ? trips.filter((o) => sameCity(o.origin, fromCity) && sameCity(o.destination, toCity) && groupOk(o.vehicles?.vehicle_type)) : []
+    const dow = date ? new Date(`${date}T00:00:00`).getDay() : null
+    const r = routes.filter((r) => !!r.is_monthly_fixed === wantMonthly && sameCity(r.origin, fromKey) && sameCity(r.destination, toKey) && groupOk(r.vehicles?.vehicle_type) && classOk(r.service_class) && (dow === null || (r.days_of_week ?? []).includes(dow)))
+    const o = !wantMonthly && !serviceClassFilter ? trips.filter((o) => sameCity(o.origin, fromKey) && sameCity(o.destination, toKey) && groupOk(o.vehicles?.vehicle_type) && (!date || o.travel_date === date)) : []
     const routeFare = (x: RouteRow) => x.is_monthly_fixed ? (x.monthly_reference_fee_pkr ?? Infinity) : (x.fare_per_seat_pkr ?? Infinity)
     r.sort((a, b) => sortBy === 'price' ? routeFare(a) - routeFare(b) : (a.departure_time ?? '99:99').localeCompare(b.departure_time ?? '99:99'))
     o.sort((a, b) => sortBy === 'price' ? (a.listed_fare_per_seat_pkr ?? Infinity) - (b.listed_fare_per_seat_pkr ?? Infinity) : (a.departure_time_estimate ?? '99:99').localeCompare(b.departure_time_estimate ?? '99:99'))
     return { routes: r, trips: o }
-  }, [pairSearchActive, routes, trips, fromCity, toCity, vehicleGroup, view, sortBy])
-  const cheapestPairFare = useMemo(() => {
+  }
+  const departureResults = useMemo(() => computeLegResults(fromCity, toCity, departDate),
+    [routes, trips, fromCity, toCity, departDate, vehicleGroup, view, sortBy, serviceClassFilter])
+  const returnResults = useMemo(() => computeLegResults(toCity, fromCity, returnDate),
+    [routes, trips, fromCity, toCity, returnDate, vehicleGroup, view, sortBy, serviceClassFilter])
+  const legResults = activeTab === 'return' ? returnResults : departureResults
+  const cheapestLegFare = useMemo(() => {
     const fares = [
-      ...pairResults.routes.map((r) => r.is_monthly_fixed ? null : r.fare_per_seat_pkr),
-      ...pairResults.trips.map((o) => o.listed_fare_per_seat_pkr),
+      ...legResults.routes.map((r) => r.is_monthly_fixed ? null : r.fare_per_seat_pkr),
+      ...legResults.trips.map((o) => o.listed_fare_per_seat_pkr),
     ].filter((f): f is number => f != null)
     return fares.length ? Math.min(...fares) : null
-  }, [pairResults])
+  }, [legResults])
 
-  const openRoute = (r: RouteRow) => {
-    if (r.source_tenant_name) { setBookSeats(1); setBookDate(''); setCrossTenantTarget({ kind: 'route', row: r }) }
+  const resetSearch = () => {
+    setFromCity(''); setToCity(''); setTripType('oneway'); setDepartDate(''); setReturnDate('')
+    setSeatsWanted(1); setServiceClassFilter(null); setSearched(false); setActiveTab('departure')
+    setDepartureBooked(false); setReturnBooked(false)
+  }
+
+  const handleLegBooked = () => {
+    if (bookingLegTab === 'departure') {
+      setDepartureBooked(true)
+      if (tripType === 'roundtrip') { toast.success(t('bus.nowPickReturnToast')); setActiveTab('return') }
+    } else if (bookingLegTab === 'return') {
+      setReturnBooked(true)
+    }
+  }
+
+  const openRoute = (r: RouteRow, legTab?: 'departure' | 'return') => {
+    setBookingLegTab(legTab ?? null)
+    const legDate = legTab === 'return' ? returnDate : legTab === 'departure' ? departDate : ''
+    if (r.source_tenant_name) { setBookSeats(legTab ? seatsWanted : 1); setBookDate(legDate); setCrossTenantTarget({ kind: 'route', row: r }) }
     else setOpenRouteId(r.id)
   }
-  const openTrip = (o: TripRow) => {
-    if (o.source_tenant_name) { setBookSeats(1); setCrossTenantTarget({ kind: 'trip', row: o }) }
+  const openTrip = (o: TripRow, legTab?: 'departure' | 'return') => {
+    setBookingLegTab(legTab ?? null)
+    if (o.source_tenant_name) { setBookSeats(legTab ? seatsWanted : 1); setCrossTenantTarget({ kind: 'trip', row: o }) }
     else router.push('/portal/marketplace/shared')
   }
 
@@ -253,17 +302,18 @@ export default function BusesPage() {
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('bus.crossTenantBookedToast'))
     setCrossTenantTarget(null)
+    handleLegBooked()
   }
 
   if (loading) return <div className="text-center py-12"><LoadingDots /></div>
 
   // Extracted so the exact same card renders both in the destination-
   // grouped browse below and in the new From→To search results.
-  const renderRoute = (r: RouteRow) => {
+  const renderRoute = (r: RouteRow, legTab?: 'departure' | 'return') => {
     const [c1, c2] = PALETTE[hashIdx(r.destination)]
     const runsToday = (r.days_of_week ?? []).includes(todayDow)
     return (
-      <div key={r.id} role="button" tabIndex={0} onClick={() => openRoute(r)} className="block rounded-[22px] overflow-hidden bg-white border border-[#e5e7eb] shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)] active:scale-[0.99] transition-transform cursor-pointer">
+      <div key={r.id} role="button" tabIndex={0} onClick={() => openRoute(r, legTab)} className="block rounded-[22px] overflow-hidden bg-white border border-[#e5e7eb] shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)] active:scale-[0.99] transition-transform cursor-pointer">
         <div className="relative px-4 pt-3.5 pb-4 text-white" style={{ backgroundImage: `linear-gradient(135deg, ${c1}, ${c2})` }}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -289,6 +339,7 @@ export default function BusesPage() {
             <p className="font-sans text-[11.5px] text-[#64748b] truncate">{r.vehicles?.owner_name}{r.vehicles?.has_ac ? ' · AC' : ''}{r.vehicles?.total_seats ? ` · ${r.vehicles.total_seats} ${t('bus.seatsShort')}` : ''}</p>
             <div className="mt-1.5 flex flex-wrap gap-1">
               {runsToday && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
+              {r.service_class && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary">{t(`mv.serviceClass.${r.service_class}`)}</span>}
               {r.is_two_way && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={10} /> {t('bus.twoWay')}{r.return_departure_time ? ` · ${timeLabel(r.return_departure_time)}` : ''}</span>}
               {r.route_duration_min && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#f1f5f9] text-[#334155] inline-flex items-center gap-1"><Clock size={10} /> <span className="ltr-num">{Math.round(r.route_duration_min)} min</span></span>}
               {r.source_tenant_name && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#fef9c3] text-[#854d0e] inline-flex items-center gap-1"><MapPinned size={10} /> {r.source_tenant_name}</span>}
@@ -313,8 +364,8 @@ export default function BusesPage() {
       </div>
     )
   }
-  const renderTrip = (o: TripRow) => (
-    <div key={o.id} role="button" tabIndex={0} onClick={() => openTrip(o)} className="block rounded-[22px] bg-white border border-dashed border-[#94a3b8] p-3.5 active:scale-[0.99] transition-transform cursor-pointer">
+  const renderTrip = (o: TripRow, legTab?: 'departure' | 'return') => (
+    <div key={o.id} role="button" tabIndex={0} onClick={() => openTrip(o, legTab)} className="block rounded-[22px] bg-white border border-dashed border-[#94a3b8] p-3.5 active:scale-[0.99] transition-transform cursor-pointer">
       <div className="flex items-center gap-3">
         <span className="w-12 h-12 rounded-2xl bg-[#f1f5f9] flex items-center justify-center text-[26px] shrink-0">{emojiFor(o.vehicles?.vehicle_type)}</span>
         <div className="min-w-0 flex-1">
@@ -339,48 +390,90 @@ export default function BusesPage() {
         </div>
       </div>
 
-      {/* 2026-11-22: real ask — "dozens of bus services running from
-          one same city to same destination city... rider can search
-          the routes of all services and filter out the cheapest fare
-          one too." A real From→To search, matching every operator
-          already pulled into `routes`/`trips` (same-tenant and
-          cross-tenant alike) for that exact city pair. */}
-      <div className="bg-white border border-[#e5e7eb] rounded-[20px] p-3.5 flex flex-col gap-2.5 -mt-6 relative z-10 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)]">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 min-w-0">
-            <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.fromLabel')}</label>
-            <select value={fromCity} onChange={(e) => setFromCity(e.target.value)} className="w-full font-sans text-[13.5px] font-bold text-[#0f172a] bg-transparent outline-none">
-              <option value="">{t('bus.anyCityOption')}</option>
-              {cityOptions.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-          </div>
-          <button type="button" aria-label={t('bus.swapCitiesAlt')} onClick={() => { const a = fromCity; setFromCity(toCity); setToCity(a) }}
-            className="shrink-0 w-9 h-9 rounded-full border border-[#e5e7eb] flex items-center justify-center text-[#166534] cursor-pointer">
-            <ArrowRightLeft size={15} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.toLabel')}</label>
-            <select value={toCity} onChange={(e) => setToCity(e.target.value)} className="w-full font-sans text-[13.5px] font-bold text-[#0f172a] bg-transparent outline-none">
-              <option value="">{t('bus.anyCityOption')}</option>
-              {cityOptions.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-          </div>
-        </div>
-        {pairSearchActive && (
-          <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[#f1f5f9]">
-            <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-0.5">
-              {(['price', 'time'] as const).map((s) => (
-                <button key={s} onClick={() => setSortBy(s)} className={`h-7 px-2.5 rounded-full font-sans text-[11px] font-bold cursor-pointer ${sortBy === s ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
-                  {s === 'price' ? t('bus.sortCheapest') : t('bus.sortEarliest')}
-                </button>
-              ))}
+      {/* 2026-11-22: real ask — a proper step-based search, matching how
+          an air-ticket round trip actually works: From/To → one-way or
+          round trip → departure (and return) date → seat count → one
+          deliberate Search tap. Only after that does the results area
+          (two tabs for a round trip) appear — nothing auto-filters
+          while the rider is still filling the form in. */}
+      {!searched ? (
+        <div className="bg-white border border-[#e5e7eb] rounded-[20px] p-3.5 flex flex-col gap-3 -mt-6 relative z-10 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)]">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.fromLabel')}</label>
+              <select value={fromCity} onChange={(e) => setFromCity(e.target.value)} className="w-full font-sans text-[13.5px] font-bold text-[#0f172a] bg-transparent outline-none">
+                <option value="">{t('bus.anyCityOption')}</option>
+                {cityOptions.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
             </div>
-            <button onClick={() => { setFromCity(''); setToCity('') }} className="flex items-center gap-1 font-sans text-[11.5px] font-bold text-[#b91c1c] cursor-pointer">
-              <X size={12} /> {t('bus.clearSearchBtn')}
+            <button type="button" aria-label={t('bus.swapCitiesAlt')} onClick={() => { const a = fromCity; setFromCity(toCity); setToCity(a) }}
+              className="shrink-0 w-9 h-9 rounded-full border border-[#e5e7eb] flex items-center justify-center text-[#166534] cursor-pointer">
+              <ArrowRightLeft size={15} />
+            </button>
+            <div className="flex-1 min-w-0">
+              <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.toLabel')}</label>
+              <select value={toCity} onChange={(e) => setToCity(e.target.value)} className="w-full font-sans text-[13.5px] font-bold text-[#0f172a] bg-transparent outline-none">
+                <option value="">{t('bus.anyCityOption')}</option>
+                {cityOptions.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-1">
+            {(['oneway', 'roundtrip'] as const).map((tt) => (
+              <button key={tt} onClick={() => setTripType(tt)} className={`flex-1 h-8 rounded-full font-sans text-[12px] font-bold cursor-pointer ${tripType === tt ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
+                {tt === 'oneway' ? t('bus.oneWayOption') : t('bus.roundTripOption')}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.departDateLabel')}</label>
+              <input type="date" value={departDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setDepartDate(e.target.value)} className="w-full font-sans text-[13px] font-bold text-[#0f172a] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2 py-1.5" />
+            </div>
+            {tripType === 'roundtrip' && (
+              <div className="flex-1 min-w-0">
+                <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.returnDateLabel')}</label>
+                <input type="date" value={returnDate} min={departDate || new Date().toISOString().slice(0, 10)} onChange={(e) => setReturnDate(e.target.value)} className="w-full font-sans text-[13px] font-bold text-[#0f172a] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2 py-1.5" />
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="font-sans text-[11.5px] font-bold text-[#334155]">{t('bus.seatsCountLabel')}</label>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => setSeatsWanted((s) => Math.max(1, s - 1))} className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center cursor-pointer"><Minus size={14} /></button>
+              <span className="font-sans text-[15px] font-bold ltr-num w-6 text-center">{seatsWanted}</span>
+              <button type="button" onClick={() => setSeatsWanted((s) => Math.min(20, s + 1))} className="w-8 h-8 rounded-full bg-[#166534] text-white flex items-center justify-center cursor-pointer"><Plus size={14} /></button>
+            </div>
+          </div>
+
+          <button onClick={() => { setSearched(true); setActiveTab('departure'); setDepartureBooked(false); setReturnBooked(false) }} disabled={!canSearch}
+            className="w-full h-11 rounded-xl bg-[#166534] text-white font-sans text-[14px] font-bold cursor-pointer disabled:opacity-40 flex items-center justify-center gap-2">
+            <Search size={16} /> {t('bus.searchBtn')}
+          </button>
+        </div>
+      ) : (
+        <div className="bg-white border border-[#e5e7eb] rounded-[20px] p-3.5 flex items-center justify-between gap-3 -mt-6 relative z-10 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)]">
+          <div className="min-w-0">
+            <p className="font-sans text-[13.5px] font-bold text-[#0f172a] truncate">
+              {cityOptions.find((c) => c.key === fromCity)?.label} → {cityOptions.find((c) => c.key === toCity)?.label}
+            </p>
+            <p className="font-sans text-[11px] text-[#64748b] mt-0.5 ltr-num">
+              {departDate}{tripType === 'roundtrip' ? ` ⇄ ${returnDate}` : ''} · {t('rw.seats').replace('{n}', String(seatsWanted))}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => setSearched(false)} className="flex items-center gap-1 h-8 px-3 rounded-full bg-[#f1f5f9] font-sans text-[11.5px] font-bold text-[#334155] cursor-pointer">
+              <Pencil size={11} /> {t('bus.editSearchBtn')}
+            </button>
+            <button onClick={resetSearch} aria-label={t('bus.clearSearchBtn')} className="w-8 h-8 rounded-full bg-[#fef2f2] flex items-center justify-center text-[#b91c1c] cursor-pointer">
+              <X size={14} />
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {mine.length > 0 && (
         <div>
@@ -429,7 +522,7 @@ export default function BusesPage() {
         ))}
       </div>
 
-      {!pairSearchActive && groups.length > 1 && (
+      {!searched && groups.length > 1 && (
         <div className="flex gap-2 overflow-x-auto hide-scrollbar">
           <button onClick={() => setCity(null)} className={`shrink-0 h-9 px-3.5 rounded-full font-sans text-[12.5px] font-bold border ${!city ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>{t('bus.allCities')}</button>
           {groups.map((g) => (
@@ -442,32 +535,67 @@ export default function BusesPage() {
 
       <FarePolicyCard service="seat" defaultOpen={false} />
 
-      {pairSearchActive ? (
+      {searched ? (
         <section className="flex flex-col gap-2.5">
+          {/* 2026-11-22: real ask — "two tabs will appear, one for
+              departure and 2nd for return... user will keep changing
+              the dates while in the tabs to search the cheapest bus."
+              Each tab keeps its own editable date (prefilled from the
+              search form) and runs the exact same cheapest-first
+              filtering against that date — picking a bus from the
+              Departure tab auto-switches here to Return once booked
+              (handleLegBooked), same as two independent one-way
+              searches, any operator either side. */}
+          {tripType === 'roundtrip' && (
+            <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-1">
+              {(['departure', 'return'] as const).map((tb) => (
+                <button key={tb} onClick={() => setActiveTab(tb)}
+                  className={`flex-1 h-9 rounded-full font-sans text-[12.5px] font-bold cursor-pointer flex items-center justify-center gap-1.5 ${activeTab === tb ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
+                  {(tb === 'departure' ? departureBooked : returnBooked) && <Check size={12} className="text-[#16a34a]" />}
+                  {tb === 'departure' ? t('bus.departureTabLabel') : t('bus.returnTabLabel2')}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <input type="date" value={activeTab === 'return' ? returnDate : departDate}
+              min={activeTab === 'return' ? (departDate || new Date().toISOString().slice(0, 10)) : new Date().toISOString().slice(0, 10)}
+              onChange={(e) => (activeTab === 'return' ? setReturnDate(e.target.value) : setDepartDate(e.target.value))}
+              className="font-sans text-[12.5px] font-bold text-[#0f172a] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2 py-1.5" />
+            <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-0.5 shrink-0">
+              {(['price', 'time'] as const).map((s) => (
+                <button key={s} onClick={() => setSortBy(s)} className={`h-7 px-2.5 rounded-full font-sans text-[11px] font-bold cursor-pointer ${sortBy === s ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
+                  {s === 'price' ? t('bus.sortCheapest') : t('bus.sortEarliest')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Real ask, same day — "also there will be option inside the
+              tabs for service type like sleeper, business class,
+              economy etc." Reuses vehicle_routes.service_class, the
+              same column RouteDetailPanel already shows as a badge. */}
+          <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
+            <button onClick={() => setServiceClassFilter(null)} className={`shrink-0 h-8 px-3 rounded-full font-sans text-[11.5px] font-bold border ${!serviceClassFilter ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>{t('bus.anyServiceClassOption')}</button>
+            {SERVICE_CLASSES.map((sc) => (
+              <button key={sc} onClick={() => setServiceClassFilter(sc)} className={`shrink-0 h-8 px-3 rounded-full font-sans text-[11.5px] font-bold border ${serviceClassFilter === sc ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>{t(`mv.serviceClass.${sc}`)}</button>
+            ))}
+          </div>
+
           <div className="flex items-center justify-between gap-3">
             <p className="font-sans text-[13px] font-bold text-[#0f172a]">
-              {t('bus.searchResultsHeading').replace('{n}', String(pairResults.routes.length + pairResults.trips.length)).replace('{from}', cityOptions.find((c) => c.key === fromCity)?.label ?? '').replace('{to}', cityOptions.find((c) => c.key === toCity)?.label ?? '')}
+              {t('bus.searchResultsHeading').replace('{n}', String(legResults.routes.length + legResults.trips.length))
+                .replace('{from}', cityOptions.find((c) => c.key === (activeTab === 'return' ? toCity : fromCity))?.label ?? '')
+                .replace('{to}', cityOptions.find((c) => c.key === (activeTab === 'return' ? fromCity : toCity))?.label ?? '')}
             </p>
-            {cheapestPairFare != null && <p className="font-sans text-[11.5px] font-bold text-[#166534] shrink-0">{t('bus.cheapestFareLabel')} ₨{fmt(cheapestPairFare)}</p>}
+            {cheapestLegFare != null && <p className="font-sans text-[11.5px] font-bold text-[#166534] shrink-0">{t('bus.cheapestFareLabel')} ₨{fmt(cheapestLegFare)}</p>}
           </div>
-          {/* 2026-11-22: real ask — "how will he search which is the
-              cheapest bus ticket for the return? what if the same bus
-              service, what if a different one?" A round trip here is
-              just two independent one-way searches/bookings, same as
-              two different airlines on an air-ticket round trip — this
-              button re-runs the exact same search in the reverse
-              direction so the rider can shop and book the return leg
-              from ANY operator, same one or different, as its own
-              separate ticket. */}
-          <button onClick={() => { const a = fromCity; setFromCity(toCity); setToCity(a) }}
-            className="self-start flex items-center gap-1.5 h-8 px-3 rounded-full bg-[#ecfdf5] border border-[#a7f3d0] font-sans text-[11.5px] font-bold text-[#166534] cursor-pointer">
-            <ArrowRightLeft size={12} /> {t('bus.searchReturnTripBtn')}
-          </button>
-          {pairResults.routes.length === 0 && pairResults.trips.length === 0 && (
+          {legResults.routes.length === 0 && legResults.trips.length === 0 && (
             <p className="text-center font-sans text-[13px] text-[#64748b] py-10">{t('bus.noResultsForPairHint')}</p>
           )}
-          {pairResults.routes.map(renderRoute)}
-          {pairResults.trips.map(renderTrip)}
+          {legResults.routes.map((r) => renderRoute(r, activeTab))}
+          {legResults.trips.map((o) => renderTrip(o, activeTab))}
         </section>
       ) : (
       <>
@@ -476,8 +604,8 @@ export default function BusesPage() {
       {shown.map((g) => (
         <section key={g.key} className="flex flex-col gap-2.5">
           <p className="flex items-center gap-2 font-sans text-[16px] font-extrabold text-[#0f172a]"><span className="w-1.5 h-5 rounded-full bg-[#16a34a]" /> <bdi>{g.label}</bdi></p>
-          {g.routes.map(renderRoute)}
-          {g.trips.map(renderTrip)}
+          {g.routes.map((r) => renderRoute(r))}
+          {g.trips.map((o) => renderTrip(o))}
         </section>
       ))}
       </>
@@ -515,7 +643,12 @@ export default function BusesPage() {
           </div>
         </MobilityBottomSheet>
       )}
-      {openRouteId && <RouteBookingSheet routeId={openRouteId} onClose={() => setOpenRouteId(null)} />}
+      {openRouteId && (
+        <RouteBookingSheet routeId={openRouteId} onClose={() => setOpenRouteId(null)}
+          initialDate={bookingLegTab === 'return' ? returnDate : bookingLegTab === 'departure' ? departDate : undefined}
+          initialSeats={bookingLegTab ? seatsWanted : undefined}
+          onBooked={handleLegBooked} />
+      )}
     </div>
   )
 }

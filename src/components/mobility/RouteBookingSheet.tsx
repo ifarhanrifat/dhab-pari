@@ -9,11 +9,11 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { RouteDetailPanel } from '@/components/mobility/RouteDetailPanel'
 
-export function RouteBookingSheet({ routeId, onClose }: { routeId: string; onClose: () => void }) {
+export function RouteBookingSheet({ routeId, onClose, initialDate, initialSeats, onBooked }: { routeId: string; onClose: () => void; initialDate?: string; initialSeats?: number; onBooked?: () => void }) {
   const { t } = useLocale()
   return (
     <MobilityBottomSheet title={t('mv.routeDetailsHeading')} onClose={onClose}>
-      <RouteDetailPanel routeId={routeId} />
+      <RouteDetailPanel routeId={routeId} initialDate={initialDate} initialSeats={initialSeats} onBooked={onBooked} />
     </MobilityBottomSheet>
   )
 }
