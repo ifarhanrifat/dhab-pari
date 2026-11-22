@@ -12,7 +12,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Wallet, Bus, Building2, Receipt, Plus } from 'lucide-react'
+import { Wallet, Bus, Building2, Receipt, Plus, HandCoins } from 'lucide-react'
 import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels, FleetStat } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -24,6 +24,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 interface CounterCash { counter_id: string; city: string; name: string | null; total_collected_pkr: number; total_remitted_pkr: number; cash_in_hand_pkr: number }
 interface VehicleCash { vehicle_id: string; owner_name: string; vehicle_type: string | null; vehicle_number: string | null; total_collected_pkr: number; total_remitted_pkr: number; cash_in_hand_pkr: number }
 interface Channels { online_pkr: number; terminal_pkr: number; driver_pkr: number; total_pkr: number }
+interface PendingHandover { id: string; amount_pkr: number; travel_date: string; direction: string; note: string | null; route_label: string; vehicle_number: string | null; driver_name: string | null; counter_label: string | null }
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -36,7 +37,7 @@ export default function FleetCashPage() {
 
   const [loading, setLoading] = useState(true)
   const [fleetId, setFleetId] = useState<string | null>(null)
-  const [isOwner, setIsOwner] = useState(false)
+  const [canEditCash, setCanEditCash] = useState(false)
   const [counterCash, setCounterCash] = useState<CounterCash[]>([])
   const [remitCounterId, setRemitCounterId] = useState<string | null>(null)
   const [remitAmount, setRemitAmount] = useState('')
@@ -46,23 +47,36 @@ export default function FleetCashPage() {
   const [remitVehicleAmount, setRemitVehicleAmount] = useState('')
   const [remittingVehicle, setRemittingVehicle] = useState(false)
   const [channels, setChannels] = useState<Channels | null>(null)
+  const [pendingHandovers, setPendingHandovers] = useState<PendingHandover[]>([])
+  const [confirmingHandoverId, setConfirmingHandoverId] = useState<string | null>(null)
 
   const load = async () => {
     const { data: mine } = await supabase.rpc('my_managed_fleet')
-    const f = mine as { fleet_id: string; is_owner: boolean } | null
+    const f = mine as { fleet_id: string; can_edit_cash: boolean } | null
     setFleetId(f?.fleet_id ?? null)
-    setIsOwner(f?.is_owner ?? false)
-    if (f?.is_owner) {
-      const [{ data: cashData }, { data: vehData }, { data: chData }] = await Promise.all([
+    setCanEditCash(f?.can_edit_cash ?? false)
+    if (f?.can_edit_cash) {
+      const [{ data: cashData }, { data: vehData }, { data: chData }, { data: handoverData }] = await Promise.all([
         supabase.rpc('fleet_counter_cash_positions', { p_fleet_id: f.fleet_id }),
         supabase.rpc('fleet_vehicle_cash_positions', { p_fleet_id: f.fleet_id }),
         supabase.rpc('fleet_collection_channels', { p_fleet_id: f.fleet_id }),
+        supabase.rpc('fleet_pending_driver_handovers', { p_fleet_id: f.fleet_id }),
       ])
       setCounterCash((cashData ?? []) as CounterCash[])
       setVehicleCash((vehData ?? []) as VehicleCash[])
       setChannels((chData ?? null) as Channels | null)
+      setPendingHandovers((handoverData ?? []) as PendingHandover[])
     }
     setLoading(false)
+  }
+
+  const confirmHandover = async (id: string) => {
+    setConfirmingHandoverId(id)
+    const { error } = await supabase.rpc('confirm_route_driver_handover', { p_id: id })
+    setConfirmingHandoverId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.handoverConfirmedToast'))
+    load()
   }
 
   useEffect(() => {
@@ -95,7 +109,7 @@ export default function FleetCashPage() {
 
   if (userLoading || loading) return <div className="text-center py-12"><LoadingDots /></div>
   if (!fleetId) return <p className="font-sans text-[13px] text-[#64748b] text-center py-12">{t('mv.noFleetYetHint')}</p>
-  if (!isOwner) return <p className="font-sans text-[13px] text-[#64748b] text-center py-12">{t('mv.ownerOnlySectionHint')}</p>
+  if (!canEditCash) return <p className="font-sans text-[13px] text-[#64748b] text-center py-12">{t('mv.ownerOnlySectionHint')}</p>
 
   return (
     <div className="flex flex-col gap-3">
@@ -149,6 +163,36 @@ export default function FleetCashPage() {
                 </div>
               )
             })}
+          </FleetPanelBody>
+        </FleetPanel>
+      )}
+
+      {/* Real gap closed, 2026-11-22: a driver submitting a cash
+          handover (from /portal/drive) had no counterpart anywhere to
+          confirm it — it sat 'pending' forever and never counted as
+          settled cash. This is that missing confirm step, now open to
+          the owner and to whichever role(s) the owner granted 'cash'
+          permission to (e.g. accountant), not the owner alone. */}
+      {pendingHandovers.length > 0 && (
+        <FleetPanel>
+          <FleetPanelHead icon={<HandCoins size={14} />} title={t('mv.pendingHandoversHeading')}
+            action={<span className="font-sans text-[11px] font-bold text-amber-700">{pendingHandovers.length}</span>} />
+          <FleetPanelBody className="flex flex-col divide-y divide-[#f1f5f9]">
+            {pendingHandovers.map((h) => (
+              <div key={h.id} className="px-3.5 py-3 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-sans text-[13px] font-bold text-[#1e293b] truncate">{h.driver_name ?? '—'} · <span className="ltr-num">₨{fmt(h.amount_pkr)}</span></p>
+                  <p className="font-sans text-[10.5px] text-[#94a3b8] truncate">
+                    {h.route_label}{h.vehicle_number ? ` · ${h.vehicle_number}` : ''}{h.counter_label ? ` · → ${h.counter_label}` : ''} · <span className="ltr-num">{h.travel_date}</span>
+                  </p>
+                  {h.note && <p className="font-sans text-[10.5px] text-[#94a3b8] italic truncate">{h.note}</p>}
+                </div>
+                <button onClick={() => confirmHandover(h.id)} disabled={confirmingHandoverId === h.id}
+                  className="shrink-0 px-3 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11.5px] font-bold cursor-pointer disabled:opacity-50">
+                  {confirmingHandoverId === h.id ? t('action.loading') : t('mv.confirmHandoverBtn')}
+                </button>
+              </div>
+            ))}
           </FleetPanelBody>
         </FleetPanel>
       )}
