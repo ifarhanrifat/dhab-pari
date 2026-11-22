@@ -29,6 +29,7 @@ import { FarePolicyCard } from '@/components/mobility/FarePolicyCard'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { RouteGroupPanel } from '@/components/mobility/RouteGroupPanel'
+import { RideTicketSheet, type RideTicketInfo } from '@/components/mobility/RideTicketSheet'
 import { SeatPickerField } from '@/components/mobility/SeatPickerField'
 import { estimateArrivalTime, estimateReturnArrivalTime, haversineKm } from '@/lib/roadRoute'
 import { useLiveLocation, getCurrentPositionOnce } from '@/hooks/useLiveLocation'
@@ -53,7 +54,7 @@ interface MonthlySubscription { id: string; status: string; monthly_fee_pkr: num
 interface MonthlyDetail { is_monthly_fixed: boolean; monthly_reference_fee_pkr: number | null; seats_total: number; active_count: number; my_subscription: MonthlySubscription | null; my_leave_days: string[] }
 interface DepositPreview { monthly_fee_pkr: number; deposit_pkr: number; days_remaining: number; days_total: number }
 interface AttendanceRow { run_date: string; present: boolean; marked_at: string }
-interface MyBooking { id: string; travel_date: string; seats: number; total_amount_pkr: number; status: string; board_stop_id: string | null; alight_stop_id: string | null; seat_accepted_at: string | null; boarded_at: string | null }
+interface MyBooking { id: string; travel_date: string; seats: number; total_amount_pkr: number; status: string; board_stop_id: string | null; alight_stop_id: string | null; seat_accepted_at: string | null; boarded_at: string | null; ticket_no: string | null }
 
 // Approximate only — interpolated proportionally along the driver's
 // own chosen road path using its real OSRM duration, not a live ETA.
@@ -105,6 +106,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
   const isSeatNumbered = vehicleKind === 'van'
   const [method, setMethod] = useState('cash')
   const [submitting, setSubmitting] = useState(false)
+  const [ticketView, setTicketView] = useState<RideTicketInfo | null>(null)
   const [bookable, setBookable] = useState(true)
   const [stops, setStops] = useState<Stop[]>([])
   const [showGroup, setShowGroup] = useState(false)
@@ -194,7 +196,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     // moves off 'announced'/'confirmed' for a route booking (that
     // dimension only tracks payment, not the physical trip), so
     // dropped_off_at is the real "this trip is over" signal.
-    const { data } = await supabase.from('ride_bookings').select('id, travel_date, seats, total_amount_pkr, status, board_stop_id, alight_stop_id, seat_accepted_at, boarded_at')
+    const { data } = await supabase.from('ride_bookings').select('id, travel_date, seats, total_amount_pkr, status, board_stop_id, alight_stop_id, seat_accepted_at, boarded_at, ticket_no')
       .eq('route_id', routeId).eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).is('dropped_off_at', null).gte('travel_date', todayStr()).order('travel_date')
     setMyBookings((data ?? []) as MyBooking[])
   }
@@ -339,7 +341,16 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     })
     setBookingReturn(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    toast.success(t('mv.returnSeatBookedToast').replace('{amount}', fmt((data as { total: number }).total)))
+    const d = data as { total: number; ticket_no: string }
+    toast.success(t('mv.returnSeatBookedToast').replace('{amount}', fmt(d.total)))
+    const returnStop = stops.find((s) => s.id === returnBoardStopId)
+    setTicketView({
+      ticketNo: d.ticket_no,
+      origin: returnStop ? (isUrdu && returnStop.label_ur ? returnStop.label_ur : returnStop.label) : route.destination,
+      destination: isUrdu && route.origin_ur ? route.origin_ur : route.origin,
+      travelDate, seats: 1, seatNumbers: isSeatNumbered && selectedReturnSeat ? [selectedReturnSeat] : null, amountPkr: d.total,
+      paymentConfirmed: false,
+    })
     loadMyBookings()
   }
 
@@ -398,6 +409,15 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
     // "My Bookings" card below (seatPendingDriverNote / seatConfirmed-
     // InGroupNote), exactly as before.
     toast.success(t('mp.bookingPlacedToast'))
+    const boardStop = boardStopId ? stops.find((s) => s.id === boardStopId) : null
+    setTicketView({
+      ticketNo: (placed as { ticket_no: string }).ticket_no,
+      origin: isUrdu && route.origin_ur ? route.origin_ur : route.origin,
+      destination: isUrdu && route.destination_ur ? route.destination_ur : route.destination,
+      travelDate, seats, seatNumbers: isSeatNumbered ? selectedSeats : null, amountPkr: total,
+      boardLabel: boardStop ? (isUrdu && boardStop.label_ur ? boardStop.label_ur : boardStop.label) : null,
+      paymentConfirmed: false,
+    })
     setBoardStopId(null); setAlightStopId(null); setSelectedSeats([]); setSeats(1)
     loadMyBookings()
   }
@@ -704,6 +724,21 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
                 <p className={`font-sans text-[11px] font-bold mt-1 ${b.seat_accepted_at ? 'text-emerald-700' : 'text-amber-700'}`}>
                   {b.seat_accepted_at ? t('mv.seatConfirmedInGroupNote') : t('mv.seatPendingDriverNote')}
                 </p>
+              )}
+              {b.ticket_no && (
+                <button onClick={() => {
+                  const boardStop = b.board_stop_id ? stops.find((s) => s.id === b.board_stop_id) : null
+                  setTicketView({
+                    ticketNo: b.ticket_no!,
+                    origin: isUrdu && route.origin_ur ? route.origin_ur : route.origin,
+                    destination: isUrdu && route.destination_ur ? route.destination_ur : route.destination,
+                    travelDate: b.travel_date, seats: b.seats, amountPkr: b.total_amount_pkr,
+                    boardLabel: boardStop ? (isUrdu && boardStop.label_ur ? boardStop.label_ur : boardStop.label) : null,
+                    paymentConfirmed: !!b.seat_accepted_at,
+                  })
+                }} className="mt-1.5 font-sans text-[11px] font-bold text-dp-secondary underline cursor-pointer">
+                  {t('mv.viewTicketBtn')}
+                </button>
               )}
               {b.boarded_at && b.travel_date === todayStr() && (
                 <div className="mt-1.5 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-2">
@@ -1113,6 +1148,7 @@ export function RouteDetailPanel({ routeId }: { routeId: string }) {
           </button>
         </div>
       )}
+      {ticketView && <RideTicketSheet info={ticketView} onClose={() => setTicketView(null)} />}
     </div>
   )
 }
