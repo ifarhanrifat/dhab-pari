@@ -85,7 +85,7 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
 
-export function RouteDetailPanel({ routeId, initialDate, initialSeats, onBooked }: { routeId: string; initialDate?: string; initialSeats?: number; onBooked?: () => void }) {
+export function RouteDetailPanel({ routeId, initialDate, initialSeats, onBooked, compact }: { routeId: string; initialDate?: string; initialSeats?: number; onBooked?: () => void; compact?: boolean }) {
   const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
@@ -637,7 +637,16 @@ export function RouteDetailPanel({ routeId, initialDate, initialSeats, onBooked 
         <p className="font-heading text-[22px] font-bold text-dp-secondary mt-2">{fmt(route.fare_per_seat_pkr)} <span className="font-sans font-normal text-dp-on-surface-variant text-[13px]">{t('mk.perSeat')}</span></p>
       )}
 
-      {route.origin_lat != null && route.origin_lng != null && route.destination_lat != null && route.destination_lng != null && (() => {
+      {/* 2026-11-23: real ask — when this panel opens from the new
+          search flow (departure/return tab), cities and date are
+          already fixed; the full map + stop carousel, route-group
+          chat link and the "my upcoming seats" history are browsing
+          affordances that don't belong in a quick confirm-and-book
+          step — the board/alight selects below already cover picking
+          a terminal within the chosen city. `compact` hides exactly
+          those three blocks; every booking option itself (stops,
+          seats, fare, payment, submit, ticket) stays identical. */}
+      {!compact && route.origin_lat != null && route.origin_lng != null && route.destination_lat != null && route.destination_lng != null && (() => {
         const etas = computeStopEtas(route.route_path ?? [], route.route_duration_min, route.departure_time, stops)
         const returnEtas = computeReturnStopEtas(route.route_path ?? [], route.route_duration_min, route.return_departure_time, stops)
         // Real ask, 2026-11-06: "the map is not showing all the stops"
@@ -676,12 +685,14 @@ export function RouteDetailPanel({ routeId, initialDate, initialSeats, onBooked 
         )
       })()}
 
-      <button onClick={() => setShowGroup(true)} className="w-full flex items-center justify-center gap-1.5 bg-white border border-dp-outline-variant rounded-lg p-3 mt-4 font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer">
-        <Users size={14} /> {t('mv.routeGroupHeading')}
-      </button>
+      {!compact && (
+        <button onClick={() => setShowGroup(true)} className="w-full flex items-center justify-center gap-1.5 bg-white border border-dp-outline-variant rounded-lg p-3 mt-4 font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer">
+          <Users size={14} /> {t('mv.routeGroupHeading')}
+        </button>
+      )}
       {showGroup && <RouteGroupPanel routeId={route.id} onClose={() => setShowGroup(false)} departureTime={route.departure_time} />}
 
-      {!route.is_monthly_fixed && myBookings.length > 0 && (
+      {!compact && !route.is_monthly_fixed && myBookings.length > 0 && (
         <div className="flex flex-col gap-2 mt-4">
           <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('mv.myUpcomingSeatsHeading')}</p>
           {myBookings.map((b) => (
@@ -975,12 +986,21 @@ export function RouteDetailPanel({ routeId, initialDate, initialSeats, onBooked 
 
       {!route.is_monthly_fixed && bookable && (
       <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-5">
-        {myBookings.length > 0 && (
+        {!compact && myBookings.length > 0 && (
           <p className="font-sans text-[11.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mb-3">{t('mv.bookNewVsEditHint')}</p>
         )}
 
-        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('mp.travelDateLabel')}</label>
-        <input type="date" min={todayStr()} value={travelDate} onChange={(e) => setTravelDate(e.target.value)} className="input-field" />
+        {/* Fixed by the search form's own date picker — no point asking
+            again here, same reasoning as hiding the map/group/history
+            above. */}
+        {compact ? (
+          <p className="font-sans text-[13px] font-semibold text-dp-on-surface ltr-num">{t('mp.travelDateLabel')}: {travelDate}</p>
+        ) : (
+          <>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('mp.travelDateLabel')}</label>
+            <input type="date" min={todayStr()} value={travelDate} onChange={(e) => setTravelDate(e.target.value)} className="input-field" />
+          </>
+        )}
         {wrongDay && <p className="font-sans text-[12px] text-dp-error mt-1.5">{t('mp.wrongDayError')}</p>}
 
         <div className="mt-4">

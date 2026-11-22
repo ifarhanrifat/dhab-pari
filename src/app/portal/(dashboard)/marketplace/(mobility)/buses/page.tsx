@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Bus, Search, Clock, Users, MessageCircle, ArrowRight, CalendarDays, Repeat, MapPinned, ArrowRightLeft, X, Minus, Plus, Check, Pencil } from 'lucide-react'
+import { Bus, Search, Clock, Users, MessageCircle, ArrowRight, CalendarDays, Repeat, MapPinned, ArrowRightLeft, X, Minus, Plus, Check, Pencil, Lock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -547,15 +547,33 @@ export default function BusesPage() {
               (handleLegBooked), same as two independent one-way
               searches, any operator either side. */}
           {tripType === 'roundtrip' && (
-            <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-1">
-              {(['departure', 'return'] as const).map((tb) => (
-                <button key={tb} onClick={() => setActiveTab(tb)}
-                  className={`flex-1 h-9 rounded-full font-sans text-[12.5px] font-bold cursor-pointer flex items-center justify-center gap-1.5 ${activeTab === tb ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
-                  {(tb === 'departure' ? departureBooked : returnBooked) && <Check size={12} className="text-[#16a34a]" />}
-                  {tb === 'departure' ? t('bus.departureTabLabel') : t('bus.returnTabLabel2')}
-                </button>
-              ))}
-            </div>
+            <>
+              {/* Real ask, 2026-11-23 — "we can't go back to choose the
+                  return ride because the rider needs to book the
+                  departure first in case he wants a return seat too."
+                  The Return tab stays locked (not just unstyled — a
+                  real disabled button) until departureBooked flips
+                  true, which only happens from a real successful
+                  booking (handleLegBooked), which also auto-switches
+                  here for the rider — so this lock is normally never
+                  even seen, just a safety rail if they try to skip
+                  ahead. */}
+              <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-1">
+                {(['departure', 'return'] as const).map((tb) => {
+                  const locked = tb === 'return' && !departureBooked
+                  return (
+                    <button key={tb} onClick={() => !locked && setActiveTab(tb)} disabled={locked}
+                      className={`flex-1 h-9 rounded-full font-sans text-[12.5px] font-bold cursor-pointer flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50 ${activeTab === tb ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
+                      {locked ? <Lock size={11} /> : (tb === 'departure' ? departureBooked : returnBooked) && <Check size={12} className="text-[#16a34a]" />}
+                      {tb === 'departure' ? t('bus.departureTabLabel') : t('bus.returnTabLabel2')}
+                    </button>
+                  )
+                })}
+              </div>
+              {activeTab === 'departure' && !departureBooked && (
+                <p className="font-sans text-[11px] text-[#64748b] -mt-1.5">{t('bus.bookDepartureFirstHint')}</p>
+              )}
+            </>
           )}
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -624,10 +642,14 @@ export default function BusesPage() {
               {crossTenantTarget.row.vehicles ? vehicleDisplayName(crossTenantTarget.row.vehicles.vehicle_type, crossTenantTarget.row.vehicles.model) : '—'} · {crossTenantTarget.row.vehicles?.owner_name}
             </p>
             {crossTenantTarget.kind === 'route' && (
-              <div>
-                <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('bus.travelDateLabel')}</label>
-                <input type="date" value={bookDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setBookDate(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
-              </div>
+              bookingLegTab ? (
+                <p className="font-sans text-[13px] font-semibold text-[#0f172a] ltr-num">{t('bus.travelDateLabel')}: {bookDate}</p>
+              ) : (
+                <div>
+                  <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('bus.travelDateLabel')}</label>
+                  <input type="date" value={bookDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setBookDate(e.target.value)} className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
+                </div>
+              )
             )}
             <div>
               <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('bus.seatsLabel')}</label>
@@ -647,7 +669,8 @@ export default function BusesPage() {
         <RouteBookingSheet routeId={openRouteId} onClose={() => setOpenRouteId(null)}
           initialDate={bookingLegTab === 'return' ? returnDate : bookingLegTab === 'departure' ? departDate : undefined}
           initialSeats={bookingLegTab ? seatsWanted : undefined}
-          onBooked={handleLegBooked} />
+          onBooked={handleLegBooked}
+          compact={!!bookingLegTab} />
       )}
     </div>
   )
