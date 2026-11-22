@@ -25,12 +25,14 @@ import { vehicleDisplayName } from '@/lib/vehicleDisplayName'
 import { FarePolicyCard } from '@/components/mobility/FarePolicyCard'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { RouteBookingSheet } from '@/components/mobility/RouteBookingSheet'
+import { OwnReturnLegSheet } from '@/components/mobility/OwnReturnLegSheet'
 import { friendlyError } from '@/lib/errors'
 
 interface VehicleLite { owner_name: string; vehicle_type: string; model: string | null; color: string | null; total_seats: number | null; has_ac: boolean | null; vehicle_number: string | null }
 interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_per_seat_pkr: number | null; departure_time: string | null; return_departure_time: string | null; days_of_week: number[] | null
+  return_days_of_week: number[] | null
   is_two_way: boolean | null; is_monthly_fixed: boolean | null; monthly_reference_fee_pkr: number | null; distance_km: number | null; route_duration_min: number | null
   service_class: string | null
   vehicles: VehicleLite | null
@@ -127,6 +129,7 @@ export default function BusesPage() {
   const [departureBooked, setDepartureBooked] = useState(false)
   const [returnBooked, setReturnBooked] = useState(false)
   const [bookingLegTab, setBookingLegTab] = useState<'departure' | 'return' | null>(null)
+  const [ownReturnLegRouteId, setOwnReturnLegRouteId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -134,7 +137,7 @@ export default function BusesPage() {
     const today = new Date().toISOString().slice(0, 10)
     const veh = 'vehicles(owner_name, vehicle_type, model, color, total_seats, has_ac, vehicle_number)'
     Promise.all([
-      supabase.from('vehicle_routes').select(`id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr, departure_time, return_departure_time, days_of_week, is_two_way, is_monthly_fixed, monthly_reference_fee_pkr, distance_km, route_duration_min, service_class, ${veh}`).eq('is_active', true).order('departure_time'),
+      supabase.from('vehicle_routes').select(`id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr, departure_time, return_departure_time, days_of_week, return_days_of_week, is_two_way, is_monthly_fixed, monthly_reference_fee_pkr, distance_km, route_duration_min, service_class, ${veh}`).eq('is_active', true).order('departure_time'),
       supabase.from('vehicle_trip_offers').select(`id, origin, origin_ur, destination, destination_ur, travel_date, departure_time_estimate, seats_available, listed_fare_per_seat_pkr, trip_type, ${veh}`).eq('status', 'open').gte('travel_date', today).order('travel_date'),
       supabase.from('ride_bookings').select('id, status, seats, travel_date, route_id, boarded_at, dropped_off_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time)').eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).is('dropped_off_at', null).gte('travel_date', today).order('travel_date'),
       supabase.rpc('nearby_tehsil_rides'),
@@ -145,7 +148,7 @@ export default function BusesPage() {
       const nearbyRoutes: RouteRow[] = nearbyRows.filter((n) => n.kind === 'route').map((n) => ({
         id: n.id, origin: n.origin, origin_ur: n.origin_ur, destination: n.destination, destination_ur: n.destination_ur,
         fare_per_seat_pkr: n.fare_per_seat_pkr ?? null, departure_time: n.departure_time ?? null, return_departure_time: n.return_departure_time ?? null,
-        days_of_week: n.days_of_week ?? null, is_two_way: n.is_two_way ?? null, is_monthly_fixed: false, monthly_reference_fee_pkr: null,
+        days_of_week: n.days_of_week ?? null, return_days_of_week: null, is_two_way: n.is_two_way ?? null, is_monthly_fixed: false, monthly_reference_fee_pkr: null,
         distance_km: n.distance_km ?? null, route_duration_min: n.route_duration_min ?? null, service_class: null,
         vehicles: { owner_name: n.owner_name, vehicle_type: n.vehicle_type, model: n.model, color: n.color, total_seats: n.total_seats, has_ac: n.has_ac, vehicle_number: n.vehicle_number },
         source_tenant_name: n.source_tenant_name,
@@ -225,6 +228,25 @@ export default function BusesPage() {
   const returnResults = useMemo(() => computeLegResults(toCity, fromCity, returnDate),
     [routes, trips, fromCity, toCity, returnDate, vehicleGroup, view, sortBy, serviceClassFilter])
   const legResults = activeTab === 'return' ? returnResults : departureResults
+
+  // Real bug found live, 2026-11-23: "selected Peshawar to Karachi for
+  // departure, no bus is appearing in return route for any date." A
+  // two-way route's return leg is the SAME route row (return_departure_
+  // time/return_days_of_week), not a separate route going toCity→
+  // fromCity — returnResults above only ever finds a genuinely separate
+  // company's route, so a route's own built-in return leg never showed
+  // up at all. These are that leg, booked via book_standalone_return_
+  // seat (OwnReturnLegSheet) rather than place_ride_booking, since it's
+  // a different RPC/shape under the hood.
+  const ownReturnLegs = useMemo(() => {
+    if (!fromCity || !toCity || !returnDate) return [] as RouteRow[]
+    const sameCity = (a: string, key: string) => a.trim().toLowerCase() === key
+    const groupOk = (type: string | undefined) => !vehicleGroup || vehicleGroupFor(type) === vehicleGroup
+    const classOk = (sc: string | null) => !serviceClassFilter || sc === serviceClassFilter
+    const dow = new Date(`${returnDate}T00:00:00`).getDay()
+    return routes.filter((r) => r.is_two_way && !r.is_monthly_fixed && sameCity(r.origin, fromCity) && sameCity(r.destination, toCity) && groupOk(r.vehicles?.vehicle_type) && classOk(r.service_class) && (r.return_days_of_week ?? r.days_of_week ?? []).includes(dow))
+  }, [routes, fromCity, toCity, returnDate, vehicleGroup, serviceClassFilter])
+
   const cheapestLegFare = useMemo(() => {
     const fares = [
       ...legResults.routes.map((r) => r.is_monthly_fixed ? null : r.fare_per_seat_pkr),
@@ -601,6 +623,24 @@ export default function BusesPage() {
             ))}
           </div>
 
+          {activeTab === 'return' && ownReturnLegs.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="font-sans text-[12px] font-bold text-[#0f172a] uppercase tracking-[0.05em]">{t('bus.ownReturnLegsHeading')}</p>
+              {ownReturnLegs.map((r) => (
+                <div key={r.id} role="button" tabIndex={0} onClick={() => setOwnReturnLegRouteId(r.id)}
+                  className="flex items-center gap-3 rounded-2xl bg-white border border-[#a7f3d0] p-3.5 active:scale-[0.99] transition-transform cursor-pointer">
+                  <span className="w-12 h-12 rounded-2xl bg-[#ecfdf5] flex items-center justify-center text-[26px] shrink-0">{emojiFor(r.vehicles?.vehicle_type)}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-sans text-[10.5px] font-bold text-[#166534]">{t('bus.sameVehicleReturnBadge')} · <span className="ltr-num">{timeLabel(r.return_departure_time)}</span></p>
+                    <p className="font-sans text-[13.5px] font-bold text-[#0f172a] truncate">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'}</p>
+                    <p className="font-sans text-[11.5px] text-[#64748b] truncate">{r.vehicles?.owner_name}</p>
+                  </div>
+                  <p className="font-sans text-[16px] font-black text-[#14532d] shrink-0"><span className="ltr-num">₨{fmt(r.fare_per_seat_pkr ?? 0)}</span></p>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-3">
             <p className="font-sans text-[13px] font-bold text-[#0f172a]">
               {t('bus.searchResultsHeading').replace('{n}', String(legResults.routes.length + legResults.trips.length))
@@ -609,7 +649,7 @@ export default function BusesPage() {
             </p>
             {cheapestLegFare != null && <p className="font-sans text-[11.5px] font-bold text-[#166534] shrink-0">{t('bus.cheapestFareLabel')} ₨{fmt(cheapestLegFare)}</p>}
           </div>
-          {legResults.routes.length === 0 && legResults.trips.length === 0 && (
+          {legResults.routes.length === 0 && legResults.trips.length === 0 && ownReturnLegs.length === 0 && (
             <p className="text-center font-sans text-[13px] text-[#64748b] py-10">{t('bus.noResultsForPairHint')}</p>
           )}
           {legResults.routes.map((r) => renderRoute(r, activeTab))}
@@ -671,6 +711,10 @@ export default function BusesPage() {
           initialSeats={bookingLegTab ? seatsWanted : undefined}
           onBooked={handleLegBooked}
           compact={!!bookingLegTab} />
+      )}
+      {ownReturnLegRouteId && (
+        <OwnReturnLegSheet routeId={ownReturnLegRouteId} travelDate={returnDate} seatsWanted={seatsWanted}
+          onClose={() => setOwnReturnLegRouteId(null)} onBooked={() => setReturnBooked(true)} />
       )}
     </div>
   )
