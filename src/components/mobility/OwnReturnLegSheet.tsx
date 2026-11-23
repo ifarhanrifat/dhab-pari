@@ -165,7 +165,7 @@ export function OwnReturnLegSheet({ routeId, travelDate, seatsWanted, onClose, o
               {isPerOrder ? (
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-4">{t('cm.payDirectlyNote')}</p>
               ) : (
-                <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-4">{t('mv.seatNeedsDriverConfirmNote')}</p>
+                <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-4">{t('mv.willNeedDriverConfirmNote')}</p>
               )}
 
               <button onClick={submit} disabled={submitting || !boardStopId || (isSeatNumbered && selectedSeats.length !== seatsWanted) || available === 0}

@@ -897,7 +897,7 @@ export function RouteDetailPanel({ routeId, initialDate, initialSeats, onBooked,
               {depositPreview && depositPreview.deposit_pkr > 0 && isPerOrder && (
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5">{t('cm.payDirectlyNote')}</p>
               )}
-              <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">{t('mv.seatNeedsDriverConfirmNote')}</p>
+              <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">{t('mv.willNeedDriverConfirmNote')}</p>
               <button onClick={applyForSeat} disabled={applying || !selectedBoardStopId || (isSeatNumbered && !selectedMonthlySeat) || (!isPerOrder && (depositPreview?.deposit_pkr ?? 0) > 0 && !applyProofPath)} className="w-full bg-dp-secondary text-white rounded-lg py-2.5 font-sans font-semibold active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                 {applying ? t('mp.placingBooking') : t('mv.applyMonthlySeatBtn')}
               </button>
@@ -1095,8 +1095,15 @@ export function RouteDetailPanel({ routeId, initialDate, initialSeats, onBooked,
                      has read the unconfirmed-seat notice and decided to pay.
                      Requiring it here, before the booking even existed,
                      meant a rider could pay for a bus that had already left
-                     with no chance to find that out first. */
-                  <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-4">{t('mv.seatNeedsDriverConfirmNote')}</p>
+                     with no chance to find that out first.
+                     Real bug found live, 2026-11-23: this reused mv.seat-
+                     NeedsDriverConfirmNote ("your seat IS booked but not
+                     confirmed"), worded for an existing booking, shown
+                     here BEFORE the Book button is even tapped — a rider
+                     reading this mid-form saw language describing a
+                     booking that doesn't exist yet. mv.willNeedDriverConfirmNote
+                     is the same warning in the right tense for a form. */
+                  <p className="font-sans text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-4">{t('mv.willNeedDriverConfirmNote')}</p>
                 )}
                 <div className="mt-3"><FarePolicyCard service="seat" defaultOpen={false} /></div>
                 <button onClick={submit} disabled={submitting || (isSeatNumbered && selectedSeats.length !== seats) || (!!alightStopId && segmentFraction <= 0) || (travelDate === todayStr() && !!runStatus?.has_active_run && !!runStatus?.already_passed)} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold active:scale-[0.98] cursor-pointer hover:bg-dp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
