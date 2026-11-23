@@ -386,6 +386,59 @@ export default function BusesPage() {
       </div>
     )
   }
+  // Real ask, 2026-11-23 — "the return selection bus booking card is
+  // simple and not matching with the original bus booking card design."
+  // Same gradient-hero card as renderRoute, just mirrored for the
+  // return leg: return_departure_time instead of departure_time,
+  // destination→origin instead of origin→destination, return_days_of_
+  // week instead of days_of_week, and a "Same vehicle" badge in place
+  // of the two-way badge (there's nothing to compare against here —
+  // this IS the two-way badge's own other half).
+  const renderOwnReturnLeg = (r: RouteRow) => {
+    const [c1, c2] = PALETTE[hashIdx(r.origin)]
+    const returnDow = returnDate ? new Date(`${returnDate}T00:00:00`).getDay() : todayDow
+    const returnDays = r.return_days_of_week ?? r.days_of_week ?? []
+    return (
+      <div key={r.id} role="button" tabIndex={0} onClick={() => setOwnReturnLegRouteId(r.id)} className="block rounded-[22px] overflow-hidden bg-white border border-[#e5e7eb] shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)] active:scale-[0.99] transition-transform cursor-pointer">
+        <div className="relative px-4 pt-3.5 pb-4 text-white" style={{ backgroundImage: `linear-gradient(135deg, ${c1}, ${c2})` }}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-sans text-[11px] font-semibold text-white/80">{t('bus.departs')}</p>
+              <p className="font-sans text-[24px] font-black leading-none mt-0.5"><span className="ltr-num">{timeLabel(r.return_departure_time)}</span></p>
+            </div>
+            <span className="text-[34px] leading-none">{emojiFor(r.vehicles?.vehicle_type)}</span>
+          </div>
+          <div className="mt-3 flex items-center gap-2 font-sans text-[14px] font-bold">
+            <bdi className="truncate">{nm(r.destination, r.destination_ur)}</bdi>
+            <ArrowRight size={15} className="shrink-0 rtl:rotate-180" />
+            <bdi className="truncate">{nm(r.origin, r.origin_ur)}</bdi>
+          </div>
+          <div className="mt-2.5 flex gap-1">
+            {dayNames.map((d, i) => (
+              <span key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10.5px] font-bold ${returnDays.includes(i) ? 'bg-white text-[#0f172a]' : 'bg-white/15 text-white/60'}`}>{d}</span>
+            ))}
+          </div>
+        </div>
+        <div className="px-4 py-3 flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="font-sans text-[13px] font-bold text-[#0f172a] truncate">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'}</p>
+            <p className="font-sans text-[11.5px] text-[#64748b] truncate">{r.vehicles?.owner_name}{r.vehicles?.has_ac ? ' · AC' : ''}{r.vehicles?.total_seats ? ` · ${r.vehicles.total_seats} ${t('bus.seatsShort')}` : ''}</p>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {returnDays.includes(returnDow) && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
+              {r.service_class && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary">{t(`mv.serviceClass.${r.service_class}`)}</span>}
+              <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={10} /> {t('bus.sameVehicleReturnBadge')}</span>
+              {r.route_duration_min && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#f1f5f9] text-[#334155] inline-flex items-center gap-1"><Clock size={10} /> <span className="ltr-num">{Math.round(r.route_duration_min)} min</span></span>}
+            </div>
+          </div>
+          <div className="text-end shrink-0">
+            {r.fare_per_seat_pkr != null && <p className="font-sans text-[18px] font-black text-[#14532d]"><span className="ltr-num">₨{fmt(r.fare_per_seat_pkr)}</span></p>}
+            <p className="font-sans text-[10.5px] text-[#64748b]">{t('bus.perSeat')}</p>
+            <span className="mt-1.5 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[12px] font-bold">{t('bus.book')}</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
   const renderTrip = (o: TripRow, legTab?: 'departure' | 'return') => (
     <div key={o.id} role="button" tabIndex={0} onClick={() => openTrip(o, legTab)} className="block rounded-[22px] bg-white border border-dashed border-[#94a3b8] p-3.5 active:scale-[0.99] transition-transform cursor-pointer">
       <div className="flex items-center gap-3">
@@ -624,20 +677,9 @@ export default function BusesPage() {
           </div>
 
           {activeTab === 'return' && ownReturnLegs.length > 0 && (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               <p className="font-sans text-[12px] font-bold text-[#0f172a] uppercase tracking-[0.05em]">{t('bus.ownReturnLegsHeading')}</p>
-              {ownReturnLegs.map((r) => (
-                <div key={r.id} role="button" tabIndex={0} onClick={() => setOwnReturnLegRouteId(r.id)}
-                  className="flex items-center gap-3 rounded-2xl bg-white border border-[#a7f3d0] p-3.5 active:scale-[0.99] transition-transform cursor-pointer">
-                  <span className="w-12 h-12 rounded-2xl bg-[#ecfdf5] flex items-center justify-center text-[26px] shrink-0">{emojiFor(r.vehicles?.vehicle_type)}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-sans text-[10.5px] font-bold text-[#166534]">{t('bus.sameVehicleReturnBadge')} · <span className="ltr-num">{timeLabel(r.return_departure_time)}</span></p>
-                    <p className="font-sans text-[13.5px] font-bold text-[#0f172a] truncate">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'}</p>
-                    <p className="font-sans text-[11.5px] text-[#64748b] truncate">{r.vehicles?.owner_name}</p>
-                  </div>
-                  <p className="font-sans text-[16px] font-black text-[#14532d] shrink-0"><span className="ltr-num">₨{fmt(r.fare_per_seat_pkr ?? 0)}</span></p>
-                </div>
-              ))}
+              {ownReturnLegs.map(renderOwnReturnLeg)}
             </div>
           )}
 
