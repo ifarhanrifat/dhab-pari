@@ -392,13 +392,28 @@ export function RouteDetailPanel({ routeId, initialDate, initialSeats, onBooked,
     onBooked?.()
   }
 
-  const cancelMyBooking = async (bookingId: string, status: string) => {
+  const cancelMyBooking = async (bookingId: string, status: string, seatAccepted: string | null) => {
     // Real bug reported live: the "refunded in full... not something to
     // undo lightly" wording showed even for a still-'announced' booking,
     // which the platform never actually holds payment for in the first
     // place (direct P2P, no escrow) — misleadingly implying a platform
     // refund that doesn't exist at that stage.
-    const hint = status === 'confirmed' ? t('mp.confirmCancelConfirmedHint') : t('mp.confirmCancelAnnouncedHint')
+    //
+    // Real bug found live, 2026-11-23: this checked status === 'confirmed'
+    // only — but an ordinary route-seat booking's driver-confirm action
+    // (accept_ride_booking_seat) only ever sets seat_accepted_at, never
+    // flips status to 'confirmed' (that value is a separate, older admin-
+    // order concept — see migrations 389/394/410). A booking the rider
+    // had just watched get confirmed, join the ride group, and unlock the
+    // live map/chat still showed the UNCONFIRMED cancel wording, because
+    // status was still sitting at 'announced'. Check seat_accepted_at too.
+    const isConfirmed = status === 'confirmed' || !!seatAccepted
+    // mp.confirmCancelConfirmedHint is written for a DRIVER cancelling
+    // someone else's booking ("the rider will be refunded") — wrong
+    // voice and wrongly implies an automatic platform refund that
+    // doesn't exist for a direct cash-to-driver payment. This is the
+    // rider cancelling their OWN already-confirmed seat.
+    const hint = isConfirmed ? t('mp.confirmCancelMyConfirmedHint') : t('mp.confirmCancelAnnouncedHint')
     if (!window.confirm(hint)) return
     setActionId(bookingId)
     const { error } = await supabase.rpc('cancel_ride_booking', { p_booking_id: bookingId, p_reason: t('mp.riderCancelledReason') })
@@ -783,7 +798,7 @@ export function RouteDetailPanel({ routeId, initialDate, initialSeats, onBooked,
               ) : (
                 <div className="flex items-center gap-3 mt-2">
                   <button onClick={() => { setReschedulingId(b.id); setRescheduleDate(b.travel_date); setRescheduleBoardStopId(b.board_stop_id); setRescheduleAlightStopId(b.alight_stop_id) }} disabled={actionId === b.id} className="inline-flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary cursor-pointer disabled:opacity-50"><CalendarClock size={12} /> {t('mv.rescheduleBtn')}</button>
-                  <button onClick={() => cancelMyBooking(b.id, b.status)} disabled={actionId === b.id} className="font-sans text-[12px] font-semibold text-dp-error cursor-pointer disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
+                  <button onClick={() => cancelMyBooking(b.id, b.status, b.seat_accepted_at)} disabled={actionId === b.id} className="font-sans text-[12px] font-semibold text-dp-error cursor-pointer disabled:opacity-50">{t('mp.cancelBookingBtn')}</button>
                 </div>
               )}
             </div>
