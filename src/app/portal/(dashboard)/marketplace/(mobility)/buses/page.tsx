@@ -13,10 +13,9 @@
 // the group chat stay on the route's own page, one tap away.
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Bus, Search, Clock, Users, MessageCircle, ArrowRight, CalendarDays, Repeat, MapPinned, ArrowRightLeft, X, Minus, Plus, Check, Pencil, Lock, Filter as FilterIcon, ChevronRight } from 'lucide-react'
+import { Search, Clock, Users, ArrowRight, CalendarDays, Repeat, MapPinned, ArrowRightLeft, X, Minus, Plus, Check, Pencil, Lock, Filter as FilterIcon, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -53,11 +52,6 @@ interface NearbyTehsilRow {
   source_tenant_id: string; source_tenant_name: string
 }
 const SERVICE_CLASSES = ['economy', 'business', 'executive', 'sleeper', 'luxury'] as const
-interface MySeat {
-  id: string; status: string; seats: number; travel_date: string; route_id: string | null
-  boarded_at: string | null; dropped_off_at: string | null
-  vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null } | null
-}
 
 const PALETTE = [
   ['#065f46', '#10b981'], ['#1e3a8a', '#3b82f6'], ['#7c2d12', '#f97316'], ['#581c87', '#a855f7'], ['#0f766e', '#2dd4bf'], ['#9d174d', '#ec4899'],
@@ -91,7 +85,6 @@ export default function BusesPage() {
   const [booking, setBooking] = useState(false)
   const [routes, setRoutes] = useState<RouteRow[]>([])
   const [trips, setTrips] = useState<TripRow[]>([])
-  const [mine, setMine] = useState<MySeat[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [city, setCity] = useState<string | null>(null)
@@ -139,9 +132,8 @@ export default function BusesPage() {
     Promise.all([
       supabase.from('vehicle_routes').select(`id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr, departure_time, return_departure_time, days_of_week, return_days_of_week, is_two_way, is_monthly_fixed, monthly_reference_fee_pkr, distance_km, route_duration_min, service_class, ${veh}`).eq('is_active', true).order('departure_time'),
       supabase.from('vehicle_trip_offers').select(`id, origin, origin_ur, destination, destination_ur, travel_date, departure_time_estimate, seats_available, listed_fare_per_seat_pkr, trip_type, ${veh}`).eq('status', 'open').gte('travel_date', today).order('travel_date'),
-      supabase.from('ride_bookings').select('id, status, seats, travel_date, route_id, boarded_at, dropped_off_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time)').eq('portal_user_id', user.id).in('status', ['announced', 'confirmed']).is('dropped_off_at', null).gte('travel_date', today).order('travel_date'),
       supabase.rpc('nearby_tehsil_rides'),
-    ]).then(([r, o, m, nearby]) => {
+    ]).then(([r, o, nearby]) => {
       const ownRoutes = (r.data ?? []) as unknown as RouteRow[]
       const ownTrips = (o.data ?? []) as unknown as TripRow[]
       const nearbyRows = ((nearby.data ?? []) as NearbyTehsilRow[])
@@ -162,7 +154,6 @@ export default function BusesPage() {
       }))
       setRoutes([...ownRoutes, ...nearbyRoutes])
       setTrips([...ownTrips, ...nearbyTrips])
-      setMine((m.data ?? []) as unknown as MySeat[])
       setLoading(false)
     })
   }, [user])
@@ -280,16 +271,6 @@ export default function BusesPage() {
     setBookingLegTab(legTab ?? null)
     if (o.source_tenant_name) { setBookSeats(legTab ? seatsWanted : 1); setCrossTenantTarget({ kind: 'trip', row: o }) }
     else router.push('/portal/marketplace/shared')
-  }
-
-  const declineBoarding = async (e: React.MouseEvent, bookingId: string) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const supabase = createClient()
-    const { error } = await supabase.rpc('decline_boarding', { p_booking_id: bookingId })
-    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    toast.success(t('bus.declinedBoardingToast'))
-    setMine((prev) => prev.map((s) => (s.id === bookingId ? { ...s, boarded_at: null } : s)))
   }
 
   const confirmCrossTenantBooking = async () => {
@@ -450,14 +431,45 @@ export default function BusesPage() {
 
   return (
     <div className="flex flex-col gap-4 pb-6">
-      <div className="rounded-[24px] p-4 text-white" style={{ backgroundImage: 'linear-gradient(140deg,#0f3d2e,#166534 55%,#15803d)' }}>
-        <p className="flex items-center gap-2 font-sans text-[20px] font-extrabold"><Bus size={22} /> {t('bus.title')}</p>
-        <p className="font-sans text-[12.5px] text-white/85 mt-1">{t('bus.subtitle')}</p>
-        <div className="mt-3 flex items-center gap-2 bg-white rounded-2xl px-3 h-11">
-          <Search size={16} className="text-[#64748b] shrink-0" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('bus.searchPlaceholder')}
-            className="flex-1 min-w-0 bg-transparent outline-none font-sans text-[14px] text-[#0f172a]" />
+      {/* 2026-11-23 — real ask, matching a reference design file: the
+          plain text hero (title/subtitle/keyword search) is replaced by
+          an actual banner — headline + a decorative bus "sticker" + a
+          carousel-dot strip, same spirit as the reference's photo
+          banner (no real photo asset to drop in, so a large flat bus
+          emoji stands in — same emoji vocabulary emojiFor() already
+          uses everywhere else on this very page). The keyword search
+          box moved down into the destination-grouped browse section
+          below (it only ever filtered that list), freeing this banner
+          to be purely the visual header the reference shows. */}
+      <div className="relative overflow-hidden rounded-[24px] text-white" style={{ backgroundImage: 'linear-gradient(140deg,#0f3d2e,#166534 55%,#15803d)' }}>
+        <div className="relative z-10 px-4 pt-4 pb-4 max-w-[68%]">
+          <p className="font-sans text-[19px] font-black leading-snug">{t('bus.bannerHeadline')}</p>
+          <p className="font-sans text-[12px] text-white/80 mt-1.5 leading-snug">{t('bus.bannerSubline')}</p>
         </div>
+        <span className="absolute -bottom-4 end-0 text-[92px] leading-none opacity-90 select-none pointer-events-none" aria-hidden="true">🚌</span>
+        <div className="relative z-10 flex justify-center gap-1.5 pb-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-white" />
+          <span className="w-1.5 h-1.5 rounded-full bg-white/35" />
+          <span className="w-1.5 h-1.5 rounded-full bg-white/35" />
+        </div>
+      </div>
+
+      {/* Vehicle-type service tabs — this page is the "Bus" surface;
+          the other three are real existing screens (Shared Ride's
+          one-off trip offers, Adda's shared-vehicle departure board,
+          Rental's point-to-point car hire), not new pages. */}
+      <div className="flex gap-2 overflow-x-auto hide-scrollbar -mt-1">
+        {([
+          { key: 'bus', label: t('bus.vehicleTabBus'), emoji: '🚌', active: true, href: null },
+          { key: 'shared', label: t('mb.svc.shared'), emoji: '👥', active: false, href: '/portal/marketplace/shared' },
+          { key: 'adda', label: t('mb.svc.adda'), emoji: '🚐', active: false, href: '/portal/marketplace/adda' },
+          { key: 'rental', label: t('mb.svc.rental'), emoji: '🚗', active: false, href: '/portal/marketplace/rental' },
+        ] as const).map((tab) => (
+          <button key={tab.key} onClick={() => tab.href && router.push(tab.href)}
+            className={`shrink-0 h-10 px-4 rounded-full font-sans text-[12.5px] font-bold flex items-center gap-1.5 cursor-pointer ${tab.active ? 'bg-[#166534] text-white' : 'bg-white text-[#334155] border border-[#e5e7eb]'}`}>
+            <span className="text-[15px] leading-none">{tab.emoji}</span> {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* 2026-11-22: real ask — a proper step-based search, matching how
@@ -560,35 +572,6 @@ export default function BusesPage() {
         </div>
       )}
 
-      {mine.length > 0 && (
-        <div>
-          <p className="font-sans text-[12px] font-bold uppercase tracking-[0.05em] text-[#64748b] mb-2">{t('bus.mySeats')}</p>
-          <div className="flex gap-2.5 overflow-x-auto hide-scrollbar pb-1">
-            {mine.map((s) => {
-              const r = s.vehicle_routes
-              return (
-                <Link key={s.id} href={s.route_id ? `/portal/marketplace/route/${s.route_id}` : '/portal/marketplace/trips'}
-                  className="shrink-0 w-[230px] rounded-2xl bg-white border border-[#e5e7eb] p-3 shadow-sm">
-                  <p className="font-sans text-[13px] font-bold text-[#0f172a] truncate">{r ? `${nm(r.origin, r.origin_ur)} → ${nm(r.destination, r.destination_ur)}` : '—'}</p>
-                  <p className="font-sans text-[11.5px] text-[#64748b] mt-0.5 ltr-num">{s.travel_date} · {r ? timeLabel(r.departure_time) : ''} · {t('rw.seats').replace('{n}', String(s.seats))}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full ${s.status === 'confirmed' ? 'bg-[#dcfce7] text-[#166534]' : 'bg-[#fef3c7] text-[#92400e]'}`}>
-                      {s.status === 'confirmed' ? t('bus.confirmed') : t('bus.awaiting')}
-                    </span>
-                    <span className="flex items-center gap-1 text-[11.5px] font-bold text-[#166534]"><MessageCircle size={13} /> {t('bus.groupChat')}</span>
-                  </div>
-                  {s.boarded_at && !s.dropped_off_at && (
-                    <div className="mt-1.5 flex items-center justify-between gap-2">
-                      <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985]">{t('bus.onboardedBadge')}</span>
-                      <button onClick={(e) => declineBoarding(e, s.id)} className="text-[10.5px] font-bold text-[#b91c1c] cursor-pointer">{t('bus.notOnboardedBtn')}</button>
-                    </div>
-                  )}
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-      )}
 
       {/* 2026-11-23 — real ask, matching a reference design file: each
           filter row gets its own labeled heading (funnel/pin icon + text)
@@ -709,6 +692,12 @@ export default function BusesPage() {
         </section>
       ) : (
       <>
+      <div className="flex items-center gap-2 bg-white border border-[#e5e7eb] rounded-2xl px-3 h-11">
+        <Search size={16} className="text-[#64748b] shrink-0" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('bus.searchPlaceholder')}
+          className="flex-1 min-w-0 bg-transparent outline-none font-sans text-[14px] text-[#0f172a]" />
+      </div>
+
       {shown.length === 0 && <p className="text-center font-sans text-[13px] text-[#64748b] py-10">{t('bus.empty')}</p>}
 
       {shown.map((g) => {
