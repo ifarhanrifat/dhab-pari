@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Bus, Search, Clock, Users, MessageCircle, ArrowRight, CalendarDays, Repeat, MapPinned, ArrowRightLeft, X, Minus, Plus, Check, Pencil, Lock } from 'lucide-react'
+import { Bus, Search, Clock, Users, MessageCircle, ArrowRight, CalendarDays, Repeat, MapPinned, ArrowRightLeft, X, Minus, Plus, Check, Pencil, Lock, Filter as FilterIcon, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -329,126 +329,121 @@ export default function BusesPage() {
 
   if (loading) return <div className="text-center py-12"><LoadingDots /></div>
 
-  // Extracted so the exact same card renders both in the destination-
-  // grouped browse below and in the new From→To search results.
-  const renderRoute = (r: RouteRow, legTab?: 'departure' | 'return') => {
-    const [c1, c2] = PALETTE[hashIdx(r.destination)]
+  // 2026-11-23 — real ask, matching a reference design file: swapped the
+  // old vertical gradient-hero card for a flatter, single-row card
+  // (icon box · route + stats · price + book) with a "best choice"
+  // ribbon on the single cheapest result in a results set — same data,
+  // same tap target, just the reference's layout. Extracted so the same
+  // card renders in the destination-grouped browse below and in the new
+  // From→To search results.
+  const bestChoiceRibbon = (
+    <span className="absolute -top-2.5 start-3 inline-flex items-center gap-1 bg-[#eab308] text-[#422006] text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+      ⭐ {t('bus.bestChoiceBadge')}
+    </span>
+  )
+  const renderRoute = (r: RouteRow, legTab?: 'departure' | 'return', isBestChoice?: boolean) => {
     const runsToday = (r.days_of_week ?? []).includes(todayDow)
     return (
-      <div key={r.id} role="button" tabIndex={0} onClick={() => openRoute(r, legTab)} className="block rounded-[22px] overflow-hidden bg-white border border-[#e5e7eb] shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)] active:scale-[0.99] transition-transform cursor-pointer">
-        <div className="relative px-4 pt-3.5 pb-4 text-white" style={{ backgroundImage: `linear-gradient(135deg, ${c1}, ${c2})` }}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-sans text-[11px] font-semibold text-white/80">{t('bus.departs')}</p>
-              <p className="font-sans text-[24px] font-black leading-none mt-0.5"><span className="ltr-num">{timeLabel(r.departure_time)}</span></p>
-            </div>
-            <span className="text-[34px] leading-none">{emojiFor(r.vehicles?.vehicle_type)}</span>
-          </div>
-          <div className="mt-3 flex items-center gap-2 font-sans text-[14px] font-bold">
+      <div key={r.id} role="button" tabIndex={0} onClick={() => openRoute(r, legTab)} className="relative rounded-2xl bg-white border border-[#e5e7eb] shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
+        {isBestChoice && bestChoiceRibbon}
+        <span className="shrink-0 w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center text-[28px]">{emojiFor(r.vehicles?.vehicle_type)}</span>
+        <div className="min-w-0 flex-1">
+          <p className="font-sans text-[14px] font-bold text-[#0f172a] flex items-center gap-1.5">
             <bdi className="truncate">{nm(r.origin, r.origin_ur)}</bdi>
-            <ArrowRight size={15} className="shrink-0 rtl:rotate-180" />
+            <ArrowRight size={13} className="shrink-0 rtl:rotate-180 text-[#94a3b8]" />
             <bdi className="truncate">{nm(r.destination, r.destination_ur)}</bdi>
+          </p>
+          <p className="font-sans text-[11.5px] text-[#64748b] truncate mt-0.5">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'} · {r.vehicles?.owner_name}</p>
+          <div className="mt-1.5 flex items-center gap-2.5 flex-wrap font-sans text-[10.5px] text-[#64748b]">
+            {r.vehicles?.total_seats != null && <span className="flex items-center gap-1"><Users size={11} /> {r.vehicles.total_seats} {t('bus.seatsShort')}</span>}
+            <span className="flex items-center gap-1"><Clock size={11} /> <span className="ltr-num">{timeLabel(r.departure_time)}</span></span>
+            {r.route_duration_min != null && <span className="ltr-num">{Math.round(r.route_duration_min)} {t('bus.durationUnit')}</span>}
           </div>
-          <div className="mt-2.5 flex gap-1">
-            {dayNames.map((d, i) => (
-              <span key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10.5px] font-bold ${(r.days_of_week ?? []).includes(i) ? 'bg-white text-[#0f172a]' : 'bg-white/15 text-white/60'}`}>{d}</span>
-            ))}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {runsToday && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
+            {r.service_class && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary">{t(`mv.serviceClass.${r.service_class}`)}</span>}
+            {r.is_two_way && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={9} /> {t('bus.twoWay')}</span>}
+            {r.source_tenant_name && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#fef9c3] text-[#854d0e] inline-flex items-center gap-1"><MapPinned size={9} /> {r.source_tenant_name}</span>}
+            <span className="flex gap-0.5 ms-0.5">
+              {dayNames.map((d, i) => (
+                <span key={i} className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${(r.days_of_week ?? []).includes(i) ? 'bg-[#166534] text-white' : 'bg-[#f1f5f9] text-[#94a3b8]'}`}>{d}</span>
+              ))}
+            </span>
           </div>
         </div>
-        <div className="px-4 py-3 flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="font-sans text-[13px] font-bold text-[#0f172a] truncate">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'}</p>
-            <p className="font-sans text-[11.5px] text-[#64748b] truncate">{r.vehicles?.owner_name}{r.vehicles?.has_ac ? ' · AC' : ''}{r.vehicles?.total_seats ? ` · ${r.vehicles.total_seats} ${t('bus.seatsShort')}` : ''}</p>
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {runsToday && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
-              {r.service_class && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary">{t(`mv.serviceClass.${r.service_class}`)}</span>}
-              {r.is_two_way && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={10} /> {t('bus.twoWay')}{r.return_departure_time ? ` · ${timeLabel(r.return_departure_time)}` : ''}</span>}
-              {r.route_duration_min && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#f1f5f9] text-[#334155] inline-flex items-center gap-1"><Clock size={10} /> <span className="ltr-num">{Math.round(r.route_duration_min)} min</span></span>}
-              {r.source_tenant_name && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#fef9c3] text-[#854d0e] inline-flex items-center gap-1"><MapPinned size={10} /> {r.source_tenant_name}</span>}
-            </div>
-          </div>
-          <div className="text-end shrink-0">
-            {r.is_monthly_fixed ? (
-              <>
-                <p className="font-sans text-[18px] font-black text-[#6b21a8]"><span className="ltr-num">₨{fmt(r.monthly_reference_fee_pkr ?? 0)}</span></p>
-                <p className="font-sans text-[10.5px] text-[#64748b]">{t('bus.perMonth')}</p>
-                <span className="mt-1.5 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#6b21a8] text-white font-sans text-[12px] font-bold">{t('bus.applyMonthlyBtn')}</span>
-              </>
-            ) : (
-              <>
-                {r.fare_per_seat_pkr != null && <p className="font-sans text-[18px] font-black text-[#14532d]"><span className="ltr-num">₨{fmt(r.fare_per_seat_pkr)}</span></p>}
-                <p className="font-sans text-[10.5px] text-[#64748b]">{t('bus.perSeat')}</p>
-                <span className="mt-1.5 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[12px] font-bold">{t('bus.book')}</span>
-              </>
-            )}
-          </div>
+        <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
+          {r.is_monthly_fixed ? (
+            <>
+              <p className="font-sans text-[16px] font-black text-[#6b21a8] ltr-num">₨{fmt(r.monthly_reference_fee_pkr ?? 0)}</p>
+              <span className="inline-flex items-center gap-0.5 h-8 px-3 rounded-full bg-[#6b21a8] text-white font-sans text-[11.5px] font-bold">{t('bus.applyMonthlyBtn')} <ChevronRight size={12} className="rtl:rotate-180" /></span>
+            </>
+          ) : (
+            <>
+              {r.fare_per_seat_pkr != null && <p className="font-sans text-[16px] font-black text-[#14532d] ltr-num">₨{fmt(r.fare_per_seat_pkr)}</p>}
+              <span className="inline-flex items-center gap-0.5 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[11.5px] font-bold">{t('bus.book')} <ChevronRight size={12} className="rtl:rotate-180" /></span>
+            </>
+          )}
         </div>
       </div>
     )
   }
   // Real ask, 2026-11-23 — "the return selection bus booking card is
   // simple and not matching with the original bus booking card design."
-  // Same gradient-hero card as renderRoute, just mirrored for the
-  // return leg: return_departure_time instead of departure_time,
-  // destination→origin instead of origin→destination, return_days_of_
-  // week instead of days_of_week, and a "Same vehicle" badge in place
-  // of the two-way badge (there's nothing to compare against here —
-  // this IS the two-way badge's own other half).
-  const renderOwnReturnLeg = (r: RouteRow) => {
-    const [c1, c2] = PALETTE[hashIdx(r.origin)]
+  // Same flat card as renderRoute, mirrored for the return leg:
+  // return_departure_time instead of departure_time, destination→origin
+  // instead of origin→destination, return_days_of_week instead of
+  // days_of_week, and a "Same vehicle" badge in place of the two-way
+  // badge (there's nothing to compare against here — this IS the
+  // two-way badge's own other half).
+  const renderOwnReturnLeg = (r: RouteRow, isBestChoice?: boolean) => {
     const returnDow = returnDate ? new Date(`${returnDate}T00:00:00`).getDay() : todayDow
     const returnDays = r.return_days_of_week ?? r.days_of_week ?? []
     return (
-      <div key={r.id} role="button" tabIndex={0} onClick={() => setOwnReturnLegRouteId(r.id)} className="block rounded-[22px] overflow-hidden bg-white border border-[#e5e7eb] shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)] active:scale-[0.99] transition-transform cursor-pointer">
-        <div className="relative px-4 pt-3.5 pb-4 text-white" style={{ backgroundImage: `linear-gradient(135deg, ${c1}, ${c2})` }}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-sans text-[11px] font-semibold text-white/80">{t('bus.departs')}</p>
-              <p className="font-sans text-[24px] font-black leading-none mt-0.5"><span className="ltr-num">{timeLabel(r.return_departure_time)}</span></p>
-            </div>
-            <span className="text-[34px] leading-none">{emojiFor(r.vehicles?.vehicle_type)}</span>
-          </div>
-          <div className="mt-3 flex items-center gap-2 font-sans text-[14px] font-bold">
+      <div key={r.id} role="button" tabIndex={0} onClick={() => setOwnReturnLegRouteId(r.id)} className="relative rounded-2xl bg-white border border-[#e5e7eb] shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
+        {isBestChoice && bestChoiceRibbon}
+        <span className="shrink-0 w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center text-[28px]">{emojiFor(r.vehicles?.vehicle_type)}</span>
+        <div className="min-w-0 flex-1">
+          <p className="font-sans text-[14px] font-bold text-[#0f172a] flex items-center gap-1.5">
             <bdi className="truncate">{nm(r.destination, r.destination_ur)}</bdi>
-            <ArrowRight size={15} className="shrink-0 rtl:rotate-180" />
+            <ArrowRight size={13} className="shrink-0 rtl:rotate-180 text-[#94a3b8]" />
             <bdi className="truncate">{nm(r.origin, r.origin_ur)}</bdi>
+          </p>
+          <p className="font-sans text-[11.5px] text-[#64748b] truncate mt-0.5">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'} · {r.vehicles?.owner_name}</p>
+          <div className="mt-1.5 flex items-center gap-2.5 flex-wrap font-sans text-[10.5px] text-[#64748b]">
+            {r.vehicles?.total_seats != null && <span className="flex items-center gap-1"><Users size={11} /> {r.vehicles.total_seats} {t('bus.seatsShort')}</span>}
+            <span className="flex items-center gap-1"><Clock size={11} /> <span className="ltr-num">{timeLabel(r.return_departure_time)}</span></span>
+            {r.route_duration_min != null && <span className="ltr-num">{Math.round(r.route_duration_min)} {t('bus.durationUnit')}</span>}
           </div>
-          <div className="mt-2.5 flex gap-1">
-            {dayNames.map((d, i) => (
-              <span key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10.5px] font-bold ${returnDays.includes(i) ? 'bg-white text-[#0f172a]' : 'bg-white/15 text-white/60'}`}>{d}</span>
-            ))}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {returnDays.includes(returnDow) && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
+            {r.service_class && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary">{t(`mv.serviceClass.${r.service_class}`)}</span>}
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={9} /> {t('bus.sameVehicleReturnBadge')}</span>
+            <span className="flex gap-0.5 ms-0.5">
+              {dayNames.map((d, i) => (
+                <span key={i} className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${returnDays.includes(i) ? 'bg-[#166534] text-white' : 'bg-[#f1f5f9] text-[#94a3b8]'}`}>{d}</span>
+              ))}
+            </span>
           </div>
         </div>
-        <div className="px-4 py-3 flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="font-sans text-[13px] font-bold text-[#0f172a] truncate">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'}</p>
-            <p className="font-sans text-[11.5px] text-[#64748b] truncate">{r.vehicles?.owner_name}{r.vehicles?.has_ac ? ' · AC' : ''}{r.vehicles?.total_seats ? ` · ${r.vehicles.total_seats} ${t('bus.seatsShort')}` : ''}</p>
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {returnDays.includes(returnDow) && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
-              {r.service_class && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary">{t(`mv.serviceClass.${r.service_class}`)}</span>}
-              <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={10} /> {t('bus.sameVehicleReturnBadge')}</span>
-              {r.route_duration_min && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#f1f5f9] text-[#334155] inline-flex items-center gap-1"><Clock size={10} /> <span className="ltr-num">{Math.round(r.route_duration_min)} min</span></span>}
-            </div>
-          </div>
-          <div className="text-end shrink-0">
-            {r.fare_per_seat_pkr != null && <p className="font-sans text-[18px] font-black text-[#14532d]"><span className="ltr-num">₨{fmt(r.fare_per_seat_pkr)}</span></p>}
-            <p className="font-sans text-[10.5px] text-[#64748b]">{t('bus.perSeat')}</p>
-            <span className="mt-1.5 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[12px] font-bold">{t('bus.book')}</span>
-          </div>
+        <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
+          {r.fare_per_seat_pkr != null && <p className="font-sans text-[16px] font-black text-[#14532d] ltr-num">₨{fmt(r.fare_per_seat_pkr)}</p>}
+          <span className="inline-flex items-center gap-0.5 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[11.5px] font-bold">{t('bus.book')} <ChevronRight size={12} className="rtl:rotate-180" /></span>
         </div>
       </div>
     )
   }
-  const renderTrip = (o: TripRow, legTab?: 'departure' | 'return') => (
-    <div key={o.id} role="button" tabIndex={0} onClick={() => openTrip(o, legTab)} className="block rounded-[22px] bg-white border border-dashed border-[#94a3b8] p-3.5 active:scale-[0.99] transition-transform cursor-pointer">
-      <div className="flex items-center gap-3">
-        <span className="w-12 h-12 rounded-2xl bg-[#f1f5f9] flex items-center justify-center text-[26px] shrink-0">{emojiFor(o.vehicles?.vehicle_type)}</span>
-        <div className="min-w-0 flex-1">
-          <p className="font-sans text-[10.5px] font-bold text-[#7c3aed] flex items-center gap-1"><CalendarDays size={11} /> {t('bus.oneOffTrip')} · <span className="ltr-num">{o.travel_date}</span> · {timeLabel(o.departure_time_estimate)}</p>
-          <p className="font-sans text-[13.5px] font-bold text-[#0f172a] truncate"><bdi>{nm(o.origin, o.origin_ur)}</bdi> → <bdi>{nm(o.destination, o.destination_ur)}</bdi></p>
-          <p className="font-sans text-[11.5px] text-[#64748b] truncate flex items-center gap-1"><Users size={11} /> {o.seats_available} {t('bus.seatsLeft')} · {o.vehicles?.owner_name}{o.source_tenant_name ? ` · 🏘️ ${o.source_tenant_name}` : ''}</p>
-        </div>
-        <p className="font-sans text-[16px] font-black text-[#14532d] shrink-0"><span className="ltr-num">₨{fmt(o.listed_fare_per_seat_pkr)}</span></p>
+  const renderTrip = (o: TripRow, legTab?: 'departure' | 'return', isBestChoice?: boolean) => (
+    <div key={o.id} role="button" tabIndex={0} onClick={() => openTrip(o, legTab)} className="relative rounded-2xl bg-white border border-dashed border-[#94a3b8] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
+      {isBestChoice && bestChoiceRibbon}
+      <span className="shrink-0 w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center text-[28px]">{emojiFor(o.vehicles?.vehicle_type)}</span>
+      <div className="min-w-0 flex-1">
+        <p className="font-sans text-[10.5px] font-bold text-[#7c3aed] flex items-center gap-1"><CalendarDays size={11} /> {t('bus.oneOffTrip')} · <span className="ltr-num">{o.travel_date}</span> · {timeLabel(o.departure_time_estimate)}</p>
+        <p className="font-sans text-[14px] font-bold text-[#0f172a] truncate mt-0.5"><bdi>{nm(o.origin, o.origin_ur)}</bdi> <ArrowRight size={13} className="inline shrink-0 rtl:rotate-180 text-[#94a3b8]" /> <bdi>{nm(o.destination, o.destination_ur)}</bdi></p>
+        <p className="font-sans text-[11.5px] text-[#64748b] truncate mt-1.5 flex items-center gap-1"><Users size={11} /> {o.seats_available} {t('bus.seatsLeft')} · {o.vehicles?.owner_name}{o.source_tenant_name ? ` · 🏘️ ${o.source_tenant_name}` : ''}</p>
+      </div>
+      <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
+        <p className="font-sans text-[16px] font-black text-[#14532d] ltr-num">₨{fmt(o.listed_fare_per_seat_pkr)}</p>
+        <span className="inline-flex items-center gap-0.5 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[11.5px] font-bold">{t('bus.book')} <ChevronRight size={12} className="rtl:rotate-180" /></span>
       </div>
     </div>
   )
@@ -494,35 +489,50 @@ export default function BusesPage() {
             </div>
           </div>
 
+          {/* 2026-11-23 — real ask, matching a reference design file:
+              the per-ride/monthly view sits right here inside the search
+              form (it used to be a separate row below the whole card,
+              shared by browse mode too — moved in, not duplicated: the
+              same `view` state still drives destination-grouped browsing
+              while no search has been committed yet). */}
           <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-1">
-            {(['oneway', 'roundtrip'] as const).map((tt) => (
-              <button key={tt} onClick={() => setTripType(tt)} className={`flex-1 h-8 rounded-full font-sans text-[12px] font-bold cursor-pointer ${tripType === tt ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
-                {tt === 'oneway' ? t('bus.oneWayOption') : t('bus.roundTripOption')}
+            {(['perRide', 'monthly'] as const).map((v) => (
+              <button key={v} onClick={() => setView(v)} className={`flex-1 h-9 rounded-full font-sans text-[12.5px] font-bold cursor-pointer ${view === v ? 'bg-[#166534] text-white shadow-sm' : 'bg-transparent text-[#64748b]'}`}>
+                {v === 'perRide' ? t('bus.tabPerRide') : t('bus.tabMonthly')}
               </button>
             ))}
           </div>
 
+          {view === 'perRide' && (
+            <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-1">
+              {(['oneway', 'roundtrip'] as const).map((tt) => (
+                <button key={tt} onClick={() => setTripType(tt)} className={`flex-1 h-8 rounded-full font-sans text-[12px] font-bold cursor-pointer ${tripType === tt ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
+                  {tt === 'oneway' ? t('bus.oneWayOption') : t('bus.roundTripOption')}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <div className="flex-1 min-w-0">
-              <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.departDateLabel')}</label>
-              <input type="date" value={departDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setDepartDate(e.target.value)} className="w-full font-sans text-[13px] font-bold text-[#0f172a] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2 py-1.5" />
-            </div>
-            {tripType === 'roundtrip' && (
-              <div className="flex-1 min-w-0">
-                <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.returnDateLabel')}</label>
-                <input type="date" value={returnDate} min={departDate || new Date().toISOString().slice(0, 10)} onChange={(e) => setReturnDate(e.target.value)} className="w-full font-sans text-[13px] font-bold text-[#0f172a] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2 py-1.5" />
+              <label className="flex items-center gap-1 font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1"><Users size={10} /> {t('bus.seatsCountLabel')}</label>
+              <div className="flex items-center gap-2 bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-1.5 py-1 h-[34px]">
+                <button type="button" onClick={() => setSeatsWanted((s) => Math.max(1, s - 1))} className="shrink-0 w-6 h-6 rounded-full bg-white border border-[#e5e7eb] flex items-center justify-center cursor-pointer"><Minus size={12} /></button>
+                <span className="flex-1 font-sans text-[14px] font-bold ltr-num text-center">{seatsWanted}</span>
+                <button type="button" onClick={() => setSeatsWanted((s) => Math.min(20, s + 1))} className="shrink-0 w-6 h-6 rounded-full bg-[#166534] text-white flex items-center justify-center cursor-pointer"><Plus size={12} /></button>
               </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <label className="font-sans text-[11.5px] font-bold text-[#334155]">{t('bus.seatsCountLabel')}</label>
-            <div className="flex items-center gap-3">
-              <button type="button" onClick={() => setSeatsWanted((s) => Math.max(1, s - 1))} className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center cursor-pointer"><Minus size={14} /></button>
-              <span className="font-sans text-[15px] font-bold ltr-num w-6 text-center">{seatsWanted}</span>
-              <button type="button" onClick={() => setSeatsWanted((s) => Math.min(20, s + 1))} className="w-8 h-8 rounded-full bg-[#166534] text-white flex items-center justify-center cursor-pointer"><Plus size={14} /></button>
+            </div>
+            <div className="flex-1 min-w-0">
+              <label className="flex items-center gap-1 font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1"><CalendarDays size={10} /> {t('bus.departDateLabel')}</label>
+              <input type="date" value={departDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setDepartDate(e.target.value)} className="w-full font-sans text-[13px] font-bold text-[#0f172a] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2 h-[34px]" />
             </div>
           </div>
+          {tripType === 'roundtrip' && view === 'perRide' && (
+            <div className="flex-1 min-w-0">
+              <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.returnDateLabel')}</label>
+              <input type="date" value={returnDate} min={departDate || new Date().toISOString().slice(0, 10)} onChange={(e) => setReturnDate(e.target.value)} className="w-full font-sans text-[13px] font-bold text-[#0f172a] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2 py-1.5" />
+            </div>
+          )}
 
           <button onClick={() => { setSearched(true); setActiveTab('departure'); setDepartureBooked(false); setReturnBooked(false) }} disabled={!canSearch}
             className="w-full h-11 rounded-xl bg-[#166534] text-white font-sans text-[14px] font-bold cursor-pointer disabled:opacity-40 flex items-center justify-center gap-2">
@@ -580,32 +590,32 @@ export default function BusesPage() {
         </div>
       )}
 
-      <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-1">
-        {(['perRide', 'monthly'] as const).map((v) => (
-          <button key={v} onClick={() => setView(v)} className={`flex-1 h-9 rounded-full font-sans text-[12.5px] font-bold cursor-pointer ${view === v ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
-            {v === 'perRide' ? t('bus.tabPerRide') : t('bus.tabMonthly')}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+      {/* 2026-11-23 — real ask, matching a reference design file: each
+          filter row gets its own labeled heading (funnel/pin icon + text)
+          instead of a bare pill row, same pattern for vehicle and city. */}
+      <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-[#334155]"><FilterIcon size={13} className="text-[#166534]" /> {t('bus.filterByVehicleHeading')}</p>
+      <div className="flex gap-2 overflow-x-auto hide-scrollbar -mt-1.5">
         {([null, 'shared', 'car', 'auto', 'bike'] as const).map((g) => (
           <button key={g ?? 'all'} onClick={() => setVehicleGroup(g)}
-            className={`shrink-0 h-9 px-3.5 rounded-full font-sans text-[12.5px] font-bold border ${vehicleGroup === g ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>
+            className={`shrink-0 h-9 px-3.5 rounded-full font-sans text-[12.5px] font-bold border flex items-center gap-1 ${vehicleGroup === g ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>
             {g === null ? t('bus.filterAll') : g === 'shared' ? t('bus.filterShared') : g === 'car' ? t('bus.filterCar') : g === 'auto' ? t('bus.filterAuto') : t('bus.filterBike')}
+            {vehicleGroup === g && <Check size={11} />}
           </button>
         ))}
       </div>
 
       {!searched && groups.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto hide-scrollbar">
-          <button onClick={() => setCity(null)} className={`shrink-0 h-9 px-3.5 rounded-full font-sans text-[12.5px] font-bold border ${!city ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>{t('bus.allCities')}</button>
-          {groups.map((g) => (
-            <button key={g.key} onClick={() => setCity(g.key)} className={`shrink-0 h-9 px-3.5 rounded-full font-sans text-[12.5px] font-bold border ${city === g.key ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>
-              <bdi>{g.label}</bdi> <span className="opacity-70 ltr-num">{g.routes.length + g.trips.length}</span>
-            </button>
-          ))}
-        </div>
+        <>
+          <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-[#334155] -mb-1.5"><MapPinned size={13} className="text-[#166534]" /> {t('bus.filterByCityHeading')}</p>
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+            <button onClick={() => setCity(null)} className={`shrink-0 h-9 px-3.5 rounded-full font-sans text-[12.5px] font-bold border ${!city ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>{t('bus.allCities')}</button>
+            {groups.map((g) => (
+              <button key={g.key} onClick={() => setCity(g.key)} className={`shrink-0 h-9 px-3.5 rounded-full font-sans text-[12.5px] font-bold border ${city === g.key ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>
+                <bdi>{g.label}</bdi> <span className="opacity-70 ltr-num">{g.routes.length + g.trips.length}</span>
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       <FarePolicyCard service="seat" defaultOpen={false} />
@@ -679,7 +689,7 @@ export default function BusesPage() {
           {activeTab === 'return' && ownReturnLegs.length > 0 && (
             <div className="flex flex-col gap-2.5">
               <p className="font-sans text-[12px] font-bold text-[#0f172a] uppercase tracking-[0.05em]">{t('bus.ownReturnLegsHeading')}</p>
-              {ownReturnLegs.map(renderOwnReturnLeg)}
+              {ownReturnLegs.map((r) => renderOwnReturnLeg(r))}
             </div>
           )}
 
@@ -694,20 +704,27 @@ export default function BusesPage() {
           {legResults.routes.length === 0 && legResults.trips.length === 0 && ownReturnLegs.length === 0 && (
             <p className="text-center font-sans text-[13px] text-[#64748b] py-10">{t('bus.noResultsForPairHint')}</p>
           )}
-          {legResults.routes.map((r) => renderRoute(r, activeTab))}
-          {legResults.trips.map((o) => renderTrip(o, activeTab))}
+          {legResults.routes.map((r) => renderRoute(r, activeTab, !r.is_monthly_fixed && r.fare_per_seat_pkr === cheapestLegFare))}
+          {legResults.trips.map((o) => renderTrip(o, activeTab, o.listed_fare_per_seat_pkr === cheapestLegFare))}
         </section>
       ) : (
       <>
       {shown.length === 0 && <p className="text-center font-sans text-[13px] text-[#64748b] py-10">{t('bus.empty')}</p>}
 
-      {shown.map((g) => (
-        <section key={g.key} className="flex flex-col gap-2.5">
-          <p className="flex items-center gap-2 font-sans text-[16px] font-extrabold text-[#0f172a]"><span className="w-1.5 h-5 rounded-full bg-[#16a34a]" /> <bdi>{g.label}</bdi></p>
-          {g.routes.map((r) => renderRoute(r))}
-          {g.trips.map((o) => renderTrip(o))}
-        </section>
-      ))}
+      {shown.map((g) => {
+        const groupFares = [
+          ...g.routes.map((r) => r.is_monthly_fixed ? null : r.fare_per_seat_pkr),
+          ...g.trips.map((o) => o.listed_fare_per_seat_pkr),
+        ].filter((f): f is number => f != null)
+        const groupCheapest = groupFares.length ? Math.min(...groupFares) : null
+        return (
+          <section key={g.key} className="flex flex-col gap-2.5">
+            <p className="flex items-center gap-2 font-sans text-[16px] font-extrabold text-[#0f172a]"><span className="w-1.5 h-5 rounded-full bg-[#16a34a]" /> <bdi>{g.label}</bdi></p>
+            {g.routes.map((r) => renderRoute(r, undefined, !r.is_monthly_fixed && r.fare_per_seat_pkr === groupCheapest))}
+            {g.trips.map((o) => renderTrip(o, undefined, o.listed_fare_per_seat_pkr === groupCheapest))}
+          </section>
+        )
+      })}
       </>
       )}
 
