@@ -345,7 +345,12 @@ export default function BusesPage() {
             {r.service_class && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary">{t(`mv.serviceClass.${r.service_class}`)}</span>}
             {r.is_two_way && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={9} /> {t('bus.twoWay')}</span>}
             {r.source_tenant_name && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#fef9c3] text-[#854d0e] inline-flex items-center gap-1"><MapPinned size={9} /> {r.source_tenant_name}</span>}
-            <span className="flex gap-0.5 ms-0.5">
+            {/* Real bug found live, 2026-11-24: with no dir of its own,
+                this row inherited the page's RTL direction in Urdu and
+                rendered Sun..Sat back to front (visually Sat..Sun) —
+                forced ltr so the week always reads in calendar order
+                regardless of locale, same convention as ltr-num. */}
+            <span dir="ltr" className="flex gap-0.5 ms-0.5">
               {dayNames.map((d, i) => (
                 <span key={i} className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${(r.days_of_week ?? []).includes(i) ? 'bg-[#166534] text-white' : 'bg-[#f1f5f9] text-[#94a3b8]'}`}>{d}</span>
               ))}
@@ -399,7 +404,7 @@ export default function BusesPage() {
             {returnDays.includes(returnDow) && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
             {r.service_class && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary">{t(`mv.serviceClass.${r.service_class}`)}</span>}
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={9} /> {t('bus.sameVehicleReturnBadge')}</span>
-            <span className="flex gap-0.5 ms-0.5">
+            <span dir="ltr" className="flex gap-0.5 ms-0.5">
               {dayNames.map((d, i) => (
                 <span key={i} className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${returnDays.includes(i) ? 'bg-[#166534] text-white' : 'bg-[#f1f5f9] text-[#94a3b8]'}`}>{d}</span>
               ))}

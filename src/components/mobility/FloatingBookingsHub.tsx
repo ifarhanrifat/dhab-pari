@@ -146,22 +146,54 @@ function useDraggablePosition() {
       return raw ? JSON.parse(raw) : null
     } catch { return null } // private window / blocked storage — falls back to the default corner
   })
+  const elRef = useRef<HTMLDivElement | null>(null)
   const dragging = useRef(false)
   const moved = useRef(false)
-  const start = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
+  const start = useRef({ x: 0, y: 0, posX: 0, posY: 0, w: BUTTON_SIZE, h: BUTTON_SIZE })
 
-  const clamp = (x: number, y: number) => {
+  // Real bug found live, 2026-11-24: clamping always assumed a fixed
+  // 56px square, but the rendered pill is a variable-width "icon + label"
+  // chip (up to 230px, per its own max-w) — any drag into roughly the
+  // right/bottom 175px of the screen clamped as if the chip were still
+  // 56px wide, so its label spilled off the real viewport edge and was
+  // clipped, unreadable. Clamp against the element's own measured size
+  // instead of the constant.
+  const clamp = (x: number, y: number, w: number, h: number) => {
     const margin = 8
-    const w = typeof window !== 'undefined' ? window.innerWidth : 400
-    const h = typeof window !== 'undefined' ? window.innerHeight : 800
-    return { x: Math.min(Math.max(x, margin), w - BUTTON_SIZE - margin), y: Math.min(Math.max(y, margin), h - BUTTON_SIZE - margin) }
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 400
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 800
+    return { x: Math.min(Math.max(x, margin), vw - w - margin), y: Math.min(Math.max(y, margin), vh - h - margin) }
   }
+
+  // A saved position was only ever clamped against the chip's width AT
+  // THAT MOMENT — a shorter label next session (or this fix landing on a
+  // device with an already-saved off-screen spot) left it stuck past the
+  // edge with no re-drag to fix it. Re-clamp against the chip's real,
+  // current size on mount and whenever the viewport resizes.
+  useEffect(() => {
+    const reclamp = () => {
+      const el = elRef.current
+      if (!el) return
+      setPos((cur) => {
+        if (!cur) return cur
+        const rect = el.getBoundingClientRect()
+        const fixed = clamp(cur.x, cur.y, rect.width || BUTTON_SIZE, rect.height || BUTTON_SIZE)
+        if (fixed.x === cur.x && fixed.y === cur.y) return cur
+        try { localStorage.setItem(DRAG_STORAGE_KEY, JSON.stringify(fixed)) } catch { /* ignore */ }
+        return fixed
+      })
+    }
+    reclamp()
+    window.addEventListener('resize', reclamp)
+    return () => window.removeEventListener('resize', reclamp)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     dragging.current = true
     moved.current = false
     const rect = e.currentTarget.getBoundingClientRect()
-    start.current = { x: e.clientX, y: e.clientY, posX: rect.left, posY: rect.top }
+    start.current = { x: e.clientX, y: e.clientY, posX: rect.left, posY: rect.top, w: rect.width, h: rect.height }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -174,7 +206,7 @@ function useDraggablePosition() {
     // even when the intent is just "tap." 10px matches the touch-slop
     // range Android/Chrome's own tap-vs-drag heuristics use.
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved.current = true
-    if (moved.current) setPos(clamp(start.current.posX + dx, start.current.posY + dy))
+    if (moved.current) setPos(clamp(start.current.posX + dx, start.current.posY + dy, start.current.w, start.current.h))
   }
   // Real bug found live, 2026-11-04, two rounds: first in a Firefox tab
   // (worked in the native app, not there), then — after moving the tap
@@ -208,7 +240,7 @@ function useDraggablePosition() {
   // a tap, regardless of how little the pointer moved before cancelling.
   const onPointerCancel = () => finishDrag()
 
-  return { pos, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, wasDragged: () => moved.current }
+  return { pos, elRef, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, wasDragged: () => moved.current }
 }
 
 export function FloatingBookingsHub() {
@@ -579,7 +611,7 @@ export function FloatingBookingsHub() {
   const cornerBadge = primary.badgeCount ?? (total > 1 ? total : null)
   return (
     <>
-      <div dir={isUrdu ? 'rtl' : 'ltr'} className={`fixed z-[70] print:hidden ${drag.pos ? '' : 'bottom-[90px] right-4 md:bottom-6 md:right-6'}`}
+      <div ref={drag.elRef} dir={isUrdu ? 'rtl' : 'ltr'} className={`fixed z-[70] print:hidden ${drag.pos ? '' : 'bottom-[90px] right-4 md:bottom-6 md:right-6'}`}
         style={drag.pos ? { left: drag.pos.x, top: drag.pos.y, touchAction: 'none' } : { touchAction: 'none' }}
         onPointerDown={drag.onPointerDown} onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerCancel}
         onClick={() => { if (drag.wasDragged()) return; if (total === 1) openItem(primary); else setListOpen(true) }}>
