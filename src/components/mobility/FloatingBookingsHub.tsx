@@ -146,7 +146,7 @@ function useDraggablePosition() {
       return raw ? JSON.parse(raw) : null
     } catch { return null } // private window / blocked storage — falls back to the default corner
   })
-  const elRef = useRef<HTMLDivElement | null>(null)
+  const [el, setEl] = useState<HTMLDivElement | null>(null)
   const dragging = useRef(false)
   const moved = useRef(false)
   const start = useRef({ x: 0, y: 0, posX: 0, posY: 0, w: BUTTON_SIZE, h: BUTTON_SIZE })
@@ -169,11 +169,14 @@ function useDraggablePosition() {
   // THAT MOMENT — a shorter label next session (or this fix landing on a
   // device with an already-saved off-screen spot) left it stuck past the
   // edge with no re-drag to fix it. Re-clamp against the chip's real,
-  // current size on mount and whenever the viewport resizes.
+  // current size whenever the chip mounts (a plain mount-effect here ran
+  // too early: this whole component returns null — no chip in the DOM at
+  // all, so no element to measure — until its own data finishes loading;
+  // `el` is a callback ref via setEl, so this effect only (re)fires once
+  // the chip actually exists) and whenever the viewport resizes.
   useEffect(() => {
+    if (!el) return
     const reclamp = () => {
-      const el = elRef.current
-      if (!el) return
       setPos((cur) => {
         if (!cur) return cur
         const rect = el.getBoundingClientRect()
@@ -186,8 +189,7 @@ function useDraggablePosition() {
     reclamp()
     window.addEventListener('resize', reclamp)
     return () => window.removeEventListener('resize', reclamp)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [el])
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     dragging.current = true
@@ -240,7 +242,7 @@ function useDraggablePosition() {
   // a tap, regardless of how little the pointer moved before cancelling.
   const onPointerCancel = () => finishDrag()
 
-  return { pos, elRef, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, wasDragged: () => moved.current }
+  return { pos, elRef: setEl, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, wasDragged: () => moved.current }
 }
 
 export function FloatingBookingsHub() {
