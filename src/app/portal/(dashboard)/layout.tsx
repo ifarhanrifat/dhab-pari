@@ -64,6 +64,11 @@ function isMobilityRoute(pathname: string) {
   // my-vehicle above — same reason, suppress the generic PortalHeader/
   // AnnouncementBar here so the two chromes never stack.
   if (pathname.startsWith('/portal/fleet')) return true
+  // 2026-11-24: the marketplace hub itself (no slug — bare /portal/
+  // marketplace) moved into the (mobility) route group too, same reason
+  // as every slug below: Next.js strips (mobility) from the URL, so
+  // this list is the only place that knows it.
+  if (pathname === '/portal/marketplace') return true
   return MOBILITY_MARKETPLACE_SLUGS.some((slug) => pathname === `/portal/marketplace/${slug}` || pathname.startsWith(`/portal/marketplace/${slug}/`))
 }
 
