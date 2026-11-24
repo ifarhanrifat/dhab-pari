@@ -62,7 +62,7 @@ export function RideRequestShell({
     <div className="fixed inset-0 bg-black/55 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
       onClick={holding ? undefined : onClose}>
       <div dir={isUrdu ? 'rtl' : 'ltr'} onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full sm:max-w-[420px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[94vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300">
+        className="bg-white w-full sm:max-w-[420px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[94dvh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300">
 
         <div className="relative px-5 pt-2.5 pb-8 text-white transition-[background] duration-500" style={{ backgroundImage: heroBg }}>
           <div className="w-10 h-1 rounded-full bg-white/40 mx-auto sm:hidden" />

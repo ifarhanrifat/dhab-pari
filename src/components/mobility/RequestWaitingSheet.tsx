@@ -228,7 +228,7 @@ export function RequestWaitingSheet({ kind, bookingId, summary, since, onClose, 
     <div className="fixed inset-0 bg-black/55 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
       onClick={phase === 'waiting' ? undefined : onClose}>
       <div dir={isUrdu ? 'rtl' : 'ltr'} onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full sm:max-w-[400px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[94vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300">
+        className="bg-white w-full sm:max-w-[400px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[94dvh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300">
 
         {/* Status hero */}
         <div className="relative px-5 pt-8 pb-7 flex flex-col items-center text-center text-white transition-colors duration-500"

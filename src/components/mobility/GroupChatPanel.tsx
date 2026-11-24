@@ -67,7 +67,7 @@ export function GroupChatPanel({ refType, refId, title, onClose }: { refType: Gr
   return (
     <div className="fixed inset-0 bg-black/55 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={onClose}>
       <div dir={isUrdu ? 'rtl' : 'ltr'} onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full sm:max-w-[400px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[85vh] shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300 flex flex-col">
+        className="bg-white w-full sm:max-w-[400px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[85dvh] shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300 flex flex-col">
 
         <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 border-b border-[#f1f5f9] shrink-0">
           <p className="font-sans text-[14.5px] font-bold text-[#0f172a] truncate"><bdi>{title || t('vp.chatBtn')}</bdi></p>

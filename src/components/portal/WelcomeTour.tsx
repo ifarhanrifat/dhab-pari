@@ -59,7 +59,7 @@ export function WelcomeTour() {
       <div
         dir="rtl"
         style={{ fontFamily: 'var(--font-urdu-ui)' }}
-        className="bg-white w-full sm:max-w-[600px] sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto shadow-2xl"
+        className="bg-white w-full sm:max-w-[600px] sm:rounded-2xl rounded-t-2xl max-h-[88dvh] overflow-y-auto shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-white px-6 py-5 sm:rounded-t-2xl flex items-start justify-between gap-3" style={{ background: 'linear-gradient(135deg,#005A36,#166534)' }}>

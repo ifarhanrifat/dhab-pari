@@ -795,7 +795,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
             </div>
           )}
 
-          <div className="bg-[#F9F9F6] border border-[#e5e2d0] rounded-2xl p-3 min-h-[220px] max-h-[40vh] overflow-y-auto flex flex-col gap-2">
+          <div className="bg-[#F9F9F6] border border-[#e5e2d0] rounded-2xl p-3 min-h-[220px] max-h-[40dvh] overflow-y-auto flex flex-col gap-2">
             {detail.messages.length === 0 && <p className="text-center text-[11.5px] text-[#94a3b8] italic py-4">{t('mv.noMessagesYet')}</p>}
             {detail.messages.map((m) => {
               const alignEnd = isUrdu ? !m.is_own : m.is_own

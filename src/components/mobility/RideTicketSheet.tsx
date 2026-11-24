@@ -96,7 +96,7 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
   return (
     <div className="fixed inset-0 bg-black/55 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div dir={isUrdu ? 'rtl' : 'ltr'} onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full sm:max-w-[400px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[94vh] overflow-y-auto shadow-2xl">
+        className="bg-white w-full sm:max-w-[400px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[94dvh] overflow-y-auto shadow-2xl">
         <div className="relative px-5 pt-7 pb-6 flex flex-col items-center text-center text-white" style={{ backgroundImage: 'linear-gradient(160deg,#0f3d2e,#166534)' }}>
           <button onClick={onClose} aria-label={t('action.cancel')} className="absolute top-3 end-3 w-8 h-8 rounded-full bg-white/15 flex items-center justify-center cursor-pointer"><X size={16} /></button>
           <TicketIcon size={26} />

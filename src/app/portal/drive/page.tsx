@@ -1003,7 +1003,19 @@ function DriveOperationsPageInner() {
 
         return (
         <div className="fixed inset-0 bg-black/60 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowTripPopup(false)}>
-          <div className="rounded-t-2xl sm:rounded-2xl w-full sm:max-w-[420px] h-[97vh] sm:h-[780px] overflow-hidden flex flex-col" style={{ background: '#f3f1e9' }} onClick={(e) => e.stopPropagation()}>
+          {/* Real bug found live, 2026-11-24, on a real Chrome-on-Android
+              phone (never reproduced in CDP, which always reports the
+              full/largest viewport): h-[97vh] anchored to the bottom of
+              this items-end backdrop pushed the sheet's top — including
+              its own close button — up behind the browser's address bar.
+              `vh` measures the LARGEST possible viewport (as if the
+              toolbar were hidden); the actually-visible area with the
+              toolbar showing is shorter, so a 97%-of-the-larger-height
+              sheet anchored at the bottom overshoots past the real top
+              of the visible screen. `dvh` tracks the current visible
+              viewport instead — the standard fix for this exact,
+              well-known mobile-browser quirk. */}
+          <div className="rounded-t-2xl sm:rounded-2xl w-full sm:max-w-[420px] h-[97dvh] sm:h-[780px] overflow-hidden flex flex-col" style={{ background: '#f3f1e9' }} onClick={(e) => e.stopPropagation()}>
 
             {/* Topbar */}
             <div className="flex items-center gap-2.5 px-3.5 py-2.5 shrink-0" style={{ background: 'linear-gradient(180deg,#0f3d2e,#0b2e22)' }}>

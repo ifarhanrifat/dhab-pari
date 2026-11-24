@@ -665,7 +665,7 @@ export function FloatingBookingsHub() {
       {listOpen && (
         <div className="fixed inset-0 bg-black/55 z-[100] flex items-end sm:items-center justify-center animate-in fade-in duration-200" onClick={() => setListOpen(false)}>
           <div dir={isUrdu ? 'rtl' : 'ltr'} onClick={(e) => e.stopPropagation()}
-            className="bg-[#f8fafc] w-full sm:max-w-[420px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[85vh] shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300 flex flex-col">
+            className="bg-[#f8fafc] w-full sm:max-w-[420px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[85dvh] shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300 flex flex-col">
             <div className="px-5 pt-5 pb-3 flex items-center justify-between shrink-0">
               <p className="font-sans text-[16px] font-extrabold text-[#0f172a]">{t('dock.listTitle').replace('{n}', String(total))}</p>
               <button onClick={() => setListOpen(false)} aria-label="Close" className="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center cursor-pointer">

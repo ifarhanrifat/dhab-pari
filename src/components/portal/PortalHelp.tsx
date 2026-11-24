@@ -71,7 +71,7 @@ export function PortalHelp({ pageKey }: { pageKey: PortalHelpKey }) {
           <div
             dir="rtl"
             style={{ fontFamily: 'var(--font-urdu-ui)' }}
-            className="bg-white w-full sm:max-w-[560px] sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto shadow-xl"
+            className="bg-white w-full sm:max-w-[560px] sm:rounded-2xl rounded-t-2xl max-h-[85dvh] overflow-y-auto shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-dp2-card-border px-5 py-4 flex items-start justify-between gap-3">
