@@ -53,6 +53,7 @@ interface AdHocBookingRow {
 }
 interface PendingSeatRequest { id: string; name: string; seats: number; travel_date: string; direction: 'outbound' | 'return'; total_amount_pkr: number; announced_method: string | null; announced_proof_url: string | null }
 interface PendingMonthlyApplication { id: string; name: string; monthly_fee_pkr: number; stop_label: string | null; applied_at: string; deposit_pkr: number | null; proof_url: string | null; payment_method: string | null }
+interface PendingOwnBooking { booking_id: string; travel_date: string; seats: number }
 interface Detail {
   is_owner: boolean; can_run_ride: boolean; is_member: boolean; sharing_location: boolean
   owner_portal_user_id: string; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
@@ -61,6 +62,12 @@ interface Detail {
   todays_outbound_bookings: OutboundBookingRow[]
   pending_seat_requests: PendingSeatRequest[]; pending_monthly_applications: PendingMonthlyApplication[]
   participants: Participant[]; messages: Message[]; live_locations: LiveLoc[]
+  // 952: a real authorization hole found live — join_route_group had no
+  // gate at all, so a rider with a genuinely pending (unconfirmed) seat
+  // booking could self-join the group, bypassing the driver-confirmation
+  // model entirely. Non-null here means exactly that case; the panel
+  // shows accurate "waiting on the driver" copy and no self-join button.
+  pending_seat_booking: PendingOwnBooking | null
 }
 
 // Live, moving ETA per stop — not the static schedule guess. Projects
@@ -455,10 +462,16 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
       ) : !detail?.is_member ? (
         <div className="flex flex-col items-center gap-2.5 py-4 text-center">
           <Users size={28} className="text-[#166534]" />
-          <p className="font-sans text-[13px] text-[#64748b]">{t('mv.joinGroupHint')}</p>
-          <button onClick={join} disabled={joining} className="w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
-            {joining ? t('action.saving') : t('mv.joinGroupBtn')}
-          </button>
+          {detail?.pending_seat_booking ? (
+            <p className="font-sans text-[13px] text-[#64748b]">{t('mv.pendingSeatNotYetMemberHint')}</p>
+          ) : (
+            <>
+              <p className="font-sans text-[13px] text-[#64748b]">{t('mv.joinGroupHint')}</p>
+              <button onClick={join} disabled={joining} className="w-full bg-[#166534] text-white rounded-xl py-2.5 font-sans font-semibold text-[13.5px] cursor-pointer disabled:opacity-50">
+                {joining ? t('action.saving') : t('mv.joinGroupBtn')}
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">

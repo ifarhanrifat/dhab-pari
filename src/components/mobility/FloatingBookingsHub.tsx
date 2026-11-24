@@ -46,6 +46,17 @@ interface HubItem {
   label: string
   state: ItemState
   since: string
+  // 2026-11-24 — real ask, live: a rider couldn't tell a driver-side item
+  // (your own vehicle's route/job — tapping navigates to vehicle tools)
+  // apart from a rider-side item (your own booking — tapping opens a
+  // popup here) when both appeared on the same hub, since they looked
+  // identical. Drives a distinct color/label, not a new interaction.
+  role?: 'driver' | 'rider'
+  // Same report: "don't know when these bookings are due or if it left
+  // the date" — a seat booking's plain travel date, always shown
+  // regardless of state (countdownTarget alone used to disappear once
+  // the item read as "ongoing", leaving no date at all on screen).
+  dateLabel?: string
   countdownTarget?: number // epoch ms — only set when a real scheduled time is known
   sheet?: { kind: WaitingKind; id: string; summary: WaitingSummary; viewHref: string }
   rideSheetBookingId?: string // ongoing ride-dispatch: opens RideLifecycleSheet directly
@@ -77,6 +88,19 @@ interface HubItem {
   // long as the item itself is on the hub — i.e. from the offer going
   // pending/activated through to the driver cancelling it (803).
   badgeCount?: number
+}
+
+// 2026-11-24 — real ask, live: "don't know when these bookings are due
+// or if it left the date." A plain date (+ time, when known) that stays
+// on screen regardless of state — the live countdown/"ongoing" badge
+// communicates urgency, this communicates which day it's actually for.
+function formatSeatDate(travelDate: string, departureTime: string | null) {
+  const d = new Date(`${travelDate}T00:00:00`)
+  const dateStr = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  if (!departureTime) return dateStr
+  const [h, m] = departureTime.split(':').map(Number)
+  const timeStr = new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  return `${dateStr} · ${timeStr}`
 }
 
 function useNow(enabled: boolean) {
@@ -251,17 +275,17 @@ export function FloatingBookingsHub() {
     if (vehicle) {
       for (const b of (driverHourly.data ?? []) as { id: string; status: string; hours: number; customer_name: string; requested_at: string }[]) {
         if (!['accepted', 'in_progress'].includes(b.status)) continue
-        out.push({ key: `dh-${b.id}`, emoji: '⏱️', label: `${t('rq.kind.hourly')} · ${b.customer_name}`, state: 'ongoing', since: b.requested_at,
+        out.push({ key: `dh-${b.id}`, role: 'driver', emoji: '⏱️', label: `${t('rq.kind.hourly')} · ${b.customer_name}`, state: 'ongoing', since: b.requested_at,
           driverLifecycle: { kind: 'hourly', id: b.id, vehicleId: vehicle.id, commissionMode: vehicle.commission_mode } })
       }
       for (const b of (driverRental.data ?? []) as { id: string; status: string; vehicle_id: string | null; to_address: string; customer_name: string; requested_at: string }[]) {
         if (b.vehicle_id !== vehicle.id || !['accepted', 'in_progress'].includes(b.status)) continue
-        out.push({ key: `dr-${b.id}`, emoji: '🚗', label: `${t('rq.kind.rental')} · ${b.customer_name}`, state: 'ongoing', since: b.requested_at,
+        out.push({ key: `dr-${b.id}`, role: 'driver', emoji: '🚗', label: `${t('rq.kind.rental')} · ${b.customer_name}`, state: 'ongoing', since: b.requested_at,
           driverLifecycle: { kind: 'rental', id: b.id, vehicleId: vehicle.id, commissionMode: vehicle.commission_mode } })
       }
       for (const b of (driverEquipment.data ?? []) as { id: string; kind: 'machinery' | 'tractor' | 'loader'; status: string; customer_name: string; requested_at: string }[]) {
         if (!['accepted', 'in_progress'].includes(b.status)) continue
-        out.push({ key: `de-${b.id}`, emoji: b.kind === 'tractor' ? '🚜' : b.kind === 'loader' ? '🚚' : '🏗️', label: `${t(`rq.kind.equipment.${b.kind}`)} · ${b.customer_name}`, state: 'ongoing', since: b.requested_at,
+        out.push({ key: `de-${b.id}`, role: 'driver', emoji: b.kind === 'tractor' ? '🚜' : b.kind === 'loader' ? '🚚' : '🏗️', label: `${t(`rq.kind.equipment.${b.kind}`)} · ${b.customer_name}`, state: 'ongoing', since: b.requested_at,
           driverLifecycle: { kind: 'equipment', id: b.id, vehicleId: vehicle.id, commissionMode: vehicle.commission_mode } })
       }
       // Shadi has no shared BookingLifecycleSheet (its own dedicated
@@ -270,7 +294,7 @@ export function FloatingBookingsHub() {
       // rather than another sheet integration.
       for (const r of (driverShadi.data ?? []) as { id: string; status: string; customer_name: string; event_date: string }[]) {
         if (r.status !== 'accepted') continue
-        out.push({ key: `ds-${r.id}`, emoji: '💐', label: `${t('rq.kind.shadi')} · ${r.customer_name}`, state: 'ongoing', since: r.event_date, href: '/portal/my-vehicle/shadi' })
+        out.push({ key: `ds-${r.id}`, role: 'driver', emoji: '💐', label: `${t('rq.kind.shadi')} · ${r.customer_name}`, state: 'ongoing', since: r.event_date, href: '/portal/my-vehicle/shadi' })
       }
       // Real ask, 2026-11-04: "when we have a floating button then why
       // not we used it for this purpose too" — a driver's own return-leg
@@ -283,7 +307,7 @@ export function FloatingBookingsHub() {
       for (const o of (driverReturnOffers.data ?? []) as { id: string; status: string; to_address: string; expected_arrival_at: string; bookings: { id: string }[] }[]) {
         const seatsBooked = o.bookings.length
         out.push({
-          key: `dro-${o.id}`, emoji: '🔄',
+          key: `dro-${o.id}`, role: 'driver', emoji: '🔄',
           label: `${t('rq.kind.rentalReturn')} · ${o.to_address}`,
           state: o.status === 'activated' ? 'ongoing' : 'waiting',
           since: o.expected_arrival_at,
@@ -310,9 +334,9 @@ export function FloatingBookingsHub() {
         // which /portal/drive already fully owns — so they now route
         // there instead, with ?route= so the right one is pre-selected.
         if (item.kind === 'route_ongoing') {
-          out.push({ key: `rto-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'ongoing', since: item.started_at, href: `/portal/drive?route=${item.route_id}` })
+          out.push({ key: `rto-${item.route_id}`, role: 'driver', emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'ongoing', since: item.started_at, href: `/portal/drive?route=${item.route_id}` })
         } else if (item.kind === 'route_action') {
-          out.push({ key: `rta-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'action', since: new Date().toISOString(), href: `/portal/drive?route=${item.route_id}`, badgeCount: item.pending_count })
+          out.push({ key: `rta-${item.route_id}`, role: 'driver', emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'action', since: new Date().toISOString(), href: `/portal/drive?route=${item.route_id}`, badgeCount: item.pending_count })
         } else if (item.kind === 'route_idle') {
           // Real bug found 2026-11-07: a permanent, scheduled-today route
           // used to vanish from the hub the instant its run ended and
@@ -320,11 +344,11 @@ export function FloatingBookingsHub() {
           // which never disappears just because nothing needs action
           // right now. Same quiet 'waiting' styling, still one tap into
           // the route (chat/roster/prep for tomorrow).
-          out.push({ key: `rti-${item.route_id}`, emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'waiting', since: new Date().toISOString(), href: `/portal/drive?route=${item.route_id}` })
+          out.push({ key: `rti-${item.route_id}`, role: 'driver', emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'waiting', since: new Date().toISOString(), href: `/portal/drive?route=${item.route_id}` })
         } else if (item.kind === 'adda_ongoing') {
-          out.push({ key: `ado-${item.entry_id}`, emoji: '🚐', label: `${nm(item.adda_name, item.adda_name_ur)}`, state: 'ongoing', since: new Date().toISOString(), href: '/portal/my-vehicle/adda' })
+          out.push({ key: `ado-${item.entry_id}`, role: 'driver', emoji: '🚐', label: `${nm(item.adda_name, item.adda_name_ur)}`, state: 'ongoing', since: new Date().toISOString(), href: '/portal/my-vehicle/adda' })
         } else {
-          out.push({ key: `ada-${item.entry_id}`, emoji: '🚐', label: `${nm(item.adda_name, item.adda_name_ur)}`, state: 'action', since: new Date().toISOString(), href: '/portal/my-vehicle/adda', badgeCount: item.pending_count })
+          out.push({ key: `ada-${item.entry_id}`, role: 'driver', emoji: '🚐', label: `${nm(item.adda_name, item.adda_name_ur)}`, state: 'action', since: new Date().toISOString(), href: '/portal/my-vehicle/adda', badgeCount: item.pending_count })
         }
       }
 
@@ -335,7 +359,7 @@ export function FloatingBookingsHub() {
       for (const tb of (driverTripInProgress.data ?? []) as unknown as { id: string; vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null }[]) {
         if (tb.id === ongoingBookingId) continue
         const o2 = tb.vehicle_trip_offers
-        out.push({ key: `dtb-${tb.id}`, emoji: '🚖', label: o2 ? `${nm(o2.origin, o2.origin_ur)} → ${nm(o2.destination, o2.destination_ur)}` : t('rq.kind.ride_dispatch'), state: 'ongoing', since: new Date().toISOString(), href: '/portal/my-vehicle/trips' })
+        out.push({ key: `dtb-${tb.id}`, role: 'driver', emoji: '🚖', label: o2 ? `${nm(o2.origin, o2.origin_ur)} → ${nm(o2.destination, o2.destination_ur)}` : t('rq.kind.ride_dispatch'), state: 'ongoing', since: new Date().toISOString(), href: '/portal/my-vehicle/trips' })
       }
     }
 
@@ -347,22 +371,22 @@ export function FloatingBookingsHub() {
       if (c.as_role === 'user') {
         if (!['ringing', 'no_answer', 'priced', 'approved', 'purchased', 'delivered'].includes(c.status)) continue
         const ongoing = ['approved', 'purchased', 'delivered'].includes(c.status)
-        out.push({ key: `c-${c.id}`, emoji: '🛍️', label: `${t('rq.kind.city_purchase')} · ${c.item}`,
+        out.push({ key: `c-${c.id}`, role: 'rider', emoji: '🛍️', label: `${t('rq.kind.city_purchase')} · ${c.item}`,
           state: ongoing ? 'ongoing' : c.status === 'priced' ? 'action' : c.status === 'no_answer' ? 'waiting' : 'searching',
           since: c.created_at, href: `/portal/marketplace/city-purchase/${c.id}` })
       } else if (vehicle && ['approved', 'purchased', 'delivered'].includes(c.status)) {
-        out.push({ key: `dc-${c.id}`, emoji: '🛍️', label: `${t('rq.kind.city_purchase')} · ${c.item}`, state: 'ongoing', since: c.created_at, href: `/portal/marketplace/city-purchase/${c.id}` })
+        out.push({ key: `dc-${c.id}`, role: 'driver', emoji: '🛍️', label: `${t('rq.kind.city_purchase')} · ${c.item}`, state: 'ongoing', since: c.created_at, href: `/portal/marketplace/city-purchase/${c.id}` })
       }
     }
     for (const p of (parcels.data ?? []) as { id: string; description: string; status: string; created_at: string; as_role: string }[]) {
       if (p.as_role === 'user') {
         if (!['ringing', 'no_answer', 'approved', 'picked_up', 'delivered'].includes(p.status)) continue
         const ongoing = ['approved', 'picked_up', 'delivered'].includes(p.status)
-        out.push({ key: `pc-${p.id}`, emoji: '📦', label: `${t('rq.kind.parcel')} · ${p.description}`,
+        out.push({ key: `pc-${p.id}`, role: 'rider', emoji: '📦', label: `${t('rq.kind.parcel')} · ${p.description}`,
           state: ongoing ? 'ongoing' : p.status === 'no_answer' ? 'waiting' : 'searching',
           since: p.created_at, href: `/portal/marketplace/parcel/${p.id}` })
       } else if (vehicle && ['approved', 'picked_up', 'delivered'].includes(p.status)) {
-        out.push({ key: `dp-${p.id}`, emoji: '📦', label: `${t('rq.kind.parcel')} · ${p.description}`, state: 'ongoing', since: p.created_at, href: `/portal/marketplace/parcel/${p.id}` })
+        out.push({ key: `dp-${p.id}`, role: 'driver', emoji: '📦', label: `${t('rq.kind.parcel')} · ${p.description}`, state: 'ongoing', since: p.created_at, href: `/portal/marketplace/parcel/${p.id}` })
       }
     }
 
@@ -373,7 +397,7 @@ export function FloatingBookingsHub() {
         // ordinary (non-dispatch) Shared Ride booking just as well as a
         // dispatch one (has_pin, 830) — a rider's own pending trip
         // booking no longer has to fall back to a plain page link.
-        key: 'ongoing', emoji: '🚖', label: o.label, state: 'ongoing', since: new Date().toISOString(),
+        key: 'ongoing', role: o.role, emoji: '🚖', label: o.label, state: 'ongoing', since: new Date().toISOString(),
         ...(o.booking_id ? { rideSheetBookingId: o.booking_id } : { href: o.link }),
       })
     }
@@ -385,20 +409,20 @@ export function FloatingBookingsHub() {
     for (const b of (hourly.data ?? []) as { id: string; status: string; hours: number; pickup_address: string; base_amount_pkr: number; total_amount_pkr: number | null; requested_at: string; owner_name: string; vehicle_type: string; model: string | null }[]) {
       if (!['requested', 'accepted', 'in_progress'].includes(b.status)) continue
       const ongoing = b.status !== 'requested'
-      out.push({ key: `h-${b.id}`, emoji: '⏱️', label: `${t('rq.kind.hourly')} · ${vehicleDisplayName(b.vehicle_type, b.model)}`, state: ongoing ? 'ongoing' : 'searching', since: b.requested_at,
+      out.push({ key: `h-${b.id}`, role: 'rider', emoji: '⏱️', label: `${t('rq.kind.hourly')} · ${vehicleDisplayName(b.vehicle_type, b.model)}`, state: ongoing ? 'ongoing' : 'searching', since: b.requested_at,
         sheet: { kind: 'hourly', id: b.id, viewHref: '/portal/marketplace/hourly', summary: { vehicleLabel: vehicleDisplayName(b.vehicle_type, b.model), driverName: b.owner_name, from: b.pickup_address, amount: b.total_amount_pkr ?? b.base_amount_pkr, facts: [t('rw.hours').replace('{n}', String(b.hours))] } } })
     }
     for (const b of (rental.data ?? []) as { id: string; status: string; from_address: string; to_address: string; total_amount_pkr: number; requested_at: string; owner_name: string; vehicle_type: string; model: string | null }[]) {
       if (!['requested', 'accepted', 'in_progress'].includes(b.status)) continue
       const ongoing = b.status !== 'requested'
-      out.push({ key: `r-${b.id}`, emoji: '🚗', label: `${t('rq.kind.rental')} · ${b.to_address}`, state: ongoing ? 'ongoing' : 'searching', since: b.requested_at,
+      out.push({ key: `r-${b.id}`, role: 'rider', emoji: '🚗', label: `${t('rq.kind.rental')} · ${b.to_address}`, state: ongoing ? 'ongoing' : 'searching', since: b.requested_at,
         sheet: { kind: 'rental', id: b.id, viewHref: '/portal/marketplace/rental', summary: { vehicleLabel: vehicleDisplayName(b.vehicle_type, b.model), driverName: b.owner_name, from: b.from_address, to: b.to_address, amount: b.total_amount_pkr } } })
     }
     for (const b of (equipment.data ?? []) as { id: string; kind: 'machinery' | 'tractor' | 'loader'; status: string; site_address: string; rate_pkr: number; total_amount_pkr: number | null; requested_at: string; owner_name: string; vehicle_type: string; model: string | null; advance_status?: string }[]) {
       const payAdvance = b.status === 'accepted' && ['due', 'rejected'].includes(b.advance_status ?? '')
       const ongoing = !payAdvance && b.status !== 'requested'
       if (!['requested', 'accepted', 'in_progress'].includes(b.status) && !payAdvance) continue
-      out.push({ key: `e-${b.id}`, emoji: b.kind === 'tractor' ? '🚜' : b.kind === 'loader' ? '🚚' : '🏗️', label: `${t(`rq.kind.equipment.${b.kind}`)} · ${payAdvance ? t('eqa.payBtn') : b.site_address}`,
+      out.push({ key: `e-${b.id}`, role: 'rider', emoji: b.kind === 'tractor' ? '🚜' : b.kind === 'loader' ? '🚚' : '🏗️', label: `${t(`rq.kind.equipment.${b.kind}`)} · ${payAdvance ? t('eqa.payBtn') : b.site_address}`,
         state: payAdvance ? 'action' : ongoing ? 'ongoing' : 'searching', since: b.requested_at,
         sheet: { kind: 'equipment', id: b.id, viewHref: `/portal/marketplace/${b.kind}`, summary: { vehicleLabel: vehicleDisplayName(b.vehicle_type, b.model), driverName: b.owner_name, from: b.site_address, amount: b.total_amount_pkr ?? b.rate_pkr } } })
     }
@@ -434,7 +458,8 @@ export function FloatingBookingsHub() {
       // 948, but a pre-migration row could lack one) falls back to that
       // older popup; an adda booking (no route_id at all) keeps the
       // existing waiting-sheet pattern.
-      out.push({ key: `s-${b.id}`, emoji: '🚌', label: `${t('rq.kind.route')} · ${title}`, state: isLive ? 'ongoing' : 'waiting', since: b.created_at, countdownTarget: isLive ? undefined : countdownTarget,
+      out.push({ key: `s-${b.id}`, role: 'rider', emoji: '🚌', label: `${t('rq.kind.route')} · ${title}`, state: isLive ? 'ongoing' : 'waiting', since: b.created_at, countdownTarget: isLive ? undefined : countdownTarget,
+        dateLabel: formatSeatDate(b.travel_date, r?.departure_time ?? null),
         ...(isLive && b.route_id
           ? { routeGroupId: b.route_id }
           : b.route_id && b.ticket_no && r
@@ -449,7 +474,7 @@ export function FloatingBookingsHub() {
           : { sheet: { kind: 'seat', id: b.id, viewHref: '/portal/marketplace/trips', summary: { vehicleLabel: title, from: nm(adda?.name, adda?.name_ur), to: null, amount: b.total_amount_pkr, facts: [b.travel_date, t('rw.seats').replace('{n}', String(b.seats))] } } }) })
     }
     for (const d of (rides.data ?? []) as { id: string; pickup_label: string; dropoff_label: string; fare_pkr: number; created_at: string }[]) {
-      out.push({ key: `d-${d.id}`, emoji: '🚕', label: `${t('rq.kind.ride_dispatch')} · ${d.dropoff_label}`, state: 'searching', since: d.created_at, href: `/portal/marketplace/ride-dispatch/${d.id}` })
+      out.push({ key: `d-${d.id}`, role: 'rider', emoji: '🚕', label: `${t('rq.kind.ride_dispatch')} · ${d.dropoff_label}`, state: 'searching', since: d.created_at, href: `/portal/marketplace/ride-dispatch/${d.id}` })
     }
     // Live-now first, then needs-you, then newest.
     out.sort((a, b) =>
@@ -510,19 +535,29 @@ export function FloatingBookingsHub() {
 
   const badgeColor = (s: ItemState) => (s === 'ongoing' ? '#166534' : s === 'action' ? '#f59e0b' : '#16a34a')
   const dotBg = (s: ItemState) => (s === 'ongoing' ? '#dcfce7' : s === 'action' ? '#fef3c7' : '#dcfce7')
+  // 2026-11-24 — real ask, live: "if one route was for driver then both
+  // rider and driver related things must have other color or design."
+  // A driver item (your own vehicle's route/job — tapping navigates to
+  // vehicle tools) now always reads blue regardless of state, so it's
+  // never mistaken for a rider item (your own booking — tapping opens a
+  // popup here, which keeps the existing state-colored scheme).
+  const iconBg = (it: HubItem) => (it.role === 'driver' ? '#dbeafe' : dotBg(it.state))
+  const ringColor = (it: HubItem) => (it.role === 'driver' ? '#1d4ed880' : `${badgeColor(it.state)}80`)
+  const labelColor = (it: HubItem) => (it.role === 'driver' ? '#1d4ed8' : badgeColor(it.state))
 
   const Row = ({ it }: { it: HubItem }) => (
     <button onClick={() => openItem(it)}
       className="w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-white border border-[#e8eaee] active:scale-[0.98] transition-transform cursor-pointer text-start">
-      <span className="relative shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-[18px]" style={{ background: dotBg(it.state) }}>
-        {(it.state === 'searching' || it.state === 'ongoing') && <span className="absolute inset-0 rounded-full border-2 animate-ping [animation-duration:2s]" style={{ borderColor: `${badgeColor(it.state)}80` }} />}
+      <span className="relative shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-[18px]" style={{ background: iconBg(it) }}>
+        {(it.state === 'searching' || it.state === 'ongoing') && <span className="absolute inset-0 rounded-full border-2 animate-ping [animation-duration:2s]" style={{ borderColor: ringColor(it) }} />}
         {it.emoji}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.04em] leading-none" style={{ color: badgeColor(it.state) }}>
-          {it.state === 'ongoing' ? t('cm.ongoingFabRiderLabel') : t(`dock.state.${it.state}`)}
+        <span className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.04em] leading-none" style={{ color: labelColor(it) }}>
+          {it.role === 'driver' ? `${t('dock.yourVehicleLabel')} · ` : ''}{it.state === 'ongoing' ? t('cm.ongoingFabRiderLabel') : t(`dock.state.${it.state}`)}
         </span>
         <span className="block font-sans text-[13px] font-semibold text-[#0f172a] truncate leading-tight mt-0.5"><bdi>{it.label}</bdi></span>
+        {it.dateLabel && <span className="block font-sans text-[11px] text-[#64748b] mt-0.5 ltr-num">{it.dateLabel}</span>}
       </span>
       {it.badgeCount != null && (
         <span aria-label={t('dock.seatsBookedAlt').replace('{n}', String(it.badgeCount))}
@@ -550,11 +585,11 @@ export function FloatingBookingsHub() {
         onClick={() => { if (drag.wasDragged()) return; if (total === 1) openItem(primary); else setListOpen(true) }}>
         <button
           className="relative flex items-center gap-2 pl-3 pr-4 h-12 rounded-full text-white shadow-lg hover:scale-105 active:scale-95 transition-all max-w-[230px] cursor-grab active:cursor-grabbing"
-          style={{ background: primary.state === 'ongoing' ? '#166534' : '#0f172a' }}>
+          style={{ background: primary.role === 'driver' ? '#1d4ed8' : primary.state === 'ongoing' ? '#166534' : '#0f172a' }}>
           <span className="shrink-0 w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[14px]">{primary.emoji}</span>
           <span className="min-w-0 text-start">
             <span className="block font-sans text-[10px] font-bold uppercase tracking-[0.05em] text-white/70 leading-none">
-              {total > 1 ? t('dock.multipleLabel').replace('{n}', String(total)) : (primary.state === 'ongoing' ? t('cm.ongoingFabRiderLabel') : t(`dock.state.${primary.state}`))}
+              {total > 1 ? t('dock.multipleLabel').replace('{n}', String(total)) : (primary.role === 'driver' ? `${t('dock.yourVehicleLabel')} · ` : '') + (primary.state === 'ongoing' ? t('cm.ongoingFabRiderLabel') : t(`dock.state.${primary.state}`))}
             </span>
             <span className="block font-sans text-[12px] font-bold truncate leading-tight mt-0.5">{primary.label}</span>
           </span>
