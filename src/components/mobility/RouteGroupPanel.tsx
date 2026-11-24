@@ -51,7 +51,7 @@ interface AdHocBookingRow {
   // raw live GPS instead, held here until boarded/declined/cancelled.
   is_mid_route_catch?: boolean; catch_lat?: number | null; catch_lng?: number | null; catch_updated_at?: string | null
 }
-interface PendingSeatRequest { id: string; name: string; seats: number; travel_date: string; direction: 'outbound' | 'return'; total_amount_pkr: number; announced_method: string | null; announced_proof_url: string | null }
+interface PendingSeatRequest { id: string; ticket_no: string | null; name: string; seats: number; travel_date: string; direction: 'outbound' | 'return'; total_amount_pkr: number; announced_method: string | null; announced_proof_url: string | null }
 interface PendingMonthlyApplication { id: string; name: string; monthly_fee_pkr: number; stop_label: string | null; applied_at: string; deposit_pkr: number | null; proof_url: string | null; payment_method: string | null }
 interface PendingOwnBooking { booking_id: string; travel_date: string; seats: number }
 interface Detail {
@@ -544,14 +544,32 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
           {detail.is_owner && (detail.pending_seat_requests.length > 0 || detail.pending_monthly_applications.length > 0) && (
             <div className="flex flex-col gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
               <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-amber-900">{t('mv.pendingRequestsHeading')}</p>
+              {/* Real ask, 2026-11-24 — live: "where is the ticket number?
+                  ... these two seats are from two different dates, what
+                  does that mean?" Every row here is, by this list's own
+                  query, unconfirmed (seat_accepted_at IS NULL) — that's
+                  the point of the list, so no separate "pending" label is
+                  needed per-row. What WAS missing: the ticket number
+                  (ride_bookings.ticket_no has existed since 948, this RPC
+                  just never selected it — 953 added it), and a clear
+                  visual split between the name/amount and the date/ticket/
+                  direction facts, since this list deliberately spans every
+                  future date the driver hasn't yet actioned, not just
+                  today — two different dates appearing together is
+                  intentional (clear your whole backlog in one sitting),
+                  not two seats on the same trip. */}
               {detail.pending_seat_requests.map((r) => (
                 <div key={r.id} className="flex flex-col gap-1 rounded-lg bg-white px-2.5 py-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">
-                      {r.name}{r.seats > 1 ? ` (${r.seats})` : ''} · {new Date(r.travel_date).toLocaleDateString('en-GB')}
-                      {r.direction === 'return' && <span className="ms-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700">{t('cm.tripTypeReturn')}</span>}
+                      {r.name}{r.seats > 1 ? ` (${r.seats})` : ''}
                     </span>
                     <span className="shrink-0 font-sans text-[12.5px] font-bold text-[#166534] ltr-num">₨{Number(r.total_amount_pkr).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap font-sans text-[10.5px] text-[#64748b]">
+                    <span className="ltr-num">{t('mv.travelDateLabel')}: {new Date(r.travel_date).toLocaleDateString('en-GB')}</span>
+                    {r.ticket_no && <span className="ltr-num">· {t('mv.ticketNoLabel')} {r.ticket_no}</span>}
+                    {r.direction === 'return' && <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700">{t('mv.pendingReturnLegBadge')}</span>}
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-sans text-[11px] text-[#64748b]">
