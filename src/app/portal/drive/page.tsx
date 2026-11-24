@@ -24,7 +24,7 @@ import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import {
   Bus, MapPin, Wallet, Plus, Minus, Clock, LogIn, LogOut, CheckCircle2, UserX, ClipboardCheck,
-  HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation,
+  HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation, Play,
   Crosshair, Send, Gauge, Route as RouteIcon, Maximize2, Minimize2, MessageCircle, CalendarDays,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -240,6 +240,17 @@ function DriveOperationsPageInner() {
   const [speedKph, setSpeedKph] = useState<number | null>(null)
   const lastFixRef = useRef<{ lat: number; lng: number; t: number } | null>(null)
   const [endingTrip, setEndingTrip] = useState(false)
+  // Real gap found live, 2026-11-24: start_route_run (the one RPC that
+  // actually creates today's route_runs row — everything else here,
+  // including route_departure_chalan's own run_started_at it reads back,
+  // is downstream of that row existing) was only ever called from
+  // RouteGroupPanel, the solo-owner screen a fleet employee-driver is
+  // deliberately redirected away from (my-vehicle/layout.tsx) straight
+  // to this page — which never got the button. Its own permission check
+  // (is_route_owner → can_manage_vehicle) already covers fleet_staff
+  // fine; this was purely a missing frontend action, not a backend gate.
+  const [startingRoute, setStartingRoute] = useState(false)
+  const [startStakeInfo, setStartStakeInfo] = useState<{ applies: boolean; stake_pkr: number; balance_pkr: number; can_afford: boolean } | null>(null)
 
   // Trip-scoped chat (938) — a new, route+date-scoped chat, separate
   // from the village-carpool system's route_chat_messages (deliberately
@@ -604,6 +615,16 @@ function DriveOperationsPageInner() {
     loadChat(routeId)
   }
 
+  const startRoute = async () => {
+    if (!routeId) return
+    setStartingRoute(true)
+    const { error } = await supabase.rpc('start_route_run', { p_route_id: routeId, p_direction: direction })
+    setStartingRoute(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('dr.routeStartedToast'))
+    reload(routeId, direction)
+  }
+
   const endTripNow = async () => {
     if (!confirm(t('dr.confirmEndTripHint'))) return
     setEndingTrip(true)
@@ -654,6 +675,19 @@ function DriveOperationsPageInner() {
   }
 
   useEffect(() => { if (routeId) reload(routeId, direction) }, [routeId, direction]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Same stake preview RouteGroupPanel already shows before its own
+  // start button — fetched fresh whenever the route/direction changes
+  // while no run is active yet, so a changed balance is never stale.
+  // Reads `routes` directly rather than the later `currentRoute` const
+  // below (computed after an early return earlier in this component, so
+  // out of reach for a hook, which must never run conditionally).
+  useEffect(() => {
+    const vehicleId = routes.find((r) => r.id === routeId)?.vehicle_id
+    if (!vehicleId || chalan?.run_started_at) { setStartStakeInfo(null); return }
+    supabase.rpc('vehicle_ride_stake_info', { p_vehicle_id: vehicleId }).then(({ data: s }) => setStartStakeInfo(s ?? null))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeId, routes, chalan?.run_started_at])
 
   // ─── Attendance ─────────────────────────────────────────────────────
   const doCheckIn = () => {
@@ -1443,11 +1477,23 @@ function DriveOperationsPageInner() {
                 <FleetStat label={t('mv.cashLabel')} icon={<Wallet size={12} />} value={`₨${fmt(chalan.cash_collected_pkr)}`} valueClassName="text-[#1e293b]" />
               </FleetPanelBody>
 
-              {chalan.run_started_at && (
+              {chalan.run_started_at ? (
                 <button onClick={() => setShowTripPopup(true)} className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-[#102a36] text-white cursor-pointer">
                   <span className="flex items-center gap-2 font-sans text-[12.5px] font-bold"><Navigation size={14} /> {t('dr.openLiveTripBtn')}</span>
                   <FleetStatusPill tone={sharing ? 'green' : 'amber'}><Radio size={9} className={sharing ? 'animate-pulse' : ''} /> {sharing ? t('dr.liveSharingOnLabel') : t('dr.liveSharingOffLabel')}</FleetStatusPill>
                 </button>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {startStakeInfo?.applies && (
+                    <p className={`font-sans text-[10.5px] rounded-lg px-2 py-1 ${startStakeInfo.can_afford ? 'bg-white border border-[#e5e2d0] text-[#64748b]' : 'bg-rose-50 text-rose-700 font-semibold'}`}>
+                      {t('mv.startingStakeNote').replace('{stake}', String(startStakeInfo.stake_pkr)).replace('{balance}', String(Math.round(startStakeInfo.balance_pkr)))}
+                    </p>
+                  )}
+                  <button onClick={startRoute} disabled={startingRoute || (startStakeInfo?.applies && !startStakeInfo.can_afford)}
+                    className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-[#166534] text-white cursor-pointer disabled:opacity-50">
+                    <Play size={14} /> <span className="font-sans text-[12.5px] font-bold">{startingRoute ? t('action.loading') : t('dr.startRouteBtn')}</span>
+                  </button>
+                </div>
               )}
 
               <FleetPanel>
