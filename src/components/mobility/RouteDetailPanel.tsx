@@ -616,7 +616,18 @@ export function RouteDetailPanel({ routeId, initialDate, initialSeats, onBooked,
   if (!route) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('mp.routeNotFound')}</div>
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
+    // Real bug found live, 2026-11-24: this sheet opens directly out of
+    // the bus page's own just-redesigned green/rounded search results,
+    // but carried `.shop-ink-theme` — a leftover from when this was
+    // built alongside the old shop/marketplace detail pages — which
+    // forces every corner to a hard square and swaps dp-secondary to the
+    // shop's coral accent (#ec3013), so "Book Seats" rendered as a red
+    // square button a tap after a green rounded card. Dropped so this
+    // sheet uses the same default green/rounded tokens as the page that
+    // opens it; every class below is already token-driven (dp-secondary,
+    // dp-error, rounded-lg/-full, .input-field), so nothing else here
+    // needed to change.
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <h1 className="font-heading text-[22px] font-bold text-dp-primary flex items-center gap-2">
         <MapPin size={19} className="text-dp-secondary shrink-0" /> {isUrdu && route.origin_ur ? route.origin_ur : route.origin} → {isUrdu && route.destination_ur ? route.destination_ur : route.destination}
       </h1>

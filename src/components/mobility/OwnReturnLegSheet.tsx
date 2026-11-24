@@ -125,7 +125,10 @@ export function OwnReturnLegSheet({ routeId, travelDate, seatsWanted, onClose, o
 
   return (
     <MobilityBottomSheet title={t('mv.routeDetailsHeading')} onClose={onClose}>
-      <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
+      {/* shop-ink-theme dropped here too — same fix as RouteDetailPanel,
+          this sheet is the return-leg twin of that same booking flow and
+          had the identical coral/square leftover. */}
+      <div dir={isUrdu ? 'rtl' : 'ltr'}>
         {loading || !route ? (
           <div className="py-10 text-center"><LoadingDots /></div>
         ) : (
