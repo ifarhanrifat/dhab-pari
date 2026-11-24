@@ -354,7 +354,7 @@ export function FloatingBookingsHub() {
       for (const item of (driverRouteAddaLive.data ?? []) as Array<
         | { kind: 'route_ongoing'; route_id: string; origin: string; destination: string; started_at: string }
         | { kind: 'route_action'; route_id: string; origin: string; destination: string; pending_count: number }
-        | { kind: 'route_idle'; route_id: string; origin: string; destination: string }
+        | { kind: 'route_idle'; route_id: string; origin: string; destination: string; departure_at_today: string | null; today_run_finished: boolean }
         | { kind: 'adda_ongoing'; entry_id: string; adda_name: string; adda_name_ur: string | null }
         | { kind: 'adda_action'; entry_id: string; adda_name: string; adda_name_ur: string | null; pending_count: number }
       >) {
@@ -378,7 +378,23 @@ export function FloatingBookingsHub() {
           // which never disappears just because nothing needs action
           // right now. Same quiet 'waiting' styling, still one tap into
           // the route (chat/roster/prep for tomorrow).
-          out.push({ key: `rti-${item.route_id}`, role: 'driver', emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'waiting', since: new Date().toISOString(), href: `/portal/drive?route=${item.route_id}` })
+          //
+          // Real ask, 2026-11-24: "does it mean the next duty is about
+          // to start?" — this used to carry zero time information, so
+          // the same chip showed 3 hours before departure, the moment
+          // departure passed with the run never started, and for the
+          // rest of the day after the run already finished. A finished
+          // run today gets a plain dateLabel (no countdown — there's
+          // nothing left to count down to); otherwise a real countdown
+          // to today's departure, which (via Countdown's own existing
+          // past/future split) automatically flips from "Xh Ym" to a
+          // "due now" pill the moment it passes, with no extra state
+          // needed here.
+          out.push({
+            key: `rti-${item.route_id}`, role: 'driver', emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'waiting', since: new Date().toISOString(), href: `/portal/drive?route=${item.route_id}`,
+            dateLabel: item.today_run_finished ? t('dock.dutyFinishedToday') : undefined,
+            countdownTarget: !item.today_run_finished && item.departure_at_today ? new Date(item.departure_at_today).getTime() : undefined,
+          })
         } else if (item.kind === 'adda_ongoing') {
           out.push({ key: `ado-${item.entry_id}`, role: 'driver', emoji: '🚐', label: `${nm(item.adda_name, item.adda_name_ur)}`, state: 'ongoing', since: new Date().toISOString(), href: '/portal/my-vehicle/adda' })
         } else {
@@ -599,7 +615,7 @@ export function FloatingBookingsHub() {
           {it.badgeCount}
         </span>
       )}
-      {it.countdownTarget != null && <Countdown target={it.countdownTarget} now={now} label={it.key.startsWith('dro-') ? t('dock.readyNow') : t('dock.departed')} />}
+      {it.countdownTarget != null && <Countdown target={it.countdownTarget} now={now} label={it.key.startsWith('dro-') ? t('dock.readyNow') : it.key.startsWith('rti-') ? t('dock.dutyDueLabel') : t('dock.departed')} />}
       {it.state === 'action' && it.countdownTarget == null && <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b] shrink-0" />}
     </button>
   )
@@ -618,7 +634,7 @@ export function FloatingBookingsHub() {
         onPointerDown={drag.onPointerDown} onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerCancel}
         onClick={() => { if (drag.wasDragged()) return; if (total === 1) openItem(primary); else setListOpen(true) }}>
         <button
-          className="relative flex items-center gap-2 pl-3 pr-4 h-12 rounded-full text-white shadow-lg hover:scale-105 active:scale-95 transition-all max-w-[230px] cursor-grab active:cursor-grabbing"
+          className="relative flex items-center gap-2 pl-3 pr-4 py-2 rounded-full text-white shadow-lg hover:scale-105 active:scale-95 transition-all max-w-[230px] cursor-grab active:cursor-grabbing"
           style={{ background: primary.role === 'driver' ? '#1d4ed8' : primary.state === 'ongoing' ? '#166534' : '#0f172a' }}>
           <span className="shrink-0 w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[14px]">{primary.emoji}</span>
           <span className="min-w-0 text-start">
@@ -626,6 +642,16 @@ export function FloatingBookingsHub() {
               {total > 1 ? t('dock.multipleLabel').replace('{n}', String(total)) : (primary.role === 'driver' ? `${t('dock.yourVehicleLabel')} · ` : '') + (primary.state === 'ongoing' ? t('cm.ongoingFabRiderLabel') : t(`dock.state.${primary.state}`))}
             </span>
             <span className="block font-sans text-[12px] font-bold truncate leading-tight mt-0.5">{primary.label}</span>
+            {/* Real ask, 2026-11-24: a single-item chip (the common case —
+                no list to open and check) never showed the item's own
+                dateLabel/countdown at all, since those only ever rendered
+                inside the expanded list's Row. Mirrored here, gated to
+                total === 1 so it's never misattributed to the generic
+                "N active bookings" summary label above. */}
+            {total === 1 && primary.dateLabel && <span className="block font-sans text-[10px] text-white/70 leading-tight mt-0.5 ltr-num">{primary.dateLabel}</span>}
+            {total === 1 && primary.countdownTarget != null && (
+              <span className="block mt-0.5"><Countdown target={primary.countdownTarget} now={now} label={primary.key.startsWith('dro-') ? t('dock.readyNow') : primary.key.startsWith('rti-') ? t('dock.dutyDueLabel') : t('dock.departed')} /></span>
+            )}
           </span>
           {cornerBadge != null && (
             <span aria-label={primary.badgeCount != null ? t('dock.seatsBookedAlt').replace('{n}', String(cornerBadge)) : undefined}
