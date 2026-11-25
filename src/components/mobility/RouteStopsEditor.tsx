@@ -86,6 +86,7 @@ export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime,
   const [zonesLoading, setZonesLoading] = useState(false)
   const [editingBaseFare, setEditingBaseFare] = useState(false)
   const [baseFareInput, setBaseFareInput] = useState(String(farePerSeatPkr ?? ''))
+  const [vehicleSeats, setVehicleSeats] = useState<number | null>(null)
   const [savingBaseFare, setSavingBaseFare] = useState(false)
   const [overridePair, setOverridePair] = useState<{ from: string; to: string } | null>(null)
   const [overrideInput, setOverrideInput] = useState('')
@@ -212,10 +213,11 @@ export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime,
   // above exactly as it already works.
   useEffect(() => {
     if (!vehicleId) return
-    supabase.from('vehicles').select('fleet_id').eq('id', vehicleId).single().then(({ data }) => {
-      const fleetId = (data as { fleet_id: string | null } | null)?.fleet_id
-      if (!fleetId) return
-      supabase.rpc('my_fleet_counters', { p_fleet_id: fleetId }).then(({ data: c }) =>
+    supabase.from('vehicles').select('fleet_id, total_seats').eq('id', vehicleId).single().then(({ data }) => {
+      const row = data as { fleet_id: string | null; total_seats: number | null } | null
+      setVehicleSeats(row?.total_seats ?? null)
+      if (!row?.fleet_id) return
+      supabase.rpc('my_fleet_counters', { p_fleet_id: row.fleet_id }).then(({ data: c }) =>
         setTerminals(((c ?? []) as Terminal[])))
     })
   }, [vehicleId]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -367,9 +369,24 @@ export function RouteStopsEditor({ routeId, vehicleId, routePath, departureTime,
                 <div>
                   <p className="font-sans text-[10.5px] text-[#64748b]">{t('mv.baseFareLabel')}</p>
                   {editingBaseFare ? (
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <input type="number" value={baseFareInput} onChange={(e) => setBaseFareInput(e.target.value)} className="w-24 px-2 py-1 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
-                      <button onClick={saveBaseFare} disabled={savingBaseFare} className="px-2.5 py-1 rounded-lg bg-[#166534] text-white font-sans text-[11px] font-bold cursor-pointer disabled:opacity-50">{t('action.save')}</button>
+                    <div className="flex flex-col gap-1 mt-1">
+                      <div className="flex items-center gap-1.5">
+                        <input type="number" value={baseFareInput} onChange={(e) => setBaseFareInput(e.target.value)} className="w-24 px-2 py-1 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
+                        <button onClick={saveBaseFare} disabled={savingBaseFare} className="px-2.5 py-1 rounded-lg bg-[#166534] text-white font-sans text-[11px] font-bold cursor-pointer disabled:opacity-50">{t('action.save')}</button>
+                      </div>
+                      {/* Real bug found live, 2026-11-25: the route-creation
+                          form's own field right above this one (same
+                          mv.baseFareLabel text) asks for the WHOLE
+                          vehicle's fare and divides it by seat count — this
+                          field, despite the identical label, saves whatever
+                          is typed here directly as the per-seat fare with
+                          no division. A fleet owner editing a fare here
+                          could easily re-type the whole-vehicle figure out
+                          of habit, the exact mistake this is meant to
+                          prevent. */}
+                      {vehicleSeats != null && (
+                        <p className="font-sans text-[10px] text-[#94a3b8]">{t('mv.editBaseFareIsPerSeatHint').replace('{n}', String(vehicleSeats))}</p>
+                      )}
                     </div>
                   ) : (
                     <p className="font-sans text-[14px] font-bold text-[#1e293b] ltr-num">₨{fmt(farePerSeatPkr ?? 0)}</p>

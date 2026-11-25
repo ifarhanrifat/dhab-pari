@@ -617,13 +617,21 @@ export default function MyVehicleRoutesPage() {
     }
     const baseFare = form.total_fare_pkr ? Number(form.total_fare_pkr) : null
     if (!baseFare || baseFare <= 0) { toast.error(t('mv.enterTotalFareError')); return }
+    // Real bug found live, 2026-11-25: this field's own hint text (just
+    // above it, mv.baseFareHint) promises "fare per seat = total fare /
+    // seat count", but the raw, undivided total was sent straight through
+    // as p_fare_per_seat_pkr — every rider would've been charged the
+    // whole vehicle's fare for one seat. totalSeats is kept in sync with
+    // postVehicleId by selectVehicle (and the initial vehicle load), so
+    // it's already the right count for whichever bus this route is for.
+    const farePerSeat = totalSeats ? Math.round(baseFare / totalSeats) : baseFare
 
     setPosting(true)
     const { data, error } = await supabase.rpc('create_vehicle_route_self', {
       p_vehicle_id: postVehicleId,
       p_origin: form.origin, p_origin_ur: form.origin || null,
       p_destination: form.destination, p_destination_ur: form.destination || null,
-      p_classification: form.classification, p_fare_mode: 'terminal_zone', p_fare_per_seat_pkr: baseFare,
+      p_classification: form.classification, p_fare_mode: 'terminal_zone', p_fare_per_seat_pkr: farePerSeat,
       p_departure_time: form.departure_time || null, p_return_departure_time: form.is_two_way ? (form.return_departure_time || null) : null,
       p_days_of_week: form.days_of_week,
       p_is_monthly_fixed: false, p_is_two_way: form.is_two_way,
