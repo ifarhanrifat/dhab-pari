@@ -13,7 +13,7 @@
 // first vehicle" hack is removed in the same pass as this file's addition).
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -46,6 +46,7 @@ function Chrome({ children }: { children: React.ReactNode }) {
 export default function FleetLayout({ children }: { children: React.ReactNode }) {
   const { user, loading: userLoading } = usePortalUser()
   const router = useRouter()
+  const pathname = usePathname()
   const supabase = createClient()
   const [checked, setChecked] = useState(false)
   const [isManager, setIsManager] = useState(false)
@@ -61,12 +62,22 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
   // my_managed_fleet() returns null for someone with no fleet at all — the
   // Fleet tab in PortalSidebar only ever shows for a fleet owner/staff
   // member, but a stale link or bookmark could still land anyone here.
+  //
+  // Real bug found live, 2026-11-25: this redirect fired on the fleet
+  // home page too, which is the ONLY place create_my_fleet's own form
+  // lives (page.tsx's own `if (!fleetId)` branch) — so a brand new
+  // portal_user had no way to ever create their first fleet at all; the
+  // one page meant to onboard them bounced them straight back out
+  // before it could render. Scoped the redirect to every OTHER fleet
+  // page, which do assume an existing fleet_id and would otherwise show
+  // a broken/empty state for someone with none.
+  const isFleetHome = pathname === '/portal/fleet'
   useEffect(() => {
-    if (checked && !isManager) router.replace('/portal')
-  }, [checked, isManager]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (checked && !isManager && !isFleetHome) router.replace('/portal')
+  }, [checked, isManager, isFleetHome]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (userLoading || !checked) return <div className="text-center py-12"><LoadingDots /></div>
-  if (!isManager) return <div className="text-center py-12"><LoadingDots /></div>
+  if (!isManager && !isFleetHome) return <div className="text-center py-12"><LoadingDots /></div>
 
   return <Chrome>{children}</Chrome>
 }
