@@ -45,6 +45,9 @@ export interface RideTicketInfo {
   boardLabel?: string | null
   paymentConfirmed: boolean
   isPerOrder: boolean
+  delayMinutes?: number | null
+  delayNote?: string | null
+  delayAutoDetected?: boolean
 }
 
 interface PaymentInfo {
@@ -111,6 +114,15 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
           </div>
 
           <p className="font-sans text-[13px] font-semibold text-[#1e293b] text-center bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl px-3 py-2.5"><bdi>{departsLine}</bdi></p>
+
+          {info.delayMinutes != null && (
+            <div className="bg-[#FEF2F2] border border-[#fecaca] rounded-xl px-3 py-2.5 text-center">
+              <p className="font-sans text-[12.5px] font-bold text-[#b91c1c] ltr-num">
+                {t('mv.delayedBadge').replace('{n}', String(info.delayMinutes))}{info.delayAutoDetected ? ` · ${t('mv.delayAutoDetectedTag')}` : ''}
+              </p>
+              {info.delayNote && <p className="font-sans text-[11.5px] text-[#991b1b] mt-0.5"><bdi>{info.delayNote}</bdi></p>}
+            </div>
+          )}
 
           <span className={`self-center font-sans text-[11px] font-bold uppercase tracking-[0.05em] px-3 py-1 rounded-full ${info.paymentConfirmed || submitted ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
             {info.paymentConfirmed ? t('mv.seatConfirmedInGroupNote') : submitted ? t('rw.paymentProofSentHint') : t('mv.seatPendingDriverNote')}

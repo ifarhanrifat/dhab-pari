@@ -20,7 +20,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
-interface Notification { id: string; title: string; body: string | null; link: string | null; is_read: boolean; created_at: string }
+interface Notification { id: string; title: string; title_ur: string | null; body: string | null; body_ur: string | null; link: string | null; is_read: boolean; created_at: string }
 
 function timeAgo(iso: string, t: (k: string, f?: string) => string) {
   const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
@@ -31,7 +31,7 @@ function timeAgo(iso: string, t: (k: string, f?: string) => string) {
 }
 
 export default function MarketplaceNotificationsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const router = useRouter()
   const supabase = createClient()
@@ -40,7 +40,7 @@ export default function MarketplaceNotificationsPage() {
 
   const load = () => {
     if (!user) return
-    supabase.from('portal_notifications').select('id, title, body, link, is_read, created_at')
+    supabase.from('portal_notifications').select('id, title, title_ur, body, body_ur, link, is_read, created_at')
       .eq('portal_user_id', user.id).order('created_at', { ascending: false }).limit(100)
       .then(({ data }) => setItems(data ?? []))
   }
@@ -87,8 +87,8 @@ export default function MarketplaceNotificationsPage() {
           {items.map((n) => (
             <div key={n.id} onClick={() => open(n)} className="flex items-start gap-3 bg-white border border-[#e5e2d0] rounded-2xl overflow-hidden cursor-pointer hover:border-[#166534] transition-colors" style={{ borderInlineStartWidth: n.is_read ? 1 : 4, borderInlineStartColor: n.is_read ? undefined : '#D4AF37' }}>
               <div className="flex-1 min-w-0 py-3 ps-3.5 pe-2">
-                <p className={`text-[13.5px] ${n.is_read ? 'font-medium text-[#64748b]' : 'font-bold text-[#1e293b]'}`}>{n.title}</p>
-                {n.body && <p className="text-[12px] text-[#64748b] mt-0.5">{n.body}</p>}
+                <p className={`text-[13.5px] ${n.is_read ? 'font-medium text-[#64748b]' : 'font-bold text-[#1e293b]'}`}>{isUrdu && n.title_ur ? n.title_ur : n.title}</p>
+                {n.body && <p className="text-[12px] text-[#64748b] mt-0.5">{isUrdu && n.body_ur ? n.body_ur : n.body}</p>}
               </div>
               <div className="flex items-center gap-2 pe-3.5 py-3 shrink-0">
                 <span className="text-[11px] text-[#94a3b8]">{timeAgo(n.created_at, t)}</span>

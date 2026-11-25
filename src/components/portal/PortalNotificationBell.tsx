@@ -11,7 +11,7 @@ import { useNotificationSoundMuted } from '@/hooks/useNotificationSoundMuted'
 import { NotificationOffBanner } from '@/components/shared/NotificationOffBanner'
 
 interface PortalNotification {
-  id: string; title: string; body: string | null; link: string | null
+  id: string; title: string; title_ur: string | null; body: string | null; body_ur: string | null; link: string | null
   is_read: boolean; created_at: string
 }
 
@@ -30,7 +30,7 @@ function timeAgo(iso: string) {
 // lacks), fixed/floating like the admin bell rather than inline in a nav bar
 // since the portal has its own header bar to sit in.
 export function PortalNotificationBell({ embedded = false }: { embedded?: boolean }) {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -40,7 +40,7 @@ export function PortalNotificationBell({ embedded = false }: { embedded?: boolea
   const { muted, setMuted } = useNotificationSoundMuted()
 
   const load = async (recipientId: string) => {
-    const { data } = await supabase.from('portal_notifications').select('id, title, body, link, is_read, created_at')
+    const { data } = await supabase.from('portal_notifications').select('id, title, title_ur, body, body_ur, link, is_read, created_at')
       .eq('portal_user_id', recipientId).order('created_at', { ascending: false }).limit(20)
     setItems(data ?? [])
   }
@@ -60,6 +60,8 @@ export function PortalNotificationBell({ embedded = false }: { embedded?: boolea
   // arrives.
   const mutedRef = useRef(muted)
   useEffect(() => { mutedRef.current = muted }, [muted])
+  const isUrduRef = useRef(isUrdu)
+  useEffect(() => { isUrduRef.current = isUrdu }, [isUrdu])
 
   useEffect(() => {
     if (!portalUserId) return
@@ -70,7 +72,7 @@ export function PortalNotificationBell({ embedded = false }: { embedded?: boolea
           const n = payload.new as PortalNotification
           setItems((cur) => [n, ...cur.filter((x) => x.id !== n.id)])
           if (!mutedRef.current) playNotificationSound()
-          toast.info(n.title, { description: n.body ?? undefined, action: n.link ? { label: 'View', onClick: () => router.push(n.link!) } : undefined })
+          toast.info(isUrduRef.current && n.title_ur ? n.title_ur : n.title, { description: (isUrduRef.current && n.body_ur ? n.body_ur : n.body) ?? undefined, action: n.link ? { label: 'View', onClick: () => router.push(n.link!) } : undefined })
         })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -163,10 +165,10 @@ export function PortalNotificationBell({ embedded = false }: { embedded?: boolea
                   className={`w-full text-start px-4 py-3 border-b border-dp2-card-border last:border-b-0 hover:bg-dp2-surface transition-all cursor-pointer flex items-start gap-2 ${!n.is_read ? 'bg-dp2-primary-dark/5' : ''}`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-sans text-[14px] font-semibold">{n.title}</p>
+                      <p className="font-sans text-[14px] font-semibold">{isUrdu && n.title_ur ? n.title_ur : n.title}</p>
                       {!n.is_read && <span className="w-2 h-2 rounded-full bg-dp2-primary-dark shrink-0 mt-1" />}
                     </div>
-                    {n.body && <p className="font-sans text-[13px] text-slate-500 mt-0.5">{n.body}</p>}
+                    {n.body && <p className="font-sans text-[13px] text-slate-500 mt-0.5">{isUrdu && n.body_ur ? n.body_ur : n.body}</p>}
                     <p className="font-sans text-[12px] text-slate-400 mt-1">{timeAgo(n.created_at)}</p>
                   </div>
                   <button onClick={(e) => deleteNotification(e, n.id)} className="p-1 text-slate-500 hover:text-red-600 cursor-pointer shrink-0" title="Delete">

@@ -116,14 +116,14 @@ export default function TripsPage() {
   const [filingDispute, setFilingDispute] = useState(false)
 
   const reloadMine = async () => {
-    const [tripShare, hourly, equipment, ride, shadi, cityPurchase, rental, parcel, dispatch, shop, rideDispatch, monthly] = await Promise.all([
+    const [tripShare, hourly, equipment, ride, shadi, cityPurchase, rental, parcel, dispatch, shop, rideDispatch, monthly, routeDelays] = await Promise.all([
       supabase.rpc('my_trip_bookings'),
       supabase.rpc('my_hourly_bookings'),
       supabase.rpc('my_equipment_bookings'),
       // Filtered to the signed-in rider: ride_bookings' keeper policy also
       // lets a driver read every booking on their own routes, which landed
       // other people's seats in the driver's own "My Bookings".
-      supabase.from('ride_bookings').select('id, route_id, status, seats, total_amount_pkr, travel_date, announced_proof_url, dropped_off_at, ticket_no, seat_accepted_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time, vehicle_id, vehicles(commission_mode))').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
+      supabase.from('ride_bookings').select('id, route_id, status, seats, total_amount_pkr, travel_date, direction, announced_proof_url, dropped_off_at, ticket_no, seat_accepted_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time, vehicle_id, vehicles(commission_mode))').eq('portal_user_id', user!.id).order('created_at', { ascending: false }).limit(20),
       supabase.rpc('my_shadi_events'),
       supabase.rpc('my_city_purchase_requests'),
       supabase.rpc('my_rental_bookings'),
@@ -135,6 +135,11 @@ export default function TripsPage() {
       // standing booking used to be reachable only by finding the route
       // again; now it sits here with everything else, plus any fee due.
       supabase.from('route_subscriptions').select('id, route_id, status, monthly_fee_pkr, applied_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time), route_subscription_charges(amount_pkr, status)').eq('portal_user_id', user!.id).neq('status', 'cancelled').order('applied_at', { ascending: false }),
+      // 956: today's auto/manual delay status for whichever of this
+      // rider's own route legs currently have one — surfaced as a
+      // persistent badge on the ticket itself (previously this only ever
+      // showed up as a one-time notification, easy to miss afterward).
+      supabase.rpc('my_route_booking_delays'),
     ])
     if (tripShare.error) toast.error(friendlyError(tripShare.error, undefined, isUrdu))
 
@@ -149,10 +154,12 @@ export default function TripsPage() {
       out.push({ id: `equip-${b.id}`, rawId: b.id, kind: 'equipment', title: t(`vp.${b.kind}PageTitle`), subtitle: vehicleDisplayName(b.vehicle_type, b.model), amount: b.total_amount_pkr ?? b.rate_pkr, status: mapStatus(b.status), date: b.requested_at, href: `/portal/marketplace/${b.kind}` })
     }
     const rideRows = (ride.data ?? []) as unknown as Array<{
-      id: string; route_id: string | null; status: string; seats: number; total_amount_pkr: number; travel_date: string; announced_proof_url: string | null; dropped_off_at: string | null
+      id: string; route_id: string | null; status: string; seats: number; total_amount_pkr: number; travel_date: string; direction: string; announced_proof_url: string | null; dropped_off_at: string | null
       ticket_no: string | null; seat_accepted_at: string | null
       vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null; vehicle_id: string; vehicles: { commission_mode: string } | null } | null
     }>
+    const routeDelayRows = (routeDelays.data ?? []) as unknown as Array<{ route_id: string; travel_date: string; direction: string; delay_minutes: number; delay_note: string | null; auto_detected: boolean }>
+    const delayByLeg = new Map(routeDelayRows.map((d) => [`${d.route_id}|${d.travel_date}|${d.direction}`, d]))
     // 2026-11-22: real ask — tapping a booked seat here (same as the
     // floating button) should show the plain ticket until the bus
     // actually departs, not the full route-browsing page. Once live,
@@ -164,6 +171,7 @@ export default function TripsPage() {
     for (const b of rideRows) {
       const vr = b.vehicle_routes
       const isLive = !!b.route_id && rideActiveRunRouteIds.has(b.route_id)
+      const delay = b.route_id ? delayByLeg.get(`${b.route_id}|${b.travel_date}|${b.direction}`) : undefined
       // Real bug reported live: a seat already boarded AND dropped off
       // (end_route_run) kept showing in the Active tab forever — status
       // alone only ever tracks payment ('announced'/'confirmed'), never
@@ -176,6 +184,7 @@ export default function TripsPage() {
           origin: isUrdu && vr.origin_ur ? vr.origin_ur : vr.origin, destination: isUrdu && vr.destination_ur ? vr.destination_ur : vr.destination,
           travelDate: b.travel_date, departureTime: vr.departure_time, seats: b.seats, amountPkr: b.total_amount_pkr,
           paymentConfirmed: !!b.seat_accepted_at, isPerOrder: vr.vehicles?.commission_mode === 'per_order',
+          delayMinutes: delay?.delay_minutes ?? null, delayNote: delay?.delay_note ?? null, delayAutoDetected: delay?.auto_detected ?? false,
         } : undefined,
       })
     }

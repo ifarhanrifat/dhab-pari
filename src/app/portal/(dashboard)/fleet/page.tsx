@@ -39,7 +39,7 @@ interface ScheduleCard {
   is_active: boolean; departure_time: string | null; return_departure_time: string | null; return_wait_minutes: number | null
   is_two_way: boolean; days_of_week: number[]; return_days_of_week: number[] | null; runs_today: boolean; state: string
   current_driver_name: string; covered_by_substitute: boolean
-  delay_minutes: number | null; delay_note: string | null; total_seats: number | null
+  delay_minutes: number | null; delay_note: string | null; delay_auto_detected: boolean; total_seats: number | null
   // 941: today's driver-readiness signal (checked in at their home
   // terminal yet?) — the real gap: this "Today's Schedule" card's own
   // state only ever changes once a run has already started, so there
@@ -614,7 +614,7 @@ export default function FleetDashboardPage() {
                       <span className="px-2 py-1 rounded-full font-sans text-[10px] font-bold" style={{ background: style.bg, color: style.fg }}>{t(style.label)}</span>
                       {s.delay_minutes != null && (
                         <span className="px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#b91c1c] font-sans text-[9.5px] font-bold ltr-num">
-                          {t('mv.delayedBadge').replace('{n}', String(s.delay_minutes))}
+                          {t('mv.delayedBadge').replace('{n}', String(s.delay_minutes))}{s.delay_auto_detected ? ` · ${t('mv.delayAutoDetectedTag')}` : ''}
                         </span>
                       )}
                     </div>
