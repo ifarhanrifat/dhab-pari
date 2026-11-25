@@ -158,6 +158,34 @@ export default function BusesPage() {
     })
   }, [user])
 
+  // Real bug found live, 2026-11-25: departureBooked/returnBooked are
+  // plain in-memory flags, only ever flipped true right after a booking
+  // succeeds in THIS page session — so the return tab's "book your
+  // departure first" lock re-locks the instant the page reloads (the
+  // tab gets backgrounded and discarded, the rider closes the app and
+  // comes back later, anything), even though their departure seat is
+  // already real and paid for. Self-heals here by checking for a real,
+  // active booking matching each leg whenever the search itself changes,
+  // same city-matching rule computeLegResults already uses — this never
+  // overrides the immediate post-booking flip (handleLegBooked), it only
+  // ever flips false -> true to catch up with reality.
+  useEffect(() => {
+    if (!user || !searched || !fromCity || !toCity || !departDate) return
+    const supabase = createClient()
+    const sameCity = (a: string, key: string) => a.trim().toLowerCase() === key
+    const dates = tripType === 'roundtrip' && returnDate ? [departDate, returnDate] : [departDate]
+    supabase.from('ride_bookings')
+      .select('travel_date, direction, vehicle_routes(origin, destination)')
+      .eq('portal_user_id', user.id).in('travel_date', dates).in('status', ['announced', 'confirmed'])
+      .then(({ data }) => {
+        const rows = (data ?? []) as unknown as { travel_date: string; direction: string; vehicle_routes: { origin: string; destination: string } | null }[]
+        const hasLeg = (fromKey: string, toKey: string, date: string) => rows.some((row) =>
+          row.travel_date === date && row.vehicle_routes && sameCity(row.vehicle_routes.origin, fromKey) && sameCity(row.vehicle_routes.destination, toKey))
+        if (hasLeg(fromCity, toCity, departDate)) setDepartureBooked(true)
+        if (tripType === 'roundtrip' && returnDate && hasLeg(toCity, fromCity, returnDate)) setReturnBooked(true)
+      })
+  }, [user, searched, fromCity, toCity, departDate, returnDate, tripType])
+
   const nm = (en: string, ur: string | null) => (isUrdu && ur ? ur : en)
   const timeLabel = (tm: string | null) => {
     if (!tm) return '—'
