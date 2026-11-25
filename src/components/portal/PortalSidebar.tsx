@@ -379,6 +379,18 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   // on the row — every one of these already uses logical spacing (me-*,
   // ms-auto), so that alone is enough to put the icon on the reading
   // "start" side (the right, in Urdu) without moving the menu itself.
+  // 2026-11-25: dedicated admin-shell pass — a fleet owner/staff member
+  // inside /portal/fleet/* used to see their ~15 operational links as
+  // one expanded accordion group sitting among every unrelated consumer
+  // module (Giving & Welfare, Community & Education, etc.), which never
+  // reads as a real back-office console the way the SAFAR reference
+  // does (its sidebar holds nothing but the operator's own clusters).
+  // While actually inside the fleet shell, the nav now shows ONLY the
+  // fleet sections (flattened, no accordion needed since there's
+  // nothing else to hide them from) plus one link back to the full
+  // portal menu — leaving every other portal page's sidebar completely
+  // untouched, since this only applies when isInFleetShell is true.
+  const isInFleetShell = pathname.startsWith('/portal/fleet')
   const rowDir = isUrdu ? 'rtl' : 'ltr'
   // Profile + language used to sit at the very bottom, under a plain
   // "Donor Portal" title at the top — same restructuring as AdminSidebar:
@@ -409,7 +421,48 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   const sidebarContent = (
     <>
       <nav className="flex-1 space-y-1 overflow-y-auto" dir={rowDir}>
-        {visibleMenuItems.map((entry) => {
+        {isInFleetShell ? (
+          <>
+            <Link href="/portal" onClick={onMobileClose}
+              className="flex items-center px-4 py-2.5 mx-2 mb-1 rounded-xl transition-all text-[13px] font-sans text-white/55 hover:bg-dp2-primary-dark hover:text-white">
+              <ArrowLeftCircle size={15} className="me-3 shrink-0" />
+              <span className="min-w-0 truncate">{t('nav.backToPortalMenu')}</span>
+            </Link>
+            {fleetChildren(fleetName).map((item, idx) => {
+              const Icon = item.icon
+              const isActive = item.href === activeHref
+              const count = badges[item.href.split('/')[2] ?? ''] ?? 0
+              const liveCount = item.href === '/portal/fleet/live-map' ? fleetLiveCounts?.transmitting
+                : item.href === '/portal/fleet/dispatch' ? fleetLiveCounts?.departuresToday
+                : undefined
+              return (
+                <div key={item.href}>
+                  {item.sectionTKey && (
+                    <p className={`font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-white/35 px-4 ${idx === 0 ? 'pt-1 pb-1.5' : 'pt-3 pb-1.5'}`}>
+                      {t(item.sectionTKey)}
+                    </p>
+                  )}
+                  <Link href={item.href} onClick={onMobileClose}
+                    className={`flex items-center px-4 py-3 mx-2 rounded-xl transition-all text-[15px] font-sans ${
+                      isActive ? 'bg-dp2-gold text-slate-900 font-bold' : 'text-white/80 hover:bg-dp2-primary-dark hover:text-white'
+                    }`}>
+                    <Icon size={18} className="me-3 shrink-0" />
+                    <span className="min-w-0 truncate">{item.tKey ? t(item.tKey, item.label) : item.label}</span>
+                    {count > 0 ? (
+                      <span className="ms-auto shrink-0 bg-red-600 text-white text-[12px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center" aria-label={`${count} new`}>
+                        {count > 99 ? '99+' : count}
+                      </span>
+                    ) : liveCount != null && (
+                      <span className={`ms-auto shrink-0 text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center ltr-num ${isActive ? 'bg-slate-900/10 text-slate-900' : 'bg-white/15 text-white/80'}`}>
+                        {liveCount}
+                      </span>
+                    )}
+                  </Link>
+                </div>
+              )
+            })}
+          </>
+        ) : visibleMenuItems.map((entry) => {
           if (isGroup(entry)) {
             const GroupIcon = entry.icon
             const expanded = openGroup === entry.groupKey

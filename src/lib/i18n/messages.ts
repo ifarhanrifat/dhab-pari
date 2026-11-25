@@ -854,6 +854,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'nav.settings': 'Settings',
     'nav.logout': 'Log Out',
     'nav.backToWebsite': 'Back to Website',
+    'nav.backToPortalMenu': 'Back to Portal Menu',
 
     // ── Portal navigation ────────────────────────────────────────────────
     'portal.dashboard': 'Dashboard',
@@ -7199,6 +7200,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'nav.settings': 'ترتیبات',
     'nav.logout': 'لاگ آؤٹ',
     'nav.backToWebsite': 'ویب سائٹ پر واپس',
+    'nav.backToPortalMenu': 'پورٹل مینو پر واپس',
 
     // ── Portal navigation ────────────────────────────────────────────────
     'portal.dashboard': 'ڈیش بورڈ',

@@ -23,8 +23,17 @@ import { MobilityHeader } from '@/components/mobility/MobilityHeader'
 function Chrome({ children }: { children: React.ReactNode }) {
   const { isUrdu } = useLocale()
   return (
-    <div className="min-h-[calc(100vh-1px)] bg-[#e5e2d0] sm:py-5 -m-4 sm:-m-6 md:-m-10">
-      <div dir={isUrdu ? 'rtl' : 'ltr'} className="sm:max-w-[460px] md:max-w-none bg-[#F9F9F6] min-h-[calc(100vh-1px)] sm:min-h-[calc(100vh-40px)] sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,.35)]">
+    // 2026-11-25: desktop-only de-"floating card" pass — below md this
+    // is untouched (the tan backdrop + shadowed white card reads fine
+    // as a phone-width screen); at md+ the same frame just got wider,
+    // which on a real desktop monitor reads as an oversized app
+    // screenshot rather than a real desktop page (the one thing every
+    // real fleet-ops console — SAFAR included — never does). At md+ the
+    // tan backdrop, shadow and edge-to-edge negative margins are
+    // dropped so fleet content sits flush inside the dashboard's own
+    // sidebar+padding chrome, same as every other admin page in the app.
+    <div className="min-h-[calc(100vh-1px)] md:min-h-0 bg-[#e5e2d0] md:bg-transparent sm:py-5 md:py-0 -m-4 sm:-m-6 md:m-0">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="sm:max-w-[460px] md:max-w-none bg-[#F9F9F6] md:bg-transparent min-h-[calc(100vh-1px)] sm:min-h-[calc(100vh-40px)] md:min-h-0 sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,.35)] md:shadow-none">
         <MobilityHeader />
         {/* 2026-11-17: real complaint, confirmed against the SAFAR
             mockup directly — it has no bottom tab bar at all, just the
@@ -37,7 +46,7 @@ function Chrome({ children }: { children: React.ReactNode }) {
             second, narrower nav instead of maintaining two competing
             ones; pb reduced since content no longer needs to clear a
             bottom nav bar. */}
-        <div className="p-3.5 pb-8">{children}</div>
+        <div className="p-3.5 pb-8 md:p-0 md:pt-5">{children}</div>
       </div>
     </div>
   )

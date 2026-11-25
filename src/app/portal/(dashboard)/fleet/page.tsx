@@ -384,7 +384,7 @@ export default function FleetDashboardPage() {
           already-built FleetStat shell (icon chip, uppercase label,
           big value, muted footnote), just the right 4 metrics now. */}
       {stats && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <FleetStat label={t('mv.statActiveBusesLabel')} icon={<Bus size={12} />}
             value={<>{onRoadCount}<span className="text-[13px] font-semibold text-[#94a3b8]">/{totalFleetCount} {t('mv.fleetSuffix')}</span></>}
             foot={delayedCount > 0 ? t('mv.delayedCountFoot').replace('{n}', String(delayedCount)) : t('mv.allOnTimeFoot')} />
