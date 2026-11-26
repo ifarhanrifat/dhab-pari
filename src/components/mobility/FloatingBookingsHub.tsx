@@ -293,7 +293,7 @@ export function FloatingBookingsHub() {
       // at destination," was never actually implemented). Added the
       // dropped_off_at filter so the item disappears the moment the
       // trip is actually over, not at midnight.
-      supabase.from('ride_bookings').select('id, route_id, seats, travel_date, total_amount_pkr, created_at, ticket_no, seat_accepted_at, boarded_at, dropped_off_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time, vehicle_id, vehicles(commission_mode)), adda_queue_entries(addas(name, name_ur))').eq('portal_user_id', user!.id).in('status', ['announced', 'confirmed']).is('dropped_off_at', null).gte('travel_date', new Date().toISOString().slice(0, 10)),
+      supabase.from('ride_bookings').select('id, route_id, seats, travel_date, total_amount_pkr, created_at, ticket_no, seat_accepted_at, boarded_at, dropped_off_at, direction, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time, return_departure_time, vehicle_id, vehicles(commission_mode)), adda_queue_entries(addas(name, name_ur))').eq('portal_user_id', user!.id).in('status', ['announced', 'confirmed']).is('dropped_off_at', null).gte('travel_date', new Date().toISOString().slice(0, 10)),
       supabase.from('ride_dispatch_requests').select('id, pickup_label, dropoff_label, fare_pkr, created_at').eq('initiator_portal_user_id', user!.id).eq('status', 'open'),
       supabase.rpc('my_city_purchase_requests'),
       supabase.rpc('my_parcel_deliveries'),
@@ -532,7 +532,8 @@ export function FloatingBookingsHub() {
     const seatRows = (seats.data ?? []) as unknown as {
       id: string; route_id: string | null; seats: number; travel_date: string; total_amount_pkr: number; created_at: string
       ticket_no: string | null; seat_accepted_at: string | null; boarded_at: string | null; dropped_off_at: string | null
-      vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null; vehicle_id: string; vehicles: { commission_mode: string } | null } | null
+      direction: 'outbound' | 'return'
+      vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null; return_departure_time: string | null; vehicle_id: string; vehicles: { commission_mode: string } | null } | null
       adda_queue_entries: { addas: { name: string; name_ur: string | null } | null } | null
     }[]
     // Real ask, 2026-11-06: "when rider click on the floating button
@@ -544,8 +545,15 @@ export function FloatingBookingsHub() {
     type DelayInfo = { delay_minutes: number; note: string | null; auto_detected: boolean; pre_departure: boolean }
     const [activeRunRouteIds, delayByRoute] = seatRouteIds.length > 0
       ? await Promise.all([
-          supabase.from('route_runs').select('route_id').in('route_id', seatRouteIds).is('ended_at', null)
-            .then(({ data }) => new Set((data ?? []).map((r) => r.route_id))),
+          // 2026-11-27: real bug found live — this used to mark EVERY
+          // booking on a route "live" the moment any run was active,
+          // regardless of direction, so a rider's still-pending RETURN
+          // booking would jump straight to the live group panel the
+          // instant the unrelated OUTBOUND run started. Keyed by
+          // `routeId:direction` now — a booking only counts as live once
+          // a run of its OWN direction is actually active.
+          supabase.from('route_runs').select('route_id, direction').in('route_id', seatRouteIds).is('ended_at', null)
+            .then(({ data }) => new Set((data ?? []).map((r) => `${r.route_id}:${r.direction}`))),
           // Real gap found live 2026-11-26: auto-delay detection (956-958)
           // writes a real row here the moment a run falls behind, but
           // nothing on the rider's own floating button ever read it — the
@@ -569,12 +577,28 @@ export function FloatingBookingsHub() {
     for (const b of seatRows) {
       const r = b.vehicle_routes
       const adda = b.adda_queue_entries?.addas
-      const title = r ? `${nm(r.origin, r.origin_ur)} → ${nm(r.destination, r.destination_ur)}` : nm(adda?.name, adda?.name_ur)
+      // 2026-11-27: real bug found live — a 'return' booking (made via
+      // book_standalone_return_seat/OwnReturnLegSheet, wired into plain
+      // one-way search just this session) was always shown using the
+      // route's FORWARD origin/destination/departure_time, regardless
+      // of which direction was actually booked. A rider who booked
+      // Karachi→Peshawar (the return leg of a Peshawar→Karachi route)
+      // saw "Peshawar → Karachi" and a departure time that had nothing
+      // to do with their actual booking — including being judged
+      // "departed" against a clock time that was never theirs to begin
+      // with. Effective fields resolve per booking's own direction.
+      const isReturnLeg = b.direction === 'return'
+      const effOrigin = r ? (isReturnLeg ? r.destination : r.origin) : null
+      const effOriginUr = r ? (isReturnLeg ? r.destination_ur : r.origin_ur) : null
+      const effDestination = r ? (isReturnLeg ? r.origin : r.destination) : null
+      const effDestinationUr = r ? (isReturnLeg ? r.origin_ur : r.destination_ur) : null
+      const effDepartureTime = r ? (isReturnLeg ? r.return_departure_time : r.departure_time) : null
+      const title = r ? `${nm(effOrigin!, effOriginUr)} → ${nm(effDestination!, effDestinationUr)}` : nm(adda?.name, adda?.name_ur)
       // A fixed route has a real scheduled clock time to count down to; an
       // adda (turn-based queue) has no fixed departure, so it keeps its
       // plain "waiting" status instead of a fabricated countdown.
-      const countdownTarget = r?.departure_time ? new Date(`${b.travel_date}T${r.departure_time}+05:00`).getTime() : undefined
-      const isLive = !!b.route_id && activeRunRouteIds.has(b.route_id)
+      const countdownTarget = effDepartureTime ? new Date(`${b.travel_date}T${effDepartureTime}+05:00`).getTime() : undefined
+      const isLive = !!b.route_id && activeRunRouteIds.has(`${b.route_id}:${b.direction}`)
       const delayInfo = b.route_id ? delayByRoute.get(b.route_id) : undefined
       const delayMin = delayInfo?.delay_minutes
       // Real gap found live 2026-11-26: boarding (boarded_at) changed
@@ -600,14 +624,14 @@ export function FloatingBookingsHub() {
       // older popup; an adda booking (no route_id at all) keeps the
       // existing waiting-sheet pattern.
       out.push({ key: `s-${b.id}`, role: 'rider', emoji: '🚌', label: `${t('rq.kind.route')} · ${title}`, state: isLive ? 'ongoing' : 'waiting', since: b.created_at, countdownTarget: isLive ? undefined : countdownTarget,
-        dateLabel: formatSeatDate(b.travel_date, r?.departure_time ?? null), warningLabel, warningTone,
+        dateLabel: formatSeatDate(b.travel_date, effDepartureTime), warningLabel, warningTone,
         ...(isLive && b.route_id
           ? { routeGroupId: b.route_id }
           : b.route_id && b.ticket_no && r
           ? { ticketInfo: {
               bookingId: b.id, vehicleId: r.vehicle_id, ticketNo: b.ticket_no,
-              origin: nm(r.origin, r.origin_ur), destination: nm(r.destination, r.destination_ur),
-              travelDate: b.travel_date, departureTime: r.departure_time, seats: b.seats, amountPkr: b.total_amount_pkr,
+              origin: nm(effOrigin!, effOriginUr), destination: nm(effDestination!, effDestinationUr),
+              travelDate: b.travel_date, departureTime: effDepartureTime, seats: b.seats, amountPkr: b.total_amount_pkr,
               paymentConfirmed: !!b.seat_accepted_at, isPerOrder: r.vehicles?.commission_mode === 'per_order',
               // 2026-11-26 (968): the ticket used to render identically
               // whether a trip was untouched, boarded, completed, or

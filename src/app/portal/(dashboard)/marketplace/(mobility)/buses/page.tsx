@@ -412,6 +412,24 @@ export default function BusesPage() {
   // exists once a leg is actually being searched (departDate/
   // returnDate); before that, which days it runs IS the real fact to
   // show, just condensed to one line instead of 7 circles.
+  // Real bug reported live, 2026-11-27: a result whose scheduled
+  // departure for TODAY has already passed still rendered as a plain,
+  // normal, bookable listing — no visual difference from one departing
+  // in two hours. (Whether it's genuinely safe to still book a route
+  // whose time passed with no run ever started is the separate ghost-
+  // departure detector's job, server-side, once a seat is actually
+  // placed — this is purely "don't present a stale time slot as if
+  // it were a fresh one.") Deliberately only applies to a real picked
+  // date (legTab set) matching today — a recurring weekly route being
+  // browsed with no date chosen yet isn't "departed," it just hasn't
+  // been asked about for a specific day.
+  const hasDepartedToday = (date: string | undefined, timeStr: string | null) => {
+    if (!date || !timeStr) return false
+    if (date !== new Date().toISOString().slice(0, 10)) return false
+    const [h, m] = timeStr.split(':').map(Number)
+    const target = new Date(); target.setHours(h, m, 0, 0)
+    return Date.now() > target.getTime()
+  }
   const scheduleOrDateLine = (r: RouteRow, legTab?: 'departure' | 'return') => {
     if (legTab) {
       const d = legTab === 'return' ? returnDate : departDate
@@ -424,9 +442,15 @@ export default function BusesPage() {
     return <span className="flex items-center gap-1"><CalendarDays size={11} /> {days.map((d) => t(`bus.dayShort.${short[d]}`)).join(', ')}</span>
   }
   const renderRoute = (r: RouteRow, legTab?: 'departure' | 'return', isBestChoice?: boolean) => {
+    const departed = legTab && hasDepartedToday(legTab === 'return' ? returnDate : departDate, r.departure_time)
     return (
-      <div key={r.id} role="button" tabIndex={0} onClick={() => openRoute(r, legTab)} className="relative rounded-2xl bg-white border border-[#e5e7eb] shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
-        {isBestChoice && bestChoiceRibbon}
+      <div key={r.id} role="button" tabIndex={0} onClick={() => openRoute(r, legTab)} className={`relative rounded-2xl border shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer ${departed ? 'bg-[#f1f5f9] border-[#e2e8f0] grayscale-[0.6] opacity-70' : 'bg-white border-[#e5e7eb]'}`}>
+        {isBestChoice && !departed && bestChoiceRibbon}
+        {departed && (
+          <span className="absolute -top-2.5 start-3 inline-flex items-center gap-1 bg-[#94a3b8] text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+            {t('bus.departedBadge')}
+          </span>
+        )}
         {thumbnail(r.service_logo_url, r.vehicles?.vehicle_type)}
         <div className="min-w-0 flex-1">
           <p className="font-sans text-[14px] font-bold text-[#0f172a] flex items-center gap-1.5">
@@ -441,6 +465,7 @@ export default function BusesPage() {
             {r.route_duration_min != null && <span className="ltr-num">{Math.round(r.route_duration_min)} {t('bus.durationUnit')}</span>}
             {scheduleOrDateLine(r, legTab)}
           </div>
+          {departed && <p className="font-sans text-[10.5px] font-semibold text-[#b91c1c] mt-1">{t('bus.departedHint')}</p>}
         </div>
         <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
           {r.is_monthly_fixed ? (
@@ -451,7 +476,7 @@ export default function BusesPage() {
           ) : (
             <>
               {r.fare_per_seat_pkr != null && <p className="font-sans text-[16px] font-black text-[#14532d] ltr-num">₨{fmt(r.fare_per_seat_pkr)}</p>}
-              <span className="inline-flex items-center gap-0.5 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[11.5px] font-bold">{t('bus.book')} <ChevronRight size={12} className="rtl:rotate-180" /></span>
+              <span className={`inline-flex items-center gap-0.5 h-8 px-3 rounded-full font-sans text-[11.5px] font-bold ${departed ? 'bg-[#94a3b8] text-white' : 'bg-[#15803d] text-white'}`}>{t('bus.book')} <ChevronRight size={12} className="rtl:rotate-180" /></span>
             </>
           )}
         </div>
@@ -467,9 +492,16 @@ export default function BusesPage() {
   // badge (there's nothing to compare against here — this IS the
   // two-way badge's own other half).
   const renderOwnReturnLeg = (r: RouteRow, isBestChoice?: boolean, legTab?: 'departure' | 'return') => {
+    const effDate = (legTab ?? 'return') === 'return' ? returnDate : departDate
+    const departed = hasDepartedToday(effDate, r.return_departure_time)
     return (
-      <div key={r.id} role="button" tabIndex={0} onClick={() => { setOwnReturnLegRouteId(r.id); setOwnReturnLegDate((legTab ?? 'return') === 'return' ? returnDate : departDate); setBookingLegTab(legTab ?? 'return') }} className="relative rounded-2xl bg-white border border-[#e5e7eb] shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
-        {isBestChoice && bestChoiceRibbon}
+      <div key={r.id} role="button" tabIndex={0} onClick={() => { setOwnReturnLegRouteId(r.id); setOwnReturnLegDate(effDate); setBookingLegTab(legTab ?? 'return') }} className={`relative rounded-2xl border shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer ${departed ? 'bg-[#f1f5f9] border-[#e2e8f0] grayscale-[0.6] opacity-70' : 'bg-white border-[#e5e7eb]'}`}>
+        {isBestChoice && !departed && bestChoiceRibbon}
+        {departed && (
+          <span className="absolute -top-2.5 start-3 inline-flex items-center gap-1 bg-[#94a3b8] text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+            {t('bus.departedBadge')}
+          </span>
+        )}
         {thumbnail(r.service_logo_url, r.vehicles?.vehicle_type)}
         <div className="min-w-0 flex-1">
           <p className="font-sans text-[14px] font-bold text-[#0f172a] flex items-center gap-1.5">
@@ -484,10 +516,11 @@ export default function BusesPage() {
             {r.route_duration_min != null && <span className="ltr-num">{Math.round(r.route_duration_min)} {t('bus.durationUnit')}</span>}
             {scheduleOrDateLine(r, legTab ?? 'return')}
           </div>
+          {departed && <p className="font-sans text-[10.5px] font-semibold text-[#b91c1c] mt-1">{t('bus.departedHint')}</p>}
         </div>
         <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
           {r.fare_per_seat_pkr != null && <p className="font-sans text-[16px] font-black text-[#14532d] ltr-num">₨{fmt(r.fare_per_seat_pkr)}</p>}
-          <span className="inline-flex items-center gap-0.5 h-8 px-3 rounded-full bg-[#15803d] text-white font-sans text-[11.5px] font-bold">{t('bus.book')} <ChevronRight size={12} className="rtl:rotate-180" /></span>
+          <span className={`inline-flex items-center gap-0.5 h-8 px-3 rounded-full font-sans text-[11.5px] font-bold ${departed ? 'bg-[#94a3b8] text-white' : 'bg-[#15803d] text-white'}`}>{t('bus.book')} <ChevronRight size={12} className="rtl:rotate-180" /></span>
         </div>
       </div>
     )
