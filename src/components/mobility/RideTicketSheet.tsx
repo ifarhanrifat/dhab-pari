@@ -30,6 +30,7 @@ import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { FleetStatusPill } from '@/components/portal/FleetPanel'
 
 export interface RideTicketInfo {
   bookingId: string
@@ -139,7 +140,7 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
 
         <div className="px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-3.5">
           <div className="flex flex-col items-center gap-2">
-            {qr && <img src={qr} alt="QR" width={140} height={140} className="rounded-lg border border-[#e8eaee]" />}
+            {qr && <img src={qr} alt="QR" width={140} height={140} className="rounded-lg border border-[#e5e2d0]" />}
             <p className="font-mono text-[20px] font-bold tracking-wide ltr-num">{info.ticketNo}</p>
           </div>
 
@@ -176,43 +177,43 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
           )}
 
           {!info.droppedOffAt && (
-            <span className={`self-center font-sans text-[11px] font-bold uppercase tracking-[0.05em] px-3 py-1 rounded-full ${info.boardedAt || info.paymentConfirmed || submitted ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+            <FleetStatusPill tone={info.boardedAt || info.paymentConfirmed || submitted ? 'green' : 'amber'} className="self-center uppercase tracking-[0.05em]">
               {info.boardedAt ? t('mv.youAreOnBoard') : info.paymentConfirmed ? t('mv.seatConfirmedInGroupNote') : submitted ? t('rw.paymentProofSentHint') : t('mv.seatPendingDriverNote')}
-            </span>
+            </FleetStatusPill>
           )}
 
-          <div className="rounded-2xl border border-[#e8eaee] p-3.5 grid grid-cols-2 gap-2.5 text-[12.5px]">
+          <div className="rounded-2xl border border-[#e5e2d0] p-3.5 grid grid-cols-2 gap-2.5 text-[12.5px]">
             <div className="col-span-2"><p className="text-[#64748b] text-[10.5px]">{t('mv.fromToLabel')}</p><p className="font-semibold">{info.boardLabel ?? info.origin} → {info.destination}</p></div>
             <div><p className="text-[#64748b] text-[10.5px]">{t('mv.travelDateLabel')}</p><p className="font-semibold ltr-num">{info.travelDate}</p></div>
             <div><p className="text-[#64748b] text-[10.5px]">{t('mk.seatsLabel')}</p><p className="font-semibold ltr-num">{info.seats}{info.seatNumbers?.length ? ` (#${info.seatNumbers.join(', ')})` : ''}</p></div>
 
-            <div className="col-span-2 flex items-center justify-between pt-2 mt-1 border-t border-[#e8eaee]">
+            <div className="col-span-2 flex items-center justify-between pt-2 mt-1 border-t border-[#e5e2d0]">
               <p className="font-sans text-[12.5px] font-bold text-[#0f172a]">{t('mp.cartTotal')}</p>
               <p className="font-sans text-[15px] font-extrabold text-[#166534] ltr-num">₨{fmt(info.amountPkr)}</p>
             </div>
           </div>
 
           {!info.paymentConfirmed && !submitted && !info.boardedAt && !info.droppedOffAt && (
-            <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3.5 flex flex-col gap-2.5">
-              <p className="font-sans text-[12px] text-amber-800">{t('mv.seatNeedsDriverConfirmNote')}</p>
+            <div className="rounded-2xl bg-[#FFFBEB] border border-[#fde68a] p-3.5 flex flex-col gap-2.5">
+              <p className="font-sans text-[12px] text-[#92400e]">{t('mv.seatNeedsDriverConfirmNote')}</p>
               {info.isPerOrder ? (
-                <p className="font-sans text-[11.5px] text-amber-900 bg-white/60 rounded-lg px-2.5 py-2">{t('cm.payDirectlyNote')}</p>
+                <p className="font-sans text-[11.5px] text-[#92400e] bg-white/60 rounded-lg px-2.5 py-2">{t('cm.payDirectlyNote')}</p>
               ) : !showPay ? (
-                <button onClick={openPay} className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-700 text-white font-sans text-[12.5px] font-bold cursor-pointer">
+                <button onClick={openPay} className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#b45309] text-white font-sans text-[12.5px] font-bold cursor-pointer">
                   <CreditCard size={14} /> {t('rw.payNowToConfirmBtn')}
                 </button>
               ) : (
                 <div className="flex flex-col gap-2.5">
                   {!payInfo ? (
-                    <p className="font-sans text-[12px] text-amber-800">{t('action.loading')}</p>
+                    <p className="font-sans text-[12px] text-[#92400e]">{t('action.loading')}</p>
                   ) : !payInfo.has_payment_info ? (
-                    <p className="font-sans text-[12px] text-amber-900">{t('mv.noPaymentInfoYetHint')}</p>
+                    <p className="font-sans text-[12px] text-[#92400e]">{t('mv.noPaymentInfoYetHint')}</p>
                   ) : (
-                    <div className="bg-white rounded-xl border border-amber-200 p-3 flex items-center gap-2.5">
+                    <div className="bg-white rounded-xl border border-[#fde68a] p-3 flex items-center gap-2.5">
                       {payInfo.logo_url ? (
                         <img src={payInfo.logo_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
                       ) : (
-                        <span className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center shrink-0"><Landmark size={16} className="text-amber-700" /></span>
+                        <span className="w-10 h-10 rounded-lg bg-[#FFFBEB] flex items-center justify-center shrink-0"><Landmark size={16} className="text-[#b45309]" /></span>
                       )}
                       <div className="min-w-0 flex-1 flex flex-col gap-0.5">
                         <p className="font-sans text-[12.5px] font-bold text-[#1e293b] truncate"><bdi>{payInfo.service_name}</bdi></p>

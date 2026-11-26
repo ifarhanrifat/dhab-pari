@@ -26,6 +26,7 @@ import { haversineKm } from '@/lib/roadRoute'
 import { isStale, minutesSince } from '@/lib/liveStaleness'
 import { MobilityBottomSheet } from '@/components/mobility/MobilityBottomSheet'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { FleetStatusPill } from '@/components/portal/FleetPanel'
 import type { LeafletMapHandle, MapPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -527,14 +528,14 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
           )}
 
           {detail.can_run_ride && showRoster && (
-            <div className="flex flex-col gap-1.5 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
-              <p className="font-sans text-[11.5px] font-bold text-amber-900">{t('mv.takeAttendanceLabel')}</p>
+            <div className="flex flex-col gap-1.5 bg-[#FFFBEB] border border-[#fde68a] rounded-xl p-2.5">
+              <p className="font-sans text-[11.5px] font-bold text-[#92400e]">{t('mv.takeAttendanceLabel')}</p>
               {(detail.roster_today ?? []).map((r) => (
                 <label key={r.subscription_id} className="flex items-center gap-2 font-sans text-[12.5px] text-[#1e293b] cursor-pointer">
                   <input type="checkbox" checked={rosterChecks[r.subscription_id] ?? true}
                     onChange={(e) => setRosterChecks((rows) => ({ ...rows, [r.subscription_id]: e.target.checked }))} />
                   {r.name}
-                  {r.on_leave_today && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">{t('mv.onLeaveTodayTag')}</span>}
+                  {r.on_leave_today && <FleetStatusPill tone="amber">{t('mv.onLeaveTodayTag')}</FleetStatusPill>}
                 </label>
               ))}
               {unboardedAdHoc.map((b) => (
@@ -542,17 +543,17 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
                   <input type="checkbox" checked={adHocChecks[b.id] ?? !b.board_stop_id}
                     onChange={(e) => setAdHocChecks((rows) => ({ ...rows, [b.id]: e.target.checked }))} />
                   {b.name}{b.seats > 1 ? ` (${b.seats})` : ''}
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800">{t('mv.oneOffRiderTag')}</span>
+                  <FleetStatusPill tone="blue">{t('mv.oneOffRiderTag')}</FleetStatusPill>
                   {b.board_stop_id && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 truncate">📍 {stopLabel(b.board_stop_id)}</span>
+                    <FleetStatusPill tone="amber" className="truncate">📍 {stopLabel(b.board_stop_id)}</FleetStatusPill>
                   )}
                 </label>
               ))}
               {unboardedAdHoc.some((b) => b.board_stop_id) && (
-                <p className="font-sans text-[10.5px] text-amber-700">{t('mv.stopRidersBoardLaterHint')}</p>
+                <p className="font-sans text-[10.5px] text-[#92400e]">{t('mv.stopRidersBoardLaterHint')}</p>
               )}
               {stakeInfo?.applies && (
-                <p className={`font-sans text-[10.5px] rounded-lg px-2 py-1 ${stakeInfo.can_afford ? 'bg-white text-[#64748b]' : 'bg-rose-50 text-rose-700 font-semibold'}`}>
+                <p className={`font-sans text-[10.5px] rounded-lg px-2 py-1 ${stakeInfo.can_afford ? 'bg-white text-[#64748b]' : 'bg-[#FEF2F2] text-[#b91c1c] font-semibold'}`}>
                   {t('mv.startingStakeNote').replace('{stake}', String(stakeInfo.stake_pkr)).replace('{balance}', String(Math.round(stakeInfo.balance_pkr)))}
                 </p>
               )}
@@ -567,7 +568,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
             </div>
           )}
           {detail.can_run_ride && !showRoster && !detail.active_run && stakeInfo?.applies && (
-            <p className={`font-sans text-[10.5px] rounded-lg px-2.5 py-1.5 ${stakeInfo.can_afford ? 'bg-[#F9F9F6] text-[#64748b]' : 'bg-rose-50 text-rose-700 font-semibold'}`}>
+            <p className={`font-sans text-[10.5px] rounded-lg px-2.5 py-1.5 ${stakeInfo.can_afford ? 'bg-[#F9F9F6] text-[#64748b]' : 'bg-[#FEF2F2] text-[#b91c1c] font-semibold'}`}>
               {t('mv.startingStakeNote').replace('{stake}', String(stakeInfo.stake_pkr)).replace('{balance}', String(Math.round(stakeInfo.balance_pkr)))}
             </p>
           )}
@@ -579,8 +580,8 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               declines it. Shown regardless of active_run/showRoster so
               a driver can clear these without having to start a run. */}
           {detail.is_owner && (detail.pending_seat_requests.length > 0 || detail.pending_monthly_applications.length > 0) && (
-            <div className="flex flex-col gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
-              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-amber-900">{t('mv.pendingRequestsHeading')}</p>
+            <div className="flex flex-col gap-2 bg-[#FFFBEB] border border-[#fde68a] rounded-xl p-2.5">
+              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-[#92400e]">{t('mv.pendingRequestsHeading')}</p>
               {/* Real ask, 2026-11-24 — live: "where is the ticket number?
                   ... these two seats are from two different dates, what
                   does that mean?" Every row here is, by this list's own
@@ -611,7 +612,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-sans text-[11px] text-[#64748b]">
                       {r.announced_method ? `${t('w.paymentMethod')}: ${r.announced_method}` : ''}
-                      {r.announced_proof_url && <a href={r.announced_proof_url} target="_blank" rel="noopener noreferrer" className="ms-1.5 font-bold text-sky-700 underline">{t('mv.viewReceiptLink')}</a>}
+                      {r.announced_proof_url && <a href={r.announced_proof_url} target="_blank" rel="noopener noreferrer" className="ms-1.5 font-bold text-[#1d4ed8] underline">{t('mv.viewReceiptLink')}</a>}
                     </span>
                     <div className="shrink-0 flex items-center gap-1.5">
                       <button type="button" onClick={() => declineSeatRequest(r.id)} disabled={seatActionId === r.id} className="px-2.5 py-1 rounded-lg text-[11px] font-sans font-bold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.rejectBtn')}</button>
@@ -624,15 +625,15 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
                 <div key={a.id} className="flex flex-col gap-1 rounded-lg bg-white px-2.5 py-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-sans text-[12.5px] font-semibold text-[#1e293b] truncate">
-                      {a.name} <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{t('mv.monthlyFixedBadge')}</span>
-                      {a.stop_label && <span className="text-[10.5px] text-amber-700 font-semibold"> · 📍 {a.stop_label}</span>}
+                      {a.name} <FleetStatusPill tone="green">{t('mv.monthlyFixedBadge')}</FleetStatusPill>
+                      {a.stop_label && <span className="text-[10.5px] text-[#92400e] font-semibold"> · 📍 {a.stop_label}</span>}
                     </span>
                     <span className="shrink-0 font-sans text-[12.5px] font-bold text-[#166534] ltr-num">₨{Number(a.monthly_fee_pkr).toLocaleString()}/mo</span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-sans text-[11px] text-[#64748b]">
                       {a.deposit_pkr != null && a.deposit_pkr > 0 ? `${t('mv.advanceDueLabel')}: ₨${Number(a.deposit_pkr).toLocaleString()}` : ''}
-                      {a.proof_url && <a href={a.proof_url} target="_blank" rel="noopener noreferrer" className="ms-1.5 font-bold text-sky-700 underline">{t('mv.viewReceiptLink')}</a>}
+                      {a.proof_url && <a href={a.proof_url} target="_blank" rel="noopener noreferrer" className="ms-1.5 font-bold text-[#1d4ed8] underline">{t('mv.viewReceiptLink')}</a>}
                     </span>
                     <div className="shrink-0 flex items-center gap-1.5">
                       <button type="button" onClick={() => declineMonthlyApplication(a.id)} disabled={monthlyActionId === a.id} className="px-2.5 py-1 rounded-lg text-[11px] font-sans font-bold cursor-pointer border border-[#e5e2d0] text-[#b91c1c] disabled:opacity-50">{t('mp.rejectBtn')}</button>
@@ -653,16 +654,16 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-[#64748b]">{t('mv.todaysBookingsHeading')}</p>
               {detail.roster_today.map((r) => (
                 <p key={r.subscription_id} className="font-sans text-[12px] text-[#1e293b] flex items-center gap-1.5">
-                  <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{t('mv.monthlyFixedBadge')}</span>
+                  <FleetStatusPill tone="green" className="shrink-0">{t('mv.monthlyFixedBadge')}</FleetStatusPill>
                   {r.name}
                 </p>
               ))}
               {adHocBookings.map((b) => (
                 <p key={b.id} className="font-sans text-[12px] text-[#1e293b] flex items-center gap-1.5 flex-wrap">
-                  <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800">{t('mv.oneOffRiderTag')}</span>
-                  {!b.seat_accepted_at && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">{t('mp.awaitingStatus')}</span>}
+                  <FleetStatusPill tone="blue" className="shrink-0">{t('mv.oneOffRiderTag')}</FleetStatusPill>
+                  {!b.seat_accepted_at && <FleetStatusPill tone="amber" className="shrink-0">{t('mp.awaitingStatus')}</FleetStatusPill>}
                   {b.name}{b.seats > 1 ? ` (${b.seats})` : ''}
-                  {b.board_stop_id && <span className="text-[10.5px] text-amber-700 font-semibold">📍 {stopLabel(b.board_stop_id)}</span>}
+                  {b.board_stop_id && <span className="text-[10.5px] text-[#92400e] font-semibold">📍 {stopLabel(b.board_stop_id)}</span>}
                 </p>
               ))}
             </div>
@@ -700,7 +701,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               now" status already existed for riders, just never for the
               one person who most needs to know their own tap registered. */}
           {detail.active_run && (
-            <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
+            <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-[#166534] bg-[#F0FDF4] rounded-lg px-2.5 py-1.5">
               <Radio size={12} className="animate-pulse" /> {detail.active_run.direction === 'return' ? t('mv.rideLiveReturnLabel') : t('mv.rideLiveNowLabel')}
             </p>
           )}
@@ -711,15 +712,15 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               this is where the driver actually boards them, with the
               stop name and a live ETA right there, while the run is on. */}
           {detail.can_run_ride && detail.active_run?.direction === 'outbound' && unboardedAdHoc.length > 0 && (
-            <div className="flex flex-col gap-1 bg-sky-50 border border-sky-200 rounded-xl p-2.5">
-              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-sky-900">{t('mv.stillBoardingHeading')}</p>
+            <div className="flex flex-col gap-1 bg-[#EFF6FF] border border-[#bfdbfe] rounded-xl p-2.5">
+              <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-[#1d4ed8]">{t('mv.stillBoardingHeading')}</p>
               {unboardedAdHoc.map((b) => {
                 const eta = b.board_stop_id ? mapData?.etas[b.board_stop_id] : undefined
                 return (
                   <div key={b.id} className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5">
                     <span className="min-w-0 flex-1">
                       <span className="font-sans text-[12px] font-semibold text-[#1e293b] block truncate">{b.name}{b.seats > 1 ? ` (${b.seats})` : ''}</span>
-                      <span className="font-sans text-[10.5px] text-sky-700 block truncate">
+                      <span className="font-sans text-[10.5px] text-[#1d4ed8] block truncate">
                         {b.is_mid_route_catch ? (
                           <>🙋 {t('mv.tryingToCatchLabel')}{b.catch_updated_at && ` · ${t('mv.updatedMinAgoSuffix').replace('{n}', String(minutesAgoCount(b.catch_updated_at)))}`}</>
                         ) : (
@@ -745,7 +746,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
           )}
           {!detail.is_owner && !detail.active_run && detail.todays_runs.length === 0 && departurePassed && (
             <button type="button" onClick={nudgeDriver} disabled={nudging}
-              className="w-full py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer border border-amber-300 bg-amber-50 text-amber-800 disabled:opacity-50">
+              className="w-full py-2 rounded-xl text-[12.5px] font-sans font-bold cursor-pointer border border-[#fde68a] bg-[#FFFBEB] text-[#92400e] disabled:opacity-50">
               {nudging ? t('action.saving') : t('mv.nudgeDriverBtn')}
             </button>
           )}
@@ -801,7 +802,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer transition-all disabled:opacity-50 w-fit ${sharing ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>
             <Radio size={12} className={sharing ? 'animate-pulse' : ''} /> {t('mv.shareMyLocationLabel')}
           </button>
-          {sharing && geoError && <p className="font-sans text-[11px] text-amber-700">{geoError}</p>}
+          {sharing && geoError && <p className="font-sans text-[11px] text-[#92400e]">{geoError}</p>}
 
           {mapData && (mapData.pins.length > 0 ? (
             <div className="relative">
@@ -812,7 +813,7 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               </button>
             </div>
           ) : !sharing && (
-            <p className="font-sans text-[11.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-2 text-center">{t('mv.turnOnSharingNote')}</p>
+            <p className="font-sans text-[11.5px] text-[#92400e] bg-[#FFFBEB] border border-[#fde68a] rounded-xl px-2.5 py-2 text-center">{t('mv.turnOnSharingNote')}</p>
           ))}
 
           {mapData && mapData.orderedStops.length > 0 && (
