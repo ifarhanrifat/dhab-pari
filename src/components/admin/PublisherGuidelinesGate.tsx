@@ -62,7 +62,7 @@ export function PublisherGuidelinesGate() {
 
   return (
     <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg w-full max-w-2xl max-h-[92vh] flex flex-col">
+      <div className="bg-white rounded-lg w-full max-w-2xl max-h-[92vh] flex flex-col shadow-xl">
         <div className="px-6 py-4 border-b border-dp-outline-variant flex items-start gap-3">
           <ShieldAlert size={24} className="text-dp-primary shrink-0 mt-0.5" />
           <div>

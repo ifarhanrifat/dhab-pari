@@ -155,7 +155,7 @@ export default function PlatformPlansPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-sans text-[18px] font-bold text-dp-on-surface">{editingId ? 'Edit Plan' : 'New Plan'}</h2>
               <button onClick={() => setShowModal(false)} className="text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><X size={20} /></button>

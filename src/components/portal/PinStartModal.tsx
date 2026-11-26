@@ -23,7 +23,7 @@ export function PinStartModal({ onConfirm, onClose, busy }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-5 w-full max-w-xs" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'}>
+      <div className="bg-white rounded-2xl p-5 w-full max-w-xs shadow-xl" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'}>
         <h2 className="font-sans text-[15px] font-bold text-[#1e293b] mb-1.5">{t('vp.pinStartTitle')}</h2>
         <p className="font-sans text-[12.5px] text-[#64748b] mb-3">{t('vp.pinAskHint')}</p>
         <input

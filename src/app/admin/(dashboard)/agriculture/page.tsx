@@ -324,7 +324,7 @@ export default function AdminAgriculturePage() {
       {/* ── Scheme form modal ── */}
       {showSchemeForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowSchemeForm(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[22px] font-bold text-dp-primary">{editingScheme ? t('agh.editScheme') : t('agh.addScheme')}</h2><button onClick={() => setShowSchemeForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
               <input placeholder={t('ve.titleEn')} value={schemeForm.title} onChange={(e) => setSchemeForm({ ...schemeForm, title: e.target.value })} className="input-field" />

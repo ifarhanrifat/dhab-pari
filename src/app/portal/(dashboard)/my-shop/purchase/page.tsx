@@ -250,7 +250,7 @@ export default function PurchaseEntryPage() {
 
       {showSearch && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-start justify-center p-4 pt-16" onClick={() => setShowSearch(false)}>
-          <div className="bg-white p-4 w-full max-w-md max-h-[75vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-4 w-full max-w-md max-h-[75vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('sk.searchOwnCatalogPlaceholder')} className="input-field mb-3" />
             <div className="space-y-1">
               {filtered.map((p) => (

@@ -906,7 +906,7 @@ function MyShopPageInner() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[20px] font-bold" style={{ color: INK }}>{editing ? t('mk.editProductBtn') : t('mk.newProductBtn')}</h2>
               <button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button>
@@ -1094,7 +1094,7 @@ function MyShopPageInner() {
 
       {showHours && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowHours(false)}>
-          <div className="bg-white p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-heading text-[18px] font-bold flex items-center gap-1.5" style={{ color: INK }}><Clock size={18} /> {t('sk.shopHoursBtn')}</h2>
               <button onClick={() => setShowHours(false)} className="cursor-pointer"><X size={20} /></button>
@@ -1124,7 +1124,7 @@ function MyShopPageInner() {
 
       {showAiSettings && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowAiSettings(false)}>
-          <div className="bg-white p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-heading text-[20px] font-bold flex items-center gap-2" style={{ color: INK }}><KeyRound size={18} /> {t('sk.aiSettingsBtn')}</h2>
               <button onClick={() => setShowAiSettings(false)} className="cursor-pointer"><X size={20} /></button>
@@ -1142,7 +1142,7 @@ function MyShopPageInner() {
           villager would see. */}
       {showKits && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowKits(false)}>
-          <div className="bg-white p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[20px] font-bold flex items-center gap-2" style={{ color: INK }}><UtensilsCrossed size={18} /> {t('sk.kitsBtn')}</h2>
               <button onClick={() => setShowKits(false)} className="cursor-pointer"><X size={20} /></button>
@@ -1182,7 +1182,7 @@ function MyShopPageInner() {
           ever built from what this shop already carries). */}
       {showKitBuilder && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowKitBuilder(false)}>
-          <div className="bg-white p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[20px] font-bold" style={{ color: INK }}>{editingKit ? t('sk.editKitTitle') : t('sk.newKitBtn')}</h2>
               <button onClick={() => setShowKitBuilder(false)} className="cursor-pointer"><X size={20} /></button>
@@ -1246,7 +1246,7 @@ function MyShopPageInner() {
 
       {showDeals && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowDeals(false)}>
-          <div className="bg-white p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[20px] font-bold flex items-center gap-2" style={{ color: INK }}><Tag size={18} /> {t('sk.dealsBtn')}</h2>
               <button onClick={() => setShowDeals(false)} className="cursor-pointer"><X size={20} /></button>
@@ -1291,7 +1291,7 @@ function MyShopPageInner() {
           "S · deals" NEW DEAL card). */}
       {showDealBuilder && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowDealBuilder(false)}>
-          <div className="bg-white p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[20px] font-bold" style={{ color: INK }}>{editingDeal ? t('sk.editDealTitle') : t('sk.newDealBtn')}</h2>
               <button onClick={() => setShowDealBuilder(false)} className="cursor-pointer"><X size={20} /></button>

@@ -802,7 +802,7 @@ export default function EsalESawabPage() {
       {/* ── New / edit catalogue item ─────────────────────────────────── */}
       {(showNewItem || editingItem) && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => { setShowNewItem(false); setEditingItem(null) }}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{editingItem ? t('es.editItem') : t('es.addItem')}</h2>
               <button onClick={() => { setShowNewItem(false); setEditingItem(null) }} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>

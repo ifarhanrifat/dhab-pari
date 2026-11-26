@@ -27,7 +27,7 @@ export function FilterSheet({ open, title, onClose, onApply, applyLabel, childre
   return (
     <div className="fixed inset-0 bg-black/50 z-[130] flex items-end sm:items-center justify-center" onClick={onClose}>
       <div
-        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[88vh] flex flex-col animate-[slideUp_0.2s_ease-out]"
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[88vh] flex flex-col animate-[slideUp_0.2s_ease-out] shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-center relative px-4 py-4 border-b border-dp-outline-variant shrink-0">

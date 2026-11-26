@@ -220,7 +220,7 @@ export default function AdminSuggestionsPage() {
             app and works identically everywhere). */}
         {selected && (
           <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setSelected(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[400px] bg-white border border-dp-outline-variant rounded-lg p-6 max-h-[85vh] overflow-y-auto">
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[400px] bg-white border border-dp-outline-variant rounded-lg p-6 max-h-[85vh] overflow-y-auto shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <MessageSquare size={18} className="text-dp-primary" />

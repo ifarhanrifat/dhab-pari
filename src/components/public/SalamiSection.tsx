@@ -135,7 +135,7 @@ export function SalamiSection({ eventId }: { eventId: string }) {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-heading text-[15px] font-bold text-dp2-primary mb-4">{t('sl.announceBtn')} — {t(`sl.side.${showForm}`)}</h3>
             <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{t('sl.amount')}</label>
             <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="input-field mb-3" />

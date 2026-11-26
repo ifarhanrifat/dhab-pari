@@ -119,7 +119,7 @@ export default function AdminCivicReportsPage() {
 
       {editing && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setEditing(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-heading text-[20px] font-bold text-dp-primary">{editing.title}</h2>
               <button onClick={() => setEditing(null)} className="cursor-pointer"><X size={20} /></button>

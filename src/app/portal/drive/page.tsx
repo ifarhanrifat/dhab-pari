@@ -1023,7 +1023,7 @@ function DriveOperationsPageInner() {
               of the visible screen. `dvh` tracks the current visible
               viewport instead — the standard fix for this exact,
               well-known mobile-browser quirk. */}
-          <div className="rounded-t-2xl sm:rounded-2xl w-full sm:max-w-[420px] h-[97dvh] sm:h-[780px] overflow-hidden flex flex-col" style={{ background: '#f3f1e9' }} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-t-2xl sm:rounded-2xl w-full sm:max-w-[420px] h-[97dvh] sm:h-[780px] overflow-hidden flex flex-col shadow-2xl" style={{ background: '#f3f1e9' }} onClick={(e) => e.stopPropagation()}>
 
             {/* Topbar */}
             <div className="flex items-center gap-2.5 px-3.5 py-2.5 shrink-0" style={{ background: 'linear-gradient(180deg,#0f3d2e,#0b2e22)' }}>

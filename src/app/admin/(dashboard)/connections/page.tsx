@@ -570,7 +570,7 @@ export default function ConnectionsPage() {
       {/* ---------------- Request form ---------------- */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setShowForm(false)}>
-          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[92vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
               <h2 className="font-heading text-[19px] font-bold text-dp-primary">{editingRequestId ? t('cn.editRequest', 'Edit Connection Request') : t('cn.newRequest')}</h2>
               <button onClick={() => setShowForm(false)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>

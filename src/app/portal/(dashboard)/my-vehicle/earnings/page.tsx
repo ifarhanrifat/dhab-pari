@@ -334,7 +334,7 @@ export default function MyVehicleEarningsPage() {
 
       {selectedStatementRow && (
         <div className="fixed inset-0 bg-black/55 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setSelectedStatementRow(null)}>
-          <div className="bg-white w-full sm:max-w-[400px] rounded-t-[24px] sm:rounded-[24px] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white w-full sm:max-w-[400px] rounded-t-[24px] sm:rounded-[24px] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <p className="font-sans text-[15px] font-extrabold text-[#1e293b]">{t('mv.statementDetailTitle')}</p>
               <button onClick={() => setSelectedStatementRow(null)} aria-label="Close" className="w-8 h-8 rounded-full bg-[#F9F9F6] flex items-center justify-center cursor-pointer"><X size={16} /></button>

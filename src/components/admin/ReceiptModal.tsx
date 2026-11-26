@@ -154,7 +154,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[120] flex items-center justify-center p-4 print:bg-white print:p-0" onClick={onClose}>
-      <div className="bg-white rounded-lg max-h-[92vh] max-w-full overflow-y-auto print:max-h-none print:overflow-visible print:rounded-none" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg max-h-[92vh] max-w-full overflow-y-auto print:max-h-none print:overflow-visible print:rounded-none shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-dp-outline-variant print:hidden">
           <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
             <button onClick={() => chooseFormat('pdf')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${format === 'pdf' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>PDF</button>

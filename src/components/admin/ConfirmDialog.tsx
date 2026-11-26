@@ -18,7 +18,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel = 'Delete', o
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-dp-error-container text-dp-error flex items-center justify-center shrink-0">
             <AlertTriangle size={20} />

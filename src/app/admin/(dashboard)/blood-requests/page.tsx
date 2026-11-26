@@ -373,7 +373,7 @@ export default function AdminBloodRequestsPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-lg p-5 w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-5 w-full max-w-md max-h-[92vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3 mb-1">
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('br.recordRequest')}</h2>
               <button onClick={() => setShowForm(false)} className="text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={18} /></button>

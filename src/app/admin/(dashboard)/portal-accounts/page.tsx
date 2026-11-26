@@ -261,7 +261,7 @@ export default function PortalAccountsPage() {
 
       {passwordFor && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPasswordFor(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pa.resetPassword')}</h2>
               <button onClick={() => setPasswordFor(null)} className="cursor-pointer"><X size={18} /></button>

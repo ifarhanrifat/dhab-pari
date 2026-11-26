@@ -112,7 +112,7 @@ export function CommitteeNoteCard({ latest, archive }: { latest: CommitteeNote |
       {open && (
         <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onClick={() => setOpen(false)}>
           <div
-            className="bg-white rounded-lg w-full max-w-lg max-h-[85vh] overflow-y-auto"
+            className="bg-white rounded-lg w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-xl"
             onClick={(e) => e.stopPropagation()}
             dir={isUrdu ? 'rtl' : 'ltr'}
           >

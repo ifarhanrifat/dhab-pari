@@ -337,7 +337,7 @@ export default function PortalTrainingProgramsPage() {
 
       {payFor && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayFor(null)}>
-          <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white rounded-lg max-w-[420px] w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white rounded-lg max-w-[420px] w-full p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading text-[18px] font-bold text-dp-primary">{payFor.studentName}</h3>
               <button onClick={() => setPayFor(null)} className="cursor-pointer"><X size={20} /></button>

@@ -202,7 +202,7 @@ export default function CollectorsPage() {
 
       {settleFor && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setSettleFor(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-1">{t('cl.settleWith')} {settleFor.name}</h2>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{t('cl.currentlyHolding')} {fmt(settleFor.balance)}</p>
             <div className="space-y-4">

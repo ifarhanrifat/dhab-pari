@@ -704,7 +704,7 @@ export default function RunningCapitalPage() {
 
       {viewTarget && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4" onClick={() => setViewTarget(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{monthNamesEn[viewTarget.report_month - 1]} {viewTarget.report_year}</h2>
               <div className="flex items-center gap-2">

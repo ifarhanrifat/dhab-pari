@@ -1072,7 +1072,7 @@ export default function FleetBookingsPage() {
 
       {printedTicket && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPrintedTicket(null)}>
-          <div className="bg-white rounded-2xl max-w-[460px] w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl max-w-[460px] w-full max-h-[85vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div ref={ticketRef}><ManualTicketDocument data={printedTicket} /></div>
             <div className="flex flex-col gap-2 p-4 pt-0">
               <div className="flex gap-2">

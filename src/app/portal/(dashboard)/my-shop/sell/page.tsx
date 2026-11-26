@@ -361,7 +361,7 @@ export default function SellPage() {
           addLine with no interruption, same one-tap flow as always. */}
       {chooserProduct && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-end sm:items-center justify-center p-4" onClick={() => setChooserProduct(null)}>
-          <div className="bg-white w-full max-w-sm p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white w-full max-w-sm p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <p className="font-heading text-[16px] font-bold mb-1" style={{ color: INK }}>{displayName(chooserProduct, isUrdu)}</p>
             <p className="font-sans text-[12.5px] text-[#7a736d] mb-3">{t('sk.chooseSaleTypeTitle')}</p>
             <div className="space-y-2">
@@ -499,7 +499,7 @@ export default function SellPage() {
 
       {showSearch && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-start justify-center p-4 pt-16" onClick={() => setShowSearch(false)}>
-          <div className="bg-white p-4 w-full max-w-md max-h-[75vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-4 w-full max-w-md max-h-[75vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('sk.searchOwnCatalogPlaceholder')} className="input-field mb-3" />
             <div className="space-y-1">
               {filtered.map((p) => (

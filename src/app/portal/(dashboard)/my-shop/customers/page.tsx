@@ -434,7 +434,7 @@ export default function CustomersPage() {
 
       {showNew && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowNew(false)}>
-          <div className="bg-white p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-5 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-heading text-[18px] font-bold" style={{ color: INK }}>{t('sk.newCustomerBtn')}</h2>
               <button onClick={() => setShowNew(false)} className="cursor-pointer"><X size={20} /></button>
@@ -453,7 +453,7 @@ export default function CustomersPage() {
 
       {openCustomer && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setOpenCustomer(null)}>
-          <div className="bg-white w-full sm:max-w-md max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white w-full sm:max-w-md max-h-[90vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: '#e2ded9' }}>
               <div className="min-w-0">
                 <MarqueeText text={isUrdu && openCustomer.name_ur ? openCustomer.name_ur : openCustomer.name} className="font-heading text-[16px] font-bold" style={{ color: INK }} />
@@ -593,7 +593,7 @@ export default function CustomersPage() {
 
       {editingSaleId && (
         <div className="fixed inset-0 bg-black/50 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setEditingSaleId(null)}>
-          <div className="bg-white w-full sm:max-w-sm p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white w-full sm:max-w-sm p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-heading text-[16px] font-bold flex items-center gap-1.5" style={{ color: INK }}><Pencil size={16} /> {t('sk.editSaleBtn')}</h2>
               <button onClick={() => setEditingSaleId(null)} className="cursor-pointer"><X size={18} /></button>
@@ -638,7 +638,7 @@ export default function CustomersPage() {
 
       {(viewingInvoice || loadingInvoice) && (
         <div className="fixed inset-0 bg-black/50 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setViewingInvoice(null)}>
-          <div className="bg-white w-full sm:max-w-md max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white w-full sm:max-w-md max-h-[90vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: '#e2ded9' }}>
               <h2 className="font-heading text-[16px] font-bold flex items-center gap-1.5" style={{ color: INK }}>
                 <Receipt size={16} style={{ color: ACCENT }} /> {viewingInvoice ? t('sk.invoiceTitle').replace('{n}', String(viewingInvoice.invoice_number)) : ''}

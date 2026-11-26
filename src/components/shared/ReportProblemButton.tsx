@@ -52,7 +52,7 @@ export function ReportProblemButton({ refType, refId, kindOptions, className }: 
 
       {open && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setOpen(false)}>
-          <div className="bg-white rounded-lg p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'}>
+          <div className="bg-white rounded-lg p-5 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'}>
             <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-3">{t('dq.reportProblemTitle')}</h2>
             <div className="space-y-2.5">
               {kindOptions.length > 1 && (

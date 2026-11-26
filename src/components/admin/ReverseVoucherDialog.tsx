@@ -48,7 +48,7 @@ export function ReverseVoucherDialog({ voucherId, voucherLabel, onClose, onRever
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={close}>
-      <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
             <RotateCcw size={19} />

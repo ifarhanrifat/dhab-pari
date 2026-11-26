@@ -429,7 +429,7 @@ export default function ProposeProjectPage() {
 
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowConfirm(false)}>
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
             <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{dt('confirmTitle')}</h2>
             <p className="font-sans text-[13.5px] text-dp-on-surface mb-2">
               {dt('confirmBody')} <strong>{form.self_commitment_amount_pkr.toLocaleString()}</strong> ({form.self_commitment_type === 'one_time' ? dt('oneTime') : dt('monthly')}).

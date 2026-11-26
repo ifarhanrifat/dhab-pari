@@ -186,7 +186,7 @@ export default function MyCreditPage() {
 
       {showRedeem && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowRedeem(false)}>
-          <div className="bg-white p-5 w-full max-w-sm rounded-lg" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-5 w-full max-w-sm rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-heading text-[18px] font-bold" style={{ color: INK }}>{t('sk.redeemCodeTitle')}</h2>
               <button onClick={() => setShowRedeem(false)} className="cursor-pointer"><X size={20} /></button>

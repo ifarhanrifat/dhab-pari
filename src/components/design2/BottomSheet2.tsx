@@ -36,7 +36,7 @@ export function BottomSheet2({
       className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-[2px] flex items-end justify-center p-3 animate-in fade-in duration-200"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-h-[88vh] overflow-y-auto bg-white rounded-[24px] p-4 animate-in slide-in-from-bottom-full duration-250">
+      <div className="w-full max-h-[88vh] overflow-y-auto bg-white rounded-[24px] p-4 shadow-2xl animate-in slide-in-from-bottom-full duration-250">
         <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
           <h3 className="text-[16px] font-bold" style={{ color: titleColor }}>{title}</h3>
           <button onClick={onClose} aria-label="close" className="text-slate-400 hover:text-slate-600 cursor-pointer">

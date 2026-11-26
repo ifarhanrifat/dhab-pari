@@ -81,7 +81,7 @@ export function SalamiAdminPanel({ eventId, onClose }: { eventId: string; onClos
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5"><h2 className="font-heading text-[22px] font-bold text-dp-primary">{t('sl.title')}</h2><button onClick={onClose} className="cursor-pointer"><X size={20} /></button></div>
         {loading ? <p className="text-center py-8 text-dp-on-surface-variant">…</p> : (
           <div className="space-y-6">

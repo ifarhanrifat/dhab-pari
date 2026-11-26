@@ -69,7 +69,7 @@ export function AddDonorModal({ onClose, onCreated }: AddDonorModalProps) {
     // overflow-y-auto; this one just never got it.
     <div className="fixed inset-0 bg-black/50 z-[100] flex items-start sm:items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div
-        className="bg-white rounded-lg p-6 w-full max-w-lg my-4 sm:my-0 max-h-[calc(100vh-2rem)] overflow-y-auto"
+        className="bg-white rounded-lg p-6 w-full max-w-lg my-4 sm:my-0 max-h-[calc(100vh-2rem)] overflow-y-auto shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">

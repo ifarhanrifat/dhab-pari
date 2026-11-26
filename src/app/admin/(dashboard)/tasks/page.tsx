@@ -213,7 +213,7 @@ export default function TasksPage() {
 
       {assignTarget && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setAssignTarget(null)}>
-          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
               <UserPlus2 size={20} className="text-dp-secondary" />
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{tr('z.assignIncharge')}</h2>

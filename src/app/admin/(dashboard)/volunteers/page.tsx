@@ -292,7 +292,7 @@ export default function AdminVolunteersPage() {
 
       {taskFor && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setTaskFor(null)}>
-          <div className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-5 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
                 <h2 className="font-heading text-[17px] font-bold text-dp-primary">{t('z.giveATask')}</h2>

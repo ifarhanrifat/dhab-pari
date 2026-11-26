@@ -102,7 +102,7 @@ export default function VolunteerPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[17px] md:text-[21px] font-bold text-dp2-primary">{t('p.volunteer')}</h2>
               <button onClick={() => setShowForm(false)} className="cursor-pointer text-slate-500"><X size={20} /></button>

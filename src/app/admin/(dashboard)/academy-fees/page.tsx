@@ -433,7 +433,7 @@ function AcademyFeesInner() {
 
       {showMyProfile && myTrainerProfile && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowMyProfile(false)}>
-          <div className="bg-white rounded-lg max-w-[420px] w-full p-6 space-y-3" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg max-w-[420px] w-full p-6 space-y-3 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-heading text-[18px] font-bold text-dp-primary">{t('af.myTrainerProfileTitle')}</h3>
               <button onClick={() => setShowMyProfile(false)} className="cursor-pointer"><X size={20} /></button>

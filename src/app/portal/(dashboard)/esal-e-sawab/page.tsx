@@ -738,7 +738,7 @@ export default function PortalEsalESawabPage() {
           what both sides settled on. */}
       {chatOn && (
         <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-white w-full sm:max-w-lg sm:rounded-lg max-h-[90vh] flex flex-col">
+          <div className="bg-white w-full sm:max-w-lg sm:rounded-lg max-h-[90vh] flex flex-col shadow-xl">
             <div className="bg-dp-primary text-white px-5 py-3.5 flex items-center justify-between shrink-0">
               <div className="min-w-0">
                 <h3 className="font-heading text-[15px] font-bold truncate">{chatOn.item_name}</h3>

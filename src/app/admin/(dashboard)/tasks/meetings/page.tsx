@@ -1156,7 +1156,7 @@ export default function MeetingsAgendaPage() {
       {/* New Meeting modal */}
       {showMeetingForm && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setShowMeetingForm(false)}>
-          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('mt.newMeeting')}</h2>
               <button onClick={() => setShowMeetingForm(false)} className="cursor-pointer"><X size={20} /></button>
@@ -1203,7 +1203,7 @@ export default function MeetingsAgendaPage() {
       {/* Add Task modal */}
       {taskMeetingId && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setTaskMeetingId(null)}>
-          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('mt.addPoint')}</h2>
               <button onClick={() => setTaskMeetingId(null)} className="cursor-pointer"><X size={20} /></button>
@@ -1260,7 +1260,7 @@ export default function MeetingsAgendaPage() {
       {/* Add Suggestion modal */}
       {suggestionMeetingId && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setSuggestionMeetingId(null)}>
-          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('mt.addSuggestion')}</h2>
               <button onClick={() => setSuggestionMeetingId(null)} className="cursor-pointer"><X size={20} /></button>
@@ -1291,7 +1291,7 @@ export default function MeetingsAgendaPage() {
       {/* AI Extraction review modal */}
       {extractMeetingId && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => !savingExtracted && setExtractMeetingId(null)}>
-          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
               <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><Sparkles size={18} className="text-dp-secondary" /> {t('mt.aiPoints')}</h2>
               <button onClick={() => setExtractMeetingId(null)} className="cursor-pointer"><X size={20} /></button>
@@ -1375,7 +1375,7 @@ export default function MeetingsAgendaPage() {
       {/* Import from Website Suggestions modal */}
       {importMeetingId && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setImportMeetingId(null)}>
-          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
               <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><Globe2 size={18} className="text-dp-secondary" /> {t('mt.importWebsite')}</h2>
               <button onClick={() => setImportMeetingId(null)} className="cursor-pointer"><X size={20} /></button>
@@ -1418,7 +1418,7 @@ export default function MeetingsAgendaPage() {
       {/* Raise Emergency Job modal */}
       {emergencyMeetingId && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setEmergencyMeetingId(null)}>
-          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
               <Siren size={20} className="text-red-600" />
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('mt.raiseEmergency')}</h2>
@@ -1495,7 +1495,7 @@ export default function MeetingsAgendaPage() {
 
         return (
           <div className="fixed inset-0 bg-black/50 z-[160] flex items-center justify-center p-4" onClick={() => setPrintMeetingId(null)}>
-            <div className="bg-white rounded-lg max-h-[92vh] overflow-y-auto w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-lg max-h-[92vh] overflow-y-auto w-full max-w-2xl shadow-xl" onClick={(e) => e.stopPropagation()}>
               {/* dir on the title/footer bars only — AgendaMinutesDocument below
                   is a fixed-width print layout, same category as
                   ReceiptDocument/the connections challan, with its own
@@ -1523,7 +1523,7 @@ export default function MeetingsAgendaPage() {
       {/* Send Meeting Notice modal */}
       {noticeFor && (
         <div className="fixed inset-0 bg-black/50 z-[160] flex items-center justify-center p-4" onClick={() => setNoticeFor(null)}>
-          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-lg max-h-[92vh] overflow-y-auto w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-lg max-h-[92vh] overflow-y-auto w-full max-w-2xl shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-dp-outline-variant">
               <span className="font-sans text-[14px] font-bold text-dp-primary">{t('mt.sendNotice')}</span>
               <button onClick={() => setNoticeFor(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>

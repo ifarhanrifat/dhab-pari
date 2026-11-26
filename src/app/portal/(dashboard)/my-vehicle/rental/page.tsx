@@ -195,7 +195,7 @@ export default function MyRentalBookingsPage() {
 
       {swapBookingId && (
         <div className="fixed inset-0 z-[150] bg-black/40 flex items-center justify-center p-4" onClick={() => setSwapBookingId(null)}>
-          <div className="bg-white rounded-2xl p-4 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-4 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <p className="font-sans text-[13px] font-bold text-[#1e293b] mb-2.5">{t('mv.pickReplacementVehicleLabel')}</p>
             <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto">
               {fleetVehicles.map((v) => (

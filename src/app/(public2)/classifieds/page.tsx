@@ -172,7 +172,7 @@ export default function ClassifiedsPage() {
 
       {pendingContact && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPendingContact(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
             <div className="flex items-start justify-between mb-3">
               <ShieldAlert size={24} className="text-amber-600" />
               <button onClick={() => setPendingContact(null)} className="cursor-pointer text-slate-500"><X size={18} /></button>

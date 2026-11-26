@@ -848,7 +848,7 @@ export default function AllTransactionsPage() {
       />
       {waiverDetail && (
         <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setWaiverDetail(null)}>
-          <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white rounded-lg p-5 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-3 mb-3">
               <h3 className="font-sans text-[15px] font-bold text-dp-on-surface flex items-center gap-2"><HeartHandshake size={17} className="text-violet-600" /> {t('tx.waivedByLabel')}</h3>
               <button onClick={() => setWaiverDetail(null)} className="cursor-pointer"><X size={18} /></button>

@@ -800,7 +800,7 @@ export default function ProjectDetailPage() {
 
       {showAnnounce && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowAnnounce(false)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-heading text-[17px] md:text-[21px] font-bold text-dp2-primary mb-4">{tr('x.announcePledge')}</h2>
             <p className="font-sans text-[14px] text-slate-500 mb-4">No payment needed now — your name shows in Announced until you pay. Pay anytime from your portal.</p>
             <input type="number" min={1} value={announceAmount || ''} onChange={(e) => setAnnounceAmount(+e.target.value)} placeholder="Amount (PKR)" className="input-field mb-4" />

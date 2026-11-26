@@ -2205,7 +2205,7 @@ export default function PortalWazifaPage() {
       {/* ── Give — named or shared, same form ────────────────────────── */}
       {giving && sponsorPosition && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 print:hidden" onClick={() => setGiving(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[92vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[20px] font-bold text-dp-primary">
                 {giving.target ? t('pwz.sponsor.giveForTitle') : t('pool.joinTitle')}

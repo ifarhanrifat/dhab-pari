@@ -310,7 +310,7 @@ export default function EmployeesPage() {
 
       {formTarget && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setFormTarget(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-heading text-[20px] font-bold text-dp-primary">{formTarget === 'new' ? t('em.addEmployeeTitle') : t('em.editEmployeeTitle')}</h2>
               <button onClick={() => setFormTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
