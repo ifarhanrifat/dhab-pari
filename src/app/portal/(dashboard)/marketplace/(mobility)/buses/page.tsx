@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Search, Clock, Users, ArrowRight, CalendarDays, Repeat, MapPinned, ArrowRightLeft, X, Minus, Plus, Check, Pencil, Lock, Filter as FilterIcon, ChevronRight } from 'lucide-react'
+import { Search, Clock, Users, ArrowRight, CalendarDays, Repeat, MapPinned, MapPin, ArrowRightLeft, X, Minus, Plus, Check, Pencil, Lock, Filter as FilterIcon, ChevronRight, Calendar as CalendarIcon, Users2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -192,8 +192,6 @@ export default function BusesPage() {
     const [h, m] = tm.split(':').map(Number)
     return new Date(2000, 0, 1, h, m).toLocaleTimeString(isUrdu ? 'ur-PK' : 'en-PK', { hour: 'numeric', minute: '2-digit' })
   }
-  const dayNames = useMemo(() => [0, 1, 2, 3, 4, 5, 6].map((d) => new Date(2023, 0, 1 + d).toLocaleDateString(isUrdu ? 'ur-PK' : 'en-PK', { weekday: 'narrow' })), [isUrdu])
-  const todayDow = new Date().getDay()
 
   // Group every route and trip by destination city.
   const groups = useMemo(() => {
@@ -351,7 +349,6 @@ export default function BusesPage() {
     </span>
   )
   const renderRoute = (r: RouteRow, legTab?: 'departure' | 'return', isBestChoice?: boolean) => {
-    const runsToday = (r.days_of_week ?? []).includes(todayDow)
     return (
       <div key={r.id} role="button" tabIndex={0} onClick={() => openRoute(r, legTab)} className="relative rounded-2xl bg-white border border-[#e5e7eb] shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
         {isBestChoice && bestChoiceRibbon}
@@ -367,22 +364,6 @@ export default function BusesPage() {
             {r.vehicles?.total_seats != null && <span className="flex items-center gap-1"><Users size={11} /> {r.vehicles.total_seats} {t('bus.seatsShort')}</span>}
             <span className="flex items-center gap-1"><Clock size={11} /> <span className="ltr-num">{timeLabel(r.departure_time)}</span></span>
             {r.route_duration_min != null && <span className="ltr-num">{Math.round(r.route_duration_min)} {t('bus.durationUnit')}</span>}
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1">
-            {runsToday && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
-            {r.service_class && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary">{t(`mv.serviceClass.${r.service_class}`)}</span>}
-            {r.is_two_way && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={9} /> {t('bus.twoWay')}</span>}
-            {r.source_tenant_name && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#fef9c3] text-[#854d0e] inline-flex items-center gap-1"><MapPinned size={9} /> {r.source_tenant_name}</span>}
-            {/* Real bug found live, 2026-11-24: with no dir of its own,
-                this row inherited the page's RTL direction in Urdu and
-                rendered Sun..Sat back to front (visually Sat..Sun) —
-                forced ltr so the week always reads in calendar order
-                regardless of locale, same convention as ltr-num. */}
-            <span dir="ltr" className="flex gap-0.5 ms-0.5">
-              {dayNames.map((d, i) => (
-                <span key={i} className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${(r.days_of_week ?? []).includes(i) ? 'bg-[#166534] text-white' : 'bg-[#f1f5f9] text-[#94a3b8]'}`}>{d}</span>
-              ))}
-            </span>
           </div>
         </div>
         <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
@@ -410,8 +391,6 @@ export default function BusesPage() {
   // badge (there's nothing to compare against here — this IS the
   // two-way badge's own other half).
   const renderOwnReturnLeg = (r: RouteRow, isBestChoice?: boolean) => {
-    const returnDow = returnDate ? new Date(`${returnDate}T00:00:00`).getDay() : todayDow
-    const returnDays = r.return_days_of_week ?? r.days_of_week ?? []
     return (
       <div key={r.id} role="button" tabIndex={0} onClick={() => setOwnReturnLegRouteId(r.id)} className="relative rounded-2xl bg-white border border-[#e5e7eb] shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
         {isBestChoice && bestChoiceRibbon}
@@ -427,16 +406,6 @@ export default function BusesPage() {
             {r.vehicles?.total_seats != null && <span className="flex items-center gap-1"><Users size={11} /> {r.vehicles.total_seats} {t('bus.seatsShort')}</span>}
             <span className="flex items-center gap-1"><Clock size={11} /> <span className="ltr-num">{timeLabel(r.return_departure_time)}</span></span>
             {r.route_duration_min != null && <span className="ltr-num">{Math.round(r.route_duration_min)} {t('bus.durationUnit')}</span>}
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1">
-            {returnDays.includes(returnDow) && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#166534]">{t('bus.today')}</span>}
-            {r.service_class && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary">{t(`mv.serviceClass.${r.service_class}`)}</span>}
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#075985] inline-flex items-center gap-1"><Repeat size={9} /> {t('bus.sameVehicleReturnBadge')}</span>
-            <span dir="ltr" className="flex gap-0.5 ms-0.5">
-              {dayNames.map((d, i) => (
-                <span key={i} className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${returnDays.includes(i) ? 'bg-[#166534] text-white' : 'bg-[#f1f5f9] text-[#94a3b8]'}`}>{d}</span>
-              ))}
-            </span>
           </div>
         </div>
         <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
@@ -487,24 +456,6 @@ export default function BusesPage() {
         </div>
       </div>
 
-      {/* Vehicle-type service tabs — this page is the "Bus" surface;
-          the other three are real existing screens (Shared Ride's
-          one-off trip offers, Adda's shared-vehicle departure board,
-          Rental's point-to-point car hire), not new pages. */}
-      <div className="flex gap-2 overflow-x-auto hide-scrollbar -mt-1">
-        {([
-          { key: 'bus', label: t('bus.vehicleTabBus'), emoji: '🚌', active: true, href: null },
-          { key: 'shared', label: t('mb.svc.shared'), emoji: '👥', active: false, href: '/portal/marketplace/shared' },
-          { key: 'adda', label: t('mb.svc.adda'), emoji: '🚐', active: false, href: '/portal/marketplace/adda' },
-          { key: 'rental', label: t('mb.svc.rental'), emoji: '🚗', active: false, href: '/portal/marketplace/rental' },
-        ] as const).map((tab) => (
-          <button key={tab.key} onClick={() => tab.href && router.push(tab.href)}
-            className={`shrink-0 h-10 px-4 rounded-full font-sans text-[12.5px] font-bold flex items-center gap-1.5 cursor-pointer ${tab.active ? 'bg-[#166534] text-white' : 'bg-white text-[#334155] border border-[#e5e7eb]'}`}>
-            <span className="text-[15px] leading-none">{tab.emoji}</span> {tab.label}
-          </button>
-        ))}
-      </div>
-
       {/* 2026-11-22: real ask — a proper step-based search, matching how
           an air-ticket round trip actually works: From/To → one-way or
           round trip → departure (and return) date → seat count → one
@@ -512,77 +463,97 @@ export default function BusesPage() {
           (two tabs for a round trip) appear — nothing auto-filters
           while the rider is still filling the form in. */}
       {!searched ? (
-        <div className="bg-white border border-[#e5e7eb] rounded-[20px] p-3.5 flex flex-col gap-3 -mt-6 relative z-10 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)]">
+        <div className="flex flex-col gap-3 -mt-6 relative z-10">
+          {/* 2026-11-27 — real ask, matching a reference design file
+              exactly: Monthly Fixed vs General (per-ride) sharing as two
+              prominent cards, ABOVE the from/to fields — not a small
+              pill tucked inside the form. Same `view` state as before,
+              just restyled and repositioned. */}
           <div className="flex items-center gap-2">
-            <div className="flex-1 min-w-0">
-              <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.fromLabel')}</label>
-              <select value={fromCity} onChange={(e) => setFromCity(e.target.value)} className="w-full font-sans text-[13.5px] font-bold text-[#0f172a] bg-transparent outline-none">
-                <option value="">{t('bus.anyCityOption')}</option>
-                {cityOptions.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
-            </div>
-            <button type="button" aria-label={t('bus.swapCitiesAlt')} onClick={() => { const a = fromCity; setFromCity(toCity); setToCity(a) }}
-              className="shrink-0 w-9 h-9 rounded-full border border-[#e5e7eb] flex items-center justify-center text-[#166534] cursor-pointer">
-              <ArrowRightLeft size={15} />
+            <button onClick={() => setView('perRide')}
+              className={`flex-1 min-w-0 rounded-2xl p-3 text-start cursor-pointer border ${view === 'perRide' ? 'bg-[#166534] border-[#166534] text-white' : 'bg-white border-[#e5e7eb] text-[#0f172a]'}`}>
+              <span className="flex items-center gap-1.5 font-sans text-[13px] font-bold"><Users2 size={14} /> {t('bus.tabPerRide')}</span>
+              <span className={`block font-sans text-[10.5px] mt-0.5 ${view === 'perRide' ? 'text-white/75' : 'text-[#64748b]'}`}>{t('bus.perRideSubline')}</span>
             </button>
-            <div className="flex-1 min-w-0">
-              <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.toLabel')}</label>
-              <select value={toCity} onChange={(e) => setToCity(e.target.value)} className="w-full font-sans text-[13.5px] font-bold text-[#0f172a] bg-transparent outline-none">
-                <option value="">{t('bus.anyCityOption')}</option>
-                {cityOptions.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
-            </div>
+            <button onClick={() => { setView('monthly'); setTripType('oneway') }}
+              className={`flex-1 min-w-0 rounded-2xl p-3 text-start cursor-pointer border ${view === 'monthly' ? 'bg-[#166534] border-[#166534] text-white' : 'bg-white border-[#e5e7eb] text-[#0f172a]'}`}>
+              <span className="flex items-center gap-1.5 font-sans text-[13px] font-bold"><CalendarIcon size={14} /> {t('bus.tabMonthly')}</span>
+              <span className={`block font-sans text-[10.5px] mt-0.5 ${view === 'monthly' ? 'text-white/75' : 'text-[#64748b]'}`}>{t('bus.monthlySubline')}</span>
+            </button>
           </div>
 
-          {/* 2026-11-23 — real ask, matching a reference design file:
-              the per-ride/monthly view sits right here inside the search
-              form (it used to be a separate row below the whole card,
-              shared by browse mode too — moved in, not duplicated: the
-              same `view` state still drives destination-grouped browsing
-              while no search has been committed yet). */}
-          <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-1">
-            {(['perRide', 'monthly'] as const).map((v) => (
-              <button key={v} onClick={() => setView(v)} className={`flex-1 h-9 rounded-full font-sans text-[12.5px] font-bold cursor-pointer ${view === v ? 'bg-[#166534] text-white shadow-sm' : 'bg-transparent text-[#64748b]'}`}>
-                {v === 'perRide' ? t('bus.tabPerRide') : t('bus.tabMonthly')}
+          <div className="bg-white border border-[#e5e7eb] rounded-[20px] p-3.5 flex flex-col gap-3 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)]">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0 bg-[#f8fafc] border border-[#e5e7eb] rounded-xl px-3 py-2">
+                <label className="flex items-center gap-1 font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1"><MapPin size={10} /> {t('bus.fromLabel')}</label>
+                <select value={fromCity} onChange={(e) => setFromCity(e.target.value)} className="w-full font-sans text-[13.5px] font-bold text-[#0f172a] bg-transparent outline-none">
+                  <option value="">{t('bus.anyCityOption')}</option>
+                  {cityOptions.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+              </div>
+              <button type="button" aria-label={t('bus.swapCitiesAlt')} onClick={() => { const a = fromCity; setFromCity(toCity); setToCity(a) }}
+                className="shrink-0 w-9 h-9 rounded-full border border-[#e5e7eb] flex items-center justify-center text-[#166534] cursor-pointer">
+                <ArrowRightLeft size={15} />
               </button>
-            ))}
-          </div>
-
-          {view === 'perRide' && (
-            <div className="flex gap-1 bg-[#f1f5f9] rounded-full p-1">
-              {(['oneway', 'roundtrip'] as const).map((tt) => (
-                <button key={tt} onClick={() => setTripType(tt)} className={`flex-1 h-8 rounded-full font-sans text-[12px] font-bold cursor-pointer ${tripType === tt ? 'bg-white text-[#166534] shadow-sm' : 'text-[#64748b]'}`}>
-                  {tt === 'oneway' ? t('bus.oneWayOption') : t('bus.roundTripOption')}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            <div className="flex-1 min-w-0">
-              <label className="flex items-center gap-1 font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1"><Users size={10} /> {t('bus.seatsCountLabel')}</label>
-              <div className="flex items-center gap-2 bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-1.5 py-1 h-[34px]">
-                <button type="button" onClick={() => setSeatsWanted((s) => Math.max(1, s - 1))} className="shrink-0 w-6 h-6 rounded-full bg-white border border-[#e5e7eb] flex items-center justify-center cursor-pointer"><Minus size={12} /></button>
-                <span className="flex-1 font-sans text-[14px] font-bold ltr-num text-center">{seatsWanted}</span>
-                <button type="button" onClick={() => setSeatsWanted((s) => Math.min(20, s + 1))} className="shrink-0 w-6 h-6 rounded-full bg-[#166534] text-white flex items-center justify-center cursor-pointer"><Plus size={12} /></button>
+              <div className="flex-1 min-w-0 bg-[#f8fafc] border border-[#e5e7eb] rounded-xl px-3 py-2">
+                <label className="flex items-center gap-1 font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1"><MapPin size={10} /> {t('bus.toLabel')}</label>
+                <select value={toCity} onChange={(e) => setToCity(e.target.value)} className="w-full font-sans text-[13.5px] font-bold text-[#0f172a] bg-transparent outline-none">
+                  <option value="">{t('bus.anyCityOption')}</option>
+                  {cityOptions.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
               </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <label className="flex items-center gap-1 font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1"><CalendarDays size={10} /> {t('bus.departDateLabel')}</label>
-              <input type="date" value={departDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setDepartDate(e.target.value)} className="w-full font-sans text-[13px] font-bold text-[#0f172a] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2 h-[34px]" />
-            </div>
-          </div>
-          {tripType === 'roundtrip' && view === 'perRide' && (
-            <div className="flex-1 min-w-0">
-              <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.returnDateLabel')}</label>
-              <input type="date" value={returnDate} min={departDate || new Date().toISOString().slice(0, 10)} onChange={(e) => setReturnDate(e.target.value)} className="w-full font-sans text-[13px] font-bold text-[#0f172a] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2 py-1.5" />
-            </div>
-          )}
 
-          <button onClick={() => { setSearched(true); setActiveTab('departure'); setDepartureBooked(false); setReturnBooked(false) }} disabled={!canSearch}
-            className="w-full h-11 rounded-xl bg-[#166534] text-white font-sans text-[14px] font-bold cursor-pointer disabled:opacity-40 flex items-center justify-center gap-2">
-            <Search size={16} /> {t('bus.searchBtn')}
-          </button>
+            {view === 'perRide' && (
+              <div className="flex items-center gap-2">
+                <button onClick={() => setTripType('oneway')}
+                  className={`flex-1 h-10 rounded-xl font-sans text-[12.5px] font-bold cursor-pointer flex items-center justify-center gap-1.5 border ${tripType === 'oneway' ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>
+                  {t('bus.oneWayOption')} <ArrowRight size={13} className="rtl:rotate-180" />
+                </button>
+                <button onClick={() => setTripType('roundtrip')}
+                  className={`flex-1 h-10 rounded-xl font-sans text-[12.5px] font-bold cursor-pointer flex items-center justify-center gap-1.5 border ${tripType === 'roundtrip' ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>
+                  <Repeat size={13} /> {t('bus.roundTripOption')}
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <label className="flex items-center gap-1 font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1"><Users size={10} /> {t('bus.seatsCountLabel')}</label>
+                <div className="flex items-center gap-2 bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-1.5 py-1 h-[34px]">
+                  <button type="button" onClick={() => setSeatsWanted((s) => Math.max(1, s - 1))} className="shrink-0 w-6 h-6 rounded-full bg-white border border-[#e5e7eb] flex items-center justify-center cursor-pointer"><Minus size={12} /></button>
+                  <span className="flex-1 font-sans text-[14px] font-bold ltr-num text-center">{seatsWanted}</span>
+                  <button type="button" onClick={() => setSeatsWanted((s) => Math.min(20, s + 1))} className="shrink-0 w-6 h-6 rounded-full bg-[#166534] text-white flex items-center justify-center cursor-pointer"><Plus size={12} /></button>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <label className="flex items-center gap-1 font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1"><CalendarDays size={10} /> {t('bus.departDateLabel')}</label>
+                <input type="date" value={departDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setDepartDate(e.target.value)} className="w-full font-sans text-[13px] font-bold text-[#0f172a] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2 h-[34px]" />
+              </div>
+            </div>
+
+            {/* Always visible once in per-ride mode (matching the
+                reference's collapsed hint row), active only once
+                round-trip is actually picked — same canSearch gating as
+                before, just no longer hidden entirely for one-way. */}
+            {view === 'perRide' && (
+              tripType === 'roundtrip' ? (
+                <div className="flex-1 min-w-0">
+                  <label className="block font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] mb-1">{t('bus.returnDateLabel')}</label>
+                  <input type="date" value={returnDate} min={departDate || new Date().toISOString().slice(0, 10)} onChange={(e) => setReturnDate(e.target.value)} className="w-full font-sans text-[13px] font-bold text-[#0f172a] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2 py-1.5" />
+                </div>
+              ) : (
+                <p className="flex items-center gap-1.5 font-sans text-[11px] text-[#94a3b8] bg-[#f8fafc] border border-[#e5e7eb] rounded-lg px-2.5 py-2">
+                  <CalendarIcon size={12} /> {t('bus.returnDateCollapsedHint')}
+                </p>
+              )
+            )}
+
+            <button onClick={() => { setSearched(true); setActiveTab('departure'); setDepartureBooked(false); setReturnBooked(false) }} disabled={!canSearch}
+              className="w-full h-11 rounded-xl bg-[#166534] text-white font-sans text-[14px] font-bold cursor-pointer disabled:opacity-40 flex items-center justify-center gap-2">
+              <Search size={16} /> {t('bus.searchBtn')}
+            </button>
+          </div>
         </div>
       ) : (
         <div className="bg-white border border-[#e5e7eb] rounded-[20px] p-3.5 flex items-center justify-between gap-3 -mt-6 relative z-10 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)]">
@@ -619,20 +590,6 @@ export default function BusesPage() {
           </button>
         ))}
       </div>
-
-      {!searched && groups.length > 1 && (
-        <>
-          <p className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-[#334155] -mb-1.5"><MapPinned size={13} className="text-[#166534]" /> {t('bus.filterByCityHeading')}</p>
-          <div className="flex gap-2 overflow-x-auto hide-scrollbar">
-            <button onClick={() => setCity(null)} className={`shrink-0 h-9 px-3.5 rounded-full font-sans text-[12.5px] font-bold border ${!city ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>{t('bus.allCities')}</button>
-            {groups.map((g) => (
-              <button key={g.key} onClick={() => setCity(g.key)} className={`shrink-0 h-9 px-3.5 rounded-full font-sans text-[12.5px] font-bold border ${city === g.key ? 'bg-[#166534] text-white border-[#166534]' : 'bg-white text-[#334155] border-[#e5e7eb]'}`}>
-                <bdi>{g.label}</bdi> <span className="opacity-70 ltr-num">{g.routes.length + g.trips.length}</span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
 
       <FarePolicyCard service="seat" defaultOpen={false} />
 
@@ -725,12 +682,6 @@ export default function BusesPage() {
         </section>
       ) : (
       <>
-      <div className="flex items-center gap-2 bg-white border border-[#e5e7eb] rounded-2xl px-3 h-11">
-        <Search size={16} className="text-[#64748b] shrink-0" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('bus.searchPlaceholder')}
-          className="flex-1 min-w-0 bg-transparent outline-none font-sans text-[14px] text-[#0f172a]" />
-      </div>
-
       {shown.length === 0 && <p className="text-center font-sans text-[13px] text-[#64748b] py-10">{t('bus.empty')}</p>}
 
       {shown.map((g) => {
