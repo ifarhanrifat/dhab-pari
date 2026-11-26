@@ -493,13 +493,25 @@ export default function BusesPage() {
   // two-way badge's own other half).
   const renderOwnReturnLeg = (r: RouteRow, isBestChoice?: boolean, legTab?: 'departure' | 'return') => {
     const effDate = (legTab ?? 'return') === 'return' ? returnDate : departDate
-    const departed = hasDepartedToday(effDate, r.return_departure_time)
+    const isToday = effDate === new Date().toISOString().slice(0, 10)
+    // Real bug reported live, 2026-11-27 — this route's own
+    // return_departure_time was never set, so hasDepartedToday (which
+    // needs a real time to compare against) could never flag it, no
+    // matter how late at night it got; a real booking went through
+    // completely unblocked. A fixed two-way route with no return time
+    // on file is a data gap, not a legitimate "book anytime" route —
+    // same-day booking is blocked server-side now (973) regardless, so
+    // the card must show this as unavailable too, not just "passed."
+    const noTimeToday = isToday && !r.return_departure_time
+    const departed = hasDepartedToday(effDate, r.return_departure_time) || noTimeToday
     return (
-      <div key={r.id} role="button" tabIndex={0} onClick={() => { setOwnReturnLegRouteId(r.id); setOwnReturnLegDate(effDate); setBookingLegTab(legTab ?? 'return') }} className={`relative rounded-2xl border shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer ${departed ? 'bg-[#f1f5f9] border-[#e2e8f0] grayscale-[0.6] opacity-70' : 'bg-white border-[#e5e7eb]'}`}>
+      <div key={r.id} role="button" tabIndex={0}
+        onClick={() => { if (departed) return; setOwnReturnLegRouteId(r.id); setOwnReturnLegDate(effDate); setBookingLegTab(legTab ?? 'return') }}
+        className={`relative rounded-2xl border shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 transition-transform ${departed ? 'bg-[#f1f5f9] border-[#e2e8f0] grayscale-[0.6] opacity-70 cursor-not-allowed' : 'bg-white border-[#e5e7eb] active:scale-[0.99] cursor-pointer'}`}>
         {isBestChoice && !departed && bestChoiceRibbon}
         {departed && (
           <span className="absolute -top-2.5 start-3 inline-flex items-center gap-1 bg-[#94a3b8] text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
-            {t('bus.departedBadge')}
+            {noTimeToday ? t('bus.noTimeTodayBadge') : t('bus.departedBadge')}
           </span>
         )}
         {thumbnail(r.service_logo_url, r.vehicles?.vehicle_type)}
@@ -516,11 +528,11 @@ export default function BusesPage() {
             {r.route_duration_min != null && <span className="ltr-num">{Math.round(r.route_duration_min)} {t('bus.durationUnit')}</span>}
             {scheduleOrDateLine(r, legTab ?? 'return')}
           </div>
-          {departed && <p className="font-sans text-[10.5px] font-semibold text-[#b91c1c] mt-1">{t('bus.departedHint')}</p>}
+          {departed && <p className="font-sans text-[10.5px] font-semibold text-[#b91c1c] mt-1">{noTimeToday ? t('bus.noTimeTodayHint') : t('bus.departedHint')}</p>}
         </div>
         <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
           {r.fare_per_seat_pkr != null && <p className="font-sans text-[16px] font-black text-[#14532d] ltr-num">₨{fmt(r.fare_per_seat_pkr)}</p>}
-          <span className={`inline-flex items-center gap-0.5 h-8 px-3 rounded-full font-sans text-[11.5px] font-bold ${departed ? 'bg-[#94a3b8] text-white' : 'bg-[#15803d] text-white'}`}>{t('bus.book')} <ChevronRight size={12} className="rtl:rotate-180" /></span>
+          {!departed && <span className="inline-flex items-center gap-0.5 h-8 px-3 rounded-full font-sans text-[11.5px] font-bold bg-[#15803d] text-white">{t('bus.book')} <ChevronRight size={12} className="rtl:rotate-180" /></span>}
         </div>
       </div>
     )
