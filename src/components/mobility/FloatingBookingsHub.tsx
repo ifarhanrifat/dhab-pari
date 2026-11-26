@@ -541,6 +541,7 @@ export function FloatingBookingsHub() {
     // now, jump straight to the live map/chat (RouteGroupPanel) instead
     // of the booking popup.
     const seatRouteIds = [...new Set(seatRows.map((b) => b.route_id).filter((id): id is string => !!id))]
+    type DelayInfo = { delay_minutes: number; note: string | null; auto_detected: boolean; pre_departure: boolean }
     const [activeRunRouteIds, delayByRoute] = seatRouteIds.length > 0
       ? await Promise.all([
           supabase.from('route_runs').select('route_id').in('route_id', seatRouteIds).is('ended_at', null)
@@ -551,15 +552,20 @@ export function FloatingBookingsHub() {
           // only place it ever surfaced was the notification bell. Same
           // day's delay, any direction, is the only signal this button
           // needs; the group panel shows the rest.
-          // 2026-11-26 (ghost-departure fix, 968): widened to the fields
-          // RideTicketSheet needs to tell "running late, still coming"
-          // apart from "never left at all" — pre_departure/auto_detected
-          // from the new ghost-departure sweep, not just the raw minutes.
-          supabase.from('route_day_delays').select('route_id, delay_minutes, note, auto_detected, pre_departure').in('route_id', seatRouteIds)
-            .eq('travel_date', new Date().toISOString().slice(0, 10))
-            .then(({ data }) => new Map((data ?? []).map((d) => [d.route_id, d as { delay_minutes: number; note: string | null; auto_detected: boolean; pre_departure: boolean }]))),
+          //
+          // 2026-11-26 (970): this used to query route_day_delays directly
+          // from the browser's own client (`supabase.from(...)`) — that
+          // table has zero grants to `authenticated` and is deliberately
+          // readable only through a SECURITY DEFINER RPC (900's own
+          // comment says so). The direct select silently returned
+          // nothing; caught by an actual live-device test of the
+          // ghost-departure banner never rendering. my_route_booking_
+          // delays() (956, widened in 970) is the real, already-built RPC
+          // for exactly this.
+          supabase.rpc('my_route_booking_delays')
+            .then(({ data }) => new Map(((data ?? []) as (DelayInfo & { route_id: string })[]).map((d) => [d.route_id, d]))),
         ])
-      : [new Set<string>(), new Map<string, { delay_minutes: number; note: string | null; auto_detected: boolean; pre_departure: boolean }>()]
+      : [new Set<string>(), new Map<string, DelayInfo>()]
     for (const b of seatRows) {
       const r = b.vehicle_routes
       const adda = b.adda_queue_entries?.addas
