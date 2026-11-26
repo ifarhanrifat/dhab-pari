@@ -142,6 +142,12 @@ export default function BusesPage() {
   const [returnBooked, setReturnBooked] = useState(false)
   const [bookingLegTab, setBookingLegTab] = useState<'departure' | 'return' | null>(null)
   const [ownReturnLegRouteId, setOwnReturnLegRouteId] = useState<string | null>(null)
+  // Real bug, 2026-11-27: hardcoded to returnDate, which is always
+  // empty in a plain one-way search — now that this sheet is reachable
+  // from a one-way search's own departure tab too (see
+  // computeReturnLegMatches below), the actual travel date depends on
+  // which tab the rider tapped this result from.
+  const [ownReturnLegDate, setOwnReturnLegDate] = useState('')
 
   useEffect(() => {
     if (!user) return
@@ -271,31 +277,46 @@ export default function BusesPage() {
     [routes, trips, fromCity, toCity, returnDate, vehicleGroup, view, sortBy, serviceClassFilter])
   const legResults = activeTab === 'return' ? returnResults : departureResults
 
-  // Real bug found live, 2026-11-23: "selected Peshawar to Karachi for
-  // departure, no bus is appearing in return route for any date." A
-  // two-way route's return leg is the SAME route row (return_departure_
-  // time/return_days_of_week), not a separate route going toCity→
-  // fromCity — returnResults above only ever finds a genuinely separate
-  // company's route, so a route's own built-in return leg never showed
-  // up at all. These are that leg, booked via book_standalone_return_
-  // seat (OwnReturnLegSheet) rather than place_ride_booking, since it's
-  // a different RPC/shape under the hood.
-  const ownReturnLegs = useMemo(() => {
-    if (!fromCity || !toCity || !returnDate) return [] as RouteRow[]
+  // Real bug found live, 2026-11-23, then found AGAIN live 2026-11-27 in
+  // a wider shape: "booking one way seat from Karachi to Peshawar...
+  // no bus was found but there are many buses having route to Karachi
+  // from Peshawar and return." A two-way route's return leg is the SAME
+  // route row (return_departure_time/return_days_of_week), not a
+  // separate route going toCity→fromCity — computeLegResults above only
+  // ever finds a genuinely separate company's route in that direction.
+  // The 2026-11-23 fix only ever checked this for the dedicated
+  // round-trip Return tab; a PLAIN ONE-WAY search in the "wrong"
+  // direction for a two-way route (the real, common case: one company
+  // runs Peshawar→Karachi, and that's the only row in the database —
+  // searching Karachi→Peshawar one-way is just as real a request) hit
+  // the exact same gap and was never covered. Generalized to whichever
+  // direction is actually on screen (the departure tab in a one-way
+  // search is included, not just the return tab of a round trip) —
+  // same booking path either way: book_standalone_return_seat
+  // (OwnReturnLegSheet), a different RPC/shape than place_ride_booking.
+  const computeReturnLegMatches = (fromKey: string, toKey: string, date: string) => {
+    if (!fromKey || !toKey || !date) return [] as RouteRow[]
     const sameCity = (a: string, key: string) => a.trim().toLowerCase() === key
     const groupOk = (type: string | undefined) => !vehicleGroup || vehicleGroupFor(type) === vehicleGroup
     const classOk = (sc: string | null) => !serviceClassFilter || sc === serviceClassFilter
-    const dow = new Date(`${returnDate}T00:00:00`).getDay()
-    return routes.filter((r) => r.is_two_way && !r.is_monthly_fixed && sameCity(r.origin, fromCity) && sameCity(r.destination, toCity) && groupOk(r.vehicles?.vehicle_type) && classOk(r.service_class) && (r.return_days_of_week ?? r.days_of_week ?? []).includes(dow))
-  }, [routes, fromCity, toCity, returnDate, vehicleGroup, serviceClassFilter])
+    const dow = new Date(`${date}T00:00:00`).getDay()
+    // The real route is stored toKey→fromKey (e.g. Peshawar→Karachi) —
+    // fromKey/toKey here are the user's OWN desired direction, so the
+    // match is against the route's stored origin/destination swapped.
+    return routes.filter((r) => r.is_two_way && !r.is_monthly_fixed && sameCity(r.origin, toKey) && sameCity(r.destination, fromKey) && groupOk(r.vehicles?.vehicle_type) && classOk(r.service_class) && (r.return_days_of_week ?? r.days_of_week ?? []).includes(dow))
+  }
+  const legReturnMatches = useMemo(
+    () => activeTab === 'return' ? computeReturnLegMatches(toCity, fromCity, returnDate) : computeReturnLegMatches(fromCity, toCity, departDate),
+    [routes, fromCity, toCity, departDate, returnDate, activeTab, vehicleGroup, serviceClassFilter])
 
   const cheapestLegFare = useMemo(() => {
     const fares = [
       ...legResults.routes.map((r) => r.is_monthly_fixed ? null : r.fare_per_seat_pkr),
       ...legResults.trips.map((o) => o.listed_fare_per_seat_pkr),
+      ...legReturnMatches.map((r) => r.fare_per_seat_pkr),
     ].filter((f): f is number => f != null)
     return fares.length ? Math.min(...fares) : null
-  }, [legResults])
+  }, [legResults, legReturnMatches])
 
   const resetSearch = () => {
     setFromCity(''); setToCity(''); setTripType('oneway'); setDepartDate(''); setReturnDate('')
@@ -445,9 +466,9 @@ export default function BusesPage() {
   // days_of_week, and a "Same vehicle" badge in place of the two-way
   // badge (there's nothing to compare against here — this IS the
   // two-way badge's own other half).
-  const renderOwnReturnLeg = (r: RouteRow, isBestChoice?: boolean) => {
+  const renderOwnReturnLeg = (r: RouteRow, isBestChoice?: boolean, legTab?: 'departure' | 'return') => {
     return (
-      <div key={r.id} role="button" tabIndex={0} onClick={() => setOwnReturnLegRouteId(r.id)} className="relative rounded-2xl bg-white border border-[#e5e7eb] shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
+      <div key={r.id} role="button" tabIndex={0} onClick={() => { setOwnReturnLegRouteId(r.id); setOwnReturnLegDate((legTab ?? 'return') === 'return' ? returnDate : departDate); setBookingLegTab(legTab ?? 'return') }} className="relative rounded-2xl bg-white border border-[#e5e7eb] shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
         {isBestChoice && bestChoiceRibbon}
         {thumbnail(r.service_logo_url, r.vehicles?.vehicle_type)}
         <div className="min-w-0 flex-1">
@@ -461,7 +482,7 @@ export default function BusesPage() {
             {r.vehicles?.total_seats != null && <span className="flex items-center gap-1"><Users size={11} /> {r.vehicles.total_seats} {t('bus.seatsShort')}</span>}
             <span className="flex items-center gap-1"><Clock size={11} /> <span className="ltr-num">{timeLabel(r.return_departure_time)}</span></span>
             {r.route_duration_min != null && <span className="ltr-num">{Math.round(r.route_duration_min)} {t('bus.durationUnit')}</span>}
-            {scheduleOrDateLine(r, 'return')}
+            {scheduleOrDateLine(r, legTab ?? 'return')}
           </div>
         </div>
         <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
@@ -715,26 +736,20 @@ export default function BusesPage() {
             ))}
           </div>
 
-          {activeTab === 'return' && ownReturnLegs.length > 0 && (
-            <div className="flex flex-col gap-2.5">
-              <p className="font-sans text-[12px] font-bold text-[#0f172a] uppercase tracking-[0.05em]">{t('bus.ownReturnLegsHeading')}</p>
-              {ownReturnLegs.map((r) => renderOwnReturnLeg(r))}
-            </div>
-          )}
-
           <div className="flex items-center justify-between gap-3">
             <p className="font-sans text-[13px] font-bold text-[#0f172a]">
-              {t('bus.searchResultsHeading').replace('{n}', String(legResults.routes.length + legResults.trips.length))
+              {t('bus.searchResultsHeading').replace('{n}', String(legResults.routes.length + legResults.trips.length + legReturnMatches.length))
                 .replace('{from}', cityOptions.find((c) => c.key === (activeTab === 'return' ? toCity : fromCity))?.label ?? '')
                 .replace('{to}', cityOptions.find((c) => c.key === (activeTab === 'return' ? fromCity : toCity))?.label ?? '')}
             </p>
             {cheapestLegFare != null && <p className="font-sans text-[11.5px] font-bold text-[#166534] shrink-0">{t('bus.cheapestFareLabel')} ₨{fmt(cheapestLegFare)}</p>}
           </div>
-          {legResults.routes.length === 0 && legResults.trips.length === 0 && ownReturnLegs.length === 0 && (
+          {legResults.routes.length === 0 && legResults.trips.length === 0 && legReturnMatches.length === 0 && (
             <p className="text-center font-sans text-[13px] text-[#64748b] py-10">{t('bus.noResultsForPairHint')}</p>
           )}
           {legResults.routes.map((r) => renderRoute(r, activeTab, !r.is_monthly_fixed && r.fare_per_seat_pkr === cheapestLegFare))}
           {legResults.trips.map((o) => renderTrip(o, activeTab, o.listed_fare_per_seat_pkr === cheapestLegFare))}
+          {legReturnMatches.map((r) => renderOwnReturnLeg(r, r.fare_per_seat_pkr === cheapestLegFare, activeTab))}
         </section>
       ) : (
       <>
@@ -801,8 +816,8 @@ export default function BusesPage() {
           compact={!!bookingLegTab} />
       )}
       {ownReturnLegRouteId && (
-        <OwnReturnLegSheet routeId={ownReturnLegRouteId} travelDate={returnDate} seatsWanted={seatsWanted}
-          onClose={() => setOwnReturnLegRouteId(null)} onBooked={() => setReturnBooked(true)} />
+        <OwnReturnLegSheet routeId={ownReturnLegRouteId} travelDate={ownReturnLegDate} seatsWanted={seatsWanted}
+          onClose={() => setOwnReturnLegRouteId(null)} onBooked={handleLegBooked} />
       )}
     </div>
   )
