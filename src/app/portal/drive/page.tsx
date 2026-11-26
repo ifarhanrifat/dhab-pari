@@ -60,7 +60,7 @@ interface Passenger {
   amount: number; boarded_at: string | null; dropped_off_at: string | null; status: string; counter_id: string | null
 }
 interface Chalan {
-  origin: string; destination: string; run_started_at: string | null
+  origin: string; destination: string; run_started_at: string | null; run_ended_at: string | null
   onboard_now: Passenger[]; next_stops: { label: string; passengers: Passenger[] }[]
   total_confirmed_count: number; total_unconfirmed_count: number; cash_collected_pkr: number
 }
@@ -428,12 +428,17 @@ function DriveOperationsPageInner() {
   const preTripActive = preTripMinutes != null && preTripMinutes <= 120 && preTripMinutes >= -120
   useEffect(() => {
     if (!routeId) { setSharing(false); return }
-    if (!chalan?.run_started_at && !preTripActive) { setSharing(false); return }
+    // Real bug found live 2026-11-26: this only ever checked that a run
+    // had started, never that it had ALSO ended — so a driver's phone
+    // kept pushing live GPS pings for the rest of the day after they'd
+    // already tapped "End Trip."
+    const runLive = !!chalan?.run_started_at && !chalan?.run_ended_at
+    if (!runLive && !preTripActive) { setSharing(false); return }
     supabase.rpc('set_route_location_sharing', { p_route_id: routeId, p_on: true }).then(({ error }) => {
       if (!error) setSharing(true)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeId, chalan?.run_started_at, preTripActive])
+  }, [routeId, chalan?.run_started_at, chalan?.run_ended_at, preTripActive])
 
   const { error: geoError } = useLiveLocation({
     enabled: sharing,
@@ -642,10 +647,13 @@ function DriveOperationsPageInner() {
   // DriverShuffleFloatingButton already uses for the shuffle status. A
   // driver can still close it and reopen later from the floating button.
   useEffect(() => {
-    if (!chalan?.run_started_at || autoOpenedRunRef.current === chalan.run_started_at) return
+    // Real bug found live 2026-11-26: a run that already ended today
+    // kept auto-reopening the full live-trip popup on every fresh page
+    // load, because this only ever checked run_started_at.
+    if (!chalan?.run_started_at || chalan?.run_ended_at || autoOpenedRunRef.current === chalan.run_started_at) return
     autoOpenedRunRef.current = chalan.run_started_at
     setShowTripPopup(true)
-  }, [chalan?.run_started_at])
+  }, [chalan?.run_started_at, chalan?.run_ended_at])
 
   // A van-kind vehicle requires explicit seat numbers on every booking
   // (record_manual_booking, 926) — real gap found live: the walk-up
@@ -684,10 +692,10 @@ function DriveOperationsPageInner() {
   // out of reach for a hook, which must never run conditionally).
   useEffect(() => {
     const vehicleId = routes.find((r) => r.id === routeId)?.vehicle_id
-    if (!vehicleId || chalan?.run_started_at) { setStartStakeInfo(null); return }
+    if (!vehicleId || (chalan?.run_started_at && !chalan?.run_ended_at)) { setStartStakeInfo(null); return }
     supabase.rpc('vehicle_ride_stake_info', { p_vehicle_id: vehicleId }).then(({ data: s }) => setStartStakeInfo(s ?? null))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeId, routes, chalan?.run_started_at])
+  }, [routeId, routes, chalan?.run_started_at, chalan?.run_ended_at])
 
   // ─── Attendance ─────────────────────────────────────────────────────
   const doCheckIn = () => {
@@ -1489,7 +1497,7 @@ function DriveOperationsPageInner() {
                 <FleetStat label={t('mv.cashLabel')} icon={<Wallet size={12} />} value={`₨${fmt(chalan.cash_collected_pkr)}`} valueClassName="text-[#1e293b]" />
               </FleetPanelBody>
 
-              {chalan.run_started_at ? (
+              {chalan.run_started_at && !chalan.run_ended_at ? (
                 <button onClick={() => setShowTripPopup(true)} className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-[#102a36] text-white cursor-pointer">
                   <span className="flex items-center gap-2 font-sans text-[12.5px] font-bold"><Navigation size={14} /> {t('dr.openLiveTripBtn')}</span>
                   <FleetStatusPill tone={sharing ? 'green' : 'amber'}><Radio size={9} className={sharing ? 'animate-pulse' : ''} /> {sharing ? t('dr.liveSharingOnLabel') : t('dr.liveSharingOffLabel')}</FleetStatusPill>

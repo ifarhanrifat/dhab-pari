@@ -14,8 +14,10 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { ChevronLeft, Repeat2, Send, Bus } from 'lucide-react'
+import { toast } from 'sonner'
 import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetStat, FleetStatusPill } from '@/components/portal/FleetPanel'
 import { createClient } from '@/lib/supabase/client'
+import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
@@ -70,33 +72,59 @@ export default function FleetDispatchPage() {
   const [docs, setDocs] = useState<VehicleDocRow[]>([])
   const [chalan, setChalan] = useState<Record<string, number>>({})
   const [tab, setTab] = useState<Tab>('all')
+  // Real gap pointed out directly, 2026-11-26: "if the bus will not
+  // reach due to maintenance issue or out of order then the terminal
+  // will shift that route to any other bus if available" — the
+  // backend for this already existed (route_run_substitutions, 819/
+  // 851, via driver_request_substitute) but had no UI any terminal/
+  // fleet staff member could actually reach; this board (owner/staff
+  // only — my_managed_fleet already excludes role='driver') is where
+  // that go/no-go decision is already made, so the action belongs here.
+  const [fleetVehicles, setFleetVehicles] = useState<{ id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }[]>([])
+  const [reassigningRouteId, setReassigningRouteId] = useState<string | null>(null)
+  const [reassignVehicleId, setReassignVehicleId] = useState('')
+  const [reassignBusy, setReassignBusy] = useState(false)
+
+  const load = async () => {
+    const { data: mine } = await supabase.rpc('my_managed_fleet')
+    const f = mine as { fleet_id: string } | null
+    if (!f) { setLoading(false); return }
+    const [{ data: sched }, { data: maint }, { data: docRows }, { data: vehicles }] = await Promise.all([
+      supabase.rpc('fleet_vehicle_schedule', { p_fleet_id: f.fleet_id }),
+      supabase.rpc('fleet_maintenance_orders', { p_fleet_id: f.fleet_id }),
+      supabase.rpc('fleet_vehicle_documents', { p_fleet_id: f.fleet_id }),
+      supabase.rpc('my_fleet_vehicles'),
+    ])
+    const todays = ((sched ?? []) as ScheduleRow[]).filter((r) => r.is_active && r.runs_today)
+    setSchedule(todays)
+    setMaintenanceVehicles(new Set(((maint ?? []) as MaintenanceOrder[]).filter((m) => m.status !== 'completed').map((m) => m.vehicle_id)))
+    setDocs((docRows ?? []) as VehicleDocRow[])
+    setFleetVehicles((vehicles ?? []) as { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }[])
+
+    // 2026-11-18: real seat occupancy, same bounded pattern as the
+    // Dashboard's Vehicles Requiring Attention panel — only for
+    // today's actual departures (small, already-filtered set).
+    const entries = await Promise.all(todays.map((r) =>
+      supabase.rpc('route_departure_chalan', { p_route_id: r.route_id, p_travel_date: new Date().toISOString().slice(0, 10) })
+        .then(({ data }) => [r.route_id, (data as { total_confirmed_count?: number } | null)?.total_confirmed_count ?? 0] as const)
+    ))
+    setChalan(Object.fromEntries(entries))
+    setLoading(false)
+  }
+
+  const confirmReassign = async (routeId: string) => {
+    if (!reassignVehicleId) return
+    setReassignBusy(true)
+    const { error } = await supabase.rpc('driver_request_substitute', { p_route_id: routeId, p_substitute_vehicle_id: reassignVehicleId })
+    setReassignBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.handOffDoneToast'))
+    setReassigningRouteId(null); setReassignVehicleId('')
+    load()
+  }
 
   useEffect(() => {
     if (!user) return
-    const load = async () => {
-      const { data: mine } = await supabase.rpc('my_managed_fleet')
-      const f = mine as { fleet_id: string } | null
-      if (!f) { setLoading(false); return }
-      const [{ data: sched }, { data: maint }, { data: docRows }] = await Promise.all([
-        supabase.rpc('fleet_vehicle_schedule', { p_fleet_id: f.fleet_id }),
-        supabase.rpc('fleet_maintenance_orders', { p_fleet_id: f.fleet_id }),
-        supabase.rpc('fleet_vehicle_documents', { p_fleet_id: f.fleet_id }),
-      ])
-      const todays = ((sched ?? []) as ScheduleRow[]).filter((r) => r.is_active && r.runs_today)
-      setSchedule(todays)
-      setMaintenanceVehicles(new Set(((maint ?? []) as MaintenanceOrder[]).filter((m) => m.status !== 'completed').map((m) => m.vehicle_id)))
-      setDocs((docRows ?? []) as VehicleDocRow[])
-
-      // 2026-11-18: real seat occupancy, same bounded pattern as the
-      // Dashboard's Vehicles Requiring Attention panel — only for
-      // today's actual departures (small, already-filtered set).
-      const entries = await Promise.all(todays.map((r) =>
-        supabase.rpc('route_departure_chalan', { p_route_id: r.route_id, p_travel_date: new Date().toISOString().slice(0, 10) })
-          .then(({ data }) => [r.route_id, (data as { total_confirmed_count?: number } | null)?.total_confirmed_count ?? 0] as const)
-      ))
-      setChalan(Object.fromEntries(entries))
-      setLoading(false)
-    }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
@@ -166,6 +194,32 @@ export default function FleetDispatchPage() {
                   )}
                   {status === 'driver_not_ready' && (
                     <Link href="/portal/fleet/staff" className="font-sans text-[10.5px] font-semibold text-[#166534] mt-1 inline-block">{t('mv.fleetStaffHeading')} →</Link>
+                  )}
+                  {r.state === 'not_started' && (
+                    reassigningRouteId === r.route_id ? (
+                      <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-[#f1f5f9]">
+                        <select value={reassignVehicleId} onChange={(e) => setReassignVehicleId(e.target.value)}
+                          className="w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[11.5px]">
+                          <option value="">{t('mv.pickAnotherBusPlaceholder')}</option>
+                          {fleetVehicles.filter((v) => v.id !== r.vehicle_id).map((v) => (
+                            <option key={v.id} value={v.id}>{v.vehicle_number || v.vehicle_type} · {v.owner_name}</option>
+                          ))}
+                        </select>
+                        <div className="flex gap-2">
+                          <button onClick={() => confirmReassign(r.route_id)} disabled={reassignBusy || !reassignVehicleId}
+                            className="flex-1 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11.5px] font-bold cursor-pointer disabled:opacity-50">
+                            {reassignBusy ? t('action.saving') : t('action.save')}
+                          </button>
+                          <button onClick={() => { setReassigningRouteId(null); setReassignVehicleId('') }}
+                            className="flex-1 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#64748b] cursor-pointer">{t('action.cancel')}</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setReassigningRouteId(r.route_id); setReassignVehicleId('') }}
+                        className="flex items-center gap-1 font-sans text-[10.5px] font-semibold text-[#b45309] mt-1.5 cursor-pointer">
+                        <Repeat2 size={11} /> {t('mv.busNotReachingBtn')}
+                      </button>
+                    )
                   )}
                 </div>
               )

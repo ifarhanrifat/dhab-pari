@@ -54,6 +54,12 @@ interface FoundBooking {
   vehicle_id: string; is_van_kind: boolean; total_seats: number; is_sleeper: boolean; seat_numbers: number[] | null
   ticket_no: string | null; boarded_at: string | null; vehicle_number: string | null; service_code: string | null
   emergency_contact_phone: string | null; luggage_note: string | null; counter_id: string | null
+  // 960/961: real gap found live — an app booking that genuinely missed
+  // its bus had no status, and no way for fleet staff to move a seat to
+  // another bus. seat_accepted_at/dropped_off_at let the UI tell apart
+  // "never confirmed" / "confirmed, on the bus" / "confirmed, trip over"
+  // for an app booking the same way boarded_at already did for manual.
+  seat_accepted_at: string | null; dropped_off_at: string | null
 }
 // 2026-11-17: booking wizard Phase A — the reference computes a real
 // suggested fare per passenger type (Adult/Child/Infant-own-seat all
@@ -162,6 +168,13 @@ export default function FleetBookingsPage() {
   const [rescheduleSeats, setRescheduleSeats] = useState<number[]>([])
   const [busyId, setBusyId] = useState<string | null>(null)
   const [luggageDrafts, setLuggageDrafts] = useState<Record<string, string>>({})
+  // "What is the status when fleet manager will confirm his seat to the
+  // next available bus" — real gap, no mechanism existed at all
+  // (reschedule only ever moves a date on the SAME bus). Reuses this
+  // page's own `allRoutes` fleet route list as the picker.
+  const [reassigning, setReassigning] = useState<FoundBooking | null>(null)
+  const [reassignRouteId, setReassignRouteId] = useState('')
+  const [reassignDate, setReassignDate] = useState('')
 
   useEffect(() => {
     if (!user) return
@@ -541,6 +554,31 @@ export default function FleetBookingsPage() {
     runSearch()
   }
 
+  const markNoShow = async (b: FoundBooking) => {
+    if (!confirm(t('mv.confirmNoShowHint'))) return
+    setBusyId(b.id)
+    // Same RPC RouteGroupPanel.tsx's own no-show action already calls
+    // (828/898, widened+fixed in 962) — not a second mechanism.
+    const { error } = await supabase.rpc('mark_rider_no_show', { p_booking_id: b.id })
+    setBusyId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.noShowMarkedToast'))
+    runSearch()
+  }
+
+  const confirmReassign = async () => {
+    if (!reassigning || !reassignRouteId) return
+    setBusyId(reassigning.id)
+    const { error } = await supabase.rpc('reassign_ride_booking_to_route', {
+      p_booking_id: reassigning.id, p_new_route_id: reassignRouteId, p_new_travel_date: reassignDate || null,
+    })
+    setBusyId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mv.seatReassignedToast'))
+    setReassigning(null); setReassignRouteId(''); setReassignDate('')
+    runSearch()
+  }
+
   const confirmReschedule = async () => {
     if (!rescheduling || !rescheduleDate) return
     if (rescheduling.is_van_kind && rescheduleSeats.length !== rescheduling.seats) { toast.error(t('mv.pickASeatError')); return }
@@ -910,9 +948,20 @@ export default function FleetBookingsPage() {
               // can surface a cancelled row, it must render as inert.
               const isCancelled = b.status === 'cancelled' || b.status === 'rejected'
               const isPending = b.status === 'announced'
+              // 960: a rider who was confirmed but never boarded — the
+              // "could not reach or catch the bus" case the user asked
+              // about directly. Renders inert, same as cancelled.
+              const isNoShow = b.status === 'no_show'
+              const isDroppedOff = !!b.dropped_off_at
               // App-sourced bookings (b.counter_id always null) are unaffected by
               // 926 — only manual/counter-sold rows get terminal-scoped.
               const isLocked = isAccountantBlocked || (b.source === 'manual' && !canManageCounter(b.counter_id))
+              // Eligible for no-show / move-to-another-bus: a confirmed
+              // app seat that hasn't boarded or completed yet. Mirrors
+              // mark_ride_booking_no_show / reassign_ride_booking_to_
+              // route's own server-side checks exactly.
+              const canNoShow = b.source === 'app' && b.status === 'announced' && !!b.seat_accepted_at && !b.boarded_at && !b.dropped_off_at
+              const canReassign = b.source === 'app' && b.status === 'announced' && !b.boarded_at && !b.dropped_off_at
               return (
               <div key={`${b.source}-${b.id}`} className="px-3.5 py-2.5">
                 <div className="flex items-center justify-between gap-2">
@@ -921,8 +970,9 @@ export default function FleetBookingsPage() {
                     <p className="font-sans text-[10.5px] text-[#94a3b8]">{b.origin} → {b.destination} · {b.owner_name} · {b.seats} {t('mv.seatsSuffix')} · <span className="ltr-num">{b.travel_date}</span></p>
                     <p className="font-sans text-[10.5px] text-[#94a3b8] ltr-num flex items-center gap-1.5 flex-wrap">
                       {b.ticket_no ? `#${b.ticket_no}` : ''}
-                      {b.boarded_at && <FleetStatusPill tone="green">{t('mv.boardedLabel')}</FleetStatusPill>}
+                      {isDroppedOff ? <FleetStatusPill tone="blue">{t('mv.tripCompletedLabel')}</FleetStatusPill> : b.boarded_at && <FleetStatusPill tone="green">{t('mv.boardedLabel')}</FleetStatusPill>}
                       {isCancelled && <FleetStatusPill tone="red">{t('mv.statusFilterCancelledOption')}</FleetStatusPill>}
+                      {isNoShow && <FleetStatusPill tone="red">{t('mv.noShowLabel')}</FleetStatusPill>}
                       {isPending && <FleetStatusPill tone="amber">{t('mv.statusFilterPendingOption')}</FleetStatusPill>}
                     </p>
                     {b.luggage_note && <p className="font-sans text-[10.5px] text-[#94a3b8]">🧳 {b.luggage_note}</p>}
@@ -937,7 +987,7 @@ export default function FleetBookingsPage() {
                     <span className="font-sans text-[13px] font-bold text-[#166534] ltr-num">₨{fmt(b.amount_pkr)}</span>
                   </div>
                 </div>
-                {isCancelled ? null : isLocked ? (
+                {isCancelled || isNoShow || isDroppedOff ? null : isLocked ? (
                   <p className="font-sans text-[11px] text-[#94a3b8] mt-2">{t('mv.cannotManageThisBookingHint')}</p>
                 ) : rescheduling?.id === b.id ? (
                   <div className="flex flex-col gap-2 mt-2">
@@ -950,6 +1000,23 @@ export default function FleetBookingsPage() {
                     {b.is_van_kind && (
                       <SeatPickerField totalSeats={b.total_seats} takenSeatNumbers={rescheduleTakenSeats} seatsNeeded={b.seats} selected={rescheduleSeats} onChange={setRescheduleSeats} isSleeper={b.is_sleeper} />
                     )}
+                  </div>
+                ) : reassigning?.id === b.id ? (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <select value={reassignRouteId} onChange={(e) => setReassignRouteId(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px]">
+                      <option value="">{t('mv.pickAnotherBusPlaceholder')}</option>
+                      {allRoutes.filter((r) => r.id !== b.route_id).map((r) => (
+                        <option key={r.id} value={r.id}>{r.vehicle_number || r.vehicle_type} · {r.origin} → {r.destination}{r.departure_time ? ` · ${r.departure_time}` : ''}</option>
+                      ))}
+                    </select>
+                    <div className="flex gap-2">
+                      <input type="date" value={reassignDate} min={today()} onChange={(e) => setReassignDate(e.target.value)}
+                        placeholder={b.travel_date} className="flex-1 px-2 py-1.5 border border-[#e5e2d0] rounded-lg font-sans text-[12px] ltr-num" />
+                      <button onClick={confirmReassign} disabled={busyId === b.id || !reassignRouteId} className="px-3 py-1.5 rounded-lg bg-[#166534] text-white font-sans text-[11.5px] font-bold cursor-pointer disabled:opacity-50">{t('action.save')}</button>
+                      <button onClick={() => { setReassigning(null); setReassignRouteId(''); setReassignDate('') }} className="p-1.5 text-[#64748b] cursor-pointer"><X size={15} /></button>
+                    </div>
+                    <p className="font-sans text-[10.5px] text-[#94a3b8]">{t('mv.reassignKeepsFareHint')}</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1.5 mt-2">
@@ -966,6 +1033,21 @@ export default function FleetBookingsPage() {
                       <button onClick={() => { setRescheduling(b); setRescheduleDate(b.travel_date); setRescheduleSeats(b.seat_numbers ?? []) }} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer">{t('mv.rescheduleBtn')}</button>
                       <button onClick={() => cancelFound(b)} disabled={busyId === b.id} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#b91c1c] cursor-pointer disabled:opacity-50">{t('action.cancel')}</button>
                     </div>
+                    {/* "What is the status of the fleet incharge in case
+                        any rider failed to get the bus on time" — these
+                        two real asks, previously unbuildable: a direct
+                        no-show mark, and moving the seat to another bus
+                        entirely rather than just another date. */}
+                    {(canNoShow || canReassign) && (
+                      <div className="flex gap-2">
+                        {canReassign && (
+                          <button onClick={() => { setReassigning(b); setReassignRouteId(''); setReassignDate(b.travel_date) }} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#1d4ed8] cursor-pointer">{t('mv.moveToAnotherBusBtn')}</button>
+                        )}
+                        {canNoShow && (
+                          <button onClick={() => markNoShow(b)} disabled={busyId === b.id} className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#e5e2d0] font-sans text-[11.5px] font-semibold text-[#b91c1c] cursor-pointer disabled:opacity-50">{t('mv.markNoShowBtn')}</button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

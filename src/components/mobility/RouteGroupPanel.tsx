@@ -54,6 +54,11 @@ interface AdHocBookingRow {
 interface PendingSeatRequest { id: string; ticket_no: string | null; name: string; seats: number; travel_date: string; direction: 'outbound' | 'return'; total_amount_pkr: number; announced_method: string | null; announced_proof_url: string | null }
 interface PendingMonthlyApplication { id: string; name: string; monthly_fee_pkr: number; stop_label: string | null; applied_at: string; deposit_pkr: number | null; proof_url: string | null; payment_method: string | null }
 interface PendingOwnBooking { booking_id: string; travel_date: string; seats: number }
+// 960: real gaps found live — a rider's own boarded/dropped-off status,
+// and a day's reported lateness, both existed in the database but were
+// invisible everywhere a rider could actually look, including here.
+interface MyBookingStatus { booking_id: string; travel_date: string; seat_accepted_at: string | null; boarded_at: string | null; dropped_off_at: string | null }
+interface TodayDelay { delay_minutes: number; note: string | null; auto_detected: boolean; direction: 'outbound' | 'return' }
 interface Detail {
   is_owner: boolean; can_run_ride: boolean; is_member: boolean; sharing_location: boolean
   owner_portal_user_id: string; route_path: { lat: number; lng: number }[] | null; route_duration_min: number | null
@@ -68,6 +73,8 @@ interface Detail {
   // model entirely. Non-null here means exactly that case; the panel
   // shows accurate "waiting on the driver" copy and no self-join button.
   pending_seat_booking: PendingOwnBooking | null
+  my_booking: MyBookingStatus | null
+  today_delay: TodayDelay | null
 }
 
 // Live, moving ETA per stop — not the static schedule guess. Projects
@@ -488,6 +495,36 @@ export function RouteGroupPanel({ routeId, onClose, departureTime }: { routeId: 
               </span>
             ))}
           </div>
+
+          {/* Real gap found live, 2026-11-26: a day's reported lateness
+              (900/956-958) only ever reached a notification — never the
+              one screen every member of this group actually watches
+              during a live trip. Shown to everyone, owner included. */}
+          {detail.today_delay && (
+            <div className="flex items-center gap-2 bg-[#FEF2F2] border border-[#fecaca] rounded-xl px-2.5 py-2">
+              <Radio size={13} className="text-[#b91c1c] shrink-0" />
+              <p className="font-sans text-[12px] font-bold text-[#b91c1c]">
+                {t('mv.routeRunningLateBanner').replace('{n}', String(detail.today_delay.delay_minutes))}
+                {detail.today_delay.note ? ` — ${detail.today_delay.note}` : ''}
+              </p>
+            </div>
+          )}
+          {/* Same report: boarding had zero visual effect anywhere on a
+              rider's own screen. Only shown to a confirmed, non-owner
+              rider with a live booking today — the driver already sees
+              the full onboard roster elsewhere in this panel.
+              Colors match this file's own green/cream tokens (#166534/
+              #F0FDF4/#bbf7d0, same ones the success pill further down
+              this panel already uses) rather than Tailwind's separate
+              emerald palette, so the two banners read as one family. */}
+          {!detail.is_owner && detail.my_booking?.seat_accepted_at && !detail.my_booking.dropped_off_at && (
+            <div className={`flex items-center gap-2 rounded-xl px-2.5 py-2 ${detail.my_booking.boarded_at ? 'bg-[#F0FDF4] border border-[#bbf7d0]' : 'bg-[#F9F9F6] border border-[#e5e2d0]'}`}>
+              <span className="text-[14px] shrink-0">{detail.my_booking.boarded_at ? '✅' : '🪪'}</span>
+              <p className={`font-sans text-[12px] font-semibold ${detail.my_booking.boarded_at ? 'text-[#166534]' : 'text-[#64748b]'}`}>
+                {detail.my_booking.boarded_at ? t('mv.youAreOnBoardBanner') : t('mv.seatConfirmedWaitingBoardBanner')}
+              </p>
+            </div>
+          )}
 
           {detail.can_run_ride && showRoster && (
             <div className="flex flex-col gap-1.5 bg-amber-50 border border-amber-200 rounded-xl p-2.5">

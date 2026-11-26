@@ -88,6 +88,19 @@ interface HubItem {
   // long as the item itself is on the hub — i.e. from the offer going
   // pending/activated through to the driver cancelling it (803).
   badgeCount?: number
+  // 2026-11-26: real gaps found via live device testing — boarding and
+  // route lateness had zero visual effect anywhere on the rider's own
+  // item (same chip before and after either happened). A short, urgent
+  // line under dateLabel for exactly those two signals; never set for
+  // anything else.
+  warningLabel?: string
+  // 2026-11-26 (design pass): every other status signal on this hub
+  // renders as a colored pill/chip (Countdown, badgeCount, the state
+  // dot) — warningLabel was the one plain-text exception. 'danger' for
+  // the late banner, 'success' for the on-board one; defaults to
+  // 'danger' when unset so a future warningLabel without a tone still
+  // reads as urgent rather than invisible.
+  warningTone?: 'danger' | 'success'
 }
 
 // 2026-11-24 — real ask, live: "don't know when these bookings are due
@@ -261,7 +274,7 @@ export function FloatingBookingsHub() {
 
   const load = useCallback(async () => {
     const supabase = createClient()
-    const [vehicleRes, ongoing, hourly, rental, equipment, seats, rides, purchases, parcels] = await Promise.all([
+    const [vehicleRes, ongoing, hourly, rental, equipment, seats, rides, purchases, parcels, myDrivenRoutes] = await Promise.all([
       supabase.from('vehicles').select('id, commission_mode, offers_hourly, offers_rental, offers_shadi, offers_machinery, offers_tractor, offers_loader').eq('portal_user_id', user!.id).maybeSingle(),
       supabase.rpc('my_ongoing_ride'),
       supabase.rpc('my_hourly_bookings'),
@@ -272,10 +285,28 @@ export function FloatingBookingsHub() {
       // confirmed it — exactly the moment a rider most wants a quick way
       // back into it. 'confirmed' now stays in, bounded to today/future
       // so a long-past booking doesn't linger forever.
-      supabase.from('ride_bookings').select('id, route_id, seats, travel_date, total_amount_pkr, created_at, ticket_no, seat_accepted_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time, vehicle_id, vehicles(commission_mode)), adda_queue_entries(addas(name, name_ur))').eq('portal_user_id', user!.id).in('status', ['announced', 'confirmed']).gte('travel_date', new Date().toISOString().slice(0, 10)),
+      //
+      // Real bug found live 2026-11-26: this never excluded a booking
+      // that had already been dropped off at its destination — a fully
+      // completed trip kept showing a stale, already-used ticket all
+      // day (817's own stated intent, "disappear when the booking ends
+      // at destination," was never actually implemented). Added the
+      // dropped_off_at filter so the item disappears the moment the
+      // trip is actually over, not at midnight.
+      supabase.from('ride_bookings').select('id, route_id, seats, travel_date, total_amount_pkr, created_at, ticket_no, seat_accepted_at, boarded_at, dropped_off_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time, vehicle_id, vehicles(commission_mode)), adda_queue_entries(addas(name, name_ur))').eq('portal_user_id', user!.id).in('status', ['announced', 'confirmed']).is('dropped_off_at', null).gte('travel_date', new Date().toISOString().slice(0, 10)),
       supabase.from('ride_dispatch_requests').select('id, pickup_label, dropoff_label, fare_pkr, created_at').eq('initiator_portal_user_id', user!.id).eq('status', 'open'),
       supabase.rpc('my_city_purchase_requests'),
       supabase.rpc('my_parcel_deliveries'),
+      // Real gap found live 2026-11-26: a co-driver or active shift-
+      // driver (route_run_driver_shifts, 879) has no owned `vehicle`
+      // row, so every driver-side query below (gated on `vehicle`)
+      // never ran for them — a co-driver mid-route on a live run had a
+      // completely empty floating button. Fetched unconditionally
+      // (not gated on `vehicle`) since it resolves its own routes via
+      // co_driver_portal_user_id / an active shift, not vehicle
+      // ownership. Strictly additive to vehicle_route_adda_live_status
+      // below — never returns a route the owner query already covers.
+      supabase.rpc('my_driven_routes_live_status'),
     ])
     const out: HubItem[] = []
     const nm = (en: string | null | undefined, ur: string | null | undefined) => (isUrdu && ur ? ur : en) ?? ''
@@ -413,6 +444,28 @@ export function FloatingBookingsHub() {
       }
     }
 
+    // Co-driver / active-shift routes (966) — same route_ongoing/
+    // route_action/route_idle shape as the owned-vehicle query above,
+    // deliberately OUTSIDE the `if (vehicle)` gate so it still runs for
+    // someone who drives a route without owning its vehicle.
+    for (const item of (myDrivenRoutes.data ?? []) as Array<
+      | { kind: 'route_ongoing'; route_id: string; origin: string; destination: string; started_at: string }
+      | { kind: 'route_action'; route_id: string; origin: string; destination: string; pending_count: number }
+      | { kind: 'route_idle'; route_id: string; origin: string; destination: string; departure_at_today: string | null; today_run_finished: boolean }
+    >) {
+      if (item.kind === 'route_ongoing') {
+        out.push({ key: `rto-${item.route_id}`, role: 'driver', emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'ongoing', since: item.started_at, href: `/portal/drive?route=${item.route_id}` })
+      } else if (item.kind === 'route_action') {
+        out.push({ key: `rta-${item.route_id}`, role: 'driver', emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'action', since: new Date().toISOString(), href: `/portal/drive?route=${item.route_id}`, badgeCount: item.pending_count })
+      } else {
+        out.push({
+          key: `rti-${item.route_id}`, role: 'driver', emoji: '🚌', label: `${nm(item.origin, null)} → ${nm(item.destination, null)}`, state: 'waiting', since: new Date().toISOString(), href: `/portal/drive?route=${item.route_id}`,
+          dateLabel: item.today_run_finished ? t('dock.dutyFinishedToday') : undefined,
+          countdownTarget: !item.today_run_finished && item.departure_at_today ? new Date(item.departure_at_today).getTime() : undefined,
+        })
+      }
+    }
+
     // city_purchase and parcel delivery: both already have a dual-role
     // RPC (as_role keyed off accepted_vehicle_id ownership, same shape
     // my_ongoing_ride() uses for ride_dispatch) — covers the driver
@@ -478,7 +531,7 @@ export function FloatingBookingsHub() {
     }
     const seatRows = (seats.data ?? []) as unknown as {
       id: string; route_id: string | null; seats: number; travel_date: string; total_amount_pkr: number; created_at: string
-      ticket_no: string | null; seat_accepted_at: string | null
+      ticket_no: string | null; seat_accepted_at: string | null; boarded_at: string | null; dropped_off_at: string | null
       vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null; vehicle_id: string; vehicles: { commission_mode: string } | null } | null
       adda_queue_entries: { addas: { name: string; name_ur: string | null } | null } | null
     }[]
@@ -488,9 +541,25 @@ export function FloatingBookingsHub() {
     // now, jump straight to the live map/chat (RouteGroupPanel) instead
     // of the booking popup.
     const seatRouteIds = [...new Set(seatRows.map((b) => b.route_id).filter((id): id is string => !!id))]
-    const activeRunRouteIds = seatRouteIds.length > 0
-      ? new Set(((await supabase.from('route_runs').select('route_id').in('route_id', seatRouteIds).is('ended_at', null)).data ?? []).map((r) => r.route_id))
-      : new Set<string>()
+    const [activeRunRouteIds, delayByRoute] = seatRouteIds.length > 0
+      ? await Promise.all([
+          supabase.from('route_runs').select('route_id').in('route_id', seatRouteIds).is('ended_at', null)
+            .then(({ data }) => new Set((data ?? []).map((r) => r.route_id))),
+          // Real gap found live 2026-11-26: auto-delay detection (956-958)
+          // writes a real row here the moment a run falls behind, but
+          // nothing on the rider's own floating button ever read it — the
+          // only place it ever surfaced was the notification bell. Same
+          // day's delay, any direction, is the only signal this button
+          // needs; the group panel shows the rest.
+          // 2026-11-26 (ghost-departure fix, 968): widened to the fields
+          // RideTicketSheet needs to tell "running late, still coming"
+          // apart from "never left at all" — pre_departure/auto_detected
+          // from the new ghost-departure sweep, not just the raw minutes.
+          supabase.from('route_day_delays').select('route_id, delay_minutes, note, auto_detected, pre_departure').in('route_id', seatRouteIds)
+            .eq('travel_date', new Date().toISOString().slice(0, 10))
+            .then(({ data }) => new Map((data ?? []).map((d) => [d.route_id, d as { delay_minutes: number; note: string | null; auto_detected: boolean; pre_departure: boolean }]))),
+        ])
+      : [new Set<string>(), new Map<string, { delay_minutes: number; note: string | null; auto_detected: boolean; pre_departure: boolean }>()]
     for (const b of seatRows) {
       const r = b.vehicle_routes
       const adda = b.adda_queue_entries?.addas
@@ -500,6 +569,22 @@ export function FloatingBookingsHub() {
       // plain "waiting" status instead of a fabricated countdown.
       const countdownTarget = r?.departure_time ? new Date(`${b.travel_date}T${r.departure_time}+05:00`).getTime() : undefined
       const isLive = !!b.route_id && activeRunRouteIds.has(b.route_id)
+      const delayInfo = b.route_id ? delayByRoute.get(b.route_id) : undefined
+      const delayMin = delayInfo?.delay_minutes
+      // Real gap found live 2026-11-26: boarding (boarded_at) changed
+      // nothing visible anywhere on the rider's own item — same chip
+      // before and after the driver marked them on board.
+      const warningLabel = isLive && delayMin
+        ? t('dock.routeLateBy').replace('{n}', String(delayMin))
+        : isLive && b.boarded_at
+        ? t('dock.youAreOnBoard')
+        : undefined
+      const warningTone: 'danger' | 'success' | undefined = isLive && delayMin ? 'danger' : isLive && b.boarded_at ? 'success' : undefined
+      // 968: a ghost-departure row (pre_departure, auto-detected) is only
+      // meaningful before the route goes live — once isLive it's already
+      // been cleared by start_route_run, so this never fires alongside
+      // the isLive branch above.
+      const neverDeparted = !isLive && !!delayInfo?.pre_departure && !!delayInfo?.auto_detected
       // A route booking opens the group/live-map view once the van is
       // actually live. Before that, a real ticket (948) opens the plain
       // ticket view (+ pay-now if unconfirmed) — never the full route-
@@ -509,7 +594,7 @@ export function FloatingBookingsHub() {
       // older popup; an adda booking (no route_id at all) keeps the
       // existing waiting-sheet pattern.
       out.push({ key: `s-${b.id}`, role: 'rider', emoji: '🚌', label: `${t('rq.kind.route')} · ${title}`, state: isLive ? 'ongoing' : 'waiting', since: b.created_at, countdownTarget: isLive ? undefined : countdownTarget,
-        dateLabel: formatSeatDate(b.travel_date, r?.departure_time ?? null),
+        dateLabel: formatSeatDate(b.travel_date, r?.departure_time ?? null), warningLabel, warningTone,
         ...(isLive && b.route_id
           ? { routeGroupId: b.route_id }
           : b.route_id && b.ticket_no && r
@@ -518,6 +603,13 @@ export function FloatingBookingsHub() {
               origin: nm(r.origin, r.origin_ur), destination: nm(r.destination, r.destination_ur),
               travelDate: b.travel_date, departureTime: r.departure_time, seats: b.seats, amountPkr: b.total_amount_pkr,
               paymentConfirmed: !!b.seat_accepted_at, isPerOrder: r.vehicles?.commission_mode === 'per_order',
+              // 2026-11-26 (968): the ticket used to render identically
+              // whether a trip was untouched, boarded, completed, or
+              // delayed/never-departed — this is the one place that
+              // actually surfaces all four now.
+              boardedAt: b.boarded_at, droppedOffAt: b.dropped_off_at,
+              delayMinutes: delayInfo?.delay_minutes ?? null, delayNote: delayInfo?.note ?? null,
+              delayAutoDetected: delayInfo?.auto_detected ?? false, neverDeparted,
             } as RideTicketInfo }
           : b.route_id
           ? { routeSheetId: b.route_id }
@@ -583,7 +675,7 @@ export function FloatingBookingsHub() {
 
   if (!user || items.length === 0) return renderSheet()
 
-  const badgeColor = (s: ItemState) => (s === 'ongoing' ? '#166534' : s === 'action' ? '#f59e0b' : '#16a34a')
+  const badgeColor = (s: ItemState) => (s === 'ongoing' ? '#166534' : s === 'action' ? '#f59e0b' : '#166534')
   const dotBg = (s: ItemState) => (s === 'ongoing' ? '#dcfce7' : s === 'action' ? '#fef3c7' : '#dcfce7')
   // 2026-11-24 — real ask, live: "if one route was for driver then both
   // rider and driver related things must have other color or design."
@@ -597,7 +689,7 @@ export function FloatingBookingsHub() {
 
   const Row = ({ it }: { it: HubItem }) => (
     <button onClick={() => openItem(it)}
-      className="w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-white border border-[#e8eaee] active:scale-[0.98] transition-transform cursor-pointer text-start">
+      className="w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-white border border-[#e5e2d0] active:scale-[0.98] transition-transform cursor-pointer text-start">
       <span className="relative shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-[18px]" style={{ background: iconBg(it) }}>
         {(it.state === 'searching' || it.state === 'ongoing') && <span className="absolute inset-0 rounded-full border-2 animate-ping [animation-duration:2s]" style={{ borderColor: ringColor(it) }} />}
         {it.emoji}
@@ -608,6 +700,11 @@ export function FloatingBookingsHub() {
         </span>
         <span className="block font-sans text-[13px] font-semibold text-[#0f172a] truncate leading-tight mt-0.5"><bdi>{it.label}</bdi></span>
         {it.dateLabel && <span className="block font-sans text-[11px] text-[#64748b] mt-0.5 ltr-num">{it.dateLabel}</span>}
+        {it.warningLabel && (
+          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full font-sans text-[10px] font-bold ${it.warningTone === 'success' ? 'bg-[#F0FDF4] text-[#166534]' : 'bg-[#FEF2F2] text-[#b91c1c]'}`}>
+            {it.warningLabel}
+          </span>
+        )}
       </span>
       {it.badgeCount != null && (
         <span aria-label={t('dock.seatsBookedAlt').replace('{n}', String(it.badgeCount))}
@@ -649,6 +746,11 @@ export function FloatingBookingsHub() {
                 total === 1 so it's never misattributed to the generic
                 "N active bookings" summary label above. */}
             {total === 1 && primary.dateLabel && <span className="block font-sans text-[10px] text-white/70 leading-tight mt-0.5 ltr-num">{primary.dateLabel}</span>}
+            {total === 1 && primary.warningLabel && (
+              <span className={`inline-block mt-0.5 px-1.5 py-0.5 rounded-full font-sans text-[9.5px] font-bold leading-none ${primary.warningTone === 'success' ? 'bg-[#dcfce7] text-[#166534]' : 'bg-white/90 text-[#b91c1c]'}`}>
+                {primary.warningLabel}
+              </span>
+            )}
             {total === 1 && primary.countdownTarget != null && (
               <span className="block mt-0.5"><Countdown target={primary.countdownTarget} now={now} label={primary.key.startsWith('dro-') ? t('dock.readyNow') : primary.key.startsWith('rti-') ? t('dock.dutyDueLabel') : t('dock.departed')} /></span>
             )}
@@ -665,7 +767,7 @@ export function FloatingBookingsHub() {
       {listOpen && (
         <div className="fixed inset-0 bg-black/55 z-[100] flex items-end sm:items-center justify-center animate-in fade-in duration-200" onClick={() => setListOpen(false)}>
           <div dir={isUrdu ? 'rtl' : 'ltr'} onClick={(e) => e.stopPropagation()}
-            className="bg-[#f8fafc] w-full sm:max-w-[420px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[85dvh] shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300 flex flex-col">
+            className="bg-[#F9F9F6] w-full sm:max-w-[420px] rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[85dvh] shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300 flex flex-col">
             <div className="px-5 pt-5 pb-3 flex items-center justify-between shrink-0">
               <p className="font-sans text-[16px] font-extrabold text-[#0f172a]">{t('dock.listTitle').replace('{n}', String(total))}</p>
               <button onClick={() => setListOpen(false)} aria-label="Close" className="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center cursor-pointer">

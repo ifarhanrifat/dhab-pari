@@ -48,6 +48,17 @@ export interface RideTicketInfo {
   delayMinutes?: number | null
   delayNote?: string | null
   delayAutoDetected?: boolean
+  // 2026-11-26 (968): a real incident — a trip that had already boarded
+  // and completed hours earlier still showed this sheet's generic
+  // "waiting to board" state, because none of this ever reached the
+  // ticket at all. boardedAt/droppedOffAt reflect what actually
+  // happened; neverDeparted flags the specific "scheduled departure
+  // passed, no run ever started" case the ghost-departure sweep catches
+  // — distinct from delayMinutes alone, which can also mean "running
+  // behind but still on its way."
+  boardedAt?: string | null
+  droppedOffAt?: string | null
+  neverDeparted?: boolean
 }
 
 interface PaymentInfo {
@@ -56,6 +67,13 @@ interface PaymentInfo {
 }
 
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
+
+// Mirrors ghost_departure_escalation_minutes' seeded default (968) —
+// display-only wording hint, never the authority on whether a
+// cancellation is actually penalty-free (cancel_ride_booking re-checks
+// the real, live site_settings value server-side regardless of what
+// this sheet shows).
+const GHOST_ESCALATION_HINT_MIN = 45
 
 export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInfo; onClose: () => void; onPaid?: () => void }) {
   const { t, isUrdu } = useLocale()
@@ -67,6 +85,7 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
   const [proofPath, setProofPath] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     QRCode.toDataURL(info.ticketNo, { margin: 1, width: 140 }).then(setQr)
@@ -92,6 +111,17 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
     onPaid?.()
   }
 
+  const cancelGhostBooking = async () => {
+    setCancelling(true)
+    const { data, error } = await supabase.rpc('cancel_ride_booking', { p_booking_id: info.bookingId, p_reason: 'Bus never departed' })
+    setCancelling(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    const reversed = (data as { reversed?: boolean } | null)?.reversed
+    toast.success(reversed ? t('mv.ghostCancelReversedToast') : t('mv.ghostCancelToast'))
+    onPaid?.()
+    onClose()
+  }
+
   const departsLine = info.departureTime
     ? t('mv.busDepartsMessage').replace('{destination}', info.destination).replace('{date}', info.travelDate).replace('{time}', info.departureTime.slice(0, 5))
     : t('mv.busDepartsMessageNoTime').replace('{destination}', info.destination).replace('{date}', info.travelDate)
@@ -113,9 +143,30 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
             <p className="font-mono text-[20px] font-bold tracking-wide ltr-num">{info.ticketNo}</p>
           </div>
 
-          <p className="font-sans text-[13px] font-semibold text-[#1e293b] text-center bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl px-3 py-2.5"><bdi>{departsLine}</bdi></p>
+          {/* 2026-11-26 (968): trip-outcome banners take priority over the
+              generic departs-line/pending-payment chrome below, which
+              used to render unchanged regardless of what had actually
+              happened to this booking. */}
+          {info.droppedOffAt ? (
+            <p className="font-sans text-[13px] font-semibold text-[#166534] text-center bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl px-3 py-2.5">✅ {t('mv.tripCompletedTicketNote')}</p>
+          ) : info.boardedAt ? (
+            <p className="font-sans text-[13px] font-semibold text-[#166534] text-center bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl px-3 py-2.5">✅ {t('mv.youAreOnBoardBanner')}</p>
+          ) : (
+            <p className="font-sans text-[13px] font-semibold text-[#1e293b] text-center bg-[#F0FDF4] border border-[#bbf7d0] rounded-xl px-3 py-2.5"><bdi>{departsLine}</bdi></p>
+          )}
 
-          {info.delayMinutes != null && (
+          {!info.boardedAt && info.neverDeparted ? (
+            <div className="bg-[#FEF2F2] border border-[#fecaca] rounded-xl px-3 py-2.5 text-center flex flex-col gap-2">
+              <p className="font-sans text-[12.5px] font-bold text-[#b91c1c]">
+                {t('mv.neverDepartedBadge').replace('{n}', String(info.delayMinutes ?? 0))}
+              </p>
+              <p className="font-sans text-[11px] text-[#991b1b]">{t('mv.neverDepartedHint')}</p>
+              <button onClick={cancelGhostBooking} disabled={cancelling}
+                className="h-[40px] rounded-xl bg-[#b91c1c] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">
+                {cancelling ? t('action.loading') : (info.delayMinutes ?? 0) >= GHOST_ESCALATION_HINT_MIN ? t('mv.cancelNoPenaltyBtn') : t('mv.cancelMySeatBtn')}
+              </button>
+            </div>
+          ) : !info.boardedAt && info.delayMinutes != null && (
             <div className="bg-[#FEF2F2] border border-[#fecaca] rounded-xl px-3 py-2.5 text-center">
               <p className="font-sans text-[12.5px] font-bold text-[#b91c1c] ltr-num">
                 {t('mv.delayedBadge').replace('{n}', String(info.delayMinutes))}{info.delayAutoDetected ? ` · ${t('mv.delayAutoDetectedTag')}` : ''}
@@ -124,9 +175,11 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
             </div>
           )}
 
-          <span className={`self-center font-sans text-[11px] font-bold uppercase tracking-[0.05em] px-3 py-1 rounded-full ${info.paymentConfirmed || submitted ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-            {info.paymentConfirmed ? t('mv.seatConfirmedInGroupNote') : submitted ? t('rw.paymentProofSentHint') : t('mv.seatPendingDriverNote')}
-          </span>
+          {!info.droppedOffAt && (
+            <span className={`self-center font-sans text-[11px] font-bold uppercase tracking-[0.05em] px-3 py-1 rounded-full ${info.boardedAt || info.paymentConfirmed || submitted ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+              {info.boardedAt ? t('mv.youAreOnBoard') : info.paymentConfirmed ? t('mv.seatConfirmedInGroupNote') : submitted ? t('rw.paymentProofSentHint') : t('mv.seatPendingDriverNote')}
+            </span>
+          )}
 
           <div className="rounded-2xl border border-[#e8eaee] p-3.5 grid grid-cols-2 gap-2.5 text-[12.5px]">
             <div className="col-span-2"><p className="text-[#64748b] text-[10.5px]">{t('mv.fromToLabel')}</p><p className="font-semibold">{info.boardLabel ?? info.origin} → {info.destination}</p></div>
@@ -139,7 +192,7 @@ export function RideTicketSheet({ info, onClose, onPaid }: { info: RideTicketInf
             </div>
           </div>
 
-          {!info.paymentConfirmed && !submitted && (
+          {!info.paymentConfirmed && !submitted && !info.boardedAt && !info.droppedOffAt && (
             <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3.5 flex flex-col gap-2.5">
               <p className="font-sans text-[12px] text-amber-800">{t('mv.seatNeedsDriverConfirmNote')}</p>
               {info.isPerOrder ? (
