@@ -27,7 +27,10 @@ import { RouteBookingSheet } from '@/components/mobility/RouteBookingSheet'
 import { OwnReturnLegSheet } from '@/components/mobility/OwnReturnLegSheet'
 import { friendlyError } from '@/lib/errors'
 
-interface VehicleLite { owner_name: string; vehicle_type: string; model: string | null; color: string | null; total_seats: number | null; has_ac: boolean | null; vehicle_number: string | null }
+interface VehicleLite {
+  owner_name: string; vehicle_type: string; model: string | null; color: string | null; total_seats: number | null; has_ac: boolean | null; vehicle_number: string | null
+  logo_url: string | null; fleets: { name: string; logo_url: string | null } | null
+}
 interface RouteRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   fare_per_seat_pkr: number | null; departure_time: string | null; return_departure_time: string | null; days_of_week: number[] | null
@@ -36,12 +39,20 @@ interface RouteRow {
   service_class: string | null
   vehicles: VehicleLite | null
   source_tenant_name?: string | null
+  // Real bug reported live, 2026-11-26: the card showed the portal
+  // account's own personal name ("QA Driver Bus One") where a real bus
+  // service's brand name belongs — vehicle_payment_info (950) already
+  // resolves this correctly (fleet name, falling back to the vehicle's
+  // own owner_name for a standalone owner-driver) for the payment
+  // sheet; computed here the same way for the result card.
+  service_name?: string; service_logo_url?: string | null
 }
 interface TripRow {
   id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   travel_date: string; departure_time_estimate: string | null; seats_available: number; listed_fare_per_seat_pkr: number; trip_type: string | null
   vehicles: VehicleLite | null
   source_tenant_name?: string | null
+  service_name?: string; service_logo_url?: string | null
 }
 interface NearbyTehsilRow {
   kind: 'route' | 'trip'; id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -49,7 +60,15 @@ interface NearbyTehsilRow {
   days_of_week?: number[] | null; is_two_way?: boolean | null; distance_km?: number | null; route_duration_min?: number | null
   travel_date?: string | null; departure_time_estimate?: string | null; seats_available?: number | null
   owner_name: string; vehicle_type: string; model: string | null; color: string | null; total_seats: number | null; has_ac: boolean | null; vehicle_number: string | null
+  fleet_name?: string | null; logo_url?: string | null
   source_tenant_id: string; source_tenant_name: string
+}
+// Same resolution order as vehicle_payment_info (950): the fleet's own
+// brand name/logo (a company runs several buses on one shared account)
+// falling back to the vehicle's own owner_name/logo (a standalone
+// owner-driver's own name IS their service's name).
+function resolveService(v: VehicleLite | null | undefined, fleetName?: string | null, fleetLogo?: string | null) {
+  return { name: fleetName ?? v?.fleets?.name ?? v?.owner_name ?? '—', logoUrl: fleetLogo ?? v?.fleets?.logo_url ?? v?.logo_url ?? null }
 }
 const SERVICE_CLASSES = ['economy', 'business', 'executive', 'sleeper', 'luxury'] as const
 
@@ -128,30 +147,36 @@ export default function BusesPage() {
     if (!user) return
     const supabase = createClient()
     const today = new Date().toISOString().slice(0, 10)
-    const veh = 'vehicles(owner_name, vehicle_type, model, color, total_seats, has_ac, vehicle_number)'
+    const veh = 'vehicles(owner_name, vehicle_type, model, color, total_seats, has_ac, vehicle_number, logo_url, fleets(name, logo_url))'
     Promise.all([
       supabase.from('vehicle_routes').select(`id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr, departure_time, return_departure_time, days_of_week, return_days_of_week, is_two_way, is_monthly_fixed, monthly_reference_fee_pkr, distance_km, route_duration_min, service_class, ${veh}`).eq('is_active', true).order('departure_time'),
       supabase.from('vehicle_trip_offers').select(`id, origin, origin_ur, destination, destination_ur, travel_date, departure_time_estimate, seats_available, listed_fare_per_seat_pkr, trip_type, ${veh}`).eq('status', 'open').gte('travel_date', today).order('travel_date'),
       supabase.rpc('nearby_tehsil_rides'),
     ]).then(([r, o, nearby]) => {
-      const ownRoutes = (r.data ?? []) as unknown as RouteRow[]
-      const ownTrips = (o.data ?? []) as unknown as TripRow[]
+      const ownRoutes = ((r.data ?? []) as unknown as RouteRow[]).map((row) => ({ ...row, ...(() => { const s = resolveService(row.vehicles); return { service_name: s.name, service_logo_url: s.logoUrl } })() }))
+      const ownTrips = ((o.data ?? []) as unknown as TripRow[]).map((row) => ({ ...row, ...(() => { const s = resolveService(row.vehicles); return { service_name: s.name, service_logo_url: s.logoUrl } })() }))
       const nearbyRows = ((nearby.data ?? []) as NearbyTehsilRow[])
-      const nearbyRoutes: RouteRow[] = nearbyRows.filter((n) => n.kind === 'route').map((n) => ({
-        id: n.id, origin: n.origin, origin_ur: n.origin_ur, destination: n.destination, destination_ur: n.destination_ur,
-        fare_per_seat_pkr: n.fare_per_seat_pkr ?? null, departure_time: n.departure_time ?? null, return_departure_time: n.return_departure_time ?? null,
-        days_of_week: n.days_of_week ?? null, return_days_of_week: null, is_two_way: n.is_two_way ?? null, is_monthly_fixed: false, monthly_reference_fee_pkr: null,
-        distance_km: n.distance_km ?? null, route_duration_min: n.route_duration_min ?? null, service_class: null,
-        vehicles: { owner_name: n.owner_name, vehicle_type: n.vehicle_type, model: n.model, color: n.color, total_seats: n.total_seats, has_ac: n.has_ac, vehicle_number: n.vehicle_number },
-        source_tenant_name: n.source_tenant_name,
-      }))
-      const nearbyTrips: TripRow[] = nearbyRows.filter((n) => n.kind === 'trip').map((n) => ({
-        id: n.id, origin: n.origin, origin_ur: n.origin_ur, destination: n.destination, destination_ur: n.destination_ur,
-        travel_date: n.travel_date ?? '', departure_time_estimate: n.departure_time_estimate ?? null, seats_available: n.seats_available ?? 0,
-        listed_fare_per_seat_pkr: n.fare_per_seat_pkr ?? 0, trip_type: null,
-        vehicles: { owner_name: n.owner_name, vehicle_type: n.vehicle_type, model: n.model, color: n.color, total_seats: n.total_seats, has_ac: n.has_ac, vehicle_number: n.vehicle_number },
-        source_tenant_name: n.source_tenant_name,
-      }))
+      const nearbyRoutes: RouteRow[] = nearbyRows.filter((n) => n.kind === 'route').map((n) => {
+        const s = resolveService(null, n.fleet_name, n.logo_url)
+        return {
+          id: n.id, origin: n.origin, origin_ur: n.origin_ur, destination: n.destination, destination_ur: n.destination_ur,
+          fare_per_seat_pkr: n.fare_per_seat_pkr ?? null, departure_time: n.departure_time ?? null, return_departure_time: n.return_departure_time ?? null,
+          days_of_week: n.days_of_week ?? null, return_days_of_week: null, is_two_way: n.is_two_way ?? null, is_monthly_fixed: false, monthly_reference_fee_pkr: null,
+          distance_km: n.distance_km ?? null, route_duration_min: n.route_duration_min ?? null, service_class: null,
+          vehicles: { owner_name: n.owner_name, vehicle_type: n.vehicle_type, model: n.model, color: n.color, total_seats: n.total_seats, has_ac: n.has_ac, vehicle_number: n.vehicle_number, logo_url: n.logo_url ?? null, fleets: null },
+          source_tenant_name: n.source_tenant_name, service_name: s.name, service_logo_url: s.logoUrl,
+        }
+      })
+      const nearbyTrips: TripRow[] = nearbyRows.filter((n) => n.kind === 'trip').map((n) => {
+        const s = resolveService(null, n.fleet_name, n.logo_url)
+        return {
+          id: n.id, origin: n.origin, origin_ur: n.origin_ur, destination: n.destination, destination_ur: n.destination_ur,
+          travel_date: n.travel_date ?? '', departure_time_estimate: n.departure_time_estimate ?? null, seats_available: n.seats_available ?? 0,
+          listed_fare_per_seat_pkr: n.fare_per_seat_pkr ?? 0, trip_type: null,
+          vehicles: { owner_name: n.owner_name, vehicle_type: n.vehicle_type, model: n.model, color: n.color, total_seats: n.total_seats, has_ac: n.has_ac, vehicle_number: n.vehicle_number, logo_url: n.logo_url ?? null, fleets: null },
+          source_tenant_name: n.source_tenant_name, service_name: s.name, service_logo_url: s.logoUrl,
+        }
+      })
       setRoutes([...ownRoutes, ...nearbyRoutes])
       setTrips([...ownTrips, ...nearbyTrips])
       setLoading(false)
@@ -348,22 +373,52 @@ export default function BusesPage() {
       ⭐ {t('bus.bestChoiceBadge')}
     </span>
   )
+  // Real ask, 2026-11-26: "how will the admin add the bus images which
+  // are displaying under the list?" — they already can, through the
+  // existing bus-service logo upload (ImageUpload on /portal/fleet/cash
+  // or /portal/my-vehicle/vehicle for a standalone owner, built in 950)
+  // — this card just never showed it. Falls back to the plain vehicle-
+  // type emoji only when no photo has been uploaded yet.
+  const thumbnail = (logoUrl: string | null | undefined, vehicleType: string | undefined) => (
+    <span className="shrink-0 w-14 h-14 rounded-2xl bg-white border border-[#e5e7eb] flex items-center justify-center text-[28px] overflow-hidden">
+      {logoUrl ? <img src={logoUrl} alt="" className="w-full h-full object-cover" /> : emojiFor(vehicleType)}
+    </span>
+  )
+  // Real bug reported live, 2026-11-26: browsing a recurring weekly
+  // route (no single travel date yet — that's what the search form is
+  // for) showed no schedule information at all after the day-of-week
+  // dots were trimmed out of the card in the design pass. A date only
+  // exists once a leg is actually being searched (departDate/
+  // returnDate); before that, which days it runs IS the real fact to
+  // show, just condensed to one line instead of 7 circles.
+  const scheduleOrDateLine = (r: RouteRow, legTab?: 'departure' | 'return') => {
+    if (legTab) {
+      const d = legTab === 'return' ? returnDate : departDate
+      return d ? <span className="flex items-center gap-1"><CalendarDays size={11} /> <span className="ltr-num">{d}</span></span> : null
+    }
+    const days = legTab === 'return' ? (r.return_days_of_week ?? r.days_of_week) : r.days_of_week
+    if (!days || days.length === 0) return null
+    if (days.length === 7) return <span className="flex items-center gap-1"><CalendarDays size={11} /> {t('bus.runsDaily')}</span>
+    const short = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    return <span className="flex items-center gap-1"><CalendarDays size={11} /> {days.map((d) => t(`bus.dayShort.${short[d]}`)).join(', ')}</span>
+  }
   const renderRoute = (r: RouteRow, legTab?: 'departure' | 'return', isBestChoice?: boolean) => {
     return (
       <div key={r.id} role="button" tabIndex={0} onClick={() => openRoute(r, legTab)} className="relative rounded-2xl bg-white border border-[#e5e7eb] shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
         {isBestChoice && bestChoiceRibbon}
-        <span className="shrink-0 w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center text-[28px]">{emojiFor(r.vehicles?.vehicle_type)}</span>
+        {thumbnail(r.service_logo_url, r.vehicles?.vehicle_type)}
         <div className="min-w-0 flex-1">
           <p className="font-sans text-[14px] font-bold text-[#0f172a] flex items-center gap-1.5">
             <bdi className="truncate">{nm(r.origin, r.origin_ur)}</bdi>
             <ArrowRight size={13} className="shrink-0 rtl:rotate-180 text-[#94a3b8]" />
             <bdi className="truncate">{nm(r.destination, r.destination_ur)}</bdi>
           </p>
-          <p className="font-sans text-[11.5px] text-[#64748b] truncate mt-0.5">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'} · {r.vehicles?.owner_name}</p>
+          <p className="font-sans text-[11.5px] text-[#64748b] truncate mt-0.5">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'} · <bdi>{r.service_name}</bdi></p>
           <div className="mt-1.5 flex items-center gap-2.5 flex-wrap font-sans text-[10.5px] text-[#64748b]">
             {r.vehicles?.total_seats != null && <span className="flex items-center gap-1"><Users size={11} /> {r.vehicles.total_seats} {t('bus.seatsShort')}</span>}
             <span className="flex items-center gap-1"><Clock size={11} /> <span className="ltr-num">{timeLabel(r.departure_time)}</span></span>
             {r.route_duration_min != null && <span className="ltr-num">{Math.round(r.route_duration_min)} {t('bus.durationUnit')}</span>}
+            {scheduleOrDateLine(r, legTab)}
           </div>
         </div>
         <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
@@ -394,18 +449,19 @@ export default function BusesPage() {
     return (
       <div key={r.id} role="button" tabIndex={0} onClick={() => setOwnReturnLegRouteId(r.id)} className="relative rounded-2xl bg-white border border-[#e5e7eb] shadow-[0_6px_18px_-12px_rgba(15,23,42,0.35)] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
         {isBestChoice && bestChoiceRibbon}
-        <span className="shrink-0 w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center text-[28px]">{emojiFor(r.vehicles?.vehicle_type)}</span>
+        {thumbnail(r.service_logo_url, r.vehicles?.vehicle_type)}
         <div className="min-w-0 flex-1">
           <p className="font-sans text-[14px] font-bold text-[#0f172a] flex items-center gap-1.5">
             <bdi className="truncate">{nm(r.destination, r.destination_ur)}</bdi>
             <ArrowRight size={13} className="shrink-0 rtl:rotate-180 text-[#94a3b8]" />
             <bdi className="truncate">{nm(r.origin, r.origin_ur)}</bdi>
           </p>
-          <p className="font-sans text-[11.5px] text-[#64748b] truncate mt-0.5">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'} · {r.vehicles?.owner_name}</p>
+          <p className="font-sans text-[11.5px] text-[#64748b] truncate mt-0.5">{r.vehicles ? vehicleDisplayName(r.vehicles.vehicle_type, r.vehicles.model) : '—'} · <bdi>{r.service_name}</bdi></p>
           <div className="mt-1.5 flex items-center gap-2.5 flex-wrap font-sans text-[10.5px] text-[#64748b]">
             {r.vehicles?.total_seats != null && <span className="flex items-center gap-1"><Users size={11} /> {r.vehicles.total_seats} {t('bus.seatsShort')}</span>}
             <span className="flex items-center gap-1"><Clock size={11} /> <span className="ltr-num">{timeLabel(r.return_departure_time)}</span></span>
             {r.route_duration_min != null && <span className="ltr-num">{Math.round(r.route_duration_min)} {t('bus.durationUnit')}</span>}
+            {scheduleOrDateLine(r, 'return')}
           </div>
         </div>
         <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
@@ -418,11 +474,11 @@ export default function BusesPage() {
   const renderTrip = (o: TripRow, legTab?: 'departure' | 'return', isBestChoice?: boolean) => (
     <div key={o.id} role="button" tabIndex={0} onClick={() => openTrip(o, legTab)} className="relative rounded-2xl bg-white border border-dashed border-[#94a3b8] p-3 pt-4 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer">
       {isBestChoice && bestChoiceRibbon}
-      <span className="shrink-0 w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center text-[28px]">{emojiFor(o.vehicles?.vehicle_type)}</span>
+      {thumbnail(o.service_logo_url, o.vehicles?.vehicle_type)}
       <div className="min-w-0 flex-1">
         <p className="font-sans text-[10.5px] font-bold text-[#7c3aed] flex items-center gap-1"><CalendarDays size={11} /> {t('bus.oneOffTrip')} · <span className="ltr-num">{o.travel_date}</span> · {timeLabel(o.departure_time_estimate)}</p>
         <p className="font-sans text-[14px] font-bold text-[#0f172a] truncate mt-0.5"><bdi>{nm(o.origin, o.origin_ur)}</bdi> <ArrowRight size={13} className="inline shrink-0 rtl:rotate-180 text-[#94a3b8]" /> <bdi>{nm(o.destination, o.destination_ur)}</bdi></p>
-        <p className="font-sans text-[11.5px] text-[#64748b] truncate mt-1.5 flex items-center gap-1"><Users size={11} /> {o.seats_available} {t('bus.seatsLeft')} · {o.vehicles?.owner_name}{o.source_tenant_name ? ` · 🏘️ ${o.source_tenant_name}` : ''}</p>
+        <p className="font-sans text-[11.5px] text-[#64748b] truncate mt-1.5 flex items-center gap-1"><Users size={11} /> {o.seats_available} {t('bus.seatsLeft')} · <bdi>{o.service_name}</bdi>{o.source_tenant_name ? ` · 🏘️ ${o.source_tenant_name}` : ''}</p>
       </div>
       <div className="text-end shrink-0 flex flex-col items-end gap-1.5">
         <p className="font-sans text-[16px] font-black text-[#14532d] ltr-num">₨{fmt(o.listed_fare_per_seat_pkr)}</p>
@@ -463,7 +519,7 @@ export default function BusesPage() {
           (two tabs for a round trip) appear — nothing auto-filters
           while the rider is still filling the form in. */}
       {!searched ? (
-        <div className="flex flex-col gap-3 -mt-6 relative z-10">
+        <div className="flex flex-col gap-3">
           {/* 2026-11-27 — real ask, matching a reference design file
               exactly: Monthly Fixed vs General (per-ride) sharing as two
               prominent cards, ABOVE the from/to fields — not a small
@@ -556,7 +612,7 @@ export default function BusesPage() {
           </div>
         </div>
       ) : (
-        <div className="bg-white border border-[#e5e7eb] rounded-[20px] p-3.5 flex items-center justify-between gap-3 -mt-6 relative z-10 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)]">
+        <div className="bg-white border border-[#e5e7eb] rounded-[20px] p-3.5 flex items-center justify-between gap-3 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.35)]">
           <div className="min-w-0">
             <p className="font-sans text-[13.5px] font-bold text-[#0f172a] truncate">
               {cityOptions.find((c) => c.key === fromCity)?.label} → {cityOptions.find((c) => c.key === toCity)?.label}
