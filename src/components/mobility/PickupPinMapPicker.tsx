@@ -51,7 +51,7 @@ export function PickupPinMapPicker({ stops, lat, lng, onChange, onClose }: Props
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-[480px] max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-[480px] max-h-[90dvh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 pb-2">
           <p className="font-sans text-[14px] font-bold text-[#1e293b]">{t('mv.choosePickupPinHeading')}</p>
           <button onClick={onClose} className="p-1 text-[#64748b] cursor-pointer"><X size={18} /></button>
