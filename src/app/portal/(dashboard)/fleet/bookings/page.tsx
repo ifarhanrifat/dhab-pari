@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Ticket, Search, X, Phone, MessageCircle, Printer, UserCheck, Baby, Plus, Mail } from 'lucide-react'
+import { Ticket, Search, X, Phone, MessageCircle, Printer, UserCheck, Baby, Plus, Mail, CalendarDays, Percent } from 'lucide-react'
 import { FleetPanel, FleetPanelHead, FleetPanelBody, FleetColumnLabels, FleetStatusPill } from '@/components/portal/FleetPanel'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -23,6 +23,7 @@ import { SeatPickerField } from '@/components/mobility/SeatPickerField'
 import { ManualTicketDocument, type ManualTicketData } from '@/components/mobility/ManualTicketDocument'
 import { TerminalStopPicker, type PickableStop } from '@/components/mobility/TerminalStopPicker'
 import { PickupPinMapPicker } from '@/components/mobility/PickupPinMapPicker'
+import { AvailabilityCalendarPicker } from '@/components/mobility/AvailabilityCalendarPicker'
 
 interface FleetVehicle { id: string; owner_name: string; vehicle_type: string; vehicle_number: string | null }
 // 2026-11-19: real bug fix — is_two_way is what actually decides
@@ -147,6 +148,17 @@ export default function FleetBookingsPage() {
   const [returnAmount, setReturnAmount] = useState('')
   const [returnTakenSeats, setReturnTakenSeats] = useState<number[]>([])
   const [returnSelectedSeats, setReturnSelectedSeats] = useState<number[]>([])
+  // 2026-11-27: real asks — a real month calendar (colored by seat
+  // availability, "like the air ticket is use to do") instead of a
+  // plain date input, and a discount section that never existed
+  // anywhere on a manual/counter ticket before. One discount control
+  // per leg since outbound and return are two independent fares.
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [showReturnDatePicker, setShowReturnDatePicker] = useState(false)
+  const [discountMode, setDiscountMode] = useState<'pct' | 'value'>('pct')
+  const [discountAmount, setDiscountAmount] = useState('')
+  const [returnDiscountMode, setReturnDiscountMode] = useState<'pct' | 'value'>('pct')
+  const [returnDiscountAmount, setReturnDiscountAmount] = useState('')
 
   // "Find a booking" — unified across both sources (855's counter sales
   // + rider self-bookings), defaults to today so it doubles as "all of
@@ -320,6 +332,16 @@ export default function FleetBookingsPage() {
     if (seats === 1) setFreeChildren((prev) => prev.slice(0, 1))
   }, [seats])
 
+  // Real ask, 2026-11-27: "when we want to book 4 seats... now there
+  // will be add passenger names should be open automatically" — booking
+  // 2+ seats at once auto-opens the passenger-name rows instead of
+  // staff having to remember the separate toggle button every time.
+  // Still a real toggle below it either way, for a quick single-seat
+  // sale where names genuinely aren't needed.
+  useEffect(() => {
+    if (seats > 1) setShowPassengers(true)
+  }, [seats])
+
   // 2026-11-20: real gap confirmed directly — a manual/counter booking
   // was never recognized as a returning customer (plain retyped text
   // every time, no lookup). fleet_passenger_history (928) reuses the
@@ -366,6 +388,22 @@ export default function FleetBookingsPage() {
   const suggestedFare = selectedRoute
     ? Math.round(paidPassengers.reduce((sum, p) => sum + selectedRoute.fare_per_seat_pkr * (PASSENGER_TYPE_MULTIPLIER[p.type] ?? 1), 0))
     : 0
+  // 2026-11-27: discount is a pure client-side pricing aid same as the
+  // suggested-fare math above — the actual amount charged is always
+  // whatever the staff types/confirms into the Amount field, discount_
+  // pct/discount_value just travel along for the receipt + audit trail.
+  const discountPct = discountMode === 'pct' ? Math.min(100, Math.max(0, Number(discountAmount) || 0)) : 0
+  const discountValue = discountMode === 'value' ? Math.max(0, Number(discountAmount) || 0) : 0
+  const netSuggestedFare = Math.max(0, Math.round(suggestedFare * (1 - discountPct / 100) - discountValue))
+
+  // Return leg's own base fare mirrors record_manual_return_booking's
+  // own full-journey fallback (fare_per_seat_pkr × seats × 1) — an
+  // honest baseline, not a fabricated segment price (no stop-fraction
+  // math available client-side without a new round trip).
+  const baseReturnFare = selectedRoute ? Math.round(selectedRoute.fare_per_seat_pkr * seats) : 0
+  const returnDiscountPct = returnDiscountMode === 'pct' ? Math.min(100, Math.max(0, Number(returnDiscountAmount) || 0)) : 0
+  const returnDiscountValue = returnDiscountMode === 'value' ? Math.max(0, Number(returnDiscountAmount) || 0) : 0
+  const netSuggestedReturnFare = Math.max(0, Math.round(baseReturnFare * (1 - returnDiscountPct / 100) - returnDiscountValue))
 
   // 2026-11-20: real server-side rules (926) — accountants are blocked
   // from booking writes by default, and a counter-assigned staff member
@@ -410,6 +448,7 @@ export default function FleetBookingsPage() {
       p_board_stop_id: pickupMode === 'stop' ? boardStopId : null,
       p_pickup_lat: pickupMode === 'map' ? pickupLat : null, p_pickup_lng: pickupMode === 'map' ? pickupLng : null,
       p_pickup_point: pickupMode === 'map' ? (pickupPoint || null) : null,
+      p_discount_pct: discountPct, p_discount_value: discountValue,
     })
     if (error) { setRecording(false); toast.error(friendlyError(error)); return }
     const outboundId = (data as { id?: string } | null)?.id
@@ -430,6 +469,7 @@ export default function FleetBookingsPage() {
         p_counter_id: counterId || null, p_passenger_mobile: passengerMobile || null, p_payment_method: method,
         p_board_stop_id: returnBoardStopId, p_seat_numbers: seating?.isVanKind ? returnSelectedSeats : null,
         p_emergency_contact_phone: emergencyPhone || null, p_passengers: passengers, p_outbound_leg_of: outboundId,
+        p_discount_pct: returnDiscountPct, p_discount_value: returnDiscountValue,
       })
       if (returnError) { setRecording(false); toast.error(friendlyError(returnError)); return }
       returnTicketNo = (returnData as { ticket_no?: string } | null)?.ticket_no
@@ -450,11 +490,13 @@ export default function FleetBookingsPage() {
         bookedAtTerminal: myCounter ? `${myCounter.city}${myCounter.name ? ` · ${myCounter.name}` : ''}` : (counterId ? counters.find((c) => c.id === counterId)?.city ?? null : null),
         pickupApprovalPending: pendingApproval,
         pickupLat: pickupMode === 'map' ? pickupLat : null, pickupLng: pickupMode === 'map' ? pickupLng : null,
+        discountPct: discountPct || undefined, discountValue: discountValue || undefined,
         returnLeg: returnTicketNo && selectedRoute ? {
           // Real two-way model: the return leg is the SAME route,
           // travelled in reverse — origin/destination swap for display.
           ticketNo: returnTicketNo, origin: selectedRoute.destination, destination: selectedRoute.origin, travelDate: returnDate,
           departureTime: null, seats, seatNumbers: seating?.isVanKind ? returnSelectedSeats : null, amountPkr: returnTotal,
+          discountPct: returnDiscountPct || undefined, discountValue: returnDiscountValue || undefined,
         } : null,
       })
     }
@@ -462,6 +504,7 @@ export default function FleetBookingsPage() {
     setEmergencyPhone(''); setPaidPassengers([{ full_name: '', gender: '', type: 'adult' }]); setFreeChildren([]); setShowPassengers(false)
     setBoardStopId(null); setPickupMode('stop'); setPickupLat(null); setPickupLng(null); setPickupPoint('')
     setIsReturn(false); setReturnDate(''); setReturnBoardStopId(null); setReturnAmount(''); setReturnSelectedSeats([])
+    setDiscountMode('pct'); setDiscountAmount(''); setReturnDiscountMode('pct'); setReturnDiscountAmount('')
     loadTakenSeats()
     if (bookTravelDate === searchDate) runSearch()
   }
@@ -506,6 +549,7 @@ export default function FleetBookingsPage() {
       ...(data.pickupApprovalPending ? [`This pickup pin is awaiting route / dispatcher approval.`] : []),
       `Payment: ${data.paymentMethod}`,
       `Fare: ₨${fmt(data.amountPkr)}`,
+      ...(data.discountPct || data.discountValue ? [`Discount: ${[data.discountPct ? `${data.discountPct}%` : '', data.discountValue ? `₨${fmt(data.discountValue)}` : ''].filter(Boolean).join(' + ')} off`] : []),
     ]
     if (data.returnLeg) {
       lines.push(
@@ -515,6 +559,7 @@ export default function FleetBookingsPage() {
         `${data.returnLeg.travelDate}${data.returnLeg.departureTime ? ` · ${data.returnLeg.departureTime}` : ''}`,
         `${data.returnLeg.seats} seat(s)${data.returnLeg.seatNumbers?.length ? ` (#${data.returnLeg.seatNumbers.join(', ')})` : ''}`,
         ...(data.returnLeg.amountPkr != null ? [`Fare: ₨${fmt(data.returnLeg.amountPkr)}`] : []),
+        ...(data.returnLeg.discountPct || data.returnLeg.discountValue ? [`Discount: ${[data.returnLeg.discountPct ? `${data.returnLeg.discountPct}%` : '', data.returnLeg.discountValue ? `₨${fmt(data.returnLeg.discountValue)}` : ''].filter(Boolean).join(' + ')} off`] : []),
       )
       // 2026-11-19: real gap — the outbound "Fare" line above and the
       // return leg's own "Fare" line never added up to a combined
@@ -692,8 +737,19 @@ export default function FleetBookingsPage() {
         {routeId && (
           <>
             <label className="block font-sans text-[11.5px] font-bold text-[#64748b] mb-1">{t('mv.travelDateLabel')}</label>
-            <input type="date" value={bookTravelDate} min={today()} onChange={(e) => setBookTravelDate(e.target.value)}
-              className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5 ltr-num" />
+            {/* 2026-11-27: real ask — "the calendar dates should be
+                marked according to the available seats and routes...
+                just like the air ticket is use to do." A plain native
+                date input can't color individual days, so this opens a
+                real month-grid calendar (AvailabilityCalendarPicker)
+                fed by route_seats_available_range (976) — full/low/open
+                shown per day for this specific route, one round trip
+                per visible month. */}
+            <button type="button" onClick={() => setShowDatePicker(true)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2.5 cursor-pointer">
+              <span className="flex items-center gap-1.5 font-semibold text-[#1e293b] ltr-num"><CalendarDays size={14} className="text-[#64748b]" /> {bookTravelDate}</span>
+              <span className="font-sans text-[11px] font-bold text-[#166534]">{t('mv.changeDateLink')}</span>
+            </button>
             {myCounter && (
               <p className="flex items-center gap-1.5 font-sans text-[11px] text-[#64748b] mb-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#166534] shrink-0" />
@@ -776,12 +832,64 @@ export default function FleetBookingsPage() {
             <input value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} placeholder={t('mv.emergencyContactPlaceholder')}
               className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2 ltr-num" />
 
+            {/* 2026-11-27: real reorder — Seats / Amount / Discount /
+                Payment now come before passenger-name entry, with the
+                seat picker right alongside them, so "Add passenger
+                details" (moved below, auto-opening for 2+ seats) is the
+                natural next step once seats are actually chosen. */}
+            <div className="flex gap-2 mb-2">
+              <input type="number" min={1} max={seating?.totalSeats} value={seats} onChange={(e) => setSeats(Math.max(1, Number(e.target.value)))}
+                className="w-20 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+              <select value={method} onChange={(e) => setMethod(e.target.value)} className="flex-1 px-2 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px]">
+                <option value="cash">{t('mv.paymentCash')}</option>
+                <option value="jazzcash">JazzCash</option>
+              </select>
+            </div>
+            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+              placeholder={selectedRoute ? `₨${fmt(selectedRoute.fare_per_seat_pkr * seats)}` : t('mv.expenseAmountPlaceholder')}
+              className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] mb-2 ltr-num" />
+
+            {/* Real ask, 2026-11-27: "make the discount section for
+                ticket booking too" — nothing like this existed before.
+                Both % and flat Rs, staff picks per sale. */}
+            <div className="flex items-center gap-2 mb-2">
+              <Percent size={13} className="text-[#64748b] shrink-0" />
+              <div className="flex gap-1 shrink-0">
+                <button type="button" onClick={() => setDiscountMode('pct')}
+                  className={`px-2 py-1.5 rounded-lg font-sans text-[11px] font-bold cursor-pointer ${discountMode === 'pct' ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>
+                  {t('mv.discountModePctOption')}
+                </button>
+                <button type="button" onClick={() => setDiscountMode('value')}
+                  className={`px-2 py-1.5 rounded-lg font-sans text-[11px] font-bold cursor-pointer ${discountMode === 'value' ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>
+                  {t('mv.discountModeValueOption')}
+                </button>
+              </div>
+              <input type="number" min={0} value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} placeholder={t('mv.discountAmountPlaceholder')}
+                className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+            </div>
+            {selectedRoute && (discountPct > 0 || discountValue > 0) && (
+              <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-[#f8f6ee] rounded-lg mb-2">
+                <span className="font-sans text-[11px] text-[#64748b]">
+                  {t('mv.netFareLabel')}: <span className="font-bold text-[#166534] ltr-num">₨{fmt(netSuggestedFare)}</span>
+                </span>
+                <button type="button" onClick={() => setAmount(String(netSuggestedFare))} className="font-sans text-[11px] font-bold text-[#166534] cursor-pointer">{t('mv.useThisFareBtn')}</button>
+              </div>
+            )}
+
+            {seating?.isVanKind && (
+              <div className="mb-2.5">
+                {isReturn && <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-1">{t('mv.outboundSeatsHeading')}</p>}
+                <SeatPickerField totalSeats={seating.totalSeats} takenSeatNumbers={takenSeats} seatsNeeded={seats} selected={selectedSeats} onChange={setSelectedSeats} isSleeper={seating.isSleeper} />
+              </div>
+            )}
+
             <button type="button" onClick={() => setShowPassengers((s) => !s)} className="font-sans text-[11.5px] font-semibold text-[#166534] cursor-pointer mb-2">
               {showPassengers ? t('mv.hidePassengerDetailsBtn') : t('mv.addPassengerDetailsBtn')}
             </button>
             {showPassengers && (
               <div className="bg-[#f8f6ee] rounded-lg p-2.5 mb-2.5 flex flex-col gap-2">
                 <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b]">{t('mv.paidPassengersLabel')}</p>
+                <p className="font-sans text-[10.5px] text-[#94a3b8] -mt-1">{t('mv.addPassengerNamesHint')}</p>
                 {paidPassengers.map((p, i) => (
                   <div key={i} className="flex gap-2">
                     <input value={p.full_name} onChange={(e) => setPaidPassengers((arr) => arr.map((x, j) => j === i ? { ...x, full_name: e.target.value } : x))}
@@ -829,23 +937,6 @@ export default function FleetBookingsPage() {
                 </button>
               </div>
             )}
-            <div className="flex gap-2 mb-2">
-              <input type="number" min={1} max={seating?.totalSeats} value={seats} onChange={(e) => setSeats(Math.max(1, Number(e.target.value)))}
-                className="w-20 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-              <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
-                placeholder={selectedRoute ? `₨${fmt(selectedRoute.fare_per_seat_pkr * seats)}` : t('mv.expenseAmountPlaceholder')}
-                className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-              <select value={method} onChange={(e) => setMethod(e.target.value)} className="px-2 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[12.5px]">
-                <option value="cash">{t('mv.paymentCash')}</option>
-                <option value="jazzcash">JazzCash</option>
-              </select>
-            </div>
-            {seating?.isVanKind && (
-              <div className="mb-2.5">
-                {isReturn && <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b] mb-1">{t('mv.outboundSeatsHeading')}</p>}
-                <SeatPickerField totalSeats={seating.totalSeats} takenSeatNumbers={takenSeats} seatsNeeded={seats} selected={selectedSeats} onChange={setSelectedSeats} isSleeper={seating.isSleeper} />
-              </div>
-            )}
 
             {/* 2026-11-19: real fix — Return only ever makes sense on
                 a route the vehicle actually runs back on (is_two_way).
@@ -870,8 +961,11 @@ export default function FleetBookingsPage() {
                     <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b]">{t('mv.returnJourneyHeading')}</p>
                     <p className="font-sans text-[11px] font-bold text-[#166534]">{selectedRoute.destination} → {selectedRoute.origin}</p>
                     <label className="block font-sans text-[11px] font-bold text-[#64748b] -mb-1">{t('mv.returnDateLabel')}</label>
-                    <input type="date" value={returnDate} min={bookTravelDate} onChange={(e) => setReturnDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                    <button type="button" onClick={() => setShowReturnDatePicker(true)}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] cursor-pointer bg-white">
+                      <span className="flex items-center gap-1.5 font-semibold text-[#1e293b] ltr-num"><CalendarDays size={14} className="text-[#64748b]" /> {returnDate}</span>
+                      <span className="font-sans text-[11px] font-bold text-[#166534]">{t('mv.changeDateLink')}</span>
+                    </button>
                     <button type="button" onClick={() => setShowReturnStopPicker(true)}
                       className="w-full flex items-center justify-between px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] cursor-pointer bg-white">
                       <span className="text-[#64748b]">{t('mv.returnBoardingStopLabel')}</span>
@@ -882,8 +976,41 @@ export default function FleetBookingsPage() {
                         })()}
                       </span>
                     </button>
+                    {/* Real fix, 2026-11-27: "why are we not adding the
+                        ticket amount in the return booking, why the
+                        system is telling me it'll be calculated
+                        automatically?" — the field was always editable
+                        (record_manual_return_booking already respects
+                        any typed amount, only falls back to its own
+                        fraction-of-fare math when left blank), the
+                        complaint was that staff could never SEE that
+                        computed number before submitting. Now shown
+                        live, same "suggested fare · use this" pattern
+                        the outbound passenger section already has, with
+                        its own discount control applied on top. */}
+                    <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-white rounded-lg border border-[#e5e2d0]">
+                      <span className="font-sans text-[11px] text-[#64748b]">
+                        {t('mv.suggestedReturnFareLabel')}: <span className="font-bold text-[#166534] ltr-num">₨{fmt(netSuggestedReturnFare)}</span>
+                      </span>
+                      <button type="button" onClick={() => setReturnAmount(String(netSuggestedReturnFare))} className="font-sans text-[11px] font-bold text-[#166534] cursor-pointer">{t('mv.useThisFareBtn')}</button>
+                    </div>
                     <input type="number" value={returnAmount} onChange={(e) => setReturnAmount(e.target.value)} placeholder={t('mv.returnFareAutoPlaceholder')}
                       className="w-full px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                    <div className="flex items-center gap-2">
+                      <Percent size={13} className="text-[#64748b] shrink-0" />
+                      <div className="flex gap-1 shrink-0">
+                        <button type="button" onClick={() => setReturnDiscountMode('pct')}
+                          className={`px-2 py-1.5 rounded-lg font-sans text-[11px] font-bold cursor-pointer ${returnDiscountMode === 'pct' ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>
+                          {t('mv.discountModePctOption')}
+                        </button>
+                        <button type="button" onClick={() => setReturnDiscountMode('value')}
+                          className={`px-2 py-1.5 rounded-lg font-sans text-[11px] font-bold cursor-pointer ${returnDiscountMode === 'value' ? 'bg-[#166534] text-white' : 'border border-[#e5e2d0] text-[#64748b]'}`}>
+                          {t('mv.discountModeValueOption')}
+                        </button>
+                      </div>
+                      <input type="number" min={0} value={returnDiscountAmount} onChange={(e) => setReturnDiscountAmount(e.target.value)} placeholder={t('mv.discountAmountPlaceholder')}
+                        className="flex-1 px-3 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                    </div>
                     {seating?.isVanKind && (
                       <>
                         <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#64748b]">{t('mv.returnSeatsHeading')}</p>
@@ -1068,6 +1195,13 @@ export default function FleetBookingsPage() {
 
       {showPickupPicker && (
         <PickupPinMapPicker stops={routeStops} lat={pickupLat} lng={pickupLng} onChange={(la, ln) => { setPickupLat(la); setPickupLng(ln) }} onClose={() => setShowPickupPicker(false)} />
+      )}
+
+      {showDatePicker && routeId && (
+        <AvailabilityCalendarPicker routeId={routeId} value={bookTravelDate} onChange={setBookTravelDate} onClose={() => setShowDatePicker(false)} title={t('mv.travelDateLabel')} />
+      )}
+      {showReturnDatePicker && routeId && (
+        <AvailabilityCalendarPicker routeId={routeId} value={returnDate} onChange={setReturnDate} minDate={bookTravelDate} onClose={() => setShowReturnDatePicker(false)} title={t('mv.returnDateLabel')} />
       )}
 
       {printedTicket && (
