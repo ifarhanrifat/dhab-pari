@@ -99,7 +99,7 @@ export function AvailabilityCalendarPicker({ routeId, value, onChange, onClose, 
           return (
             <button key={iso} type="button" disabled={disabled} onClick={() => pick(iso)}
               className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 cursor-pointer disabled:cursor-not-allowed transition-colors ${
-                !inMonth || isPast ? 'opacity-25' : ''
+                isPast ? 'opacity-25' : !inMonth ? 'opacity-60' : ''
               } ${
                 isSelected ? 'bg-[#166534] text-white' :
                 full || notRunning ? 'bg-[#f1f5f9] text-[#94a3b8]' :
@@ -107,7 +107,21 @@ export function AvailabilityCalendarPicker({ routeId, value, onChange, onClose, 
                 a ? 'bg-[#F0FDF4] text-[#1e293b]' : 'text-[#1e293b]'
               }`}>
               <span className="font-sans text-[12.5px] font-bold ltr-num">{d.getDate()}</span>
-              {inMonth && !isPast && (
+              {/* Real bug caught live, 2026-11-27 — "why is this route
+                  available for only these 3 days, it's set for every
+                  date?" Root cause: this label only ever rendered when
+                  `inMonth` was true, so the ~12 adjacent-month days that
+                  spill into every 42-cell grid (confirmed via direct
+                  route_seats_available_range call: every one of them
+                  really is is_running=true with full seats) were dimmed
+                  with NO number at all — visually identical to a真正
+                  disabled past day, so only the 2-3 in-month, non-past
+                  cells ever looked bookable. A day only hides its number
+                  when it's genuinely in the past — a spillover day from
+                  the next/prev month now gets a lighter dim (not a
+                  blackout) and keeps showing its real availability,
+                  exactly like any other day. */}
+              {!isPast && (
                 <span className={`font-sans text-[8.5px] font-bold ltr-num ${isSelected ? 'text-white/90' : full ? 'text-[#b91c1c]' : notRunning ? 'text-[#94a3b8]' : low ? 'text-amber-700' : 'text-[#166534]'}`}>
                   {!a ? (loading ? '···' : '') : notRunning ? t('mv.calendarNotRunningLabel') : full ? t('mv.calendarFullLabel') : a.available}
                 </span>
