@@ -1552,9 +1552,29 @@ function DriveOperationsPageInner() {
                         <p className="font-sans text-[11.5px] text-[#166534] font-semibold text-center py-2 bg-[#F0FDF4] rounded-lg">{t('mv.stopAlreadyClosedHint')}</p>
                       ) : (
                         <div className="flex flex-col gap-2 pt-2 border-t border-[#f1f5f9]">
+                          {/* Real bug reported live, 2026-11-27 ("lol look at
+                              this screen") — both fields default their value
+                              to the literal string '0' (so p_driver_advance_pkr/
+                              p_other_cash_pkr never choke on an empty input),
+                              but the only label either one ever had was its own
+                              placeholder — which an input only ever shows while
+                              its value is genuinely empty. With a real default
+                              value already sitting in the box, the placeholder
+                              could never once render, so the driver saw two
+                              bare "0" boxes with no indication of what either
+                              one meant. Real, visible labels added, matching
+                              the FleetFormField convention this same screen
+                              already uses one panel below for the walk-up
+                              passenger form. */}
                           <div className="grid grid-cols-2 gap-2">
-                            <input type="number" min="0" value={advanceInput} onChange={(e) => setAdvanceInput(e.target.value)} placeholder={t('mv.driverAdvanceLabel')} className="px-2.5 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
-                            <input type="number" min="0" value={otherCashInput} onChange={(e) => setOtherCashInput(e.target.value)} placeholder={t('mv.otherCashPaymentLabel')} className="px-2.5 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                            <div>
+                              <label className="block font-sans text-[10.5px] font-bold text-[#64748b] mb-1">{t('mv.driverAdvanceLabel')}</label>
+                              <input type="number" min="0" value={advanceInput} onChange={(e) => setAdvanceInput(e.target.value)} className="w-full px-2.5 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                            </div>
+                            <div>
+                              <label className="block font-sans text-[10.5px] font-bold text-[#64748b] mb-1">{t('mv.otherCashPaymentLabel')}</label>
+                              <input type="number" min="0" value={otherCashInput} onChange={(e) => setOtherCashInput(e.target.value)} className="w-full px-2.5 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px] ltr-num" />
+                            </div>
                           </div>
                           <input value={stopNoteInput} onChange={(e) => setStopNoteInput(e.target.value)} placeholder={t('mv.stopChallanNoteLabel')} className="px-2.5 py-2 border border-[#e5e2d0] rounded-lg font-sans text-[13px]" />
                           <button onClick={closeStop} disabled={closing} className="py-2.5 rounded-xl bg-[#166534] text-white font-sans text-[12.5px] font-bold cursor-pointer disabled:opacity-50">{closing ? t('action.loading') : t('mv.closeStopBtn')}</button>
