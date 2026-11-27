@@ -21,11 +21,12 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
   Bus, MapPin, Wallet, Plus, Minus, Clock, LogIn, LogOut, CheckCircle2, UserX, ClipboardCheck,
   HandCoins, Users2, Banknote, TrendingUp, MessageCircleQuestion, Radio, Navigation, Play,
-  Crosshair, Send, Gauge, Route as RouteIcon, Maximize2, Minimize2, MessageCircle, CalendarDays,
+  Crosshair, Send, Gauge, Route as RouteIcon, Maximize2, Minimize2, MessageCircle, CalendarDays, UserCog,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -1381,7 +1382,21 @@ function DriveOperationsPageInner() {
         </div>
         )
       })()}
-      <h1 className="font-bold text-[20px] text-dp-primary flex items-center gap-2"><Bus size={19} /> SAFAR Driver</h1>
+      {/* Real gap found live, 2026-11-27: this standalone screen (no
+          portal sidebar/header by design — my-vehicle/layout.tsx
+          permanently redirects a fleet's own employee-driver here, away
+          from the dashboard shell) had zero navigation anywhere in the
+          whole file — a driver who landed here had no way to sign out
+          or change their password at all. /portal/account (sign-out,
+          profile link) and /portal/profile (password change) already
+          exist and already work; they were just unreachable from this
+          one dead-end screen. */}
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="font-bold text-[20px] text-dp-primary flex items-center gap-2"><Bus size={19} /> SAFAR Driver</h1>
+        <Link href="/portal/account" aria-label={t('dr.accountLinkAlt')} className="shrink-0 w-9 h-9 rounded-full bg-white border border-[#e5e2d0] flex items-center justify-center text-[#166534] cursor-pointer">
+          <UserCog size={17} />
+        </Link>
+      </div>
 
       <div className="flex gap-1.5 bg-white border border-[#e5e2d0] rounded-xl p-1">
         {([
