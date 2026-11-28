@@ -47,6 +47,7 @@ import {
   Milestone,
   Receipt,
   Clock,
+  Construction,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -158,6 +159,7 @@ const fleetChildren = (fleetName?: string | null): LeafItem[] => [
   // People & commerce.
   { href: '/portal/fleet/staff', label: 'Staff', tKey: 'mv.fleetStaffHeading', icon: Users2, sectionTKey: 'mv.navSectionPeopleCommerce' },
   { href: '/portal/fleet/bookings', label: 'Bookings', tKey: 'mv.fleetBookingsHeading', icon: Ticket },
+  { href: '/portal/fleet/machinery', label: 'Machinery', tKey: 'mv.fleetMachineryHeading', icon: Construction },
   { href: '/portal/fleet/chalan', label: 'Chalan', tKey: 'mv.chalanHeading', icon: ClipboardList },
   // 2026-11-18: real gap from the sidebar audit — fare-requests is a
   // real, working page (860) that had no nav entry anywhere, only a

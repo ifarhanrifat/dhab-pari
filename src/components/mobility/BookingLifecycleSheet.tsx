@@ -17,7 +17,7 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Loader2, AlertTriangle, CheckCircle2, Ban, Navigation, Phone, Radio, X, Check, Wallet, Play, Square, MessageCircle, Pause } from 'lucide-react'
+import { Loader2, AlertTriangle, CheckCircle2, Ban, Navigation, Phone, Radio, X, Check, Wallet, Play, Square, MessageCircle, Pause, Repeat, AlarmClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -162,6 +162,50 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
   const confirmPayment = () => run(CONFIRM_RPC[kind], { p_booking_id: bookingId }, t('vp.paymentConfirmedToast'))
   const chatUnread = useChatUnread(REF_TYPE[kind], bookingId)
 
+  // 980: fleet-aware machinery actions — reassign to a different free
+  // machine in the same fleet, or push a delay update straight into the
+  // existing chat thread. Equipment-only; needs the vehicle's own
+  // fleet_id, which this sheet doesn't otherwise load.
+  const [fleetId, setFleetId] = useState<string | null>(null)
+  useEffect(() => {
+    if (kind !== 'equipment') return
+    supabase.from('vehicles').select('fleet_id').eq('id', vehicleId).maybeSingle().then(({ data }) => setFleetId((data as { fleet_id: string | null } | null)?.fleet_id ?? null))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, vehicleId])
+  const [showReassign, setShowReassign] = useState(false)
+  const [reassignOptions, setReassignOptions] = useState<{ vehicle_id: string; owner_name: string; model: string | null; status: string }[]>([])
+  const [reassignTarget, setReassignTarget] = useState('')
+  const [showDelay, setShowDelay] = useState(false)
+  const [delayDate, setDelayDate] = useState('')
+  const [delayTime, setDelayTime] = useState('')
+  const [delayReason, setDelayReason] = useState('')
+
+  const openReassign = async () => {
+    if (!fleetId || !row) return
+    const { data } = await supabase.rpc('equipment_fleet_availability', { p_fleet_id: fleetId, p_kind: row.kind })
+    setReassignOptions(((data ?? []) as typeof reassignOptions).filter((o) => o.vehicle_id !== vehicleId))
+    setReassignTarget('')
+    setShowReassign(true)
+  }
+  const doReassign = async () => {
+    if (!reassignTarget) return
+    // Real bug caught live: this sheet is scoped to the OLD vehicleId —
+    // run()'s own reload() re-queries that vehicle's bookings right
+    // after reassigning, which no longer includes this booking (its
+    // vehicle_id just changed), so the sheet would otherwise sit there
+    // rendering a generic "could not load" state right after a
+    // successful action. Closing it outright instead — the success
+    // toast already confirmed it, and onChanged (wired to the page's
+    // own board/request list) already reflects the move.
+    const ok = await run('reassign_equipment_booking', { p_booking_id: bookingId, p_new_vehicle_id: reassignTarget }, t('vp.reassignedToast'))
+    if (ok) { setShowReassign(false); onClose() }
+  }
+  const doReportDelay = async () => {
+    if (!delayDate || !delayReason.trim()) return
+    const ok = await run('report_equipment_delay', { p_booking_id: bookingId, p_new_eta_date: delayDate, p_new_eta_time: delayTime || null, p_reason_text: delayReason.trim() }, t('vp.delayReportedToast'))
+    if (ok) { setShowDelay(false); setDelayDate(''); setDelayTime(''); setDelayReason('') }
+  }
+
   if (loading || !row) {
     return (
       <MobilityBottomSheet onClose={onClose}>
@@ -262,6 +306,17 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
                 <Navigation size={14} /> {t('cm.navigateBtn')}
               </a>
             ) : <span />}
+          </div>
+        )}
+
+        {kind === 'equipment' && fleetId && (row.status === 'requested' || row.status === 'accepted') && (
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={openReassign} className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#e5e2d0] font-sans text-[12.5px] font-semibold text-[#166534] cursor-pointer">
+              <Repeat size={13} /> {t('vp.reassignMachineBtn')}
+            </button>
+            <button onClick={() => setShowDelay(true)} className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#e5e2d0] font-sans text-[12.5px] font-semibold text-[#b45309] cursor-pointer">
+              <AlarmClock size={13} /> {t('vp.reportDelayBtn')}
+            </button>
           </div>
         )}
 
@@ -386,6 +441,41 @@ export function BookingLifecycleSheet({ kind, bookingId, vehicleId, commissionMo
     </MobilityBottomSheet>
     {showChat && (
       <BookingChatPanel refType={REF_TYPE[kind]} refId={row.id} otherPartyName={row.customer_name} onClose={() => setShowChat(false)} />
+    )}
+    {showReassign && (
+      <MobilityBottomSheet title={t('vp.reassignMachineBtn')} onClose={() => setShowReassign(false)}>
+        {reassignOptions.length === 0 ? (
+          <p className="font-sans text-[13px] text-[#64748b] text-center py-6">{t('vp.noOtherMachinesHint')}</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {reassignOptions.map((o) => (
+              <button key={o.vehicle_id} onClick={() => setReassignTarget(o.vehicle_id)}
+                className={`flex items-center justify-between gap-2 p-3 rounded-xl border text-left cursor-pointer ${reassignTarget === o.vehicle_id ? 'border-[#166534] bg-[#F0FDF4]' : 'border-[#e5e2d0]'}`}>
+                <span className="font-sans text-[13px] font-semibold text-[#1e293b]">{o.model || o.owner_name}</span>
+                <span className={`font-sans text-[10.5px] font-bold px-2 py-0.5 rounded-full ${o.status === 'free' ? 'bg-[#F0FDF4] text-[#166534]' : 'bg-amber-50 text-amber-700'}`}>
+                  {t(o.status === 'free' ? 'vp.machineFreeLabel' : o.status === 'in_progress' ? 'vp.machineBusyLabel' : 'vp.machineCommittedLabel')}
+                </span>
+              </button>
+            ))}
+            <button onClick={doReassign} disabled={!reassignTarget || busy} className="w-full py-3 rounded-xl text-[14px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50 mt-1">
+              {t('action.confirm')}
+            </button>
+          </div>
+        )}
+      </MobilityBottomSheet>
+    )}
+    {showDelay && (
+      <MobilityBottomSheet title={t('vp.reportDelayBtn')} onClose={() => setShowDelay(false)}>
+        <div className="flex flex-col gap-2.5">
+          <input type="date" value={delayDate} onChange={(e) => setDelayDate(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13px] ltr-num" />
+          <input type="time" value={delayTime} onChange={(e) => setDelayTime(e.target.value)} className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13px] ltr-num" />
+          <textarea value={delayReason} onChange={(e) => setDelayReason(e.target.value)} placeholder={t('vp.delayReasonPlaceholder')} rows={3}
+            className="w-full border border-[#e5e2d0] rounded-xl p-2.5 font-sans text-[13px]" />
+          <button onClick={doReportDelay} disabled={!delayDate || !delayReason.trim() || busy} className="w-full py-3 rounded-xl text-[14px] font-sans font-bold cursor-pointer bg-[#166534] text-white disabled:opacity-50">
+            {t('action.confirm')}
+          </button>
+        </div>
+      </MobilityBottomSheet>
     )}
     </>
   )
