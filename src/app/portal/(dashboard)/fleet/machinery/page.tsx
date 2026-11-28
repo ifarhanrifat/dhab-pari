@@ -187,16 +187,27 @@ export default function FleetMachineryPage() {
                   </div>
                   <FleetStatusPill tone={STATUS_TONE[a.status]}>{t(STATUS_KEY[a.status])}</FleetStatusPill>
                 </div>
+                {/* Real gap caught live: once a request is accepted it
+                    drops off the Requests panel below (status is no
+                    longer 'requested'), and this line used to be plain
+                    text — on a fresh page load there was then no way
+                    back into that booking's sheet at all to reassign,
+                    report a delay, or chat. Both lines now reopen the
+                    same BookingLifecycleSheet the Requests panel uses. */}
                 {a.current_booking && (
-                  <p className="font-sans text-[11.5px] text-[#64748b] mt-1.5 flex items-center gap-1"><Clock3 size={11} />
+                  <button onClick={() => setOpenBooking({ id: a.current_booking!.id, vehicleId: a.vehicle_id })}
+                    className="w-full text-left font-sans text-[11.5px] text-[#64748b] mt-1.5 flex items-center gap-1 cursor-pointer hover:text-[#166534]">
+                    <Clock3 size={11} />
                     {a.current_booking.site_address} · {a.current_booking.customer_name}
                     {a.current_booking.estimated_free_at && ` · ${t('mv.freeAroundLabel')} ${new Date(a.current_booking.estimated_free_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}
-                  </p>
+                  </button>
                 )}
                 {!a.current_booking && a.next_scheduled && (
-                  <p className="font-sans text-[11.5px] text-[#64748b] mt-1.5 flex items-center gap-1"><Clock3 size={11} />
+                  <button onClick={() => setOpenBooking({ id: a.next_scheduled!.id, vehicleId: a.vehicle_id })}
+                    className="w-full text-left font-sans text-[11.5px] text-[#64748b] mt-1.5 flex items-center gap-1 cursor-pointer hover:text-[#166534]">
+                    <Clock3 size={11} />
                     {t('mv.nextJobLabel')}: {a.next_scheduled.site_address} — {a.next_scheduled.scheduled_date}{a.next_scheduled.scheduled_time ? ` ${a.next_scheduled.scheduled_time.slice(0, 5)}` : ''}
-                  </p>
+                  </button>
                 )}
                 {a.offers_tractor && (
                   <button onClick={() => openServices(a.vehicle_id, a.model || a.vehicle_type)}
